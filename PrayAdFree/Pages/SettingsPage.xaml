@@ -15,16 +15,17 @@
                     <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                         <Label Text="{loc:Loc UseGps}" FontSize="14"/>
                         <Switch IsToggled="{Binding UseGps}" />
+                        <Button Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" />
                     </HorizontalStackLayout>
                     <Label Text="{loc:Loc Country}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Country}" ItemsSource="{Binding CountryOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCountry}" />
+                    <Picker Title="{loc:Loc Country}" ItemsSource="{Binding CountryOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCountry}" IsEnabled="{Binding IsManualLocationEnabled}" />
                     <Label Text="{loc:Loc City}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc City}" ItemsSource="{Binding CityOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCity}" />
+                    <Picker Title="{loc:Loc City}" ItemsSource="{Binding CityOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCity}" IsEnabled="{Binding IsManualLocationEnabled}" />
                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
                         <Label Text="{loc:Loc Latitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Label Text="{loc:Loc Longitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
-                        <Entry Placeholder="{loc:Loc Latitude}" Text="{Binding Latitude}" Grid.Row="1" />
-                        <Entry Placeholder="{loc:Loc Longitude}" Text="{Binding Longitude}" Grid.Row="1" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc Latitude}" Text="{Binding Latitude}" Grid.Row="1" IsEnabled="{Binding IsManualLocationEnabled}" />
+                        <Entry Placeholder="{loc:Loc Longitude}" Text="{Binding Longitude}" Grid.Row="1" Grid.Column="1" IsEnabled="{Binding IsManualLocationEnabled}" />
                     </Grid>
                 </VerticalStackLayout>
             </Border>

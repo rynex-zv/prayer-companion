@@ -60,6 +60,9 @@ public sealed class CalendarViewModel : ViewModelBase {
             }
 
             StatusMessage = $"Loaded {month.Days.Count} days";
+        } catch (Exception ex) {
+            Days.Clear();
+            StatusMessage = $"Failed to load: {ex.Message}";
         } finally {
             IsBusy = false;
         }

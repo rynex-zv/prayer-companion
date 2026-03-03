@@ -44,6 +44,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private int _geoVersion;
     private PlaceOption? _selectedCountry;
     private PlaceOption? _selectedCity;
+    private bool _gpsBusy;
+    private CancellationTokenSource? _gpsLoopCts;
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService) {
         _dataService = dataService;
@@ -59,6 +61,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         CountryOptions = new ObservableCollection<PlaceOption>();
         CityOptions = new ObservableCollection<PlaceOption>();
         BuildLocalizedPickers();
+        RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -77,15 +80,32 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<string>> Languages { get; }
     public ObservableCollection<PlaceOption> CountryOptions { get; }
     public ObservableCollection<PlaceOption> CityOptions { get; }
+    public Command RefreshGpsCommand { get; }
     public bool UseGps {
         get => _useGps;
         set {
             if (SetProperty(ref _useGps, value) && !_suspendSave) {
                 ScheduleSave();
+                OnPropertyChanged(nameof(IsManualLocationEnabled));
+                if (value) {
+                    StartGpsLoop();
+                } else {
+                    StopGpsLoop();
+                }
             }
         }
     }
 
+    public bool IsManualLocationEnabled => !UseGps;
+
+    public bool GpsBusy {
+        get => _gpsBusy;
+        set {
+            if (SetProperty(ref _gpsBusy, value)) {
+                MainThread.BeginInvokeOnMainThread(() => RefreshGpsCommand.ChangeCanExecute());
+            }
+        }
+    }
     public string City {
         get => _city;
         set => SetProperty(ref _city, value);
@@ -265,14 +285,17 @@ public sealed class SettingsViewModel : ViewModelBase {
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.A, _settings.AccentIndex);
         BuildPlaceOptions();
         _suspendSave = false;
+        if (UseGps) {
+            StartGpsLoop();
+        }
     }
 
     private void Save() {
         var mode = UseGps ? LocationMode.Gps : LocationMode.Manual;
         var location = new LocationSettings {
             Mode = mode,
-            City = City?.Trim() ?? "",
-            Country = Country?.Trim() ?? "",
+            City = NormalizeName(City?.Trim()),
+            Country = NormalizeName(Country?.Trim()),
             Latitude = ParseDouble(Latitude),
             Longitude = ParseDouble(Longitude),
             CountryCode = _settings.Location.CountryCode,
@@ -361,8 +384,10 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
 
         CountryOptions.Clear();
-        foreach (var country in known.GroupBy(item => item.Country).Select(group => group.First())) {
-            CountryOptions.Add(new PlaceOption(country.Country, country.City, country.Latitude, country.Longitude, true));
+        foreach (var country in known.GroupBy(item => NormalizeName(item.Country)).Select(group => group.First())) {
+            var countryName = NormalizeName(country.Country);
+            var cityName = NormalizeName(country.City);
+            CountryOptions.Add(new PlaceOption(countryName, cityName, country.Latitude, country.Longitude, true));
         }
 
         if (CountryOptions.Count == 0) {
@@ -378,11 +403,11 @@ public sealed class SettingsViewModel : ViewModelBase {
     private void UpdateCityOptions(string? country) {
         CityOptions.Clear();
         var known = _geoService.GetKnownPlaces()
-            .Where(item => string.Equals(item.Country, country, StringComparison.OrdinalIgnoreCase))
+            .Where(item => string.Equals(NormalizeName(item.Country), NormalizeName(country ?? ""), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var city in known.Where(item => !string.IsNullOrWhiteSpace(item.City))) {
-            CityOptions.Add(new PlaceOption(city.Country, city.City, city.Latitude, city.Longitude, false));
+            CityOptions.Add(new PlaceOption(NormalizeName(city.Country), NormalizeName(city.City), city.Latitude, city.Longitude, false));
         }
 
         if (CityOptions.Count == 0 && !string.IsNullOrWhiteSpace(country)) {
@@ -406,9 +431,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         var result = await _geoService.ForwardAsync(country, CancellationToken.None).ConfigureAwait(false);
         _suspendSave = true;
         UseGps = false;
-        Country = country;
+        Country = NormalizeName(country);
         if (result != null) {
-            City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : result.City;
+            City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
             Latitude = result.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
             Longitude = result.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
         } else {
@@ -439,8 +464,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             UseGps = true;
         } else {
             UseGps = false;
-            City = option.City;
-            Country = option.Country;
+            City = NormalizeName(option.City);
+            Country = NormalizeName(option.Country);
             Latitude = option.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
             Longitude = option.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
         }
@@ -602,8 +627,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             _suspendSave = true;
             UseGps = false;
             if (result != null) {
-                City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : result.City;
-                Country = string.IsNullOrWhiteSpace(result.Country) ? LocalizationManager.Translate("UnknownCountry") : result.Country;
+                City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
+                Country = string.IsNullOrWhiteSpace(result.Country) ? LocalizationManager.Translate("UnknownCountry") : NormalizeName(result.Country);
             } else {
                 City = LocalizationManager.Translate("UnknownCity");
                 Country = LocalizationManager.Translate("UnknownCountry");
@@ -611,5 +636,109 @@ public sealed class SettingsViewModel : ViewModelBase {
             _suspendSave = false;
             BuildPlaceOptions();
         });
+    }
+
+    private async Task RefreshGpsAsync() {
+        if (_suspendSave || GpsBusy) {
+            return;
+        }
+
+        try {
+            GpsBusy = true;
+            _suspendSave = true;
+            UseGps = true;
+            _suspendSave = false;
+            ScheduleSave();
+
+            var settings = _dataService.LoadSettings();
+            settings = new AppSettings {
+                Location = new LocationSettings {
+                    Mode = LocationMode.Gps,
+                    City = settings.Location.City,
+                    Country = settings.Location.Country,
+                    CountryCode = settings.Location.CountryCode,
+                    Latitude = settings.Location.Latitude,
+                    Longitude = settings.Location.Longitude,
+                    TimeZoneId = settings.Location.TimeZoneId,
+                    LastUpdatedUtc = settings.Location.LastUpdatedUtc
+                },
+                Method = settings.Method,
+                Madhhab = settings.Madhhab,
+                HighLatitudeRule = settings.HighLatitudeRule,
+                Offsets = settings.Offsets,
+                Notifications = settings.Notifications,
+                Language = settings.Language,
+                LanguageSelected = settings.LanguageSelected,
+                ThemeMode = settings.ThemeMode,
+                ThemeVariant = settings.ThemeVariant,
+                AccentIndex = settings.AccentIndex
+            };
+
+            var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None).ConfigureAwait(false);
+            MainThread.BeginInvokeOnMainThread(() => {
+                _suspendSave = true;
+                UseGps = true;
+                City = NormalizeName(updated.Location.City);
+                Country = NormalizeName(updated.Location.Country);
+                Latitude = updated.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+                Longitude = updated.Location.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+                _suspendSave = false;
+                BuildPlaceOptions();
+                ScheduleSave();
+            });
+        } finally {
+            GpsBusy = false;
+        }
+    }
+
+    private void StartGpsLoop() {
+        StopGpsLoop();
+        _gpsLoopCts = new CancellationTokenSource();
+        _ = GpsLoopAsync(_gpsLoopCts.Token);
+    }
+
+    private void StopGpsLoop() {
+        _gpsLoopCts?.Cancel();
+        _gpsLoopCts?.Dispose();
+        _gpsLoopCts = null;
+    }
+
+    private async Task GpsLoopAsync(CancellationToken token) {
+        while (!token.IsCancellationRequested) {
+            await RefreshGpsAsync().ConfigureAwait(false);
+            try {
+                await Task.Delay(TimeSpan.FromMinutes(2), token).ConfigureAwait(false);
+            } catch (TaskCanceledException) {
+                break;
+            }
+        }
+    }
+
+    private static string NormalizeName(string? value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return "";
+        }
+
+        var trimmed = value.Trim();
+        for (var len = 1; len <= trimmed.Length / 2; len++) {
+            if (trimmed.Length % len != 0) {
+                continue;
+            }
+
+            var segment = trimmed.Substring(0, len);
+            var repeats = trimmed.Length / len;
+            var allMatch = true;
+            for (var i = 1; i < repeats; i++) {
+                if (!string.Equals(segment, trimmed.Substring(i * len, len), StringComparison.Ordinal)) {
+                    allMatch = false;
+                    break;
+                }
+            }
+            if (allMatch) {
+                return segment;
+            }
+        }
+
+        return trimmed;
     }
 }

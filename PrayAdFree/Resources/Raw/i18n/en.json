@@ -66,5 +66,6 @@
   "Madhhab_Hanafi": "Hanafi",
   "HighLatitude_MiddleOfTheNight": "Middle of the Night",
   "HighLatitude_SeventhOfTheNight": "Seventh of the Night",
-  "HighLatitude_TwilightAngle": "Twilight Angle"
+  "HighLatitude_TwilightAngle": "Twilight Angle",
+  "UpdateGps": "Update location (GPS)"
 }

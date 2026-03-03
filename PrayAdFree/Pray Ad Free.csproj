@@ -89,4 +89,8 @@
 		<Content Include="Resources\Raw\i18n\*.json" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />
+	</ItemGroup>
+
 </Project>

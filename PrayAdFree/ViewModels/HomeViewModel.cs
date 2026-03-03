@@ -28,6 +28,7 @@ public sealed class HomeViewModel : ViewModelBase {
         RefreshCommand = new Command(async () => await RefreshAsync());
         TodayTimings = new ObservableCollection<PrayerTimeRow>();
         LocalizationManager.LanguageChanged += (_, _) => RefreshLocalization();
+        _dataService.SettingsChanged += (_, _) => MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
     }
 
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }

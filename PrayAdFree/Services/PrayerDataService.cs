@@ -9,6 +9,7 @@ public sealed class PrayerDataService {
     private readonly ILocationProvider _locationProvider;
     private readonly PrayerTimesService _prayerTimesService;
     private readonly ILocalNotificationScheduler _notificationScheduler;
+    public event EventHandler<AppSettings>? SettingsChanged;
 
     public PrayerDataService(
         SettingsService settingsService,
@@ -23,7 +24,10 @@ public sealed class PrayerDataService {
 
     public AppSettings LoadSettings() => _settingsService.Load();
 
-    public void SaveSettings(AppSettings settings) => _settingsService.Save(settings);
+    public void SaveSettings(AppSettings settings) {
+        _settingsService.Save(settings);
+        SettingsChanged?.Invoke(this, settings);
+    }
 
     public async Task<PrayerMonth> GetMonthAsync(AppSettings settings, DateTime date, CancellationToken cancellationToken) {
         var updatedSettings = await UpdateLocationAsync(settings, cancellationToken).ConfigureAwait(false);

@@ -66,5 +66,6 @@
   "Madhhab_Hanafi": "Hanefi",
   "HighLatitude_MiddleOfTheNight": "Gecenin ortasi",
   "HighLatitude_SeventhOfTheNight": "Gecenin yedide biri",
-  "HighLatitude_TwilightAngle": "Alacakaranlik acisi"
+  "HighLatitude_TwilightAngle": "Alacakaranlik acisi",
+  "UpdateGps": "GPS ile guncelle"
 }

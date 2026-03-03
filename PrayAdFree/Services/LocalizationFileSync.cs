@@ -27,20 +27,21 @@ public sealed class LocalizationFileSync {
         foreach (var file in Files) {
             var targetPath = Path.Combine(FileSystem.AppDataDirectory, file.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            var content = TryReadPackageText(file);
-            if (content != null) {
-                File.WriteAllText(targetPath, content);
+            var bytes = TryReadPackageBytes(file);
+            if (bytes != null) {
+                File.WriteAllBytes(targetPath, bytes);
             }
         }
 
         File.WriteAllText(versionPath, currentVersion);
     }
 
-    private static string? TryReadPackageText(string relativePath) {
+    private static byte[]? TryReadPackageBytes(string relativePath) {
         try {
             using var stream = FileSystem.OpenAppPackageFileAsync(relativePath).GetAwaiter().GetResult();
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            return memory.ToArray();
         } catch {
             var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
             var candidates = new[] {
@@ -50,7 +51,7 @@ public sealed class LocalizationFileSync {
             };
             foreach (var candidate in candidates) {
                 if (File.Exists(candidate)) {
-                    return File.ReadAllText(candidate);
+                    return File.ReadAllBytes(candidate);
                 }
             }
         }
