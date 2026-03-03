@@ -11,4 +11,20 @@ public partial class SettingsPage : ContentPage {
         InitializeComponent();
         BindingContext = viewModel;
     }
+
+    private async void OnLocationsClicked(object? sender, EventArgs e) {
+        await Shell.Current.GoToAsync("settings/locations");
+    }
+
+    private async void OnDiagnosticsClicked(object? sender, EventArgs e) {
+        await Shell.Current.GoToAsync("settings/diagnostics");
+    }
+
+    private async void OnAdhanClicked(object? sender, EventArgs e) {
+        await Shell.Current.GoToAsync("settings/adhan");
+    }
+
+    private async void OnNotificationsClicked(object? sender, EventArgs e) {
+        await Shell.Current.GoToAsync("settings/notifications");
+    }
 }

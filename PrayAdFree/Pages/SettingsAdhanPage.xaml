@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.SettingsAdhanPage"
+             Title="{loc:Loc AdhanCustomizations}">
+    <ScrollView>
+        <VerticalStackLayout Spacing="18" Padding="24,32">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc AdhanCustomizations}" FontSize="16" />
+                    <Label Text="{loc:Loc Method}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Method}" ItemsSource="{Binding Methods}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMethod}" />
+                    <Label Text="{loc:Loc Madhhab}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Madhhab}" ItemsSource="{Binding Madhhabs}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMadhhab}" />
+                    <Label Text="{loc:Loc HighLatitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc HighLatitude}" ItemsSource="{Binding HighLatitudeRules}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedHighLatitude}" />
+
+                    <Label Text="{loc:Loc Offsets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        <Label Text="{loc:Loc Prayer_Fajr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Label Text="{loc:Loc Prayer_Sunrise}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc Prayer_Fajr}" Text="{Binding FajrOffset}" Grid.Row="1" />
+                        <Entry Placeholder="{loc:Loc Prayer_Sunrise}" Text="{Binding SunriseOffset}" Grid.Row="1" Grid.Column="1" />
+                        <Label Text="{loc:Loc Prayer_Dhuhr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="2" />
+                        <Label Text="{loc:Loc Prayer_Asr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="2" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc Prayer_Dhuhr}" Text="{Binding DhuhrOffset}" Grid.Row="3" />
+                        <Entry Placeholder="{loc:Loc Prayer_Asr}" Text="{Binding AsrOffset}" Grid.Row="3" Grid.Column="1" />
+                        <Label Text="{loc:Loc Prayer_Maghrib}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="4" />
+                        <Label Text="{loc:Loc Prayer_Isha}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="4" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc Prayer_Maghrib}" Text="{Binding MaghribOffset}" Grid.Row="5" />
+                        <Entry Placeholder="{loc:Loc Prayer_Isha}" Text="{Binding IshaOffset}" Grid.Row="5" Grid.Column="1" />
+                        <Label Text="{loc:Loc Prayer_Imsak}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="6" />
+                        <Entry Placeholder="{loc:Loc Prayer_Imsak}" Text="{Binding ImsakOffset}" Grid.Row="7" />
+                    </Grid>
+
+                    <Label Text="{loc:Loc ClockFormat}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc ClockFormat}" ItemsSource="{Binding ClockFormats}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedClockFormat}" />
+
+                    <Label Text="{loc:Loc FastingSettings}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                        <Label Text="{loc:Loc ImsakAdvance}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Label Text="{loc:Loc IftarDelay}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc ImsakAdvance}" Text="{Binding ImsakAdvance}" Grid.Row="1" />
+                        <Entry Placeholder="{loc:Loc IftarDelay}" Text="{Binding IftarDelay}" Grid.Row="1" Grid.Column="1" />
+                    </Grid>
+
+                    <Label Text="{loc:Loc ImsakReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                        <Entry Placeholder="{loc:Loc ReminderValue}" Text="{Binding ImsakReminderValue}" />
+                        <Picker Title="{loc:Loc ReminderUnit}" ItemsSource="{Binding ReminderUnits}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedImsakReminderUnit}" Grid.Column="1" />
+                        <Picker Title="{loc:Loc ReminderDirection}" ItemsSource="{Binding ReminderDirections}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedImsakReminderDirection}" Grid.Column="2" />
+                        <Button Text="{loc:Loc Add}" Command="{Binding AddImsakReminderCommand}" Grid.Column="3" />
+                        <CollectionView Grid.ColumnSpan="4" Grid.Row="1" ItemsSource="{Binding ImsakReminders}" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto" Padding="4,2">
+                                        <Label Text="{Binding Label}" FontSize="13" />
+                                        <Button Text="{loc:Loc Remove}" Command="{Binding BindingContext.RemoveImsakReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="1" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Grid>
+
+                    <Label Text="{loc:Loc IftarReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                        <Entry Placeholder="{loc:Loc ReminderValue}" Text="{Binding IftarReminderValue}" />
+                        <Picker Title="{loc:Loc ReminderUnit}" ItemsSource="{Binding ReminderUnits}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedIftarReminderUnit}" Grid.Column="1" />
+                        <Picker Title="{loc:Loc ReminderDirection}" ItemsSource="{Binding ReminderDirections}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedIftarReminderDirection}" Grid.Column="2" />
+                        <Button Text="{loc:Loc Add}" Command="{Binding AddIftarReminderCommand}" Grid.Column="3" />
+                        <CollectionView Grid.ColumnSpan="4" Grid.Row="1" ItemsSource="{Binding IftarReminders}" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="*,Auto" Padding="4,2">
+                                        <Label Text="{Binding Label}" FontSize="13" />
+                                        <Button Text="{loc:Loc Remove}" Command="{Binding BindingContext.RemoveIftarReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="1" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

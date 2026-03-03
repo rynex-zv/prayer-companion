@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.SettingsDiagnosticsPage"
+             Title="{loc:Loc Diagnostics}">
+    <ScrollView>
+        <VerticalStackLayout Spacing="18" Padding="24,32">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc Diagnostics}" FontSize="16" />
+                    <Label Text="{loc:Loc ThemeMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc ThemeMode}" ItemsSource="{Binding ThemeModes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedThemeMode}" />
+                    <Label Text="{loc:Loc ThemeVariant}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc ThemeVariant}" ItemsSource="{Binding ThemeVariants}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedThemeVariant}" />
+                    <Label Text="{loc:Loc ThemeColor}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <BoxView Color="{Binding AccentPreviewColor}" WidthRequest="28" HeightRequest="28" CornerRadius="6" />
+                        <Picker Title="{loc:Loc ThemeColor}" ItemsSource="{Binding AccentOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAccent}" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="{loc:Loc TextSize}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                        <Button Text="-" Command="{Binding DecreaseTextSizeCommand}" WidthRequest="44" />
+                        <Label Text="{Binding TextScaleLabel}" FontSize="14" />
+                        <Button Text="+" Command="{Binding IncreaseTextSizeCommand}" WidthRequest="44" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="{loc:Loc Language}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Language}" ItemsSource="{Binding Languages}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedLanguage}" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

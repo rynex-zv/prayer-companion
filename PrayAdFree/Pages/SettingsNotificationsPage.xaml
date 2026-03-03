@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.SettingsNotificationsPage"
+             Title="{loc:Loc Notifications}">
+    <ScrollView>
+        <VerticalStackLayout Spacing="18" Padding="24,32">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc Notifications}" FontSize="16" />
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <Label Text="{loc:Loc EnableAdhan}" FontSize="14"/>
+                        <Switch IsToggled="{Binding NotificationsEnabled}" />
+                    </HorizontalStackLayout>
+                    <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc AdhanSound}" ItemsSource="{Binding AdhanSounds}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanSound}" />
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <Label Text="{loc:Loc Vibration}" FontSize="14"/>
+                        <Switch IsToggled="{Binding VibrationEnabled}" />
+                    </HorizontalStackLayout>
+                    <Label Text="{loc:Loc VibrationStrength}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc VibrationStrength}" ItemsSource="{Binding VibrationStrengths}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedVibrationStrength}" />
+                    <Label Text="{loc:Loc VibrationPattern}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc VibrationPattern}" ItemsSource="{Binding VibrationPatterns}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedVibrationPattern}" />
+                    <Label Text="{loc:Loc MinutesBefore}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Entry Placeholder="{loc:Loc MinutesBefore}" Text="{Binding MinutesBefore}" />
+
+                    <Label Text="{loc:Loc AdhanReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                        <Picker Title="{loc:Loc ReminderScope}" ItemsSource="{Binding AdhanReminderScopes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderScope}" />
+                        <Picker Title="{loc:Loc ReminderPrayer}" ItemsSource="{Binding AdhanReminderPrayers}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderPrayer}" Grid.Column="1" IsEnabled="{Binding IsReminderPrayerEnabled}" />
+                        <Grid Grid.ColumnSpan="2" Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                            <Entry Placeholder="{loc:Loc ReminderValue}" Text="{Binding AdhanReminderValue}" />
+                            <Picker Title="{loc:Loc ReminderUnit}" ItemsSource="{Binding ReminderUnits}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderUnit}" Grid.Column="1" />
+                            <Picker Title="{loc:Loc ReminderDirection}" ItemsSource="{Binding ReminderDirections}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderDirection}" Grid.Column="2" />
+                            <Button Text="{loc:Loc Add}" Command="{Binding AddAdhanReminderCommand}" Grid.Column="3" />
+                            <CollectionView Grid.ColumnSpan="4" Grid.Row="1" ItemsSource="{Binding AdhanReminders}" SelectionMode="None">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto" Padding="4,2">
+                                            <Label Text="{Binding Label}" FontSize="13" />
+                                            <Button Text="{loc:Loc Remove}" Command="{Binding BindingContext.RemoveAdhanReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="1" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </Grid>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

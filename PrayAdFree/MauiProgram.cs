@@ -55,7 +55,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<HomeViewModel>();
             builder.Services.AddTransient<CalendarViewModel>();
             builder.Services.AddTransient<QiblaViewModel>();
-            builder.Services.AddTransient<SettingsViewModel>();
+            builder.Services.AddSingleton<SettingsViewModel>();
             builder.Services.AddTransient<AboutViewModel>();
             builder.Services.AddTransient<TasbihViewModel>();
             builder.Services.AddTransient<LanguageSelectionViewModel>();
@@ -65,6 +65,10 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<QiblaPage>();
             builder.Services.AddTransient<TasbihPage>();
             builder.Services.AddTransient<SettingsPage>();
+            builder.Services.AddTransient<SettingsLocationsPage>();
+            builder.Services.AddTransient<SettingsDiagnosticsPage>();
+            builder.Services.AddTransient<SettingsAdhanPage>();
+            builder.Services.AddTransient<SettingsNotificationsPage>();
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();
             builder.Services.AddTransient<AppShell>();

@@ -13,6 +13,10 @@ namespace Pray_Ad_Free {
 
             InitializeComponent();
             ThemeManager.ApplyTheme(settings);
+            Routing.RegisterRoute("settings/locations", typeof(Pages.SettingsLocationsPage));
+            Routing.RegisterRoute("settings/diagnostics", typeof(Pages.SettingsDiagnosticsPage));
+            Routing.RegisterRoute("settings/adhan", typeof(Pages.SettingsAdhanPage));
+            Routing.RegisterRoute("settings/notifications", typeof(Pages.SettingsNotificationsPage));
 
             Navigated += async (_, _) => {
                 var current = settingsService.Load();
