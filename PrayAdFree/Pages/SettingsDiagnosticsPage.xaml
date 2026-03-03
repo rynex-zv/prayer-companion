@@ -4,6 +4,17 @@
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
              x:Class="Pray_Ad_Free.Pages.SettingsDiagnosticsPage"
              Title="{loc:Loc Diagnostics}">
+    <ContentPage.Resources>
+        <Style TargetType="Entry">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style TargetType="Picker">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+    </ContentPage.Resources>
     <ScrollView>
         <VerticalStackLayout Spacing="18" Padding="24,32">
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
