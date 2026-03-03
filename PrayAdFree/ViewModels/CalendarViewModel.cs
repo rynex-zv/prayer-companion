@@ -51,11 +51,11 @@ public sealed class CalendarViewModel : ViewModelBase {
                 Days.Add(new PrayerDayRow {
                     Date = day.Date.ToString("dd MMM"),
                     Hijri = day.Hijri.Date,
-                    Fajr = day.Timings.Fajr.ToString("t"),
-                    Dhuhr = day.Timings.Dhuhr.ToString("t"),
-                    Asr = day.Timings.Asr.ToString("t"),
-                    Maghrib = day.Timings.Maghrib.ToString("t"),
-                    Isha = day.Timings.Isha.ToString("t")
+                    Fajr = TimeFormatHelper.FormatTime(day.Timings.Fajr, settings.ClockFormat),
+                    Dhuhr = TimeFormatHelper.FormatTime(day.Timings.Dhuhr, settings.ClockFormat),
+                    Asr = TimeFormatHelper.FormatTime(day.Timings.Asr, settings.ClockFormat),
+                    Maghrib = TimeFormatHelper.FormatTime(day.Timings.Maghrib, settings.ClockFormat),
+                    Isha = TimeFormatHelper.FormatTime(day.Timings.Isha, settings.ClockFormat)
                 });
             }
 

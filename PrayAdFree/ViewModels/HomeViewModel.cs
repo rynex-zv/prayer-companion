@@ -141,7 +141,7 @@ public sealed class HomeViewModel : ViewModelBase {
 
         (_nextPrayerId, _nextPrayerTime) = NextPrayerCalculator.GetNext(_today, now);
         NextPrayerName = LocalizationManager.TranslatePrayer(_nextPrayerId);
-        NextPrayerClock = _nextPrayerTime.ToString("t");
+        NextPrayerClock = TimeFormatHelper.FormatTime(_nextPrayerTime, _settings.ClockFormat);
     }
 
     private void BuildRows() {
@@ -159,15 +159,15 @@ public sealed class HomeViewModel : ViewModelBase {
             TodayTimings.Add(new PrayerTimeRow {
                 Id = prayer,
                 Name = LocalizationManager.TranslatePrayer(prayer),
-                Time = time.ToString("t"),
+                Time = TimeFormatHelper.FormatTime(time, _settings.ClockFormat),
                 IsNext = prayer == _nextPrayerId
             });
         }
 
         var imsak = _today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes);
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
-        ImsakTime = imsak.ToString("t");
-        IftarTime = iftar.ToString("t");
+        ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
+        IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
     }
 
     private void RefreshLocalization() {

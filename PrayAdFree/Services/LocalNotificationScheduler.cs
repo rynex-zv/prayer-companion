@@ -41,7 +41,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 request.Android = new AndroidOptions {
                     Priority = AndroidPriority.High,
                     ChannelId = "prayer_times",
-                    VibrationPattern = settings.Notifications.EnableVibration ? new long[] { 0, 400, 200, 400 } : Array.Empty<long>()
+                    VibrationPattern = BuildVibration(settings.Notifications)
                 };
 #endif
 
@@ -49,6 +49,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             }
 
             await ScheduleFastingRemindersAsync(day, settings);
+            await ScheduleAdhanRemindersAsync(day, settings);
         }
     }
 
@@ -66,6 +67,24 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     }
 
     private static bool ShouldSchedule(DateTime time) => time > DateTime.Now;
+
+    private static long[] BuildVibration(NotificationSettings settings) {
+        if (!settings.EnableVibration) {
+            return Array.Empty<long>();
+        }
+
+        var strength = settings.VibrationStrength switch {
+            VibrationStrength.Low => 200,
+            VibrationStrength.Medium => 400,
+            _ => 700
+        };
+
+        return settings.VibrationPattern switch {
+            VibrationPattern.Long => new long[] { 0, strength * 2 },
+            VibrationPattern.Pulse => new long[] { 0, strength, 200, strength, 200, strength },
+            _ => new long[] { 0, strength, 200, strength }
+        };
+    }
 
     private async Task ScheduleFastingRemindersAsync(PrayerDay day, AppSettings settings) {
         var baseImsak = day.Timings.Imsak.AddMinutes(-settings.FastingOffsets.ImsakAdvanceMinutes);
@@ -91,7 +110,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             request.Android = new AndroidOptions {
                 Priority = AndroidPriority.Default,
                 ChannelId = "prayer_times",
-                VibrationPattern = settings.Notifications.EnableVibration ? new long[] { 0, 300, 200, 300 } : Array.Empty<long>()
+                VibrationPattern = BuildVibration(settings.Notifications)
             };
 #endif
             await LocalNotificationCenter.Current.Show(request);
@@ -117,10 +136,59 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             request.Android = new AndroidOptions {
                 Priority = AndroidPriority.Default,
                 ChannelId = "prayer_times",
-                VibrationPattern = settings.Notifications.EnableVibration ? new long[] { 0, 300, 200, 300 } : Array.Empty<long>()
+                VibrationPattern = BuildVibration(settings.Notifications)
             };
 #endif
             await LocalNotificationCenter.Current.Show(request);
+        }
+    }
+
+    private async Task ScheduleAdhanRemindersAsync(PrayerDay day, AppSettings settings) {
+        var notificationSettings = settings.Notifications;
+        if (!notificationSettings.EnableAdhan) {
+            return;
+        }
+
+        var offsets = notificationSettings.ReminderOffsetsMinutes
+            .Where(item => item != 0)
+            .Distinct()
+            .OrderBy(item => item)
+            .ToList();
+        if (offsets.Count == 0) {
+            return;
+        }
+
+        var prayers = notificationSettings.ReminderScope == AdhanReminderScope.SpecificPrayer
+            ? new[] { notificationSettings.ReminderPrayer }
+            : new[] { PrayerId.Fajr, PrayerId.Dhuhr, PrayerId.Asr, PrayerId.Maghrib, PrayerId.Isha };
+
+        for (var p = 0; p < prayers.Length; p++) {
+            var prayer = prayers[p];
+            var baseTime = day.Timings.Get(prayer);
+            for (var i = 0; i < offsets.Count; i++) {
+                var notifyTime = baseTime.AddMinutes(offsets[i]);
+                if (!ShouldSchedule(notifyTime)) {
+                    continue;
+                }
+
+                var request = new NotificationRequest {
+                    NotificationId = BuildReminderId(day.Date, 20 + p, i),
+                    Title = LocalizationManager.Translate("AdhanReminder"),
+                    Description = LocalizationManager.TranslatePrayer(prayer),
+                    Schedule = new NotificationRequestSchedule {
+                        NotifyTime = notifyTime,
+                        NotifyRepeatInterval = null
+                    }
+                };
+#if ANDROID
+                request.Android = new AndroidOptions {
+                    Priority = AndroidPriority.Default,
+                    ChannelId = "prayer_times",
+                    VibrationPattern = BuildVibration(notificationSettings)
+                };
+#endif
+                await LocalNotificationCenter.Current.Show(request);
+            }
         }
     }
 }

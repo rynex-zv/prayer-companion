@@ -34,6 +34,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _iftarDelay = "0";
     private string _imsakReminderValue = "";
     private string _iftarReminderValue = "";
+    private string _adhanReminderValue = "";
     private bool _notificationsEnabled;
     private bool _vibrationEnabled;
     private string _minutesBefore = "0";
@@ -54,6 +55,16 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<int>? _selectedImsakReminderDirection;
     private OptionItem<int>? _selectedIftarReminderUnit;
     private OptionItem<int>? _selectedIftarReminderDirection;
+    private OptionItem<int>? _selectedAdhanReminderUnit;
+    private OptionItem<int>? _selectedAdhanReminderDirection;
+    private OptionItem<ClockFormat>? _selectedClockFormat;
+    private OptionItem<string>? _selectedAdhanSound;
+    private OptionItem<VibrationStrength>? _selectedVibrationStrength;
+    private OptionItem<VibrationPattern>? _selectedVibrationPattern;
+    private OptionItem<AdhanReminderScope>? _selectedAdhanReminderScope;
+    private OptionItem<PrayerId>? _selectedAdhanReminderPrayer;
+    private int _textScale;
+    private string _textScaleLabel = "";
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService) {
         _dataService = dataService;
@@ -72,13 +83,26 @@ public sealed class SettingsViewModel : ViewModelBase {
         ReminderDirections = new ObservableCollection<OptionItem<int>>();
         ImsakReminders = new ObservableCollection<ReminderOffsetItem>();
         IftarReminders = new ObservableCollection<ReminderOffsetItem>();
+        AdhanReminders = new ObservableCollection<ReminderOffsetItem>();
+        ClockFormats = new ObservableCollection<OptionItem<ClockFormat>>();
+        AdhanSounds = new ObservableCollection<OptionItem<string>>();
+        VibrationStrengths = new ObservableCollection<OptionItem<VibrationStrength>>();
+        VibrationPatterns = new ObservableCollection<OptionItem<VibrationPattern>>();
+        AdhanReminderScopes = new ObservableCollection<OptionItem<AdhanReminderScope>>();
+        AdhanReminderPrayers = new ObservableCollection<OptionItem<PrayerId>>();
         BuildLocalizedPickers();
         BuildReminderOptions();
+        BuildClockFormats();
+        BuildNotificationOptions();
         RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
         AddImsakReminderCommand = new Command(AddImsakReminder);
         AddIftarReminderCommand = new Command(AddIftarReminder);
         RemoveImsakReminderCommand = new Command<ReminderOffsetItem>(RemoveImsakReminder);
         RemoveIftarReminderCommand = new Command<ReminderOffsetItem>(RemoveIftarReminder);
+        AddAdhanReminderCommand = new Command(AddAdhanReminder);
+        RemoveAdhanReminderCommand = new Command<ReminderOffsetItem>(RemoveAdhanReminder);
+        IncreaseTextSizeCommand = new Command(IncreaseTextSize);
+        DecreaseTextSizeCommand = new Command(DecreaseTextSize);
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -87,6 +111,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             BuildPlaceOptions();
             BuildReminderOptions();
             RebuildReminderLabels();
+            BuildClockFormats();
+            BuildNotificationOptions();
         };
     }
 
@@ -103,11 +129,22 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<int>> ReminderDirections { get; }
     public ObservableCollection<ReminderOffsetItem> ImsakReminders { get; }
     public ObservableCollection<ReminderOffsetItem> IftarReminders { get; }
+    public ObservableCollection<ReminderOffsetItem> AdhanReminders { get; }
+    public ObservableCollection<OptionItem<ClockFormat>> ClockFormats { get; }
+    public ObservableCollection<OptionItem<string>> AdhanSounds { get; }
+    public ObservableCollection<OptionItem<VibrationStrength>> VibrationStrengths { get; }
+    public ObservableCollection<OptionItem<VibrationPattern>> VibrationPatterns { get; }
+    public ObservableCollection<OptionItem<AdhanReminderScope>> AdhanReminderScopes { get; }
+    public ObservableCollection<OptionItem<PrayerId>> AdhanReminderPrayers { get; }
     public Command RefreshGpsCommand { get; }
     public Command AddImsakReminderCommand { get; }
     public Command AddIftarReminderCommand { get; }
     public Command RemoveImsakReminderCommand { get; }
     public Command RemoveIftarReminderCommand { get; }
+    public Command AddAdhanReminderCommand { get; }
+    public Command RemoveAdhanReminderCommand { get; }
+    public Command IncreaseTextSizeCommand { get; }
+    public Command DecreaseTextSizeCommand { get; }
     public bool UseGps {
         get => _useGps;
         set {
@@ -253,6 +290,11 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _iftarReminderValue, value);
     }
 
+    public string AdhanReminderValue {
+        get => _adhanReminderValue;
+        set => SetProperty(ref _adhanReminderValue, value);
+    }
+
     public OptionItem<int>? SelectedImsakReminderUnit {
         get => _selectedImsakReminderUnit;
         set => SetProperty(ref _selectedImsakReminderUnit, value);
@@ -271,6 +313,66 @@ public sealed class SettingsViewModel : ViewModelBase {
     public OptionItem<int>? SelectedIftarReminderDirection {
         get => _selectedIftarReminderDirection;
         set => SetProperty(ref _selectedIftarReminderDirection, value);
+    }
+
+    public OptionItem<int>? SelectedAdhanReminderUnit {
+        get => _selectedAdhanReminderUnit;
+        set => SetProperty(ref _selectedAdhanReminderUnit, value);
+    }
+
+    public OptionItem<int>? SelectedAdhanReminderDirection {
+        get => _selectedAdhanReminderDirection;
+        set => SetProperty(ref _selectedAdhanReminderDirection, value);
+    }
+
+    public OptionItem<ClockFormat>? SelectedClockFormat {
+        get => _selectedClockFormat;
+        set => SetProperty(ref _selectedClockFormat, value);
+    }
+
+    public OptionItem<string>? SelectedAdhanSound {
+        get => _selectedAdhanSound;
+        set => SetProperty(ref _selectedAdhanSound, value);
+    }
+
+    public OptionItem<VibrationStrength>? SelectedVibrationStrength {
+        get => _selectedVibrationStrength;
+        set => SetProperty(ref _selectedVibrationStrength, value);
+    }
+
+    public OptionItem<VibrationPattern>? SelectedVibrationPattern {
+        get => _selectedVibrationPattern;
+        set => SetProperty(ref _selectedVibrationPattern, value);
+    }
+
+    public OptionItem<AdhanReminderScope>? SelectedAdhanReminderScope {
+        get => _selectedAdhanReminderScope;
+        set {
+            if (SetProperty(ref _selectedAdhanReminderScope, value)) {
+                OnPropertyChanged(nameof(IsReminderPrayerEnabled));
+            }
+        }
+    }
+
+    public OptionItem<PrayerId>? SelectedAdhanReminderPrayer {
+        get => _selectedAdhanReminderPrayer;
+        set => SetProperty(ref _selectedAdhanReminderPrayer, value);
+    }
+
+    public bool IsReminderPrayerEnabled => SelectedAdhanReminderScope?.Value == AdhanReminderScope.SpecificPrayer;
+
+    public int TextScale {
+        get => _textScale;
+        set {
+            if (SetProperty(ref _textScale, value)) {
+                UpdateTextScaleLabel();
+            }
+        }
+    }
+
+    public string TextScaleLabel {
+        get => _textScaleLabel;
+        set => SetProperty(ref _textScaleLabel, value);
     }
 
     public bool NotificationsEnabled {
@@ -347,15 +449,29 @@ public sealed class SettingsViewModel : ViewModelBase {
         ImsakAdvance = _settings.FastingOffsets.ImsakAdvanceMinutes.ToString();
         IftarDelay = _settings.FastingOffsets.IftarDelayMinutes.ToString();
         LoadReminders();
+        LoadAdhanReminders();
         NotificationsEnabled = _settings.Notifications.EnableAdhan;
         VibrationEnabled = _settings.Notifications.EnableVibration;
         MinutesBefore = _settings.Notifications.MinutesBefore.ToString();
+        SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == _settings.Notifications.SoundKey)
+            ?? AdhanSounds.FirstOrDefault();
+        SelectedVibrationStrength = VibrationStrengths.FirstOrDefault(item => item.Value == _settings.Notifications.VibrationStrength)
+            ?? VibrationStrengths.FirstOrDefault();
+        SelectedVibrationPattern = VibrationPatterns.FirstOrDefault(item => item.Value == _settings.Notifications.VibrationPattern)
+            ?? VibrationPatterns.FirstOrDefault();
+        SelectedAdhanReminderScope = AdhanReminderScopes.FirstOrDefault(item => item.Value == _settings.Notifications.ReminderScope)
+            ?? AdhanReminderScopes.FirstOrDefault();
+        SelectedAdhanReminderPrayer = AdhanReminderPrayers.FirstOrDefault(item => item.Value == _settings.Notifications.ReminderPrayer)
+            ?? AdhanReminderPrayers.FirstOrDefault();
         SelectedLanguage = Languages.FirstOrDefault(item => item.Value == _settings.Language)
             ?? Languages.FirstOrDefault();
         SelectedThemeMode = ThemeModes.FirstOrDefault(item => item.Value == _settings.ThemeMode)
             ?? ThemeModes.FirstOrDefault();
         SelectedThemeVariant = ThemeVariants.FirstOrDefault(item => item.Value == _settings.ThemeVariant)
             ?? ThemeVariants.FirstOrDefault();
+        SelectedClockFormat = ClockFormats.FirstOrDefault(item => item.Value == _settings.ClockFormat)
+            ?? ClockFormats.FirstOrDefault();
+        TextScale = _settings.TextScale;
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.A, _settings.AccentIndex);
         BuildPlaceOptions();
         _suspendSave = false;
@@ -400,7 +516,12 @@ public sealed class SettingsViewModel : ViewModelBase {
             EnableAdhan = NotificationsEnabled,
             EnableVibration = VibrationEnabled,
             MinutesBefore = ParseInt(MinutesBefore),
-            SoundKey = "adhan_default"
+            SoundKey = SelectedAdhanSound?.Value ?? "adhan_default",
+            VibrationStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium,
+            VibrationPattern = SelectedVibrationPattern?.Value ?? VibrationPattern.Short,
+            ReminderScope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All,
+            ReminderPrayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr,
+            ReminderOffsetsMinutes = AdhanReminders.Select(item => item.Minutes).ToList()
         };
 
         var previousLanguage = _settings.Language;
@@ -413,6 +534,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             FastingOffsets = fastingOffsets,
             FastingReminders = fastingReminders,
             Notifications = notifications,
+            ClockFormat = SelectedClockFormat?.Value ?? ClockFormat.Auto,
+            TextScale = TextScale,
             Language = SelectedLanguage?.Value ?? "auto",
             LanguageSelected = true,
             ThemeMode = SelectedThemeMode?.Value ?? ThemeMode.Auto,
@@ -654,6 +777,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         var currentIftarUnit = SelectedIftarReminderUnit?.Value ?? 1;
         var currentImsakDirection = SelectedImsakReminderDirection?.Value ?? -1;
         var currentIftarDirection = SelectedIftarReminderDirection?.Value ?? 1;
+        var currentAdhanUnit = SelectedAdhanReminderUnit?.Value ?? 1;
+        var currentAdhanDirection = SelectedAdhanReminderDirection?.Value ?? -1;
 
         ReminderUnits.Clear();
         ReminderUnits.Add(new OptionItem<int>(1, LocalizationManager.Translate("Minutes")));
@@ -671,6 +796,10 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? ReminderDirections.FirstOrDefault();
         SelectedIftarReminderDirection = ReminderDirections.FirstOrDefault(item => item.Value == currentIftarDirection)
             ?? ReminderDirections.LastOrDefault();
+        SelectedAdhanReminderUnit = ReminderUnits.FirstOrDefault(item => item.Value == currentAdhanUnit)
+            ?? ReminderUnits.FirstOrDefault();
+        SelectedAdhanReminderDirection = ReminderDirections.FirstOrDefault(item => item.Value == currentAdhanDirection)
+            ?? ReminderDirections.FirstOrDefault();
     }
 
     private void LoadReminders() {
@@ -685,9 +814,20 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
     }
 
+    private void LoadAdhanReminders() {
+        AdhanReminders.Clear();
+        foreach (var minutes in _settings.Notifications.ReminderOffsetsMinutes.Distinct().OrderBy(item => item)) {
+            if (minutes == 0) {
+                continue;
+            }
+            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+    }
+
     private void RebuildReminderLabels() {
         var imsak = ImsakReminders.Select(item => item.Minutes).ToList();
         var iftar = IftarReminders.Select(item => item.Minutes).ToList();
+        var adhan = AdhanReminders.Select(item => item.Minutes).ToList();
         ImsakReminders.Clear();
         foreach (var minutes in imsak) {
             ImsakReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
@@ -695,6 +835,10 @@ public sealed class SettingsViewModel : ViewModelBase {
         IftarReminders.Clear();
         foreach (var minutes in iftar) {
             IftarReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+        AdhanReminders.Clear();
+        foreach (var minutes in adhan) {
+            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
         }
     }
 
@@ -706,6 +850,11 @@ public sealed class SettingsViewModel : ViewModelBase {
     private void AddIftarReminder() {
         AddReminder(IftarReminders, IftarReminderValue, SelectedIftarReminderUnit, SelectedIftarReminderDirection);
         IftarReminderValue = "";
+    }
+
+    private void AddAdhanReminder() {
+        AddReminder(AdhanReminders, AdhanReminderValue, SelectedAdhanReminderUnit, SelectedAdhanReminderDirection);
+        AdhanReminderValue = "";
     }
 
     private void RemoveImsakReminder(ReminderOffsetItem? item) {
@@ -721,6 +870,14 @@ public sealed class SettingsViewModel : ViewModelBase {
             return;
         }
         IftarReminders.Remove(item);
+        ScheduleSave();
+    }
+
+    private void RemoveAdhanReminder(ReminderOffsetItem? item) {
+        if (item == null) {
+            return;
+        }
+        AdhanReminders.Remove(item);
         ScheduleSave();
     }
 
@@ -767,6 +924,75 @@ public sealed class SettingsViewModel : ViewModelBase {
         return $"{LocalizationManager.Translate(directionKey)} {abs} {LocalizationManager.Translate("Minutes")}";
     }
 
+    private void BuildClockFormats() {
+        var current = SelectedClockFormat?.Value ?? ClockFormat.Auto;
+        ClockFormats.Clear();
+        ClockFormats.Add(new OptionItem<ClockFormat>(ClockFormat.Auto, LocalizationManager.Translate("Clock_Auto")));
+        ClockFormats.Add(new OptionItem<ClockFormat>(ClockFormat.TwelveHour, LocalizationManager.Translate("Clock_12h")));
+        ClockFormats.Add(new OptionItem<ClockFormat>(ClockFormat.TwentyFourHour, LocalizationManager.Translate("Clock_24h")));
+        SelectedClockFormat = ClockFormats.FirstOrDefault(item => item.Value == current)
+            ?? ClockFormats.FirstOrDefault();
+    }
+
+    private void BuildNotificationOptions() {
+        var currentSound = SelectedAdhanSound?.Value ?? "adhan_default";
+        var currentStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium;
+        var currentPattern = SelectedVibrationPattern?.Value ?? VibrationPattern.Short;
+        var currentScope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All;
+        var currentPrayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr;
+
+        AdhanSounds.Clear();
+        AdhanSounds.Add(new OptionItem<string>("adhan_default", LocalizationManager.Translate("Sound_Default")));
+        AdhanSounds.Add(new OptionItem<string>("adhan_silent", LocalizationManager.Translate("Sound_Silent")));
+
+        VibrationStrengths.Clear();
+        VibrationStrengths.Add(new OptionItem<VibrationStrength>(VibrationStrength.Low, LocalizationManager.Translate("Vibration_Low")));
+        VibrationStrengths.Add(new OptionItem<VibrationStrength>(VibrationStrength.Medium, LocalizationManager.Translate("Vibration_Medium")));
+        VibrationStrengths.Add(new OptionItem<VibrationStrength>(VibrationStrength.High, LocalizationManager.Translate("Vibration_High")));
+
+        VibrationPatterns.Clear();
+        VibrationPatterns.Add(new OptionItem<VibrationPattern>(VibrationPattern.Short, LocalizationManager.Translate("Vibration_Short")));
+        VibrationPatterns.Add(new OptionItem<VibrationPattern>(VibrationPattern.Long, LocalizationManager.Translate("Vibration_Long")));
+        VibrationPatterns.Add(new OptionItem<VibrationPattern>(VibrationPattern.Pulse, LocalizationManager.Translate("Vibration_Pulse")));
+
+        AdhanReminderScopes.Clear();
+        AdhanReminderScopes.Add(new OptionItem<AdhanReminderScope>(AdhanReminderScope.All, LocalizationManager.Translate("Reminder_All")));
+        AdhanReminderScopes.Add(new OptionItem<AdhanReminderScope>(AdhanReminderScope.SpecificPrayer, LocalizationManager.Translate("Reminder_Specific")));
+
+        AdhanReminderPrayers.Clear();
+        AdhanReminderPrayers.Add(new OptionItem<PrayerId>(PrayerId.Fajr, LocalizationManager.Translate("Prayer_Fajr")));
+        AdhanReminderPrayers.Add(new OptionItem<PrayerId>(PrayerId.Dhuhr, LocalizationManager.Translate("Prayer_Dhuhr")));
+        AdhanReminderPrayers.Add(new OptionItem<PrayerId>(PrayerId.Asr, LocalizationManager.Translate("Prayer_Asr")));
+        AdhanReminderPrayers.Add(new OptionItem<PrayerId>(PrayerId.Maghrib, LocalizationManager.Translate("Prayer_Maghrib")));
+        AdhanReminderPrayers.Add(new OptionItem<PrayerId>(PrayerId.Isha, LocalizationManager.Translate("Prayer_Isha")));
+
+        SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == currentSound)
+            ?? AdhanSounds.FirstOrDefault();
+        SelectedVibrationStrength = VibrationStrengths.FirstOrDefault(item => item.Value == currentStrength)
+            ?? VibrationStrengths.FirstOrDefault();
+        SelectedVibrationPattern = VibrationPatterns.FirstOrDefault(item => item.Value == currentPattern)
+            ?? VibrationPatterns.FirstOrDefault();
+        SelectedAdhanReminderScope = AdhanReminderScopes.FirstOrDefault(item => item.Value == currentScope)
+            ?? AdhanReminderScopes.FirstOrDefault();
+        SelectedAdhanReminderPrayer = AdhanReminderPrayers.FirstOrDefault(item => item.Value == currentPrayer)
+            ?? AdhanReminderPrayers.FirstOrDefault();
+    }
+
+    private void IncreaseTextSize() {
+        TextScale = Math.Min(TextScale + 1, 6);
+        ScheduleSave();
+    }
+
+    private void DecreaseTextSize() {
+        TextScale = Math.Max(TextScale - 1, -2);
+        ScheduleSave();
+    }
+
+    private void UpdateTextScaleLabel() {
+        var percent = 100 + (TextScale * 7);
+        TextScaleLabel = $"{percent}%";
+    }
+
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
         if (_suspendSave) {
             return;
@@ -797,9 +1023,16 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(ImsakOffset)
             or nameof(ImsakAdvance)
             or nameof(IftarDelay)
+            or nameof(SelectedClockFormat)
+            or nameof(TextScale)
             or nameof(NotificationsEnabled)
             or nameof(VibrationEnabled)
             or nameof(MinutesBefore)
+            or nameof(SelectedAdhanSound)
+            or nameof(SelectedVibrationStrength)
+            or nameof(SelectedVibrationPattern)
+            or nameof(SelectedAdhanReminderScope)
+            or nameof(SelectedAdhanReminderPrayer)
             or nameof(SelectedLanguage)
             or nameof(SelectedThemeMode)
             or nameof(SelectedThemeVariant)
@@ -884,6 +1117,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                 FastingOffsets = settings.FastingOffsets,
                 FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
+                ClockFormat = settings.ClockFormat,
+                TextScale = settings.TextScale,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
                 ThemeMode = settings.ThemeMode,

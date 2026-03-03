@@ -51,6 +51,8 @@ public sealed class PrayerDataService {
                 FastingOffsets = settings.FastingOffsets,
                 FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
+                ClockFormat = settings.ClockFormat,
+                TextScale = settings.TextScale,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
                 ThemeMode = settings.ThemeMode,

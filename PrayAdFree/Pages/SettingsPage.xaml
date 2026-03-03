@@ -11,7 +11,7 @@
                     StrokeShape="RoundRectangle 20"
                     Padding="16">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="{loc:Loc Location}" FontSize="16" />
+                    <Label Text="{loc:Loc Locations}" FontSize="16" />
                     <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                         <Label Text="{loc:Loc UseGps}" FontSize="14"/>
                         <Switch IsToggled="{Binding UseGps}" />
@@ -35,22 +35,7 @@
                     StrokeShape="RoundRectangle 18"
                     Padding="16">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="{loc:Loc Calculation}" FontSize="16" />
-                    <Label Text="{loc:Loc Method}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Method}" ItemsSource="{Binding Methods}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMethod}" />
-                    <Label Text="{loc:Loc Madhhab}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Madhhab}" ItemsSource="{Binding Madhhabs}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMadhhab}" />
-                    <Label Text="{loc:Loc HighLatitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc HighLatitude}" ItemsSource="{Binding HighLatitudeRules}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedHighLatitude}" />
-                </VerticalStackLayout>
-            </Border>
-
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 18"
-                    Padding="16">
-                <VerticalStackLayout Spacing="12">
-                    <Label Text="{loc:Loc Theme}" FontSize="16" />
+                    <Label Text="{loc:Loc Diagnostics}" FontSize="16" />
                     <Label Text="{loc:Loc ThemeMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc ThemeMode}" ItemsSource="{Binding ThemeModes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedThemeMode}" />
                     <Label Text="{loc:Loc ThemeVariant}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
@@ -60,6 +45,16 @@
                         <BoxView Color="{Binding AccentPreviewColor}" WidthRequest="28" HeightRequest="28" CornerRadius="6" />
                         <Picker Title="{loc:Loc ThemeColor}" ItemsSource="{Binding AccentOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAccent}" />
                     </HorizontalStackLayout>
+
+                    <Label Text="{loc:Loc TextSize}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                        <Button Text="-" Command="{Binding DecreaseTextSizeCommand}" WidthRequest="44" />
+                        <Label Text="{Binding TextScaleLabel}" FontSize="14" />
+                        <Button Text="+" Command="{Binding IncreaseTextSizeCommand}" WidthRequest="44" />
+                    </HorizontalStackLayout>
+
+                    <Label Text="{loc:Loc Language}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Language}" ItemsSource="{Binding Languages}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedLanguage}" />
                 </VerticalStackLayout>
             </Border>
 
@@ -67,8 +62,16 @@
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 18"
                     Padding="16">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="{loc:Loc Offsets}" FontSize="16" />
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc AdhanCustomizations}" FontSize="16" />
+                    <Label Text="{loc:Loc Method}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Method}" ItemsSource="{Binding Methods}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMethod}" />
+                    <Label Text="{loc:Loc Madhhab}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc Madhhab}" ItemsSource="{Binding Madhhabs}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMadhhab}" />
+                    <Label Text="{loc:Loc HighLatitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc HighLatitude}" ItemsSource="{Binding HighLatitudeRules}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedHighLatitude}" />
+
+                    <Label Text="{loc:Loc Offsets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                         <Label Text="{loc:Loc Prayer_Fajr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Label Text="{loc:Loc Prayer_Sunrise}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
@@ -85,17 +88,11 @@
                         <Label Text="{loc:Loc Prayer_Imsak}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Row="6" />
                         <Entry Placeholder="{loc:Loc Prayer_Imsak}" Text="{Binding ImsakOffset}" Grid.Row="7" />
                     </Grid>
-                </VerticalStackLayout>
-            </Border>
 
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 18"
-                    Padding="16">
-                <VerticalStackLayout Spacing="14">
-                    <Label Text="{loc:Loc FastingSettings}" FontSize="16" />
+                    <Label Text="{loc:Loc ClockFormat}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc ClockFormat}" ItemsSource="{Binding ClockFormats}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedClockFormat}" />
 
-                    <Label Text="{loc:Loc FastingOffsets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Label Text="{loc:Loc FastingSettings}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
                         <Label Text="{loc:Loc ImsakAdvance}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Label Text="{loc:Loc IftarDelay}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
@@ -145,32 +142,48 @@
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 18"
                     Padding="16">
-                <VerticalStackLayout Spacing="8">
+                <VerticalStackLayout Spacing="12">
                     <Label Text="{loc:Loc Notifications}" FontSize="16" />
                     <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                         <Label Text="{loc:Loc EnableAdhan}" FontSize="14"/>
                         <Switch IsToggled="{Binding NotificationsEnabled}" />
                     </HorizontalStackLayout>
+                    <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc AdhanSound}" ItemsSource="{Binding AdhanSounds}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanSound}" />
                     <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                         <Label Text="{loc:Loc Vibration}" FontSize="14"/>
                         <Switch IsToggled="{Binding VibrationEnabled}" />
                     </HorizontalStackLayout>
+                    <Label Text="{loc:Loc VibrationStrength}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc VibrationStrength}" ItemsSource="{Binding VibrationStrengths}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedVibrationStrength}" />
+                    <Label Text="{loc:Loc VibrationPattern}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc VibrationPattern}" ItemsSource="{Binding VibrationPatterns}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedVibrationPattern}" />
                     <Label Text="{loc:Loc MinutesBefore}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Entry Placeholder="{loc:Loc MinutesBefore}" Text="{Binding MinutesBefore}" />
+
+                    <Label Text="{loc:Loc AdhanReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                        <Picker Title="{loc:Loc ReminderScope}" ItemsSource="{Binding AdhanReminderScopes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderScope}" />
+                        <Picker Title="{loc:Loc ReminderPrayer}" ItemsSource="{Binding AdhanReminderPrayers}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderPrayer}" Grid.Column="1" IsEnabled="{Binding IsReminderPrayerEnabled}" />
+                        <Grid Grid.ColumnSpan="2" Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                            <Entry Placeholder="{loc:Loc ReminderValue}" Text="{Binding AdhanReminderValue}" />
+                            <Picker Title="{loc:Loc ReminderUnit}" ItemsSource="{Binding ReminderUnits}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderUnit}" Grid.Column="1" />
+                            <Picker Title="{loc:Loc ReminderDirection}" ItemsSource="{Binding ReminderDirections}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanReminderDirection}" Grid.Column="2" />
+                            <Button Text="{loc:Loc Add}" Command="{Binding AddAdhanReminderCommand}" Grid.Column="3" />
+                            <CollectionView Grid.ColumnSpan="4" Grid.Row="1" ItemsSource="{Binding AdhanReminders}" SelectionMode="None">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto" Padding="4,2">
+                                            <Label Text="{Binding Label}" FontSize="13" />
+                                            <Button Text="{loc:Loc Remove}" Command="{Binding BindingContext.RemoveAdhanReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="1" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </Grid>
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
-
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 18"
-                    Padding="16">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="{loc:Loc Language}" FontSize="16" />
-                    <Label Text="{loc:Loc Language}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Language}" ItemsSource="{Binding Languages}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedLanguage}" />
-                </VerticalStackLayout>
-            </Border>
-
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

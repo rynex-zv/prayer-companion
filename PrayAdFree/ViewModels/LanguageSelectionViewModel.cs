@@ -51,6 +51,8 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             FastingOffsets = settings.FastingOffsets,
             FastingReminders = settings.FastingReminders,
             Notifications = settings.Notifications,
+            ClockFormat = settings.ClockFormat,
+            TextScale = settings.TextScale,
             Language = language,
             LanguageSelected = true,
             ThemeMode = settings.ThemeMode,

@@ -107,6 +107,8 @@ public static class ThemeManager {
         SetColor(resources, "SurfaceGlassDark", dark.SurfaceGlass);
         SetColor(resources, "SurfaceHighlightDark", dark.SurfaceHighlight);
         SetColor(resources, "TextMutedDark", dark.TextMuted);
+
+        ApplyTextScale(resources, settings.TextScale);
     }
 
     private static void SetColor(ResourceDictionary resources, string key, string hex) {
@@ -126,6 +128,17 @@ public static class ThemeManager {
     }
 
     private static int Clamp(int value) => Math.Clamp(value, 0, 255);
+
+    private static void ApplyTextScale(ResourceDictionary resources, int scale) {
+        var clamped = Math.Clamp(scale, -2, 6);
+        var baseSize = 14 + clamped;
+        resources["FontSizeBase"] = (double)baseSize;
+        resources["FontSizeSmall"] = (double)Math.Max(10, baseSize - 2);
+        resources["FontSizeMedium"] = (double)(baseSize + 2);
+        resources["FontSizeLarge"] = (double)(baseSize + 6);
+        resources["FontSizeDisplay"] = (double)(baseSize + 18);
+        resources["FontSizeSubDisplay"] = (double)(baseSize + 10);
+    }
 
     private sealed record ThemeColors(
         string SkyTop,
