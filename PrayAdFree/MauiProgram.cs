@@ -57,11 +57,13 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<QiblaViewModel>();
             builder.Services.AddTransient<SettingsViewModel>();
             builder.Services.AddTransient<AboutViewModel>();
+            builder.Services.AddTransient<TasbihViewModel>();
             builder.Services.AddTransient<LanguageSelectionViewModel>();
 
             builder.Services.AddTransient<HomePage>();
             builder.Services.AddTransient<CalendarPage>();
             builder.Services.AddTransient<QiblaPage>();
+            builder.Services.AddTransient<TasbihPage>();
             builder.Services.AddTransient<SettingsPage>();
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();

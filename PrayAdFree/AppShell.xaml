@@ -11,6 +11,7 @@
         <ShellContent Title="{loc:Loc Today}" ContentTemplate="{DataTemplate pages:HomePage}" />
         <ShellContent Title="{loc:Loc Calendar}" ContentTemplate="{DataTemplate pages:CalendarPage}" />
         <ShellContent Title="{loc:Loc Qibla}" ContentTemplate="{DataTemplate pages:QiblaPage}" />
+        <ShellContent Title="{loc:Loc Tasbih}" ContentTemplate="{DataTemplate pages:TasbihPage}" />
         <ShellContent Title="{loc:Loc Settings}" ContentTemplate="{DataTemplate pages:SettingsPage}" />
         <ShellContent Title="{loc:Loc About}" ContentTemplate="{DataTemplate pages:AboutPage}" />
     </TabBar>
