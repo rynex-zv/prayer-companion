@@ -570,20 +570,35 @@ public sealed class SettingsViewModel : ViewModelBase {
 
         Methods.Clear();
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Auto, LocalizationManager.Translate("Method_Auto")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Jafari, LocalizationManager.Translate("Method_Jafari")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Karachi, LocalizationManager.Translate("Method_Karachi")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Isna, LocalizationManager.Translate("Method_Isna")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.MuslimWorldLeague, LocalizationManager.Translate("Method_MuslimWorldLeague")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.UmmAlQura, LocalizationManager.Translate("Method_UmmAlQura")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Egypt, LocalizationManager.Translate("Method_Egypt")));
-        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Karachi, LocalizationManager.Translate("Method_Karachi")));
-        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Isna, LocalizationManager.Translate("Method_Isna")));
-        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Turkey, LocalizationManager.Translate("Method_Turkey")));
-        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Kuwait, LocalizationManager.Translate("Method_Kuwait")));
-        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Qatar, LocalizationManager.Translate("Method_Qatar")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Tehran, LocalizationManager.Translate("Method_Tehran")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Gulf, LocalizationManager.Translate("Method_Gulf")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Kuwait, LocalizationManager.Translate("Method_Kuwait")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Qatar, LocalizationManager.Translate("Method_Qatar")));
         Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Singapore, LocalizationManager.Translate("Method_Singapore")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.France, LocalizationManager.Translate("Method_France")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Turkey, LocalizationManager.Translate("Method_Turkey")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Russia, LocalizationManager.Translate("Method_Russia")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Moonsighting, LocalizationManager.Translate("Method_Moonsighting")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Dubai, LocalizationManager.Translate("Method_Dubai")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Jakim, LocalizationManager.Translate("Method_Jakim")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Tunisia, LocalizationManager.Translate("Method_Tunisia")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Algeria, LocalizationManager.Translate("Method_Algeria")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Kemenag, LocalizationManager.Translate("Method_Kemenag")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Morocco, LocalizationManager.Translate("Method_Morocco")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Portugal, LocalizationManager.Translate("Method_Portugal")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Jordan, LocalizationManager.Translate("Method_Jordan")));
+        Methods.Add(new OptionItem<CalculationMethod>(CalculationMethod.Custom, LocalizationManager.Translate("Method_Custom")));
 
         Madhhabs.Clear();
         Madhhabs.Add(new OptionItem<Madhhab>(Madhhab.Shafi, LocalizationManager.Translate("Madhhab_Shafi")));
+        Madhhabs.Add(new OptionItem<Madhhab>(Madhhab.Maliki, LocalizationManager.Translate("Madhhab_Maliki")));
+        Madhhabs.Add(new OptionItem<Madhhab>(Madhhab.Hanbali, LocalizationManager.Translate("Madhhab_Hanbali")));
         Madhhabs.Add(new OptionItem<Madhhab>(Madhhab.Hanafi, LocalizationManager.Translate("Madhhab_Hanafi")));
 
         HighLatitudeRules.Clear();

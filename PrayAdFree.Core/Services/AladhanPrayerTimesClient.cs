@@ -27,10 +27,11 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
             ? MethodResolver.Resolve(location.CountryCode, CalculationMethod.MuslimWorldLeague)
             : settings.Method;
 
+        var school = settings.Madhhab == Madhhab.Hanafi ? 1 : 0;
         var url = $"calendar?latitude={location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
                   $"&longitude={location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
                   $"&method={(int)method}" +
-                  $"&school={(int)settings.Madhhab}" +
+                  $"&school={school}" +
                   $"&latitudeAdjustmentMethod={(int)settings.HighLatitudeRule}" +
                   $"&month={month}&year={year}" +
                   $"&tune={BuildTune(settings.Offsets)}";
