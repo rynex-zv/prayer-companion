@@ -1,0 +1,9 @@
+﻿{
+  "Languages": [
+    { "Code": "en", "Name": "English" },
+    { "Code": "ar", "Name": "العربية" },
+    { "Code": "fr", "Name": "Français" },
+    { "Code": "tr", "Name": "Türkçe" },
+    { "Code": "es", "Name": "Español" }
+  ]
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.CalendarPage"
+             Title="{loc:Loc Calendar}">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SandTop}, Dark={StaticResource DarkSandTop}}" Offset="0"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SandMid}, Dark={StaticResource DarkSandMid}}" Offset="0.6"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SandBase}, Dark={StaticResource DarkSandBase}}" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <VerticalStackLayout Spacing="16" Padding="20,24">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="12">
+                <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                    <DatePicker Date="{Binding SelectedMonth}" />
+                    <Button Text="{loc:Loc Load}" Command="{Binding LoadCommand}" />
+                    <Label Text="{Binding StatusMessage}" FontSize="12" TextColor="{StaticResource TextSubtle}" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="8">
+                <CollectionView ItemsSource="{Binding Days}" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="120,*,*,*,*,*"
+                                  Padding="6,8">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{Binding Date}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                    <Label Text="{Binding Hijri}" FontSize="10" TextColor="{StaticResource TextSubtle}" />
+                                </VerticalStackLayout>
+                                <Label Text="{Binding Fajr}" Grid.Column="1" FontSize="13" />
+                                <Label Text="{Binding Dhuhr}" Grid.Column="2" FontSize="13" />
+                                <Label Text="{Binding Asr}" Grid.Column="3" FontSize="13" />
+                                <Label Text="{Binding Maghrib}" Grid.Column="4" FontSize="13" />
+                                <Label Text="{Binding Isha}" Grid.Column="5" FontSize="13" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Border>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
