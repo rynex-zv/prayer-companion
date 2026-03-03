@@ -7,6 +7,7 @@ public sealed class AppSettings {
     public HighLatitudeRule HighLatitudeRule { get; init; } = HighLatitudeRule.MiddleOfTheNight;
     public PrayerOffsets Offsets { get; init; } = PrayerOffsets.Default;
     public FastingOffsets FastingOffsets { get; init; } = FastingOffsets.Default;
+    public FastingReminderSettings FastingReminders { get; init; } = FastingReminderSettings.Default;
     public NotificationSettings Notifications { get; init; } = new NotificationSettings();
     public string Language { get; init; } = "auto";
     public bool LanguageSelected { get; init; }

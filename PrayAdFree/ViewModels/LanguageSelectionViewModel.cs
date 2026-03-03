@@ -49,6 +49,7 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             HighLatitudeRule = settings.HighLatitudeRule,
             Offsets = settings.Offsets,
             FastingOffsets = settings.FastingOffsets,
+            FastingReminders = settings.FastingReminders,
             Notifications = settings.Notifications,
             Language = language,
             LanguageSelected = true,

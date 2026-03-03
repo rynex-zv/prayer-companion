@@ -49,6 +49,7 @@ public sealed class PrayerDataService {
                 HighLatitudeRule = settings.HighLatitudeRule,
                 Offsets = settings.Offsets,
                 FastingOffsets = settings.FastingOffsets,
+                FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
@@ -69,6 +70,6 @@ public sealed class PrayerDataService {
             return;
         }
 
-        await _notificationScheduler.ScheduleAsync(new[] { day }, settings.Notifications, cancellationToken).ConfigureAwait(false);
+        await _notificationScheduler.ScheduleAsync(new[] { day }, settings, cancellationToken).ConfigureAwait(false);
     }
 }

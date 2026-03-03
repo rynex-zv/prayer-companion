@@ -32,6 +32,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _imsakOffset = "0";
     private string _imsakAdvance = "0";
     private string _iftarDelay = "0";
+    private string _imsakReminderValue = "";
+    private string _iftarReminderValue = "";
     private bool _notificationsEnabled;
     private bool _vibrationEnabled;
     private string _minutesBefore = "0";
@@ -48,6 +50,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     private PlaceOption? _selectedCity;
     private bool _gpsBusy;
     private CancellationTokenSource? _gpsLoopCts;
+    private OptionItem<int>? _selectedImsakReminderUnit;
+    private OptionItem<int>? _selectedImsakReminderDirection;
+    private OptionItem<int>? _selectedIftarReminderUnit;
+    private OptionItem<int>? _selectedIftarReminderDirection;
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService) {
         _dataService = dataService;
@@ -62,14 +68,25 @@ public sealed class SettingsViewModel : ViewModelBase {
         Languages = new ObservableCollection<OptionItem<string>>();
         CountryOptions = new ObservableCollection<PlaceOption>();
         CityOptions = new ObservableCollection<PlaceOption>();
+        ReminderUnits = new ObservableCollection<OptionItem<int>>();
+        ReminderDirections = new ObservableCollection<OptionItem<int>>();
+        ImsakReminders = new ObservableCollection<ReminderOffsetItem>();
+        IftarReminders = new ObservableCollection<ReminderOffsetItem>();
         BuildLocalizedPickers();
+        BuildReminderOptions();
         RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
+        AddImsakReminderCommand = new Command(AddImsakReminder);
+        AddIftarReminderCommand = new Command(AddIftarReminder);
+        RemoveImsakReminderCommand = new Command<ReminderOffsetItem>(RemoveImsakReminder);
+        RemoveIftarReminderCommand = new Command<ReminderOffsetItem>(RemoveIftarReminder);
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
         LocalizationManager.LanguageChanged += (_, _) => {
             BuildLocalizedPickers();
             BuildPlaceOptions();
+            BuildReminderOptions();
+            RebuildReminderLabels();
         };
     }
 
@@ -82,7 +99,15 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<string>> Languages { get; }
     public ObservableCollection<PlaceOption> CountryOptions { get; }
     public ObservableCollection<PlaceOption> CityOptions { get; }
+    public ObservableCollection<OptionItem<int>> ReminderUnits { get; }
+    public ObservableCollection<OptionItem<int>> ReminderDirections { get; }
+    public ObservableCollection<ReminderOffsetItem> ImsakReminders { get; }
+    public ObservableCollection<ReminderOffsetItem> IftarReminders { get; }
     public Command RefreshGpsCommand { get; }
+    public Command AddImsakReminderCommand { get; }
+    public Command AddIftarReminderCommand { get; }
+    public Command RemoveImsakReminderCommand { get; }
+    public Command RemoveIftarReminderCommand { get; }
     public bool UseGps {
         get => _useGps;
         set {
@@ -218,6 +243,36 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _iftarDelay, value);
     }
 
+    public string ImsakReminderValue {
+        get => _imsakReminderValue;
+        set => SetProperty(ref _imsakReminderValue, value);
+    }
+
+    public string IftarReminderValue {
+        get => _iftarReminderValue;
+        set => SetProperty(ref _iftarReminderValue, value);
+    }
+
+    public OptionItem<int>? SelectedImsakReminderUnit {
+        get => _selectedImsakReminderUnit;
+        set => SetProperty(ref _selectedImsakReminderUnit, value);
+    }
+
+    public OptionItem<int>? SelectedImsakReminderDirection {
+        get => _selectedImsakReminderDirection;
+        set => SetProperty(ref _selectedImsakReminderDirection, value);
+    }
+
+    public OptionItem<int>? SelectedIftarReminderUnit {
+        get => _selectedIftarReminderUnit;
+        set => SetProperty(ref _selectedIftarReminderUnit, value);
+    }
+
+    public OptionItem<int>? SelectedIftarReminderDirection {
+        get => _selectedIftarReminderDirection;
+        set => SetProperty(ref _selectedIftarReminderDirection, value);
+    }
+
     public bool NotificationsEnabled {
         get => _notificationsEnabled;
         set => SetProperty(ref _notificationsEnabled, value);
@@ -291,6 +346,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         ImsakOffset = _settings.Offsets.Imsak.ToString();
         ImsakAdvance = _settings.FastingOffsets.ImsakAdvanceMinutes.ToString();
         IftarDelay = _settings.FastingOffsets.IftarDelayMinutes.ToString();
+        LoadReminders();
         NotificationsEnabled = _settings.Notifications.EnableAdhan;
         VibrationEnabled = _settings.Notifications.EnableVibration;
         MinutesBefore = _settings.Notifications.MinutesBefore.ToString();
@@ -335,6 +391,10 @@ public sealed class SettingsViewModel : ViewModelBase {
             ImsakAdvanceMinutes = ParseInt(ImsakAdvance),
             IftarDelayMinutes = ParseInt(IftarDelay)
         };
+        var fastingReminders = new FastingReminderSettings {
+            ImsakRemindersMinutes = ImsakReminders.Select(item => item.Minutes).ToList(),
+            IftarRemindersMinutes = IftarReminders.Select(item => item.Minutes).ToList()
+        };
 
         var notifications = new NotificationSettings {
             EnableAdhan = NotificationsEnabled,
@@ -351,6 +411,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             HighLatitudeRule = SelectedHighLatitude?.Value ?? HighLatitudeRule.MiddleOfTheNight,
             Offsets = offsets,
             FastingOffsets = fastingOffsets,
+            FastingReminders = fastingReminders,
             Notifications = notifications,
             Language = SelectedLanguage?.Value ?? "auto",
             LanguageSelected = true,
@@ -573,6 +634,124 @@ public sealed class SettingsViewModel : ViewModelBase {
         _suspendSave = restoreSuspend;
     }
 
+    private void BuildReminderOptions() {
+        var currentImsakUnit = SelectedImsakReminderUnit?.Value ?? 1;
+        var currentIftarUnit = SelectedIftarReminderUnit?.Value ?? 1;
+        var currentImsakDirection = SelectedImsakReminderDirection?.Value ?? -1;
+        var currentIftarDirection = SelectedIftarReminderDirection?.Value ?? 1;
+
+        ReminderUnits.Clear();
+        ReminderUnits.Add(new OptionItem<int>(1, LocalizationManager.Translate("Minutes")));
+        ReminderUnits.Add(new OptionItem<int>(60, LocalizationManager.Translate("Hours")));
+
+        ReminderDirections.Clear();
+        ReminderDirections.Add(new OptionItem<int>(-1, LocalizationManager.Translate("Before")));
+        ReminderDirections.Add(new OptionItem<int>(1, LocalizationManager.Translate("After")));
+
+        SelectedImsakReminderUnit = ReminderUnits.FirstOrDefault(item => item.Value == currentImsakUnit)
+            ?? ReminderUnits.FirstOrDefault();
+        SelectedIftarReminderUnit = ReminderUnits.FirstOrDefault(item => item.Value == currentIftarUnit)
+            ?? ReminderUnits.FirstOrDefault();
+        SelectedImsakReminderDirection = ReminderDirections.FirstOrDefault(item => item.Value == currentImsakDirection)
+            ?? ReminderDirections.FirstOrDefault();
+        SelectedIftarReminderDirection = ReminderDirections.FirstOrDefault(item => item.Value == currentIftarDirection)
+            ?? ReminderDirections.LastOrDefault();
+    }
+
+    private void LoadReminders() {
+        ImsakReminders.Clear();
+        foreach (var minutes in _settings.FastingReminders.ImsakRemindersMinutes.Distinct().OrderBy(item => item)) {
+            ImsakReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+
+        IftarReminders.Clear();
+        foreach (var minutes in _settings.FastingReminders.IftarRemindersMinutes.Distinct().OrderBy(item => item)) {
+            IftarReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+    }
+
+    private void RebuildReminderLabels() {
+        var imsak = ImsakReminders.Select(item => item.Minutes).ToList();
+        var iftar = IftarReminders.Select(item => item.Minutes).ToList();
+        ImsakReminders.Clear();
+        foreach (var minutes in imsak) {
+            ImsakReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+        IftarReminders.Clear();
+        foreach (var minutes in iftar) {
+            IftarReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        }
+    }
+
+    private void AddImsakReminder() {
+        AddReminder(ImsakReminders, ImsakReminderValue, SelectedImsakReminderUnit, SelectedImsakReminderDirection);
+        ImsakReminderValue = "";
+    }
+
+    private void AddIftarReminder() {
+        AddReminder(IftarReminders, IftarReminderValue, SelectedIftarReminderUnit, SelectedIftarReminderDirection);
+        IftarReminderValue = "";
+    }
+
+    private void RemoveImsakReminder(ReminderOffsetItem? item) {
+        if (item == null) {
+            return;
+        }
+        ImsakReminders.Remove(item);
+        ScheduleSave();
+    }
+
+    private void RemoveIftarReminder(ReminderOffsetItem? item) {
+        if (item == null) {
+            return;
+        }
+        IftarReminders.Remove(item);
+        ScheduleSave();
+    }
+
+    private void AddReminder(
+        ObservableCollection<ReminderOffsetItem> list,
+        string rawValue,
+        OptionItem<int>? unit,
+        OptionItem<int>? direction) {
+        if (!int.TryParse(rawValue, out var value)) {
+            return;
+        }
+        if (value == 0) {
+            return;
+        }
+
+        var multiplier = unit?.Value ?? 1;
+        var sign = direction?.Value ?? -1;
+        var minutes = value * multiplier * sign;
+        if (list.Any(item => item.Minutes == minutes)) {
+            return;
+        }
+
+        list.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        SortReminderList(list);
+        ScheduleSave();
+    }
+
+    private void SortReminderList(ObservableCollection<ReminderOffsetItem> list) {
+        var ordered = list.OrderBy(item => item.Minutes).ToList();
+        list.Clear();
+        foreach (var item in ordered) {
+            list.Add(item);
+        }
+    }
+
+    private string BuildReminderLabel(int minutes) {
+        var directionKey = minutes < 0 ? "Before" : "After";
+        var abs = Math.Abs(minutes);
+        if (abs >= 60 && abs % 60 == 0) {
+            var hours = abs / 60;
+            return $"{LocalizationManager.Translate(directionKey)} {hours} {LocalizationManager.Translate("Hours")}";
+        }
+
+        return $"{LocalizationManager.Translate(directionKey)} {abs} {LocalizationManager.Translate("Minutes")}";
+    }
+
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
         if (_suspendSave) {
             return;
@@ -688,6 +867,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 HighLatitudeRule = settings.HighLatitudeRule,
                 Offsets = settings.Offsets,
                 FastingOffsets = settings.FastingOffsets,
+                FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
