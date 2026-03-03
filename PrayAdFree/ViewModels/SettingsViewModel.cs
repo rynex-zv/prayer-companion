@@ -30,6 +30,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _maghribOffset = "0";
     private string _ishaOffset = "0";
     private string _imsakOffset = "0";
+    private string _imsakAdvance = "0";
+    private string _iftarDelay = "0";
     private bool _notificationsEnabled;
     private bool _vibrationEnabled;
     private string _minutesBefore = "0";
@@ -84,9 +86,13 @@ public sealed class SettingsViewModel : ViewModelBase {
     public bool UseGps {
         get => _useGps;
         set {
-            if (SetProperty(ref _useGps, value) && !_suspendSave) {
-                ScheduleSave();
+            if (SetProperty(ref _useGps, value)) {
                 OnPropertyChanged(nameof(IsManualLocationEnabled));
+                if (_suspendSave) {
+                    return;
+                }
+
+                ScheduleSave();
                 if (value) {
                     StartGpsLoop();
                 } else {
@@ -202,6 +208,16 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _imsakOffset, value);
     }
 
+    public string ImsakAdvance {
+        get => _imsakAdvance;
+        set => SetProperty(ref _imsakAdvance, value);
+    }
+
+    public string IftarDelay {
+        get => _iftarDelay;
+        set => SetProperty(ref _iftarDelay, value);
+    }
+
     public bool NotificationsEnabled {
         get => _notificationsEnabled;
         set => SetProperty(ref _notificationsEnabled, value);
@@ -273,6 +289,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         MaghribOffset = _settings.Offsets.Maghrib.ToString();
         IshaOffset = _settings.Offsets.Isha.ToString();
         ImsakOffset = _settings.Offsets.Imsak.ToString();
+        ImsakAdvance = _settings.FastingOffsets.ImsakAdvanceMinutes.ToString();
+        IftarDelay = _settings.FastingOffsets.IftarDelayMinutes.ToString();
         NotificationsEnabled = _settings.Notifications.EnableAdhan;
         VibrationEnabled = _settings.Notifications.EnableVibration;
         MinutesBefore = _settings.Notifications.MinutesBefore.ToString();
@@ -313,6 +331,11 @@ public sealed class SettingsViewModel : ViewModelBase {
             Imsak = ParseInt(ImsakOffset)
         };
 
+        var fastingOffsets = new FastingOffsets {
+            ImsakAdvanceMinutes = ParseInt(ImsakAdvance),
+            IftarDelayMinutes = ParseInt(IftarDelay)
+        };
+
         var notifications = new NotificationSettings {
             EnableAdhan = NotificationsEnabled,
             EnableVibration = VibrationEnabled,
@@ -327,6 +350,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             Madhhab = SelectedMadhhab?.Value ?? Madhhab.Shafi,
             HighLatitudeRule = SelectedHighLatitude?.Value ?? HighLatitudeRule.MiddleOfTheNight,
             Offsets = offsets,
+            FastingOffsets = fastingOffsets,
             Notifications = notifications,
             Language = SelectedLanguage?.Value ?? "auto",
             LanguageSelected = true,
@@ -577,6 +601,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(MaghribOffset)
             or nameof(IshaOffset)
             or nameof(ImsakOffset)
+            or nameof(ImsakAdvance)
+            or nameof(IftarDelay)
             or nameof(NotificationsEnabled)
             or nameof(VibrationEnabled)
             or nameof(MinutesBefore)
@@ -645,11 +671,6 @@ public sealed class SettingsViewModel : ViewModelBase {
 
         try {
             GpsBusy = true;
-            _suspendSave = true;
-            UseGps = true;
-            _suspendSave = false;
-            ScheduleSave();
-
             var settings = _dataService.LoadSettings();
             settings = new AppSettings {
                 Location = new LocationSettings {
@@ -666,6 +687,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 Madhhab = settings.Madhhab,
                 HighLatitudeRule = settings.HighLatitudeRule,
                 Offsets = settings.Offsets,
+                FastingOffsets = settings.FastingOffsets,
                 Notifications = settings.Notifications,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
@@ -677,7 +699,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None).ConfigureAwait(false);
             MainThread.BeginInvokeOnMainThread(() => {
                 _suspendSave = true;
-                UseGps = true;
                 City = NormalizeName(updated.Location.City);
                 Country = NormalizeName(updated.Location.Country);
                 Latitude = updated.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);

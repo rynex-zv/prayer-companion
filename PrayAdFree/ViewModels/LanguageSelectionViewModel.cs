@@ -48,6 +48,7 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             Madhhab = settings.Madhhab,
             HighLatitudeRule = settings.HighLatitudeRule,
             Offsets = settings.Offsets,
+            FastingOffsets = settings.FastingOffsets,
             Notifications = settings.Notifications,
             Language = language,
             LanguageSelected = true,

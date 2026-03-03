@@ -12,6 +12,7 @@ public sealed class HomeViewModel : ViewModelBase {
     private PrayerDay? _today;
     private PrayerId _nextPrayerId;
     private DateTime _nextPrayerTime;
+    private AppSettings _settings = new();
     private string _locationTitle = "";
     private string _hijriDate = "";
     private string _gregorianDate = "";
@@ -92,8 +93,8 @@ public sealed class HomeViewModel : ViewModelBase {
         try {
             IsBusy = true;
             StatusMessage = "Updating times...";
-            var settings = _dataService.LoadSettings();
-            var month = await _dataService.GetMonthAsync(settings, DateTime.Today, CancellationToken.None);
+            _settings = _dataService.LoadSettings();
+            var month = await _dataService.GetMonthAsync(_settings, DateTime.Today, CancellationToken.None);
             var today = month.Days.FirstOrDefault(day => day.Date == DateOnly.FromDateTime(DateTime.Today));
             _today = today;
             if (today == null) {
@@ -101,13 +102,13 @@ public sealed class HomeViewModel : ViewModelBase {
                 return;
             }
 
-            LocationTitle = BuildLocation(settings.Location);
+            LocationTitle = BuildLocation(_settings.Location);
             HijriDate = today.Hijri.Date;
             GregorianDate = DateTime.Today.ToString("dddd, dd MMM yyyy");
 
             UpdateNextPrayer(DateTime.Now);
             BuildRows();
-            await _dataService.ScheduleNotificationsAsync(settings, month, CancellationToken.None);
+            await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
             StatusMessage = $"Last updated {DateTime.Now:t}";
         } finally {
             IsBusy = false;
@@ -163,8 +164,10 @@ public sealed class HomeViewModel : ViewModelBase {
             });
         }
 
-        ImsakTime = _today.Timings.Imsak.ToString("t");
-        IftarTime = _today.Timings.Maghrib.ToString("t");
+        var imsak = _today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes);
+        var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
+        ImsakTime = imsak.ToString("t");
+        IftarTime = iftar.ToString("t");
     }
 
     private void RefreshLocalization() {

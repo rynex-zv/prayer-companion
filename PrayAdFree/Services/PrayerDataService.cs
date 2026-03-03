@@ -48,6 +48,7 @@ public sealed class PrayerDataService {
                 Madhhab = settings.Madhhab,
                 HighLatitudeRule = settings.HighLatitudeRule,
                 Offsets = settings.Offsets,
+                FastingOffsets = settings.FastingOffsets,
                 Notifications = settings.Notifications,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
