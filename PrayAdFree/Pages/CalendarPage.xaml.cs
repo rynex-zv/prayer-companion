@@ -17,7 +17,7 @@ public partial class CalendarPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        await ViewModel.LoadAsync();
+        _ = ViewModel.LoadAsync();
 
         if (!_animated) {
             _animated = true;

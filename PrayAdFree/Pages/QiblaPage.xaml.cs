@@ -22,8 +22,7 @@ public partial class QiblaPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        await ViewModel.LoadAsync();
-        UpdateMap();
+        _ = LoadAndUpdateAsync();
         Compass.ReadingChanged += OnCompassReadingChanged;
         Compass.Start(SensorSpeed.UI);
 
@@ -84,5 +83,10 @@ public partial class QiblaPage : ContentPage {
             IsShowingUser = true
         };
         MapHost.Content = _map;
+    }
+
+    private async Task LoadAndUpdateAsync() {
+        await ViewModel.LoadAsync();
+        MainThread.BeginInvokeOnMainThread(UpdateMap);
     }
 }

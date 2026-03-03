@@ -18,7 +18,7 @@ public partial class HomePage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        await ViewModel.RefreshAsync();
+        _ = ViewModel.RefreshAsync();
 
         if (!_animated) {
             _animated = true;
