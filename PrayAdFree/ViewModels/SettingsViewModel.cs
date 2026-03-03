@@ -476,7 +476,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         BuildPlaceOptions();
         _suspendSave = false;
         if (UseGps) {
-            StartGpsLoop();
+            _ = RefreshGpsAsync();
         }
     }
 
@@ -1158,7 +1158,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         while (!token.IsCancellationRequested) {
             await RefreshGpsAsync().ConfigureAwait(false);
             try {
-                await Task.Delay(TimeSpan.FromMinutes(2), token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMinutes(15), token).ConfigureAwait(false);
             } catch (TaskCanceledException) {
                 break;
             }
