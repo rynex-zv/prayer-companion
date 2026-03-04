@@ -4,10 +4,12 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free {
     public partial class AppShell : Shell {
+        private readonly IAppLogger _logger;
         private bool _languagePrompted;
 
-        public AppShell(SettingsService settingsService) {
+        public AppShell(SettingsService settingsService, IAppLogger logger) {
             var settings = settingsService.Load();
+            _logger = logger;
             new LocalizationFileSync().SyncIfNeeded();
             LocalizationManager.InitializeAsync(settings.LanguageSelected ? settings.Language : "auto").GetAwaiter().GetResult();
 
@@ -20,6 +22,7 @@ namespace Pray_Ad_Free {
             Routing.RegisterRoute("settings/tasbih", typeof(Pages.SettingsTasbihPage));
 
             Navigated += async (_, _) => {
+                _logger.LogEvent("ShellNavigated", Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown");
                 var current = settingsService.Load();
                 if (_languagePrompted || current.LanguageSelected) {
                     return;

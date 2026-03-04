@@ -47,6 +47,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
+            builder.Services.AddSingleton<IAppLogger, AppLogger>();
             builder.Services.AddSingleton( _ => new PrayerTimesCache( FileSystem.AppDataDirectory ) );
             builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();
             builder.Services.AddSingleton<PrayerTimesService>();

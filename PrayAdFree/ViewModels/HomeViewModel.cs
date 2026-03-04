@@ -9,6 +9,7 @@ namespace Pray_Ad_Free.ViewModels;
 
 public sealed class HomeViewModel : ViewModelBase {
     private readonly PrayerDataService _dataService;
+    private readonly IAppLogger _logger;
     private PrayerDay? _today;
     private PrayerId _nextPrayerId;
     private DateTime _nextPrayerTime;
@@ -23,9 +24,11 @@ public sealed class HomeViewModel : ViewModelBase {
     private string _imsakTime = "";
     private string _iftarTime = "";
     private bool _isBusy;
+    private string _lastScheduleKey = "";
 
-    public HomeViewModel(PrayerDataService dataService) {
+    public HomeViewModel(PrayerDataService dataService, IAppLogger logger) {
         _dataService = dataService;
+        _logger = logger;
         RefreshCommand = new Command(async () => await RefreshAsync());
         TodayTimings = new ObservableCollection<PrayerTimeRow>();
         LocalizationManager.LanguageChanged += (_, _) => RefreshLocalization();
@@ -108,8 +111,18 @@ public sealed class HomeViewModel : ViewModelBase {
 
             UpdateNextPrayer(DateTime.Now);
             BuildRows();
-            await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
+            if (ShouldScheduleNotifications(_settings)) {
+                try {
+                    await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
+                } catch (Exception ex) {
+                    _logger.LogException(ex, "HomeViewModel.ScheduleNotifications");
+                    StatusMessage = "Notifications update failed.";
+                }
+            }
             StatusMessage = $"Last updated {DateTime.Now:t}";
+        } catch (Exception ex) {
+            _logger.LogException(ex, "HomeViewModel.RefreshAsync");
+            StatusMessage = "Update failed.";
         } finally {
             IsBusy = false;
         }
@@ -168,6 +181,51 @@ public sealed class HomeViewModel : ViewModelBase {
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
         ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
         IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
+    }
+
+    private bool ShouldScheduleNotifications(AppSettings settings) {
+        var hasFastingReminders = settings.FastingReminders.ImsakRemindersMinutes.Count > 0
+            || settings.FastingReminders.IftarRemindersMinutes.Count > 0;
+        var hasAdhanReminders = settings.Notifications.ReminderOffsetsMinutes.Count > 0;
+        if (!settings.Notifications.EnableAdhan && !hasFastingReminders && !hasAdhanReminders) {
+            return false;
+        }
+
+        var key = string.Join('|',
+            DateOnly.FromDateTime(DateTime.Today).ToString("yyyyMMdd"),
+            settings.Location.Latitude.ToString("F4"),
+            settings.Location.Longitude.ToString("F4"),
+            settings.Method,
+            settings.Madhhab,
+            settings.HighLatitudeRule,
+            settings.Offsets.Fajr,
+            settings.Offsets.Sunrise,
+            settings.Offsets.Dhuhr,
+            settings.Offsets.Asr,
+            settings.Offsets.Maghrib,
+            settings.Offsets.Isha,
+            settings.Offsets.Imsak,
+            settings.FastingOffsets.ImsakAdvanceMinutes,
+            settings.FastingOffsets.IftarDelayMinutes,
+            settings.Notifications.EnableAdhan,
+            settings.Notifications.MinutesBefore,
+            settings.Notifications.SoundKey,
+            settings.Notifications.EnableVibration,
+            settings.Notifications.VibrationStrength,
+            settings.Notifications.VibrationPattern,
+            settings.Notifications.ReminderScope,
+            settings.Notifications.ReminderPrayer,
+            string.Join(',', settings.Notifications.ReminderOffsetsMinutes.OrderBy(item => item)),
+            string.Join(',', settings.FastingReminders.ImsakRemindersMinutes.OrderBy(item => item)),
+            string.Join(',', settings.FastingReminders.IftarRemindersMinutes.OrderBy(item => item))
+        );
+
+        if (string.Equals(_lastScheduleKey, key, StringComparison.Ordinal)) {
+            return false;
+        }
+
+        _lastScheduleKey = key;
+        return true;
     }
 
     private void RefreshLocalization() {

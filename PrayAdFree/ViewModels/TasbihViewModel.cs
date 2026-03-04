@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Models;
@@ -8,22 +9,26 @@ namespace Pray_Ad_Free.ViewModels;
 
 public sealed class TasbihViewModel : ViewModelBase {
     private readonly PrayerDataService _dataService;
+    private readonly IAppLogger _logger;
     private AppSettings _settings = new();
     private int _count;
     private string _currentPhrase = "";
     private string _progressText = "";
     private TasbihPresetItem? _selectedPreset;
     private bool _isPresetSelectionEnabled = true;
+    private bool _suspendSelectionSave;
+    private bool _suppressReload;
 
-    public TasbihViewModel(PrayerDataService dataService) {
+    public TasbihViewModel(PrayerDataService dataService, IAppLogger logger) {
         _dataService = dataService;
+        _logger = logger;
         Presets = new ObservableCollection<TasbihPresetItem>();
         PresetItems = new ObservableCollection<TasbihPresetItemEntry>();
         IncrementCommand = new Command(Increment);
         ResetCommand = new Command(Reset);
         LoadPresets();
-        LocalizationManager.LanguageChanged += (_, _) => LoadPresets();
-        _dataService.SettingsChanged += (_, _) => LoadPresets();
+        LocalizationManager.LanguageChanged += (_, _) => RunOnMainThread(LoadPresets);
+        _dataService.SettingsChanged += OnSettingsChanged;
     }
 
     public ObservableCollection<TasbihPresetItem> Presets { get; }
@@ -62,7 +67,9 @@ public sealed class TasbihViewModel : ViewModelBase {
                 Count = 0;
                 BuildPresetItems();
                 UpdateCurrentPhrase();
-                SaveSelectedPreset();
+                if (!_suspendSelectionSave) {
+                    SaveSelectedPreset();
+                }
             }
         }
     }
@@ -81,6 +88,9 @@ public sealed class TasbihViewModel : ViewModelBase {
             return;
         }
 
+#if DEBUG
+        _logger.LogEvent("TasbihIncrement", $"Preset={SelectedPreset.Name} Count={Count + 1}");
+#endif
         Count++;
         if (SelectedPreset.RepeatMode == TasbihRepeatMode.RepeatReset && Count >= totalTarget) {
             Count = 0;
@@ -92,6 +102,9 @@ public sealed class TasbihViewModel : ViewModelBase {
     private void Reset() {
         Count = 0;
         TryVibrateReset();
+#if DEBUG
+        _logger.LogEvent("TasbihReset", SelectedPreset?.Name ?? "None");
+#endif
         UpdateCurrentPhrase();
     }
 
@@ -119,14 +132,11 @@ public sealed class TasbihViewModel : ViewModelBase {
             _dataService.SaveSettings(_settings);
         }
 
-        Presets.Clear();
-        foreach (var preset in _settings.Tasbih.Presets) {
-            Presets.Add(new TasbihPresetItem(preset.Name, preset.RepeatMode, preset.Items));
-        }
-
-        var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, Presets.Count - 1));
-        SelectedPreset = Presets.Count > 0 ? Presets[index] : null;
-        IsPresetSelectionEnabled = Count == 0;
+        var presets = _settings.Tasbih.Presets
+            .Select(preset => new TasbihPresetItem(preset.Name, preset.RepeatMode, preset.Items))
+            .ToList();
+        var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, presets.Count - 1));
+        ApplyPresets(presets, index);
     }
 
     private void BuildPresetItems() {
@@ -209,7 +219,43 @@ public sealed class TasbihViewModel : ViewModelBase {
             AccentIndex = _settings.AccentIndex
         };
 
+        _suppressReload = true;
         _dataService.SaveSettings(_settings);
+    }
+
+    private void OnSettingsChanged(object? sender, AppSettings settings) {
+        if (_suppressReload) {
+            _suppressReload = false;
+            _settings = settings;
+            return;
+        }
+
+        RunOnMainThread(LoadPresets);
+    }
+
+    private void ApplyPresets(IReadOnlyList<TasbihPresetItem> presets, int selectedIndex) {
+        RunOnMainThread(() => {
+            _suspendSelectionSave = true;
+            try {
+                Presets.Clear();
+                foreach (var preset in presets) {
+                    Presets.Add(preset);
+                }
+
+                SelectedPreset = Presets.Count > 0 ? Presets[Math.Clamp(selectedIndex, 0, Presets.Count - 1)] : null;
+                IsPresetSelectionEnabled = Count == 0;
+            } finally {
+                _suspendSelectionSave = false;
+            }
+        });
+    }
+
+    private static void RunOnMainThread(Action action) {
+        if (MainThread.IsMainThread) {
+            action();
+        } else {
+            MainThread.BeginInvokeOnMainThread(action);
+        }
     }
 
     private static void TryVibrateReset() {

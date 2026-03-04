@@ -14,6 +14,7 @@ namespace Pray_Ad_Free.ViewModels;
 public sealed class SettingsViewModel : ViewModelBase {
     private readonly PrayerDataService _dataService;
     private readonly GeoService _geoService;
+    private readonly IAppLogger _logger;
     private AppSettings _settings = new();
     private bool _useGps;
     private string _city = "";
@@ -70,9 +71,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _newTasbihCount = "";
     private OptionItem<TasbihRepeatMode>? _selectedTasbihRepeatMode;
 
-    public SettingsViewModel(PrayerDataService dataService, GeoService geoService) {
+    public SettingsViewModel(PrayerDataService dataService, GeoService geoService, IAppLogger logger) {
         _dataService = dataService;
         _geoService = geoService;
+        _logger = logger;
         Methods = new ObservableCollection<OptionItem<CalculationMethod>>();
         Madhhabs = new ObservableCollection<OptionItem<Madhhab>>();
         HighLatitudeRules = new ObservableCollection<OptionItem<HighLatitudeRule>>();
@@ -662,39 +664,62 @@ public sealed class SettingsViewModel : ViewModelBase {
             });
         }
 
-        CountryOptions.Clear();
-        foreach (var country in known.GroupBy(item => NormalizeName(item.Country)).Select(group => group.First())) {
-            var countryName = NormalizeName(country.Country);
-            var cityName = NormalizeName(country.City);
-            CountryOptions.Add(new PlaceOption(countryName, cityName, country.Latitude, country.Longitude, true));
+        var countries = known
+            .GroupBy(item => NormalizeName(item.Country))
+            .Select(group => group.First())
+            .Select(country => new PlaceOption(
+                NormalizeName(country.Country),
+                NormalizeName(country.City),
+                country.Latitude,
+                country.Longitude,
+                true))
+            .ToList();
+
+        if (countries.Count == 0) {
+            countries.Add(new PlaceOption(LocalizationManager.Translate("UnknownCountry"), "", 0, 0, true));
         }
 
-        if (CountryOptions.Count == 0) {
-            CountryOptions.Add(new PlaceOption(LocalizationManager.Translate("UnknownCountry"), "", 0, 0, true));
-        }
+        RunOnMainThread(() => {
+            CountryOptions.Clear();
+            foreach (var option in countries) {
+                CountryOptions.Add(option);
+            }
 
-        SelectedCountry = CountryOptions.FirstOrDefault(option => option.Country == current.Country)
-            ?? CountryOptions.FirstOrDefault();
+            SelectedCountry = CountryOptions.FirstOrDefault(option => option.Country == current.Country)
+                ?? CountryOptions.FirstOrDefault();
 
-        UpdateCityOptions(current.Country);
+            UpdateCityOptions(current.Country);
+        });
     }
 
     private void UpdateCityOptions(string? country) {
-        CityOptions.Clear();
         var known = _geoService.GetKnownPlaces()
             .Where(item => string.Equals(NormalizeName(item.Country), NormalizeName(country ?? ""), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        foreach (var city in known.Where(item => !string.IsNullOrWhiteSpace(item.City))) {
-            CityOptions.Add(new PlaceOption(NormalizeName(city.Country), NormalizeName(city.City), city.Latitude, city.Longitude, false));
+        var cities = known
+            .Where(item => !string.IsNullOrWhiteSpace(item.City))
+            .Select(city => new PlaceOption(
+                NormalizeName(city.Country),
+                NormalizeName(city.City),
+                city.Latitude,
+                city.Longitude,
+                false))
+            .ToList();
+
+        if (cities.Count == 0 && !string.IsNullOrWhiteSpace(country)) {
+            cities.Add(new PlaceOption(country, LocalizationManager.Translate("UnknownCity"), 0, 0, false));
         }
 
-        if (CityOptions.Count == 0 && !string.IsNullOrWhiteSpace(country)) {
-            CityOptions.Add(new PlaceOption(country, LocalizationManager.Translate("UnknownCity"), 0, 0, false));
-        }
+        RunOnMainThread(() => {
+            CityOptions.Clear();
+            foreach (var city in cities) {
+                CityOptions.Add(city);
+            }
 
-        SelectedCity = CityOptions.FirstOrDefault(option => option.City == _settings.Location.City)
-            ?? CityOptions.FirstOrDefault();
+            SelectedCity = CityOptions.FirstOrDefault(option => option.City == _settings.Location.City)
+                ?? CityOptions.FirstOrDefault();
+        });
     }
 
     private async Task ApplyCountrySelectionAsync(PlaceOption? option) {
@@ -708,22 +733,32 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
 
         var result = await _geoService.ForwardAsync(country, CancellationToken.None).ConfigureAwait(false);
-        _suspendSave = true;
-        UseGps = false;
-        Country = NormalizeName(country);
-        if (result != null) {
-            City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
-            Latitude = result.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-            Longitude = result.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-        } else {
-            City = LocalizationManager.Translate("UnknownCity");
-            Latitude = "0";
-            Longitude = "0";
-        }
+        RunOnMainThread(() => {
+            _suspendSave = true;
+            UseGps = false;
+            Country = NormalizeName(country);
+            if (result != null) {
+                City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
+                Latitude = result.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+                Longitude = result.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
+            } else {
+                City = LocalizationManager.Translate("UnknownCity");
+                Latitude = "0";
+                Longitude = "0";
+            }
 
-        UpdateCityOptions(country);
-        _suspendSave = false;
-        ScheduleSave();
+            UpdateCityOptions(country);
+            _suspendSave = false;
+            ScheduleSave();
+        });
+    }
+
+    private static void RunOnMainThread(Action action) {
+        if (MainThread.IsMainThread) {
+            action();
+        } else {
+            MainThread.BeginInvokeOnMainThread(action);
+        }
     }
 
     private void ApplyCitySelection(PlaceOption? option) {
@@ -1196,6 +1231,13 @@ public sealed class SettingsViewModel : ViewModelBase {
         if (!ShouldAutoSave(e.PropertyName)) {
             return;
         }
+
+#if DEBUG
+        if (!string.IsNullOrWhiteSpace(e.PropertyName)) {
+            var value = GetType().GetProperty(e.PropertyName)?.GetValue(this);
+            _logger.LogEvent("SettingChanged", $"{e.PropertyName}={value}");
+        }
+#endif
 
         ScheduleSave();
     }
