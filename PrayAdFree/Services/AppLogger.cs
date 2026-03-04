@@ -4,6 +4,7 @@ using Microsoft.Maui.Storage;
 namespace Pray_Ad_Free.Services;
 
 public sealed class AppLogger : IAppLogger {
+    private static int _initialized;
     private readonly string _exceptionPath;
     private readonly string _eventPath;
     private readonly object _lock = new();
@@ -16,7 +17,9 @@ public sealed class AppLogger : IAppLogger {
         Directory.CreateDirectory(logRoot);
         _exceptionPath = Path.Combine(logRoot, "PrayAdFree.log");
         _eventPath = Path.Combine(logRoot, "PrayAdFree-events.log");
-        ResetLogs();
+        if (Interlocked.Exchange(ref _initialized, 1) == 0) {
+            ResetLogs();
+        }
     }
 
     public void LogException(Exception exception, string context) {

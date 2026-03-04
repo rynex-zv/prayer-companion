@@ -29,10 +29,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     continue;
                 }
 
+                var prayerName = LocalizationManager.TranslatePrayer(item.Prayer);
                 requests.Add(new NotificationRequest {
                     NotificationId = BuildId(day.Date, item.Prayer),
-                    Title = $"Prayer time: {item.Prayer}",
-                    Description = $"It is time for {item.Prayer}",
+                    Title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName),
+                    Description = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName),
                     Schedule = new NotificationRequestSchedule {
                         NotifyTime = ToLocalKind(item.Time),
                         NotifyRepeatInterval = null

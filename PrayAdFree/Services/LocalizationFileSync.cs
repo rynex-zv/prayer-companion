@@ -20,7 +20,7 @@ public sealed class LocalizationFileSync {
         var versionPath = Path.Combine(targetDir, "version.txt");
         var currentVersion = AppInfo.Current.VersionString;
         var storedVersion = File.Exists(versionPath) ? File.ReadAllText(versionPath) : "";
-        if (string.Equals(storedVersion, currentVersion, StringComparison.Ordinal)) {
+        if (string.Equals(storedVersion, currentVersion, StringComparison.Ordinal) && !ArabicFileLooksCorrupted(targetDir)) {
             return;
         }
 
@@ -34,6 +34,20 @@ public sealed class LocalizationFileSync {
         }
 
         File.WriteAllText(versionPath, currentVersion);
+    }
+
+    private static bool ArabicFileLooksCorrupted(string targetDir) {
+        try {
+            var path = Path.Combine(targetDir, "ar.json");
+            if (!File.Exists(path)) {
+                return true;
+            }
+
+            var text = File.ReadAllText(path);
+            return text.Contains("???", StringComparison.Ordinal);
+        } catch {
+            return true;
+        }
     }
 
     private static byte[]? TryReadPackageBytes(string relativePath) {

@@ -3,12 +3,14 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free {
     public partial class App : Application {
+        public static IServiceProvider? Services { get; private set; }
         private readonly IServiceProvider _services;
         private readonly IAppLogger _logger;
 
         public App(IServiceProvider services, IAppLogger logger) {
             InitializeComponent();
             _services = services;
+            Services = services;
             _logger = logger;
             RegisterExceptionHandlers();
         }

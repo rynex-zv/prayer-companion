@@ -146,6 +146,8 @@
   "HighLatitude_SeventhOfTheNight": "Seventh of the Night",
   "HighLatitude_TwilightAngle": "Twilight Angle",
   "UpdateGps": "Update location (GPS)",
+  "Notification_PrayerTitle": "Prayer time: {0}",
+  "Notification_PrayerBody": "It is time for {0}",
   "TasbihSettings": "Tasbih settings",
   "TasbihPresets": "Presets",
   "TasbihPresetName": "Preset name",

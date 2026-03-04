@@ -159,5 +159,7 @@
   "TasbihPreset_AfterPrayer": "Namazdan sonra (33/33/34)",
   "TasbihPreset_Hundred": "100x Subhanallah",
   "TasbihPreset_Salawat": "100x Salavat",
-  "Tasbih_Empty": "On ayar sec"
+  "Tasbih_Empty": "On ayar sec",
+  "Notification_PrayerTitle": "Namaz vakti: {0}",
+  "Notification_PrayerBody": "{0} vakti geldi"
 }

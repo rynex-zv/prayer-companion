@@ -52,6 +52,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private PlaceOption? _selectedCity;
     private bool _gpsBusy;
     private CancellationTokenSource? _gpsLoopCts;
+    private bool _suspendPlaceSelection;
     private OptionItem<int>? _selectedImsakReminderUnit;
     private OptionItem<int>? _selectedImsakReminderDirection;
     private OptionItem<int>? _selectedIftarReminderUnit;
@@ -186,28 +187,32 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     public bool IsManualLocationEnabled => !UseGps;
 
-    public bool GpsBusy {
-        get => _gpsBusy;
-        set {
-            if (SetProperty(ref _gpsBusy, value)) {
-                MainThread.BeginInvokeOnMainThread(() => RefreshGpsCommand.ChangeCanExecute());
-            }
-        }
-    }
+    public bool GpsBusy => _gpsBusy;
     public string City {
         get => _city;
-        set => SetProperty(ref _city, value);
+        set {
+            if (SetProperty(ref _city, value) && !_suspendSave && UseGps) {
+                UseGps = false;
+            }
+        }
     }
 
     public string Country {
         get => _country;
-        set => SetProperty(ref _country, value);
+        set {
+            if (SetProperty(ref _country, value) && !_suspendSave && UseGps) {
+                UseGps = false;
+            }
+        }
     }
 
     public string Latitude {
         get => _latitude;
         set {
-            if (SetProperty(ref _latitude, value) && !_suspendSave && !UseGps) {
+            if (SetProperty(ref _latitude, value) && !_suspendSave) {
+                if (UseGps) {
+                    UseGps = false;
+                }
                 ScheduleReverseLookup();
             }
         }
@@ -216,7 +221,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     public string Longitude {
         get => _longitude;
         set {
-            if (SetProperty(ref _longitude, value) && !_suspendSave && !UseGps) {
+            if (SetProperty(ref _longitude, value) && !_suspendSave) {
+                if (UseGps) {
+                    UseGps = false;
+                }
                 ScheduleReverseLookup();
             }
         }
@@ -226,7 +234,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         get => _selectedCountry;
         set {
             if (SetProperty(ref _selectedCountry, value)) {
-                _ = ApplyCountrySelectionAsync(value);
+                if (!_suspendPlaceSelection) {
+                    _ = ApplyCountrySelectionAsync(value);
+                }
             }
         }
     }
@@ -235,7 +245,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         get => _selectedCity;
         set {
             if (SetProperty(ref _selectedCity, value)) {
-                ApplyCitySelection(value);
+                if (!_suspendPlaceSelection) {
+                    ApplyCitySelection(value);
+                }
             }
         }
     }
@@ -685,8 +697,10 @@ public sealed class SettingsViewModel : ViewModelBase {
                 CountryOptions.Add(option);
             }
 
+            _suspendPlaceSelection = true;
             SelectedCountry = CountryOptions.FirstOrDefault(option => option.Country == current.Country)
                 ?? CountryOptions.FirstOrDefault();
+            _suspendPlaceSelection = false;
 
             UpdateCityOptions(current.Country);
         });
@@ -698,13 +712,16 @@ public sealed class SettingsViewModel : ViewModelBase {
             .ToList();
 
         var cities = known
-            .Where(item => !string.IsNullOrWhiteSpace(item.City))
             .Select(city => new PlaceOption(
                 NormalizeName(city.Country),
                 NormalizeName(city.City),
                 city.Latitude,
                 city.Longitude,
                 false))
+            .Where(option => !string.IsNullOrWhiteSpace(option.City))
+            .Where(option => !string.Equals(option.City, option.Country, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.City, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToList();
 
         if (cities.Count == 0 && !string.IsNullOrWhiteSpace(country)) {
@@ -717,8 +734,10 @@ public sealed class SettingsViewModel : ViewModelBase {
                 CityOptions.Add(city);
             }
 
+            _suspendPlaceSelection = true;
             SelectedCity = CityOptions.FirstOrDefault(option => option.City == _settings.Location.City)
                 ?? CityOptions.FirstOrDefault();
+            _suspendPlaceSelection = false;
         });
     }
 
@@ -1335,7 +1354,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
 
         try {
-            GpsBusy = true;
+            SetGpsBusy(true);
             var settings = _dataService.LoadSettings();
             settings = new AppSettings {
                 Location = new LocationSettings {
@@ -1368,6 +1387,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None).ConfigureAwait(false);
             MainThread.BeginInvokeOnMainThread(() => {
                 _suspendSave = true;
+                _settings = updated;
                 City = NormalizeName(updated.Location.City);
                 Country = NormalizeName(updated.Location.Country);
                 Latitude = updated.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
@@ -1376,8 +1396,10 @@ public sealed class SettingsViewModel : ViewModelBase {
                 BuildPlaceOptions();
                 ScheduleSave();
             });
+        } catch (Exception ex) {
+            _logger.LogException(ex, "SettingsViewModel.RefreshGpsAsync");
         } finally {
-            GpsBusy = false;
+            SetGpsBusy(false);
         }
     }
 
@@ -1395,13 +1417,29 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private async Task GpsLoopAsync(CancellationToken token) {
         while (!token.IsCancellationRequested) {
-            await RefreshGpsAsync().ConfigureAwait(false);
+            try {
+                await RefreshGpsAsync().ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger.LogException(ex, "SettingsViewModel.GpsLoopAsync");
+            }
             try {
                 await Task.Delay(TimeSpan.FromMinutes(15), token).ConfigureAwait(false);
             } catch (TaskCanceledException) {
                 break;
             }
         }
+    }
+
+    private void SetGpsBusy(bool value) {
+        if (_gpsBusy == value) {
+            return;
+        }
+
+        _gpsBusy = value;
+        RunOnMainThread(() => {
+            OnPropertyChanged(nameof(GpsBusy));
+            RefreshGpsCommand.ChangeCanExecute();
+        });
     }
 
     private static string NormalizeName(string? value) {

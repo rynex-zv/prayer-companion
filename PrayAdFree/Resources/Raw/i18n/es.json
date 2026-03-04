@@ -178,5 +178,7 @@
   "TasbihPreset_AfterPrayer": "Despues de la oracion (33/33/34)",
   "TasbihPreset_Hundred": "100x Subhan Allah",
   "TasbihPreset_Salawat": "100x Salawat",
-  "Tasbih_Empty": "Elige un modelo"
+  "Tasbih_Empty": "Elige un modelo",
+  "Notification_PrayerTitle": "Hora de la oracion: {0}",
+  "Notification_PrayerBody": "Es hora de {0}"
 }
