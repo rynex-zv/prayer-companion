@@ -15,12 +15,21 @@ public sealed class SettingsService {
     }
 
     public AppSettings Load() {
-        var json = _store.Get(SettingsKey, "");
-        if (string.IsNullOrWhiteSpace(json)) {
-            return new AppSettings();
-        }
+        try {
+            var json = _store.Get(SettingsKey, "");
+            if (string.IsNullOrWhiteSpace(json)) {
+                return new AppSettings();
+            }
 
-        return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+            return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+        } catch {
+            var fallback = new AppSettings();
+            try {
+                Save(fallback);
+            } catch {
+            }
+            return fallback;
+        }
     }
 
     public void Save(AppSettings settings) {

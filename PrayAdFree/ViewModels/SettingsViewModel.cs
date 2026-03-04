@@ -73,6 +73,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _newTasbihCount = "";
     private OptionItem<TasbihRepeatMode>? _selectedTasbihRepeatMode;
     private string _newTasbihPresetName = "";
+    private Command<OptionItem<ThemeMode>>? _selectThemeModeCommand;
+    private Command<OptionItem<ThemeVariant>>? _selectThemeVariantCommand;
+    private Command<AccentOption>? _selectAccentCommand;
+    private Command<OptionItem<string>>? _selectLanguageCommand;
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService, IAppLogger logger) {
         _dataService = dataService;
@@ -124,6 +128,26 @@ public sealed class SettingsViewModel : ViewModelBase {
         MoveTasbihItemUpCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemUp);
         MoveTasbihItemDownCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemDown);
         AddTasbihPresetCommand = new Command(AddTasbihPreset);
+        SelectThemeModeCommand = new Command<OptionItem<ThemeMode>>(item => {
+            if (item != null) {
+                SelectedThemeMode = item;
+            }
+        });
+        SelectThemeVariantCommand = new Command<OptionItem<ThemeVariant>>(item => {
+            if (item != null) {
+                SelectedThemeVariant = item;
+            }
+        });
+        SelectAccentCommand = new Command<AccentOption>(item => {
+            if (item != null) {
+                SelectedAccent = item;
+            }
+        });
+        SelectLanguageCommand = new Command<OptionItem<string>>(item => {
+            if (item != null) {
+                SelectedLanguage = item;
+            }
+        });
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -180,6 +204,22 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command MoveTasbihItemUpCommand { get; }
     public Command MoveTasbihItemDownCommand { get; }
     public Command AddTasbihPresetCommand { get; }
+    public Command<OptionItem<ThemeMode>> SelectThemeModeCommand {
+        get => _selectThemeModeCommand!;
+        private set => _selectThemeModeCommand = value;
+    }
+    public Command<OptionItem<ThemeVariant>> SelectThemeVariantCommand {
+        get => _selectThemeVariantCommand!;
+        private set => _selectThemeVariantCommand = value;
+    }
+    public Command<AccentOption> SelectAccentCommand {
+        get => _selectAccentCommand!;
+        private set => _selectAccentCommand = value;
+    }
+    public Command<OptionItem<string>> SelectLanguageCommand {
+        get => _selectLanguageCommand!;
+        private set => _selectLanguageCommand = value;
+    }
     public bool UseGps {
         get => _useGps;
         set {

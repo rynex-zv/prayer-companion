@@ -2,17 +2,46 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
              x:Class="Pray_Ad_Free.Pages.SettingsDiagnosticsPage"
              Title="{loc:Loc Diagnostics}">
     <ContentPage.Resources>
+        <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
+        <Style x:Key="ChoiceChip" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
+        <Style x:Key="ChoiceChipLabel" TargetType="Label">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+        </Style>
+        <Style x:Key="ChoiceCard" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
         <Style TargetType="Entry">
             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-            <Setter Property="Padding" Value="10,8" />
             <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+            <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="MinimumWidthRequest" Value="44" />
         </Style>
         <Style TargetType="Picker">
             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
             <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+            <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="MinimumWidthRequest" Value="44" />
         </Style>
     </ContentPage.Resources>
     <ScrollView>
@@ -24,14 +53,122 @@
                 <VerticalStackLayout Spacing="12">
                     <Label Text="{loc:Loc Diagnostics}" FontSize="16" />
                     <Label Text="{loc:Loc ThemeMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc ThemeMode}" ItemsSource="{Binding ThemeModes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedThemeMode}" />
+                    <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ThemeModes}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.SelectThemeModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                        <Binding Path="BindingContext.SelectedThemeMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                        <Binding Path="." />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                    <Binding Path="BindingContext.SelectedThemeMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                    <Binding Path="." />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
                     <Label Text="{loc:Loc ThemeVariant}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc ThemeVariant}" ItemsSource="{Binding ThemeVariants}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedThemeVariant}" />
+                    <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ThemeVariants}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.SelectThemeVariantCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                        <Binding Path="BindingContext.SelectedThemeVariant" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                        <Binding Path="." />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                    <Binding Path="BindingContext.SelectedThemeVariant" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                    <Binding Path="." />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
                     <Label Text="{loc:Loc ThemeColor}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
-                        <BoxView Color="{Binding AccentPreviewColor}" WidthRequest="28" HeightRequest="28" CornerRadius="6" />
-                        <Picker Title="{loc:Loc ThemeColor}" ItemsSource="{Binding AccentOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAccent}" />
-                    </HorizontalStackLayout>
+                    <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding AccentOptions}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.SelectAccentCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                                        <BoxView Color="{Binding Color}" WidthRequest="22" HeightRequest="22" CornerRadius="6" />
+                                        <Label Grid.Column="1" Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedAccent" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                    <Binding Path="BindingContext.SelectedAccent" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                    <Binding Path="." />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
 
                     <Label Text="{loc:Loc TextSize}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
@@ -41,7 +178,65 @@
                     </HorizontalStackLayout>
 
                     <Label Text="{loc:Loc Language}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Language}" ItemsSource="{Binding Languages}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedLanguage}" />
+                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Languages}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource ChoiceCard}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.SelectLanguageCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" VerticalOptions="Center">
+                                        <Border x:Name="LangDot"
+                                                WidthRequest="18"
+                                                HeightRequest="18"
+                                                StrokeThickness="2"
+                                                StrokeShape="Ellipse"
+                                                Stroke="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+                                                BackgroundColor="Transparent">
+                                            <Border.Triggers>
+                                                <DataTrigger TargetType="Border" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedLanguage" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                                    <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                                </DataTrigger>
+                                            </Border.Triggers>
+                                        </Border>
+                                        <Label Grid.Column="1" Text="{Binding Label}" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedLanguage" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                    <Binding Path="BindingContext.SelectedLanguage" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                    <Binding Path="." />
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
                 </VerticalStackLayout>
             </Border>
         </VerticalStackLayout>

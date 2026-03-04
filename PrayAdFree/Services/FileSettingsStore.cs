@@ -16,12 +16,16 @@ public sealed class FileSettingsStore : ISettingsStore {
             throw new NotSupportedException("Only string settings are supported.");
         }
 
-        if (!File.Exists(_path)) {
+        try {
+            if (!File.Exists(_path)) {
+                return defaultValue;
+            }
+
+            var value = File.ReadAllText(_path);
+            return (T)(object)(value ?? "");
+        } catch {
             return defaultValue;
         }
-
-        var value = File.ReadAllText(_path);
-        return (T)(object)(value ?? "");
     }
 
     public void Set<T>(string key, T value) {
@@ -29,6 +33,20 @@ public sealed class FileSettingsStore : ISettingsStore {
             throw new NotSupportedException("Only string settings are supported.");
         }
 
-        File.WriteAllText(_path, text);
+        var tempPath = _path + ".tmp";
+        try {
+            File.WriteAllText(tempPath, text);
+            if (File.Exists(_path)) {
+                File.Delete(_path);
+            }
+            File.Move(tempPath, _path);
+        } finally {
+            if (File.Exists(tempPath)) {
+                try {
+                    File.Delete(tempPath);
+                } catch {
+                }
+            }
+        }
     }
 }
