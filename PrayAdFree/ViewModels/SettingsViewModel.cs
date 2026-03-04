@@ -60,6 +60,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<int>? _selectedAdhanReminderUnit;
     private OptionItem<int>? _selectedAdhanReminderDirection;
     private OptionItem<ClockFormat>? _selectedClockFormat;
+    private OptionItem<QiblaReadingMode>? _selectedQiblaReadingMode;
+    private OptionItem<QiblaFilterMode>? _selectedQiblaFilterMode;
     private OptionItem<string>? _selectedAdhanSound;
     private OptionItem<VibrationStrength>? _selectedVibrationStrength;
     private OptionItem<VibrationPattern>? _selectedVibrationPattern;
@@ -77,6 +79,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private Command<OptionItem<ThemeVariant>>? _selectThemeVariantCommand;
     private Command<AccentOption>? _selectAccentCommand;
     private Command<OptionItem<string>>? _selectLanguageCommand;
+    private Command<OptionItem<QiblaReadingMode>>? _selectQiblaReadingModeCommand;
+    private Command<OptionItem<QiblaFilterMode>>? _selectQiblaFilterModeCommand;
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService, IAppLogger logger) {
         _dataService = dataService;
@@ -98,6 +102,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         IftarReminders = new ObservableCollection<ReminderOffsetItem>();
         AdhanReminders = new ObservableCollection<ReminderOffsetItem>();
         ClockFormats = new ObservableCollection<OptionItem<ClockFormat>>();
+        QiblaReadingModes = new ObservableCollection<OptionItem<QiblaReadingMode>>();
+        QiblaFilterModes = new ObservableCollection<OptionItem<QiblaFilterMode>>();
         AdhanSounds = new ObservableCollection<OptionItem<string>>();
         AdhanOverrideSounds = new ObservableCollection<OptionItem<string>>();
         AdhanOverrideVibrations = new ObservableCollection<OptionItem<int>>();
@@ -111,6 +117,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         BuildLocalizedPickers();
         BuildReminderOptions();
         BuildClockFormats();
+        BuildQiblaOptions();
         BuildNotificationOptions();
         BuildAdhanOverrideOptions();
         BuildTasbihRepeatModes();
@@ -148,6 +155,16 @@ public sealed class SettingsViewModel : ViewModelBase {
                 SelectedLanguage = item;
             }
         });
+        SelectQiblaReadingModeCommand = new Command<OptionItem<QiblaReadingMode>>(item => {
+            if (item != null) {
+                SelectedQiblaReadingMode = item;
+            }
+        });
+        SelectQiblaFilterModeCommand = new Command<OptionItem<QiblaFilterMode>>(item => {
+            if (item != null) {
+                SelectedQiblaFilterMode = item;
+            }
+        });
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -157,6 +174,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             BuildReminderOptions();
             RebuildReminderLabels();
             BuildClockFormats();
+            BuildQiblaOptions();
             BuildNotificationOptions();
             BuildAdhanOverrideOptions();
             BuildTasbihRepeatModes();
@@ -180,6 +198,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<ReminderOffsetItem> IftarReminders { get; }
     public ObservableCollection<ReminderOffsetItem> AdhanReminders { get; }
     public ObservableCollection<OptionItem<ClockFormat>> ClockFormats { get; }
+    public ObservableCollection<OptionItem<QiblaReadingMode>> QiblaReadingModes { get; }
+    public ObservableCollection<OptionItem<QiblaFilterMode>> QiblaFilterModes { get; }
     public ObservableCollection<OptionItem<string>> AdhanSounds { get; }
     public ObservableCollection<OptionItem<string>> AdhanOverrideSounds { get; }
     public ObservableCollection<OptionItem<int>> AdhanOverrideVibrations { get; }
@@ -219,6 +239,14 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command<OptionItem<string>> SelectLanguageCommand {
         get => _selectLanguageCommand!;
         private set => _selectLanguageCommand = value;
+    }
+    public Command<OptionItem<QiblaReadingMode>> SelectQiblaReadingModeCommand {
+        get => _selectQiblaReadingModeCommand!;
+        private set => _selectQiblaReadingModeCommand = value;
+    }
+    public Command<OptionItem<QiblaFilterMode>> SelectQiblaFilterModeCommand {
+        get => _selectQiblaFilterModeCommand!;
+        private set => _selectQiblaFilterModeCommand = value;
     }
     public bool UseGps {
         get => _useGps;
@@ -416,6 +444,16 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _selectedClockFormat, value);
     }
 
+    public OptionItem<QiblaReadingMode>? SelectedQiblaReadingMode {
+        get => _selectedQiblaReadingMode;
+        set => SetProperty(ref _selectedQiblaReadingMode, value);
+    }
+
+    public OptionItem<QiblaFilterMode>? SelectedQiblaFilterMode {
+        get => _selectedQiblaFilterMode;
+        set => SetProperty(ref _selectedQiblaFilterMode, value);
+    }
+
     public OptionItem<string>? SelectedAdhanSound {
         get => _selectedAdhanSound;
         set => SetProperty(ref _selectedAdhanSound, value);
@@ -594,6 +632,10 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? ThemeVariants.FirstOrDefault();
         SelectedClockFormat = ClockFormats.FirstOrDefault(item => item.Value == _settings.ClockFormat)
             ?? ClockFormats.FirstOrDefault();
+        SelectedQiblaReadingMode = QiblaReadingModes.FirstOrDefault(item => item.Value == _settings.Qibla.ReadingMode)
+            ?? QiblaReadingModes.FirstOrDefault();
+        SelectedQiblaFilterMode = QiblaFilterModes.FirstOrDefault(item => item.Value == _settings.Qibla.FilterMode)
+            ?? QiblaFilterModes.FirstOrDefault();
         TextScale = _settings.TextScale;
         EnsureTasbihDefaults();
         LoadTasbihPresets();
@@ -651,6 +693,11 @@ public sealed class SettingsViewModel : ViewModelBase {
             PrayerOverrides = BuildAdhanOverrides()
         };
 
+        var qibla = new QiblaPreferences {
+            ReadingMode = SelectedQiblaReadingMode?.Value ?? QiblaReadingMode.Balanced,
+            FilterMode = SelectedQiblaFilterMode?.Value ?? QiblaFilterMode.Normal
+        };
+
         var tasbih = new TasbihSettings {
             Presets = TasbihPresets.Select(preset => new TasbihPresetSettings {
                 Name = preset.Name,
@@ -673,6 +720,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             FastingOffsets = fastingOffsets,
             FastingReminders = fastingReminders,
             Notifications = notifications,
+            Qibla = qibla,
             ClockFormat = SelectedClockFormat?.Value ?? ClockFormat.Auto,
             TextScale = TextScale,
             Tasbih = tasbih,
@@ -1120,6 +1168,27 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? ClockFormats.FirstOrDefault();
     }
 
+    private void BuildQiblaOptions() {
+        var currentReading = SelectedQiblaReadingMode?.Value ?? _settings.Qibla.ReadingMode;
+        var currentFilter = SelectedQiblaFilterMode?.Value ?? _settings.Qibla.FilterMode;
+
+        QiblaReadingModes.Clear();
+        QiblaReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Smooth, LocalizationManager.Translate("CompassReading_Smooth")));
+        QiblaReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Balanced, LocalizationManager.Translate("CompassReading_Balanced")));
+        QiblaReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Fast, LocalizationManager.Translate("CompassReading_Fast")));
+        QiblaReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Raw, LocalizationManager.Translate("CompassReading_Raw")));
+
+        QiblaFilterModes.Clear();
+        QiblaFilterModes.Add(new OptionItem<QiblaFilterMode>(QiblaFilterMode.Off, LocalizationManager.Translate("CompassFilter_Off")));
+        QiblaFilterModes.Add(new OptionItem<QiblaFilterMode>(QiblaFilterMode.Normal, LocalizationManager.Translate("CompassFilter_Normal")));
+        QiblaFilterModes.Add(new OptionItem<QiblaFilterMode>(QiblaFilterMode.Strict, LocalizationManager.Translate("CompassFilter_Strict")));
+
+        SelectedQiblaReadingMode = QiblaReadingModes.FirstOrDefault(item => item.Value == currentReading)
+            ?? QiblaReadingModes.FirstOrDefault();
+        SelectedQiblaFilterMode = QiblaFilterModes.FirstOrDefault(item => item.Value == currentFilter)
+            ?? QiblaFilterModes.FirstOrDefault();
+    }
+
     private void BuildNotificationOptions() {
         var currentSound = SelectedAdhanSound?.Value ?? "adhan_default";
         var currentStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium;
@@ -1272,6 +1341,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             FastingOffsets = _settings.FastingOffsets,
             FastingReminders = _settings.FastingReminders,
             Notifications = _settings.Notifications,
+            Qibla = _settings.Qibla,
             ClockFormat = _settings.ClockFormat,
             TextScale = _settings.TextScale,
             Tasbih = TasbihDefaults.BuildDefaults(),
@@ -1454,6 +1524,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(ImsakAdvance)
             or nameof(IftarDelay)
             or nameof(SelectedClockFormat)
+            or nameof(SelectedQiblaReadingMode)
+            or nameof(SelectedQiblaFilterMode)
             or nameof(TextScale)
             or nameof(NotificationsEnabled)
             or nameof(VibrationEnabled)
@@ -1548,6 +1620,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 FastingOffsets = settings.FastingOffsets,
                 FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
+                Qibla = settings.Qibla,
                 ClockFormat = settings.ClockFormat,
                 TextScale = settings.TextScale,
                 Tasbih = settings.Tasbih,

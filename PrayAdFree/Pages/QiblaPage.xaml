@@ -2,8 +2,23 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
              x:Class="Pray_Ad_Free.Pages.QiblaPage"
              Title="{loc:Loc Qibla}">
+    <ContentPage.Resources>
+        <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
+        <Style x:Key="ChoiceChip" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
+        <Style x:Key="ChoiceChipLabel" TargetType="Label">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+        </Style>
+    </ContentPage.Resources>
     <Grid>
         <Grid.Background>
             <RadialGradientBrush Center="0.5,0.3" Radius="0.8">
@@ -42,6 +57,91 @@
                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
                                    HorizontalTextAlignment="End" />
                         </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ReadingModes}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.SelectReadingModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedReadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                        <Binding Path="BindingContext.SelectedReadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                        <Binding Path="." />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+
+                        <Label Text="{loc:Loc CompassFilter}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding FilterModes}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.SelectFilterModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedFilterMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                        <Binding Path="BindingContext.SelectedFilterMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                        <Binding Path="." />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
                     </VerticalStackLayout>
                 </Border>
 
@@ -87,7 +187,8 @@
                 </Grid>
             </Border>
 
-                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                <Border x:Name="MapContainer"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 18"
                         Padding="12">

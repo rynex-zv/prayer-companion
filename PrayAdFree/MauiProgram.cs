@@ -20,7 +20,6 @@ namespace Pray_Ad_Free {
 #if !WINDOWS
             builder.UseMauiMaps();
 #endif
-
 #if DEBUG
             builder.Logging.AddDebug();
 #endif

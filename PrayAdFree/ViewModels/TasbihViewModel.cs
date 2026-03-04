@@ -120,6 +120,7 @@ public sealed class TasbihViewModel : ViewModelBase {
                 FastingOffsets = _settings.FastingOffsets,
                 FastingReminders = _settings.FastingReminders,
                 Notifications = _settings.Notifications,
+                Qibla = _settings.Qibla,
                 ClockFormat = _settings.ClockFormat,
                 TextScale = _settings.TextScale,
                 Tasbih = TasbihDefaults.BuildDefaults(),
@@ -214,6 +215,7 @@ public sealed class TasbihViewModel : ViewModelBase {
             FastingOffsets = _settings.FastingOffsets,
             FastingReminders = _settings.FastingReminders,
             Notifications = _settings.Notifications,
+            Qibla = _settings.Qibla,
             ClockFormat = _settings.ClockFormat,
             TextScale = _settings.TextScale,
             Tasbih = new TasbihSettings {

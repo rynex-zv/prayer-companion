@@ -5,6 +5,7 @@ using Microsoft.Maui.Maps;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 using System.Globalization;
+using PrayAdFree.Core.Models;
 
 namespace Pray_Ad_Free.Pages;
 
@@ -16,26 +17,32 @@ public partial class QiblaPage : ContentPage {
     private bool _hasSmoothHeading;
     private double _smoothX;
     private double _smoothY;
-    private const double _headingAlpha = 0.18;
+    private double _headingAlpha = 0.18;
+    private SensorSpeed _sensorSpeed = SensorSpeed.UI;
+    private bool _applyLowPass = true;
+    private QiblaFilterMode _filterMode = QiblaFilterMode.Normal;
+    private double? _lastAcceptedHeading;
     private Microsoft.Maui.Controls.Maps.Map? _map;
-
     public QiblaPage() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
     }
 
     public QiblaPage(QiblaViewModel viewModel) {
         InitializeComponent();
         BindingContext = viewModel;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     protected override async void OnAppearing() {
         base.OnAppearing();
+        MapContainer.IsVisible = ShouldShowMap();
         _ = LoadAndUpdateAsync();
+        ApplyCompassPreferences(false);
         _compassSupported = Compass.IsSupported;
         if (_compassSupported) {
             Compass.ReadingChanged += OnCompassReadingChanged;
             try {
                 _hasSmoothHeading = false;
-                Compass.Start(SensorSpeed.UI, true);
+                StartCompass();
                 _compassStarted = true;
             } catch (FeatureNotSupportedException) {
                 _compassSupported = false;
@@ -66,6 +73,9 @@ public partial class QiblaPage : ContentPage {
 
     private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e) {
         var heading = e.Reading.HeadingMagneticNorth;
+        if (IsFiltered(heading)) {
+            return;
+        }
         var radians = heading * Math.PI / 180.0;
         if (!_hasSmoothHeading) {
             _smoothX = Math.Cos(radians);
@@ -84,6 +94,84 @@ public partial class QiblaPage : ContentPage {
         MainThread.BeginInvokeOnMainThread(() => {
             ViewModel.UpdateHeading(smooth);
         });
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
+        if (e.PropertyName == nameof(QiblaViewModel.SelectedReadingMode)
+            || e.PropertyName == nameof(QiblaViewModel.SelectedFilterMode)) {
+            ApplyCompassPreferences(true);
+        }
+    }
+
+    private void ApplyCompassPreferences(bool restart) {
+        var mode = ViewModel.SelectedReadingMode?.Value ?? QiblaReadingMode.Balanced;
+        _filterMode = ViewModel.SelectedFilterMode?.Value ?? QiblaFilterMode.Normal;
+        (_sensorSpeed, _applyLowPass, _headingAlpha) = mode switch {
+            QiblaReadingMode.Smooth => (SensorSpeed.UI, true, 0.12),
+            QiblaReadingMode.Fast => (SensorSpeed.Game, false, 0.28),
+            QiblaReadingMode.Raw => (SensorSpeed.Fastest, false, 1.0),
+            _ => (SensorSpeed.Default, true, 0.18)
+        };
+        _hasSmoothHeading = false;
+        _lastAcceptedHeading = null;
+        if (restart && _compassSupported) {
+            RestartCompass();
+        }
+    }
+
+    private void StartCompass() {
+        Compass.Start(_sensorSpeed, _applyLowPass);
+    }
+
+    private void RestartCompass() {
+        try {
+            if (Compass.IsMonitoring) {
+                Compass.Stop();
+            }
+            StartCompass();
+            _compassStarted = true;
+        } catch {
+            _compassSupported = false;
+        }
+    }
+
+    private bool IsFiltered(double heading) {
+        if (_filterMode == QiblaFilterMode.Off) {
+            _lastAcceptedHeading = heading;
+            return false;
+        }
+
+        if (!_lastAcceptedHeading.HasValue) {
+            _lastAcceptedHeading = heading;
+            return false;
+        }
+
+        var delta = NormalizeDelta(heading, _lastAcceptedHeading.Value);
+        var threshold = _filterMode == QiblaFilterMode.Strict ? 20 : 45;
+        if (Math.Abs(delta) > threshold) {
+            return true;
+        }
+
+        _lastAcceptedHeading = heading;
+        return false;
+    }
+
+    private static double NormalizeDelta(double current, double previous) {
+        var delta = current - previous;
+        if (delta > 180) {
+            delta -= 360;
+        } else if (delta < -180) {
+            delta += 360;
+        }
+        return delta;
+    }
+
+    private bool ShouldShowMap() {
+        var info = DeviceDisplay.MainDisplayInfo;
+        var widthDp = info.Width / info.Density;
+        var heightDp = info.Height / info.Density;
+        var minDp = Math.Min(widthDp, heightDp);
+        return minDp >= 600;
     }
 
     private void UpdateMap() {
@@ -158,6 +246,8 @@ public partial class QiblaPage : ContentPage {
         if (!_compassSupported) {
             ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
         }
-        MainThread.BeginInvokeOnMainThread(UpdateMap);
+        if (MapContainer.IsVisible) {
+            MainThread.BeginInvokeOnMainThread(UpdateMap);
+        }
     }
 }
