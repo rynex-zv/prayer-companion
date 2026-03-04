@@ -53,6 +53,7 @@ public sealed class PrayerDataService {
                 Notifications = settings.Notifications,
                 ClockFormat = settings.ClockFormat,
                 TextScale = settings.TextScale,
+                Tasbih = settings.Tasbih,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
                 ThemeMode = settings.ThemeMode,

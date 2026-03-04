@@ -53,6 +53,7 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             Notifications = settings.Notifications,
             ClockFormat = settings.ClockFormat,
             TextScale = settings.TextScale,
+            Tasbih = settings.Tasbih,
             Language = language,
             LanguageSelected = true,
             ThemeMode = settings.ThemeMode,

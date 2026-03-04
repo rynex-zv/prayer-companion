@@ -43,12 +43,13 @@
                     <CollectionView ItemsSource="{Binding SelectedTasbihPreset.Items}" SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="2*,*,Auto,Auto,Auto" ColumnSpacing="8" Padding="0,6">
+                                <Grid ColumnDefinitions="2*,*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Padding="0,6">
                                     <Entry Text="{Binding Text}" />
                                     <Entry Text="{Binding TargetCount}" Grid.Column="1" />
                                     <Label Text="{Binding StartIndex}" Grid.Column="2" FontSize="12" VerticalTextAlignment="Center" />
-                                    <Button Text="↑" Command="{Binding BindingContext.MoveTasbihItemUpCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="3" />
-                                    <Button Text="↓" Command="{Binding BindingContext.MoveTasbihItemDownCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="4" />
+                                    <Button Text="^" Command="{Binding BindingContext.MoveTasbihItemUpCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="3" />
+                                    <Button Text="v" Command="{Binding BindingContext.MoveTasbihItemDownCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="4" />
+                                    <Button Text="{loc:Loc Remove}" Command="{Binding BindingContext.RemoveTasbihItemCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="5" />
                                 </Grid>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>

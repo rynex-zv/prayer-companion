@@ -145,5 +145,19 @@
   "HighLatitude_MiddleOfTheNight": "Middle of the Night",
   "HighLatitude_SeventhOfTheNight": "Seventh of the Night",
   "HighLatitude_TwilightAngle": "Twilight Angle",
-  "UpdateGps": "Update location (GPS)"
+  "UpdateGps": "Update location (GPS)",
+  "TasbihSettings": "Tasbih settings",
+  "TasbihPresets": "Presets",
+  "TasbihPresetName": "Preset name",
+  "TasbihRepeatMode": "Repeat mode",
+  "TasbihRepeat_None": "No repeat",
+  "TasbihRepeat_Reset": "Repeat from start",
+  "TasbihRepeat_Continue": "Repeat from current",
+  "TasbihItems": "Phrases",
+  "TasbihText": "Phrase",
+  "TasbihCount": "Count",
+  "TasbihPreset_AfterPrayer": "After prayer (33/33/34)",
+  "TasbihPreset_Hundred": "100x Subhan Allah",
+  "TasbihPreset_Salawat": "100x Salawat",
+  "Tasbih_Empty": "Choose a preset"
 }

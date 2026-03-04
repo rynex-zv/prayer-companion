@@ -164,5 +164,19 @@
   "Tasbih_LaHawla_Info": "Il n'y a de force ni de puissance qu'en Allah.",
   "Tasbih_Salawat": "Salawat",
   "Tasbih_Salawat_Info": "Allahumma salli ala Muhammad. Benedictions sur le Prophete.",
-  "SettingsGroups": "Groupes de parametres"
+  "SettingsGroups": "Groupes de parametres",
+  "TasbihSettings": "Parametres tasbih",
+  "TasbihPresets": "Modeles",
+  "TasbihPresetName": "Nom du modele",
+  "TasbihRepeatMode": "Mode repetition",
+  "TasbihRepeat_None": "Sans repetition",
+  "TasbihRepeat_Reset": "Recommencer au debut",
+  "TasbihRepeat_Continue": "Continuer la repetition",
+  "TasbihItems": "Phrases",
+  "TasbihText": "Phrase",
+  "TasbihCount": "Compteur",
+  "TasbihPreset_AfterPrayer": "Apres la priere (33/33/34)",
+  "TasbihPreset_Hundred": "100x Subhan Allah",
+  "TasbihPreset_Salawat": "100x Salawat",
+  "Tasbih_Empty": "Choisir un modele"
 }
