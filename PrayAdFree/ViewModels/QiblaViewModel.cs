@@ -9,6 +9,7 @@ public sealed class QiblaViewModel : ViewModelBase {
     private double _bearing;
     private double _heading;
     private double _needleRotation;
+    private double _compassRotation;
     private string _locationTitle = "";
     private string _statusMessage = "";
     private LocationSettings? _location;
@@ -30,6 +31,11 @@ public sealed class QiblaViewModel : ViewModelBase {
     public double NeedleRotation {
         get => _needleRotation;
         set => SetProperty(ref _needleRotation, value);
+    }
+
+    public double CompassRotation {
+        get => _compassRotation;
+        set => SetProperty(ref _compassRotation, value);
     }
 
     public string LocationTitle {
@@ -63,6 +69,7 @@ public sealed class QiblaViewModel : ViewModelBase {
     }
 
     private void UpdateNeedle() {
-        NeedleRotation = (Bearing - Heading + 360) % 360;
+        NeedleRotation = (Bearing + 360) % 360;
+        CompassRotation = (-Heading + 360) % 360;
     }
 }

@@ -50,24 +50,33 @@
                         StrokeShape="RoundRectangle 24"
                         Padding="18">
                     <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
-                        <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-                        <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="2" Opacity="0.6" />
-                        <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="1" Opacity="0.3"
-                                 Margin="24" />
+                        <Grid Rotation="{Binding CompassRotation}" AnchorX="0.5" AnchorY="0.5">
+                            <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+                            <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="2" Opacity="0.6" />
+                            <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="1" Opacity="0.3"
+                                     Margin="24" />
 
-                        <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="N" Grid.Row="0" Grid.Column="1" FontSize="12" TextColor="{StaticResource Accent}" HorizontalOptions="Center" />
-                            <Label Text="W" Grid.Row="1" Grid.Column="0" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
-                            <Label Text="E" Grid.Row="1" Grid.Column="2" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
-                            <Label Text="S" Grid.Row="2" Grid.Column="1" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalOptions="Center" />
+                            <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
+                                <Label Text="N" Grid.Row="0" Grid.Column="1" FontSize="12" TextColor="{StaticResource Accent}" HorizontalOptions="Center" />
+                                <Label Text="W" Grid.Row="1" Grid.Column="0" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="E" Grid.Row="1" Grid.Column="2" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="S" Grid.Row="2" Grid.Column="1" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalOptions="Center" />
+                            </Grid>
+
+                            <Grid Rotation="{Binding NeedleRotation}" AnchorX="0.5" AnchorY="0.5">
+                                <Border WidthRequest="18"
+                                        HeightRequest="18"
+                                        StrokeThickness="2"
+                                        StrokeShape="Ellipse"
+                                        Stroke="{StaticResource Accent}"
+                                        BackgroundColor="{StaticResource Accent}"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Start"
+                                        Margin="0,6,0,0" />
+                            </Grid>
                         </Grid>
 
-                        <Polygon Points="0,90 26,0 52,90 26,70"
-                                 Fill="{StaticResource Accent}"
-                                 HorizontalOptions="Center"
-                                 VerticalOptions="Center"
-                                 Rotation="{Binding NeedleRotation}" />
-                        <Ellipse WidthRequest="10" HeightRequest="10" Fill="{StaticResource Accent}"
+                        <Ellipse WidthRequest="8" HeightRequest="8" Fill="{StaticResource Accent}"
                                  HorizontalOptions="Center"
                                  VerticalOptions="Center" />
 
