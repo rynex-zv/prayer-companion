@@ -53,10 +53,10 @@
 
                     <Label Text="{loc:Loc FastingSettings}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
-                        <Label Text="{loc:Loc ImsakAdvance}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                        <Label Text="{loc:Loc IftarDelay}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
-                        <Entry Placeholder="{loc:Loc ImsakAdvance}" Text="{Binding ImsakAdvance}" Grid.Row="1" />
-                        <Entry Placeholder="{loc:Loc IftarDelay}" Text="{Binding IftarDelay}" Grid.Row="1" Grid.Column="1" />
+                        <Label Text="{loc:Loc IftarDelay}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Label Text="{loc:Loc ImsakAdvance}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
+                        <Entry Placeholder="{loc:Loc IftarDelay}" Text="{Binding IftarDelay}" Grid.Row="1" />
+                        <Entry Placeholder="{loc:Loc ImsakAdvance}" Text="{Binding ImsakAdvance}" Grid.Row="1" Grid.Column="1" />
                     </Grid>
 
                     <Label Text="{loc:Loc ImsakReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
@@ -94,6 +94,30 @@
                             </CollectionView.ItemTemplate>
                         </CollectionView>
                     </Grid>
+
+                    <Label Text="{loc:Loc AdhanPerPrayer}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <Label Text="{loc:Loc ReminderPrayer}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
+                        <Label Text="{loc:Loc Vibration}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="2" />
+                    </Grid>
+                    <CollectionView ItemsSource="{Binding AdhanPrayerOverrides}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" RowSpacing="4" Padding="0,6">
+                                    <Label Text="{Binding Name}" FontSize="13" VerticalTextAlignment="Center" />
+                                    <Picker Grid.Column="1"
+                                            ItemsSource="{Binding BindingContext.AdhanOverrideSounds, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            ItemDisplayBinding="{Binding Label}"
+                                            SelectedItem="{Binding SelectedSound}" />
+                                    <Picker Grid.Column="2"
+                                            ItemsSource="{Binding BindingContext.AdhanOverrideVibrations, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            ItemDisplayBinding="{Binding Label}"
+                                            SelectedItem="{Binding SelectedVibration}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
                 </VerticalStackLayout>
             </Border>
         </VerticalStackLayout>

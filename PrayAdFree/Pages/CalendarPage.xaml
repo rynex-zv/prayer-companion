@@ -13,11 +13,12 @@
             </LinearGradientBrush>
         </Grid.Background>
 
-        <VerticalStackLayout Spacing="16" Padding="20,24">
+        <Grid RowDefinitions="Auto,*" RowSpacing="16" Padding="20,24">
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 18"
-                    Padding="12">
+                    Padding="12"
+                    Grid.Row="0">
                 <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                     <DatePicker Date="{Binding SelectedMonth}" />
                     <Button Text="{loc:Loc Load}" Command="{Binding LoadCommand}" />
@@ -25,15 +26,28 @@
                 </HorizontalStackLayout>
             </Border>
 
-            <CollectionView ItemsSource="{Binding Days}" SelectionMode="None" ItemsLayout="VerticalList">
+            <CollectionView Grid.Row="1"
+                            ItemsSource="{Binding Days}"
+                            SelectionMode="None"
+                            VerticalOptions="FillAndExpand">
+                <CollectionView.ItemsLayout>
+                    <OnPlatform x:TypeArguments="ItemsLayout">
+                        <On Platform="WinUI,MacCatalyst">
+                            <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="12" VerticalItemSpacing="12" />
+                        </On>
+                        <On Platform="Android,iOS">
+                            <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                        </On>
+                    </OnPlatform>
+                </CollectionView.ItemsLayout>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
                         <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                                 StrokeThickness="0"
                                 StrokeShape="RoundRectangle 16"
                                 Padding="14"
-                                Margin="0,0,0,12">
-                            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+                                Margin="0,0,0,4">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="{Binding Date}" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                     <Label Text="{Binding Hijri}" FontSize="12" TextColor="{StaticResource TextSubtle}" />
@@ -68,6 +82,6 @@
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-        </VerticalStackLayout>
+        </Grid>
     </Grid>
 </ContentPage>

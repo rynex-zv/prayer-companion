@@ -12,6 +12,10 @@ public partial class QiblaPage : ContentPage {
     private bool _animated;
     private bool _compassSupported = true;
     private bool _compassStarted;
+    private bool _hasSmoothHeading;
+    private double _smoothX;
+    private double _smoothY;
+    private const double _headingAlpha = 0.18;
     private Microsoft.Maui.Controls.Maps.Map? _map;
 
     public QiblaPage() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
@@ -29,7 +33,8 @@ public partial class QiblaPage : ContentPage {
         if (_compassSupported) {
             Compass.ReadingChanged += OnCompassReadingChanged;
             try {
-                Compass.Start(SensorSpeed.UI);
+                _hasSmoothHeading = false;
+                Compass.Start(SensorSpeed.UI, true);
                 _compassStarted = true;
             } catch (FeatureNotSupportedException) {
                 _compassSupported = false;
@@ -59,8 +64,24 @@ public partial class QiblaPage : ContentPage {
     }
 
     private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e) {
+        var heading = e.Reading.HeadingMagneticNorth;
+        var radians = heading * Math.PI / 180.0;
+        if (!_hasSmoothHeading) {
+            _smoothX = Math.Cos(radians);
+            _smoothY = Math.Sin(radians);
+            _hasSmoothHeading = true;
+        } else {
+            _smoothX = (_smoothX * (1 - _headingAlpha)) + (Math.Cos(radians) * _headingAlpha);
+            _smoothY = (_smoothY * (1 - _headingAlpha)) + (Math.Sin(radians) * _headingAlpha);
+        }
+
+        var smooth = Math.Atan2(_smoothY, _smoothX) * 180.0 / Math.PI;
+        if (smooth < 0) {
+            smooth += 360;
+        }
+
         MainThread.BeginInvokeOnMainThread(() => {
-            ViewModel.UpdateHeading(e.Reading.HeadingMagneticNorth);
+            ViewModel.UpdateHeading(smooth);
         });
     }
 

@@ -191,6 +191,10 @@ public sealed class HomeViewModel : ViewModelBase {
             return false;
         }
 
+        var overrideKey = string.Join(',', settings.Notifications.PrayerOverrides
+            .OrderBy(item => item.Prayer)
+            .Select(item => $"{(int)item.Prayer}:{item.SoundKey ?? ""}:{(item.EnableVibration.HasValue ? (item.EnableVibration.Value ? "1" : "0") : "")}"));
+
         var key = string.Join('|',
             DateOnly.FromDateTime(DateTime.Today).ToString("yyyyMMdd"),
             settings.Location.Latitude.ToString("F4"),
@@ -215,6 +219,7 @@ public sealed class HomeViewModel : ViewModelBase {
             settings.Notifications.VibrationPattern,
             settings.Notifications.ReminderScope,
             settings.Notifications.ReminderPrayer,
+            overrideKey,
             string.Join(',', settings.Notifications.ReminderOffsetsMinutes.OrderBy(item => item)),
             string.Join(',', settings.FastingReminders.ImsakRemindersMinutes.OrderBy(item => item)),
             string.Join(',', settings.FastingReminders.IftarRemindersMinutes.OrderBy(item => item))

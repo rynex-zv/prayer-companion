@@ -13,7 +13,10 @@
         </Grid.Background>
 
         <ScrollView>
-            <VerticalStackLayout Spacing="20" Padding="24,32">
+            <VerticalStackLayout Spacing="20"
+                                 Padding="24,32"
+                                 HorizontalOptions="Center"
+                                 WidthRequest="{OnPlatform WinUI=720, MacCatalyst=720, Default=-1}">
                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 22"
@@ -46,7 +49,7 @@
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 24"
                         Padding="18">
-                    <Grid HeightRequest="300">
+                    <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
                         <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
                         <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="2" Opacity="0.6" />
                         <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="1" Opacity="0.3"
@@ -69,11 +72,11 @@
                                  VerticalOptions="Center" />
 
                         <VerticalStackLayout Spacing="2" HorizontalOptions="Center" VerticalOptions="Center">
-                            <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}" FontSize="26" />
-                            <Label Text="{loc:Loc Qibla}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                        </VerticalStackLayout>
-                    </Grid>
-                </Border>
+                        <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}" FontSize="26" />
+                        <Label Text="{loc:Loc Qibla}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
 
                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                         StrokeThickness="0"
@@ -83,10 +86,10 @@
                         <Label Text="{loc:Loc Location}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Grid>
                             <ContentView x:Name="MapHost"
-                                         HeightRequest="200"
+                                         HeightRequest="{OnPlatform WinUI=280, MacCatalyst=280, Android=220, iOS=220}"
                                          IsVisible="{OnPlatform WinUI=false, Android=true, iOS=true, MacCatalyst=true}" />
                             <WebView x:Name="QiblaWeb"
-                                     HeightRequest="200"
+                                     HeightRequest="{OnPlatform WinUI=280, MacCatalyst=280, Android=220, iOS=220}"
                                      IsVisible="{OnPlatform WinUI=true, Android=false, iOS=false, MacCatalyst=false}" />
                         </Grid>
                     </VerticalStackLayout>

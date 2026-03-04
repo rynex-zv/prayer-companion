@@ -64,9 +64,13 @@
   "Notifications": "الإشعارات",
   "EnableAdhan": "تفعيل الأذان",
   "AdhanSound": "صوت الأذان",
+  "AdhanPerPrayer": "تخصيص الأذان لكل صلاة",
+  "UseGlobal": "استخدام الإعداد العام",
   "Vibration": "الاهتزاز",
   "VibrationStrength": "قوة الاهتزاز",
   "VibrationPattern": "نمط الاهتزاز",
+  "Vibration_On": "تشغيل",
+  "Vibration_Off": "إيقاف",
   "MinutesBefore": "دقائق قبل",
   "AdhanReminders": "تذكيرات الأذان",
   "ReminderScope": "نطاق التذكير",
@@ -165,7 +169,7 @@
   "TasbihPreset_Hundred": "100 مرة سبحان الله",
   "TasbihPreset_Salawat": "100 مرة الصلاة على النبي",
   "Tasbih_Empty": "اختر مجموعة",
-  "TasbihAddPreset": "????? ??????",
-  "TasbihPresetNewName": "??? ?????? ?????",
-  "TasbihPreset_New": "?????? ?????"
+  "TasbihAddPreset": "إضافة تسبيح محفوظ",
+  "TasbihPresetNewName": "اسم التسبيح الجديد",
+  "TasbihPreset_New": "تسبيح جديد"
 }

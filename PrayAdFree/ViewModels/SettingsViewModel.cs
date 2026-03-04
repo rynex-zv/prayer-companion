@@ -65,6 +65,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<VibrationPattern>? _selectedVibrationPattern;
     private OptionItem<AdhanReminderScope>? _selectedAdhanReminderScope;
     private OptionItem<PrayerId>? _selectedAdhanReminderPrayer;
+    private readonly ObservableCollection<AdhanPrayerOverrideViewModel> _adhanPrayerOverrides;
     private int _textScale;
     private string _textScaleLabel = "";
     private TasbihPresetEditorViewModel? _selectedTasbihPreset;
@@ -94,16 +95,20 @@ public sealed class SettingsViewModel : ViewModelBase {
         AdhanReminders = new ObservableCollection<ReminderOffsetItem>();
         ClockFormats = new ObservableCollection<OptionItem<ClockFormat>>();
         AdhanSounds = new ObservableCollection<OptionItem<string>>();
+        AdhanOverrideSounds = new ObservableCollection<OptionItem<string>>();
+        AdhanOverrideVibrations = new ObservableCollection<OptionItem<int>>();
         VibrationStrengths = new ObservableCollection<OptionItem<VibrationStrength>>();
         VibrationPatterns = new ObservableCollection<OptionItem<VibrationPattern>>();
         AdhanReminderScopes = new ObservableCollection<OptionItem<AdhanReminderScope>>();
         AdhanReminderPrayers = new ObservableCollection<OptionItem<PrayerId>>();
+        _adhanPrayerOverrides = new ObservableCollection<AdhanPrayerOverrideViewModel>();
         TasbihPresets = new ObservableCollection<TasbihPresetEditorViewModel>();
         TasbihRepeatModes = new ObservableCollection<OptionItem<TasbihRepeatMode>>();
         BuildLocalizedPickers();
         BuildReminderOptions();
         BuildClockFormats();
         BuildNotificationOptions();
+        BuildAdhanOverrideOptions();
         BuildTasbihRepeatModes();
         RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
         AddImsakReminderCommand = new Command(AddImsakReminder);
@@ -129,8 +134,10 @@ public sealed class SettingsViewModel : ViewModelBase {
             RebuildReminderLabels();
             BuildClockFormats();
             BuildNotificationOptions();
+            BuildAdhanOverrideOptions();
             BuildTasbihRepeatModes();
             RefreshTasbihLocalization();
+            RefreshAdhanOverridesLocalization();
         };
     }
 
@@ -150,10 +157,13 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<ReminderOffsetItem> AdhanReminders { get; }
     public ObservableCollection<OptionItem<ClockFormat>> ClockFormats { get; }
     public ObservableCollection<OptionItem<string>> AdhanSounds { get; }
+    public ObservableCollection<OptionItem<string>> AdhanOverrideSounds { get; }
+    public ObservableCollection<OptionItem<int>> AdhanOverrideVibrations { get; }
     public ObservableCollection<OptionItem<VibrationStrength>> VibrationStrengths { get; }
     public ObservableCollection<OptionItem<VibrationPattern>> VibrationPatterns { get; }
     public ObservableCollection<OptionItem<AdhanReminderScope>> AdhanReminderScopes { get; }
     public ObservableCollection<OptionItem<PrayerId>> AdhanReminderPrayers { get; }
+    public ObservableCollection<AdhanPrayerOverrideViewModel> AdhanPrayerOverrides => _adhanPrayerOverrides;
     public ObservableCollection<TasbihPresetEditorViewModel> TasbihPresets { get; }
     public ObservableCollection<OptionItem<TasbihRepeatMode>> TasbihRepeatModes { get; }
     public Command RefreshGpsCommand { get; }
@@ -547,6 +557,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         TextScale = _settings.TextScale;
         EnsureTasbihDefaults();
         LoadTasbihPresets();
+        LoadAdhanOverrides();
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.A, _settings.AccentIndex);
         BuildPlaceOptions();
         _suspendSave = false;
@@ -596,7 +607,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             VibrationPattern = SelectedVibrationPattern?.Value ?? VibrationPattern.Short,
             ReminderScope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All,
             ReminderPrayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr,
-            ReminderOffsetsMinutes = AdhanReminders.Select(item => item.Minutes).ToList()
+            ReminderOffsetsMinutes = AdhanReminders.Select(item => item.Minutes).ToList(),
+            PrayerOverrides = BuildAdhanOverrides()
         };
 
         var tasbih = new TasbihSettings {
@@ -1110,6 +1122,90 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? AdhanReminderScopes.FirstOrDefault();
         SelectedAdhanReminderPrayer = AdhanReminderPrayers.FirstOrDefault(item => item.Value == currentPrayer)
             ?? AdhanReminderPrayers.FirstOrDefault();
+    }
+
+    private void BuildAdhanOverrideOptions() {
+        AdhanOverrideSounds.Clear();
+        AdhanOverrideSounds.Add(new OptionItem<string>("use_global", LocalizationManager.Translate("UseGlobal")));
+        AdhanOverrideSounds.Add(new OptionItem<string>("adhan_default", LocalizationManager.Translate("Sound_Default")));
+        AdhanOverrideSounds.Add(new OptionItem<string>("adhan_silent", LocalizationManager.Translate("Sound_Silent")));
+
+        AdhanOverrideVibrations.Clear();
+        AdhanOverrideVibrations.Add(new OptionItem<int>(-1, LocalizationManager.Translate("UseGlobal")));
+        AdhanOverrideVibrations.Add(new OptionItem<int>(1, LocalizationManager.Translate("Vibration_On")));
+        AdhanOverrideVibrations.Add(new OptionItem<int>(0, LocalizationManager.Translate("Vibration_Off")));
+    }
+
+    private void LoadAdhanOverrides() {
+        _adhanPrayerOverrides.Clear();
+        var overrides = _settings.Notifications.PrayerOverrides ?? new List<AdhanPrayerOverride>();
+        var lookup = overrides.ToDictionary(item => item.Prayer, item => item);
+        var prayers = new[] { PrayerId.Fajr, PrayerId.Dhuhr, PrayerId.Asr, PrayerId.Maghrib, PrayerId.Isha };
+
+        foreach (var prayer in prayers) {
+            lookup.TryGetValue(prayer, out var existing);
+            var viewModel = new AdhanPrayerOverrideViewModel(prayer);
+            var soundKey = existing?.SoundKey ?? "use_global";
+            var vibrationValue = existing?.EnableVibration.HasValue == true
+                ? (existing.EnableVibration.Value ? 1 : 0)
+                : -1;
+
+            viewModel.SelectedSound = AdhanOverrideSounds.FirstOrDefault(item => item.Value == soundKey)
+                ?? AdhanOverrideSounds.FirstOrDefault();
+            viewModel.SelectedVibration = AdhanOverrideVibrations.FirstOrDefault(item => item.Value == vibrationValue)
+                ?? AdhanOverrideVibrations.FirstOrDefault();
+            viewModel.PropertyChanged += (_, _) => {
+                if (_suspendSave) {
+                    return;
+                }
+                ScheduleSave();
+            };
+            _adhanPrayerOverrides.Add(viewModel);
+        }
+    }
+
+    private IReadOnlyList<AdhanPrayerOverride> BuildAdhanOverrides() {
+        var results = new List<AdhanPrayerOverride>();
+        foreach (var item in _adhanPrayerOverrides) {
+            var soundKey = item.SelectedSound?.Value;
+            var vibrationValue = item.SelectedVibration?.Value ?? -1;
+            var overrideSound = string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase) ? null : soundKey;
+            bool? overrideVibration = vibrationValue switch {
+                1 => true,
+                0 => false,
+                _ => null
+            };
+
+            if (overrideSound == null && overrideVibration == null) {
+                continue;
+            }
+
+            results.Add(new AdhanPrayerOverride {
+                Prayer = item.Prayer,
+                SoundKey = overrideSound,
+                EnableVibration = overrideVibration
+            });
+        }
+
+        return results;
+    }
+
+    private void RefreshAdhanOverridesLocalization() {
+        var previous = _suspendSave;
+        _suspendSave = true;
+        try {
+            foreach (var item in _adhanPrayerOverrides) {
+                item.RefreshLocalization();
+                var soundValue = item.SelectedSound?.Value ?? "use_global";
+                var vibrationValue = item.SelectedVibration?.Value ?? -1;
+                item.SelectedSound = AdhanOverrideSounds.FirstOrDefault(option => option.Value == soundValue)
+                    ?? AdhanOverrideSounds.FirstOrDefault();
+                item.SelectedVibration = AdhanOverrideVibrations.FirstOrDefault(option => option.Value == vibrationValue)
+                    ?? AdhanOverrideVibrations.FirstOrDefault();
+            }
+        } finally {
+            _suspendSave = previous;
+        }
     }
 
     private void BuildTasbihRepeatModes() {

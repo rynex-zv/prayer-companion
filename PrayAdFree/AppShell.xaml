@@ -8,11 +8,11 @@
     Title="Pray Ad Free">
 
     <TabBar>
-        <ShellContent Title="{loc:Loc Today}" ContentTemplate="{DataTemplate pages:HomePage}" />
-        <ShellContent Title="{loc:Loc Calendar}" ContentTemplate="{DataTemplate pages:CalendarPage}" />
-        <ShellContent Title="{loc:Loc Qibla}" ContentTemplate="{DataTemplate pages:QiblaPage}" />
-        <ShellContent Title="{loc:Loc Tasbih}" ContentTemplate="{DataTemplate pages:TasbihPage}" />
-        <ShellContent Title="{loc:Loc Settings}" ContentTemplate="{DataTemplate pages:SettingsPage}" />
-        <ShellContent Title="{loc:Loc About}" ContentTemplate="{DataTemplate pages:AboutPage}" />
+        <ShellContent Route="today" Title="{loc:Loc Today}" ContentTemplate="{DataTemplate pages:HomePage}" />
+        <ShellContent Route="calendar" Title="{loc:Loc Calendar}" ContentTemplate="{DataTemplate pages:CalendarPage}" />
+        <ShellContent Route="qibla" Title="{loc:Loc Qibla}" ContentTemplate="{DataTemplate pages:QiblaPage}" />
+        <ShellContent Route="tasbih" Title="{loc:Loc Tasbih}" ContentTemplate="{DataTemplate pages:TasbihPage}" />
+        <ShellContent Route="settings" Title="{loc:Loc Settings}" ContentTemplate="{DataTemplate pages:SettingsPage}" />
+        <ShellContent Route="about" Title="{loc:Loc About}" ContentTemplate="{DataTemplate pages:AboutPage}" />
     </TabBar>
 </Shell>

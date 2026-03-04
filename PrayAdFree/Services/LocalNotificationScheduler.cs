@@ -30,14 +30,26 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 }
 
                 var prayerName = LocalizationManager.TranslatePrayer(item.Prayer);
+                var overrideSettings = FindOverride(settings.Notifications.PrayerOverrides, item.Prayer);
+                var soundKey = overrideSettings?.SoundKey ?? settings.Notifications.SoundKey;
+                var isSilent = string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase);
+                var vibrationOverride = overrideSettings?.EnableVibration;
                 requests.Add(new NotificationRequest {
                     NotificationId = BuildId(day.Date, item.Prayer),
                     Title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName),
                     Description = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName),
+                    Silent = isSilent,
                     Schedule = new NotificationRequestSchedule {
                         NotifyTime = ToLocalKind(item.Time),
                         NotifyRepeatInterval = null
+                    },
+#if ANDROID
+                    Android = new AndroidOptions {
+                        Priority = AndroidPriority.Default,
+                        ChannelId = "prayer_times",
+                        VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride)
                     }
+#endif
                 });
             }
 
@@ -69,8 +81,9 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             : time;
     }
 
-    private static long[] BuildVibration(NotificationSettings settings) {
-        if (!settings.EnableVibration) {
+    private static long[] BuildVibration(NotificationSettings settings, bool? overrideEnabled = null) {
+        var enabled = overrideEnabled ?? settings.EnableVibration;
+        if (!enabled) {
             return Array.Empty<long>();
         }
 
@@ -196,13 +209,29 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
         foreach (var request in requests) {
 #if ANDROID
-            request.Android = new AndroidOptions {
-                Priority = AndroidPriority.Default,
-                ChannelId = "prayer_times",
-                VibrationPattern = BuildVibration(settings.Notifications)
-            };
+            if (request.Android == null) {
+                request.Android = new AndroidOptions {
+                    Priority = AndroidPriority.Default,
+                    ChannelId = "prayer_times",
+                    VibrationPattern = BuildVibration(settings.Notifications)
+                };
+            }
 #endif
             await LocalNotificationCenter.Current.Show(request);
         }
+    }
+
+    private static AdhanPrayerOverride? FindOverride(IReadOnlyList<AdhanPrayerOverride> overrides, PrayerId prayer) {
+        if (overrides == null || overrides.Count == 0) {
+            return null;
+        }
+
+        for (var i = 0; i < overrides.Count; i++) {
+            if (overrides[i].Prayer == prayer) {
+                return overrides[i];
+            }
+        }
+
+        return null;
     }
 }

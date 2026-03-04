@@ -22,7 +22,8 @@ public sealed class LocalizationFileSync {
         var storedVersion = File.Exists(versionPath) ? File.ReadAllText(versionPath) : "";
         if (string.Equals(storedVersion, currentVersion, StringComparison.Ordinal)
             && !ArabicFileLooksCorrupted(targetDir)
-            && !HasMissingKeys(targetDir)) {
+            && !HasMissingKeys(targetDir)
+            && !HasCorruptedValues(targetDir)) {
             return;
         }
 
@@ -87,6 +88,45 @@ public sealed class LocalizationFileSync {
         } catch {
             return null;
         }
+    }
+
+    private static bool HasCorruptedValues(string targetDir) {
+        try {
+            return HasCorruptedValues(targetDir, "en.json") || HasCorruptedValues(targetDir, "ar.json");
+        } catch {
+            return true;
+        }
+    }
+
+    private static bool HasCorruptedValues(string targetDir, string fileName) {
+        var packageBytes = TryReadPackageBytes($"i18n/{fileName}");
+        if (packageBytes == null) {
+            return false;
+        }
+
+        var targetPath = Path.Combine(targetDir, fileName);
+        if (!File.Exists(targetPath)) {
+            return true;
+        }
+
+        var packageData = Deserialize(packageBytes);
+        var targetData = Deserialize(File.ReadAllBytes(targetPath));
+        if (packageData == null || targetData == null) {
+            return true;
+        }
+
+        foreach (var entry in packageData) {
+            if (!targetData.TryGetValue(entry.Key, out var value)) {
+                continue;
+            }
+
+            if (string.Equals(value, entry.Key, StringComparison.Ordinal)
+                && !string.Equals(entry.Value, entry.Key, StringComparison.Ordinal)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static byte[]? TryReadPackageBytes(string relativePath) {
