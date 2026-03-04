@@ -87,10 +87,10 @@
                         <Grid>
                             <ContentView x:Name="MapHost"
                                          HeightRequest="{OnPlatform WinUI=280, MacCatalyst=280, Android=220, iOS=220}"
-                                         IsVisible="{OnPlatform WinUI=false, Android=true, iOS=true, MacCatalyst=true}" />
+                                         IsVisible="{OnPlatform WinUI=false, Android=false, iOS=true, MacCatalyst=true}" />
                             <WebView x:Name="QiblaWeb"
                                      HeightRequest="{OnPlatform WinUI=280, MacCatalyst=280, Android=220, iOS=220}"
-                                     IsVisible="{OnPlatform WinUI=true, Android=false, iOS=false, MacCatalyst=false}" />
+                                     IsVisible="{OnPlatform WinUI=true, Android=true, iOS=false, MacCatalyst=false}" />
                         </Grid>
                     </VerticalStackLayout>
                 </Border>

@@ -4,6 +4,7 @@ using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Maps;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
+using System.Globalization;
 
 namespace Pray_Ad_Free.Pages;
 
@@ -91,9 +92,8 @@ public partial class QiblaPage : ContentPage {
             return;
         }
 
-        if (DeviceInfo.Platform == DevicePlatform.WinUI) {
-            var url = $"https://www.openstreetmap.org/?mlat={location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}&mlon={location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}#map=12/{location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-            QiblaWeb.Source = new UrlWebViewSource { Url = url };
+        if (DeviceInfo.Platform == DevicePlatform.WinUI || DeviceInfo.Platform == DevicePlatform.Android) {
+            SetWebMap(location.Latitude, location.Longitude);
             return;
         }
 
@@ -121,6 +121,36 @@ public partial class QiblaPage : ContentPage {
             IsShowingUser = true
         };
         MapHost.Content = _map;
+    }
+
+    private void SetWebMap(double latitude, double longitude) {
+        var lat = latitude.ToString(CultureInfo.InvariantCulture);
+        var lon = longitude.ToString(CultureInfo.InvariantCulture);
+        var html = $@"
+<!doctype html>
+<html>
+<head>
+  <meta charset=""utf-8"">
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"">
+  <link rel=""stylesheet"" href=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.css""/>
+  <style>
+    html, body, #map {{ height: 100%; margin: 0; background: #f3f1ec; }}
+  </style>
+</head>
+<body>
+  <div id=""map""></div>
+  <script src=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.js""></script>
+  <script>
+    var map = L.map('map', {{ zoomControl: true }}).setView([{lat}, {lon}], 12);
+    L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }}).addTo(map);
+    L.marker([{lat}, {lon}]).addTo(map);
+  </script>
+</body>
+</html>";
+        QiblaWeb.Source = new HtmlWebViewSource { Html = html };
     }
 
     private async Task LoadAndUpdateAsync() {
