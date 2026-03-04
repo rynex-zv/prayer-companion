@@ -25,10 +25,14 @@
                     <Label Text="{loc:Loc TasbihSettings}" FontSize="16" />
 
                     <Label Text="{loc:Loc TasbihPresets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc TasbihPresets}" ItemsSource="{Binding TasbihPresets}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedTasbihPreset}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Entry Placeholder="{loc:Loc TasbihPresetNewName}" Text="{Binding NewTasbihPresetName}" />
+                        <Button Text="{loc:Loc TasbihAddPreset}" Command="{Binding AddTasbihPresetCommand}" Grid.Column="1" />
+                    </Grid>
+                    <Picker Title="{loc:Loc TasbihPresets}" ItemsSource="{Binding TasbihPresets}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedTasbihPreset}" />
 
                     <Label Text="{loc:Loc TasbihPresetName}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Entry Placeholder="{loc:Loc TasbihPresetName}" Text="{Binding SelectedTasbihPreset.Name}" />
+                    <Entry Placeholder="{loc:Loc TasbihPresetName}" Text="{Binding SelectedTasbihPreset.DisplayName}" />
 
                     <Label Text="{loc:Loc TasbihRepeatMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc TasbihRepeatMode}" ItemsSource="{Binding TasbihRepeatModes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedTasbihRepeatMode}" />
@@ -44,7 +48,7 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Grid ColumnDefinitions="2*,*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Padding="0,6">
-                                    <Entry Text="{Binding Text}" />
+                                    <Entry Text="{Binding DisplayText}" />
                                     <Entry Text="{Binding TargetCount}" Grid.Column="1" />
                                     <Label Text="{Binding StartIndex}" Grid.Column="2" FontSize="12" VerticalTextAlignment="Center" />
                                     <Button Text="^" Command="{Binding BindingContext.MoveTasbihItemUpCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="3" />

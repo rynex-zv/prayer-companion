@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "اليوم",
   "Calendar": "التقويم",
   "Qibla": "القبلة",
@@ -8,6 +8,9 @@
   "SettingsGroups": "أقسام الإعدادات",
   "About": "عن التطبيق",
   "QiblaDirection": "اتجاه القبلة",
+  "CompassCalibrationHint": "عاير البوصلة بتحريك الجهاز.",
+  "CompassNotSupported": "البوصلة غير مدعومة على هذا الجهاز.",
+  "FindingLocation": "جاري تحديد الموقع...",
   "NextPrayer": "الصلاة القادمة",
   "TimeLeft": "الوقت المتبقي",
   "TasbihCounter": "العداد",
@@ -161,5 +164,8 @@
   "TasbihPreset_AfterPrayer": "بعد الصلاة (33/33/34)",
   "TasbihPreset_Hundred": "100 مرة سبحان الله",
   "TasbihPreset_Salawat": "100 مرة الصلاة على النبي",
-  "Tasbih_Empty": "اختر مجموعة"
+  "Tasbih_Empty": "اختر مجموعة",
+  "TasbihAddPreset": "????? ??????",
+  "TasbihPresetNewName": "??? ?????? ?????",
+  "TasbihPreset_New": "?????? ?????"
 }

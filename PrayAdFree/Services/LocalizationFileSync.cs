@@ -20,7 +20,9 @@ public sealed class LocalizationFileSync {
         var versionPath = Path.Combine(targetDir, "version.txt");
         var currentVersion = AppInfo.Current.VersionString;
         var storedVersion = File.Exists(versionPath) ? File.ReadAllText(versionPath) : "";
-        if (string.Equals(storedVersion, currentVersion, StringComparison.Ordinal) && !ArabicFileLooksCorrupted(targetDir)) {
+        if (string.Equals(storedVersion, currentVersion, StringComparison.Ordinal)
+            && !ArabicFileLooksCorrupted(targetDir)
+            && !HasMissingKeys(targetDir)) {
             return;
         }
 
@@ -47,6 +49,43 @@ public sealed class LocalizationFileSync {
             return text.Contains("???", StringComparison.Ordinal);
         } catch {
             return true;
+        }
+    }
+
+    private static bool HasMissingKeys(string targetDir) {
+        try {
+            return HasMissingKeys(targetDir, "en.json") || HasMissingKeys(targetDir, "ar.json");
+        } catch {
+            return true;
+        }
+    }
+
+    private static bool HasMissingKeys(string targetDir, string fileName) {
+        var packageBytes = TryReadPackageBytes($"i18n/{fileName}");
+        if (packageBytes == null) {
+            return false;
+        }
+
+        var targetPath = Path.Combine(targetDir, fileName);
+        if (!File.Exists(targetPath)) {
+            return true;
+        }
+
+        var packageData = Deserialize(packageBytes);
+        var targetData = Deserialize(File.ReadAllBytes(targetPath));
+        if (packageData == null || targetData == null) {
+            return true;
+        }
+
+        return packageData.Keys.Except(targetData.Keys, StringComparer.OrdinalIgnoreCase).Any();
+    }
+
+    private static Dictionary<string, string>? Deserialize(byte[] bytes) {
+        try {
+            var text = System.Text.Encoding.UTF8.GetString(bytes);
+            return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(text);
+        } catch {
+            return null;
         }
     }
 

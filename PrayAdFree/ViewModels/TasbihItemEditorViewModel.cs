@@ -1,3 +1,5 @@
+using Pray_Ad_Free.Services;
+
 namespace Pray_Ad_Free.ViewModels;
 
 public sealed class TasbihItemEditorViewModel : ViewModelBase {
@@ -12,7 +14,16 @@ public sealed class TasbihItemEditorViewModel : ViewModelBase {
 
     public string Text {
         get => _text;
-        set => SetProperty(ref _text, value);
+        set {
+            if (SetProperty(ref _text, value)) {
+                OnPropertyChanged(nameof(DisplayText));
+            }
+        }
+    }
+
+    public string DisplayText {
+        get => LocalizationManager.Translate(_text);
+        set => Text = value;
     }
 
     public int TargetCount {
@@ -23,5 +34,9 @@ public sealed class TasbihItemEditorViewModel : ViewModelBase {
     public int StartIndex {
         get => _startIndex;
         set => SetProperty(ref _startIndex, value);
+    }
+
+    public void RefreshDisplayText() {
+        OnPropertyChanged(nameof(DisplayText));
     }
 }

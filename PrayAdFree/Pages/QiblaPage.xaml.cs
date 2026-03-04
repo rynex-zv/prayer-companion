@@ -10,6 +10,8 @@ namespace Pray_Ad_Free.Pages;
 public partial class QiblaPage : ContentPage {
     private QiblaViewModel ViewModel => (QiblaViewModel)BindingContext;
     private bool _animated;
+    private bool _compassSupported = true;
+    private bool _compassStarted;
     private Microsoft.Maui.Controls.Maps.Map? _map;
 
     public QiblaPage() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
@@ -23,8 +25,22 @@ public partial class QiblaPage : ContentPage {
     protected override async void OnAppearing() {
         base.OnAppearing();
         _ = LoadAndUpdateAsync();
-        Compass.ReadingChanged += OnCompassReadingChanged;
-        Compass.Start(SensorSpeed.UI);
+        _compassSupported = Compass.IsSupported;
+        if (_compassSupported) {
+            Compass.ReadingChanged += OnCompassReadingChanged;
+            try {
+                Compass.Start(SensorSpeed.UI);
+                _compassStarted = true;
+            } catch (FeatureNotSupportedException) {
+                _compassSupported = false;
+                ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
+            } catch (Exception) {
+                _compassSupported = false;
+                ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
+            }
+        } else {
+            ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
+        }
 
         if (!_animated) {
             _animated = true;
@@ -36,9 +52,10 @@ public partial class QiblaPage : ContentPage {
     protected override void OnDisappearing() {
         base.OnDisappearing();
         Compass.ReadingChanged -= OnCompassReadingChanged;
-        if (Compass.IsMonitoring) {
+        if (_compassStarted && Compass.IsMonitoring) {
             Compass.Stop();
         }
+        _compassStarted = false;
     }
 
     private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e) {
@@ -87,6 +104,9 @@ public partial class QiblaPage : ContentPage {
 
     private async Task LoadAndUpdateAsync() {
         await ViewModel.LoadAsync();
+        if (!_compassSupported) {
+            ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
+        }
         MainThread.BeginInvokeOnMainThread(UpdateMap);
     }
 }

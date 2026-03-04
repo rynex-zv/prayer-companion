@@ -71,6 +71,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _newTasbihText = "";
     private string _newTasbihCount = "";
     private OptionItem<TasbihRepeatMode>? _selectedTasbihRepeatMode;
+    private string _newTasbihPresetName = "";
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService, IAppLogger logger) {
         _dataService = dataService;
@@ -117,6 +118,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         RemoveTasbihItemCommand = new Command<TasbihItemEditorViewModel>(RemoveTasbihItem);
         MoveTasbihItemUpCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemUp);
         MoveTasbihItemDownCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemDown);
+        AddTasbihPresetCommand = new Command(AddTasbihPreset);
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -128,6 +130,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             BuildClockFormats();
             BuildNotificationOptions();
             BuildTasbihRepeatModes();
+            RefreshTasbihLocalization();
         };
     }
 
@@ -166,6 +169,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command RemoveTasbihItemCommand { get; }
     public Command MoveTasbihItemUpCommand { get; }
     public Command MoveTasbihItemDownCommand { get; }
+    public Command AddTasbihPresetCommand { get; }
     public bool UseGps {
         get => _useGps;
         set {
@@ -437,6 +441,11 @@ public sealed class SettingsViewModel : ViewModelBase {
     public string NewTasbihCount {
         get => _newTasbihCount;
         set => SetProperty(ref _newTasbihCount, value);
+    }
+
+    public string NewTasbihPresetName {
+        get => _newTasbihPresetName;
+        set => SetProperty(ref _newTasbihPresetName, value);
     }
 
     public bool NotificationsEnabled {
@@ -1158,6 +1167,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, TasbihPresets.Count - 1));
         SelectedTasbihPreset = TasbihPresets.Count > 0 ? TasbihPresets[index] : null;
         RecalculateTasbihStartIndices();
+        RefreshTasbihLocalization();
     }
 
     private void RecalculateTasbihStartIndices() {
@@ -1188,6 +1198,25 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedTasbihPreset.Items.Add(item);
         NewTasbihText = "";
         NewTasbihCount = "";
+        RecalculateTasbihStartIndices();
+        ScheduleSave();
+    }
+
+    private void AddTasbihPreset() {
+        var baseName = string.IsNullOrWhiteSpace(NewTasbihPresetName)
+            ? LocalizationManager.Translate("TasbihPreset_New")
+            : NewTasbihPresetName.Trim();
+        var name = baseName;
+        var suffix = 2;
+        while (TasbihPresets.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) {
+            name = $"{baseName} {suffix++}";
+        }
+
+        var viewModel = new TasbihPresetEditorViewModel(name, TasbihRepeatMode.None, new List<TasbihItemEditorViewModel>());
+        viewModel.PropertyChanged += (_, _) => ScheduleSave();
+        TasbihPresets.Add(viewModel);
+        SelectedTasbihPreset = viewModel;
+        NewTasbihPresetName = "";
         RecalculateTasbihStartIndices();
         ScheduleSave();
     }
@@ -1225,6 +1254,15 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedTasbihPreset.Items.Move(index, index + 1);
         RecalculateTasbihStartIndices();
         ScheduleSave();
+    }
+
+    private void RefreshTasbihLocalization() {
+        foreach (var preset in TasbihPresets) {
+            preset.RefreshDisplayName();
+            foreach (var item in preset.Items) {
+                item.RefreshDisplayText();
+            }
+        }
     }
 
     private void IncreaseTextSize() {

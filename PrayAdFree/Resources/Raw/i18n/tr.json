@@ -6,6 +6,9 @@
   "Settings": "Ayarlar",
   "About": "Hakkında",
   "QiblaDirection": "Kıble yönü",
+  "CompassCalibrationHint": "Pusulay? cihaz? hareket ettirerek kalibre edin.",
+  "CompassNotSupported": "Pusula bu cihazda desteklenmiyor.",
+  "FindingLocation": "Konum bulunuyor...",
   "NextPrayer": "Sonraki namaz",
   "TimeLeft": "Kalan süre",
   "Imsak": "İmsak",
@@ -161,5 +164,8 @@
   "TasbihPreset_Salawat": "100x Salavat",
   "Tasbih_Empty": "On ayar sec",
   "Notification_PrayerTitle": "Namaz vakti: {0}",
-  "Notification_PrayerBody": "{0} vakti geldi"
+  "Notification_PrayerBody": "{0} vakti geldi",
+  "TasbihAddPreset": "Yeni preset ekle",
+  "TasbihPresetNewName": "Yeni preset ad?",
+  "TasbihPreset_New": "Yeni preset"
 }

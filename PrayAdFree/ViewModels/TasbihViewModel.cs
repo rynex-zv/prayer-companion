@@ -133,7 +133,15 @@ public sealed class TasbihViewModel : ViewModelBase {
         }
 
         var presets = _settings.Tasbih.Presets
-            .Select(preset => new TasbihPresetItem(preset.Name, preset.RepeatMode, preset.Items))
+            .Select(preset => new TasbihPresetItem(
+                TranslateValue(preset.Name),
+                preset.RepeatMode,
+                preset.Items
+                    .Select(item => new TasbihItemSettings {
+                        Text = TranslateValue(item.Text),
+                        TargetCount = item.TargetCount
+                    })
+                    .ToList()))
             .ToList();
         var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, presets.Count - 1));
         ApplyPresets(presets, index);
@@ -146,7 +154,7 @@ public sealed class TasbihViewModel : ViewModelBase {
         }
 
         foreach (var item in SelectedPreset.Items) {
-            PresetItems.Add(new TasbihPresetItemEntry(item.Text, item.TargetCount));
+            PresetItems.Add(new TasbihPresetItemEntry(TranslateValue(item.Text), item.TargetCount));
         }
     }
 
@@ -174,7 +182,7 @@ public sealed class TasbihViewModel : ViewModelBase {
             }
             var next = running + item.TargetCount;
             if (position < next) {
-                CurrentPhrase = item.Text;
+                CurrentPhrase = TranslateValue(item.Text);
                 var localCount = position - running;
                 ProgressText = $"{localCount}/{item.TargetCount}";
                 return;
@@ -183,7 +191,7 @@ public sealed class TasbihViewModel : ViewModelBase {
         }
 
         var last = SelectedPreset.Items.Last();
-        CurrentPhrase = last.Text;
+        CurrentPhrase = TranslateValue(last.Text);
         ProgressText = $"{last.TargetCount}/{last.TargetCount}";
     }
 
@@ -248,6 +256,14 @@ public sealed class TasbihViewModel : ViewModelBase {
                 _suspendSelectionSave = false;
             }
         });
+    }
+
+    private static string TranslateValue(string value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return value;
+        }
+
+        return LocalizationManager.Translate(value);
     }
 
     private static void RunOnMainThread(Action action) {

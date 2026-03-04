@@ -45,7 +45,7 @@ public sealed class QiblaViewModel : ViewModelBase {
     public LocationSettings? Location => _location;
 
     public async Task LoadAsync() {
-        StatusMessage = "Finding location...";
+        StatusMessage = LocalizationManager.Translate("FindingLocation");
         var settings = _dataService.LoadSettings();
         var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None);
         _location = updated.Location;
@@ -53,7 +53,7 @@ public sealed class QiblaViewModel : ViewModelBase {
             Bearing = QiblaCalculator.CalculateBearing(_location.Latitude, _location.Longitude);
             LocationTitle = $"{_location.City}, {_location.Country}".Trim(' ', ',');
             UpdateNeedle();
-            StatusMessage = "Calibrate compass by moving your device.";
+            StatusMessage = LocalizationManager.Translate("CompassCalibrationHint");
         }
     }
 
