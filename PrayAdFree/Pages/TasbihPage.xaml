@@ -36,7 +36,11 @@
                         Padding="16">
                     <VerticalStackLayout Spacing="10">
                         <Label Text="{loc:Loc TasbihPresets}" FontSize="16" />
-                        <Picker Title="{loc:Loc TasbihPresets}" ItemsSource="{Binding Presets}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedPreset}" />
+                        <Picker Title="{loc:Loc TasbihPresets}"
+                                ItemsSource="{Binding Presets}"
+                                ItemDisplayBinding="{Binding Name}"
+                                SelectedItem="{Binding SelectedPreset}"
+                                IsEnabled="{Binding IsPresetSelectionEnabled}" />
                         <CollectionView ItemsSource="{Binding PresetItems}" SelectionMode="None">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>

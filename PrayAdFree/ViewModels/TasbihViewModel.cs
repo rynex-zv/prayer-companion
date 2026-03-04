@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.Devices;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
@@ -12,6 +13,7 @@ public sealed class TasbihViewModel : ViewModelBase {
     private string _currentPhrase = "";
     private string _progressText = "";
     private TasbihPresetItem? _selectedPreset;
+    private bool _isPresetSelectionEnabled = true;
 
     public TasbihViewModel(PrayerDataService dataService) {
         _dataService = dataService;
@@ -31,7 +33,11 @@ public sealed class TasbihViewModel : ViewModelBase {
 
     public int Count {
         get => _count;
-        set => SetProperty(ref _count, value);
+        set {
+            if (SetProperty(ref _count, value)) {
+                IsPresetSelectionEnabled = _count == 0;
+            }
+        }
     }
 
     public string CurrentPhrase {
@@ -42,6 +48,11 @@ public sealed class TasbihViewModel : ViewModelBase {
     public string ProgressText {
         get => _progressText;
         set => SetProperty(ref _progressText, value);
+    }
+
+    public bool IsPresetSelectionEnabled {
+        get => _isPresetSelectionEnabled;
+        set => SetProperty(ref _isPresetSelectionEnabled, value);
     }
 
     public TasbihPresetItem? SelectedPreset {
@@ -80,6 +91,7 @@ public sealed class TasbihViewModel : ViewModelBase {
 
     private void Reset() {
         Count = 0;
+        TryVibrateReset();
         UpdateCurrentPhrase();
     }
 
@@ -114,6 +126,7 @@ public sealed class TasbihViewModel : ViewModelBase {
 
         var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, Presets.Count - 1));
         SelectedPreset = Presets.Count > 0 ? Presets[index] : null;
+        IsPresetSelectionEnabled = Count == 0;
     }
 
     private void BuildPresetItems() {
@@ -197,5 +210,13 @@ public sealed class TasbihViewModel : ViewModelBase {
         };
 
         _dataService.SaveSettings(_settings);
+    }
+
+    private static void TryVibrateReset() {
+        try {
+            Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(80));
+        } catch (FeatureNotSupportedException) {
+        } catch (Exception) {
+        }
     }
 }

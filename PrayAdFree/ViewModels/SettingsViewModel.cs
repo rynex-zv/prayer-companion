@@ -382,7 +382,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     public int TextScale {
         get => _textScale;
         set {
-            if (SetProperty(ref _textScale, value)) {
+            var clamped = Math.Clamp(value, -2, 6);
+            if (SetProperty(ref _textScale, clamped)) {
                 UpdateTextScaleLabel();
             }
         }
@@ -608,8 +609,14 @@ public sealed class SettingsViewModel : ViewModelBase {
         };
 
         _dataService.SaveSettings(_settings);
-        LocalizationManager.SetLanguage(_settings.Language);
-        ThemeManager.ApplyTheme(_settings);
+        try {
+            LocalizationManager.SetLanguage(_settings.Language);
+        } catch {
+        }
+        try {
+            ThemeManager.ApplyTheme(_settings);
+        } catch {
+        }
         if (!string.Equals(previousLanguage, _settings.Language, StringComparison.OrdinalIgnoreCase)) {
             var window = Application.Current?.Windows.FirstOrDefault();
             if (window != null) {
