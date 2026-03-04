@@ -11,6 +11,7 @@ public sealed class AppSettings {
     public NotificationSettings Notifications { get; init; } = new NotificationSettings();
     public ClockFormat ClockFormat { get; init; } = ClockFormat.Auto;
     public int TextScale { get; init; }
+    public TasbihSettings Tasbih { get; init; } = new TasbihSettings();
     public string Language { get; init; } = "auto";
     public bool LanguageSelected { get; init; }
     public ThemeMode ThemeMode { get; init; } = ThemeMode.Auto;

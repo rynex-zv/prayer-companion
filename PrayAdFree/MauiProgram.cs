@@ -69,6 +69,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsDiagnosticsPage>();
             builder.Services.AddTransient<SettingsAdhanPage>();
             builder.Services.AddTransient<SettingsNotificationsPage>();
+            builder.Services.AddTransient<SettingsTasbihPage>();
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();
             builder.Services.AddTransient<AppShell>();

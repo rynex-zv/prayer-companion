@@ -27,4 +27,8 @@ public partial class SettingsPage : ContentPage {
     private async void OnNotificationsClicked(object? sender, EventArgs e) {
         await Shell.Current.GoToAsync("settings/notifications");
     }
+
+    private async void OnTasbihClicked(object? sender, EventArgs e) {
+        await Shell.Current.GoToAsync("settings/tasbih");
+    }
 }

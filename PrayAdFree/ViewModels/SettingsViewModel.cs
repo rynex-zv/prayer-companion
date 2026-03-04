@@ -65,6 +65,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<PrayerId>? _selectedAdhanReminderPrayer;
     private int _textScale;
     private string _textScaleLabel = "";
+    private TasbihPresetEditorViewModel? _selectedTasbihPreset;
+    private string _newTasbihText = "";
+    private string _newTasbihCount = "";
+    private OptionItem<TasbihRepeatMode>? _selectedTasbihRepeatMode;
 
     public SettingsViewModel(PrayerDataService dataService, GeoService geoService) {
         _dataService = dataService;
@@ -90,10 +94,13 @@ public sealed class SettingsViewModel : ViewModelBase {
         VibrationPatterns = new ObservableCollection<OptionItem<VibrationPattern>>();
         AdhanReminderScopes = new ObservableCollection<OptionItem<AdhanReminderScope>>();
         AdhanReminderPrayers = new ObservableCollection<OptionItem<PrayerId>>();
+        TasbihPresets = new ObservableCollection<TasbihPresetEditorViewModel>();
+        TasbihRepeatModes = new ObservableCollection<OptionItem<TasbihRepeatMode>>();
         BuildLocalizedPickers();
         BuildReminderOptions();
         BuildClockFormats();
         BuildNotificationOptions();
+        BuildTasbihRepeatModes();
         RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
         AddImsakReminderCommand = new Command(AddImsakReminder);
         AddIftarReminderCommand = new Command(AddIftarReminder);
@@ -103,6 +110,10 @@ public sealed class SettingsViewModel : ViewModelBase {
         RemoveAdhanReminderCommand = new Command<ReminderOffsetItem>(RemoveAdhanReminder);
         IncreaseTextSizeCommand = new Command(IncreaseTextSize);
         DecreaseTextSizeCommand = new Command(DecreaseTextSize);
+        AddTasbihItemCommand = new Command(AddTasbihItem);
+        RemoveTasbihItemCommand = new Command<TasbihItemEditorViewModel>(RemoveTasbihItem);
+        MoveTasbihItemUpCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemUp);
+        MoveTasbihItemDownCommand = new Command<TasbihItemEditorViewModel>(MoveTasbihItemDown);
 
         Load();
         PropertyChanged += OnSettingsPropertyChanged;
@@ -113,6 +124,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             RebuildReminderLabels();
             BuildClockFormats();
             BuildNotificationOptions();
+            BuildTasbihRepeatModes();
         };
     }
 
@@ -136,6 +148,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<VibrationPattern>> VibrationPatterns { get; }
     public ObservableCollection<OptionItem<AdhanReminderScope>> AdhanReminderScopes { get; }
     public ObservableCollection<OptionItem<PrayerId>> AdhanReminderPrayers { get; }
+    public ObservableCollection<TasbihPresetEditorViewModel> TasbihPresets { get; }
+    public ObservableCollection<OptionItem<TasbihRepeatMode>> TasbihRepeatModes { get; }
     public Command RefreshGpsCommand { get; }
     public Command AddImsakReminderCommand { get; }
     public Command AddIftarReminderCommand { get; }
@@ -145,6 +159,10 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command RemoveAdhanReminderCommand { get; }
     public Command IncreaseTextSizeCommand { get; }
     public Command DecreaseTextSizeCommand { get; }
+    public Command AddTasbihItemCommand { get; }
+    public Command RemoveTasbihItemCommand { get; }
+    public Command MoveTasbihItemUpCommand { get; }
+    public Command MoveTasbihItemDownCommand { get; }
     public bool UseGps {
         get => _useGps;
         set {
@@ -375,6 +393,37 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _textScaleLabel, value);
     }
 
+    public TasbihPresetEditorViewModel? SelectedTasbihPreset {
+        get => _selectedTasbihPreset;
+        set {
+            if (SetProperty(ref _selectedTasbihPreset, value)) {
+                SelectedTasbihRepeatMode = TasbihRepeatModes.FirstOrDefault(item => item.Value == value?.RepeatMode)
+                    ?? TasbihRepeatModes.FirstOrDefault();
+                RecalculateTasbihStartIndices();
+            }
+        }
+    }
+
+    public OptionItem<TasbihRepeatMode>? SelectedTasbihRepeatMode {
+        get => _selectedTasbihRepeatMode;
+        set {
+            if (SetProperty(ref _selectedTasbihRepeatMode, value) && SelectedTasbihPreset != null) {
+                SelectedTasbihPreset.RepeatMode = value?.Value ?? TasbihRepeatMode.None;
+                ScheduleSave();
+            }
+        }
+    }
+
+    public string NewTasbihText {
+        get => _newTasbihText;
+        set => SetProperty(ref _newTasbihText, value);
+    }
+
+    public string NewTasbihCount {
+        get => _newTasbihCount;
+        set => SetProperty(ref _newTasbihCount, value);
+    }
+
     public bool NotificationsEnabled {
         get => _notificationsEnabled;
         set => SetProperty(ref _notificationsEnabled, value);
@@ -472,6 +521,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedClockFormat = ClockFormats.FirstOrDefault(item => item.Value == _settings.ClockFormat)
             ?? ClockFormats.FirstOrDefault();
         TextScale = _settings.TextScale;
+        EnsureTasbihDefaults();
+        LoadTasbihPresets();
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.A, _settings.AccentIndex);
         BuildPlaceOptions();
         _suspendSave = false;
@@ -524,6 +575,18 @@ public sealed class SettingsViewModel : ViewModelBase {
             ReminderOffsetsMinutes = AdhanReminders.Select(item => item.Minutes).ToList()
         };
 
+        var tasbih = new TasbihSettings {
+            Presets = TasbihPresets.Select(preset => new TasbihPresetSettings {
+                Name = preset.Name,
+                RepeatMode = preset.RepeatMode,
+                Items = preset.Items.Select(item => new TasbihItemSettings {
+                    Text = item.Text,
+                    TargetCount = item.TargetCount
+                }).ToList()
+            }).ToList(),
+            SelectedPresetIndex = SelectedTasbihPreset == null ? 0 : Math.Max(0, TasbihPresets.IndexOf(SelectedTasbihPreset))
+        };
+
         var previousLanguage = _settings.Language;
         _settings = new AppSettings {
             Location = location,
@@ -536,6 +599,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             Notifications = notifications,
             ClockFormat = SelectedClockFormat?.Value ?? ClockFormat.Auto,
             TextScale = TextScale,
+            Tasbih = tasbih,
             Language = SelectedLanguage?.Value ?? "auto",
             LanguageSelected = true,
             ThemeMode = SelectedThemeMode?.Value ?? ThemeMode.Auto,
@@ -978,6 +1042,130 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? AdhanReminderPrayers.FirstOrDefault();
     }
 
+    private void BuildTasbihRepeatModes() {
+        var current = SelectedTasbihRepeatMode?.Value ?? TasbihRepeatMode.None;
+        TasbihRepeatModes.Clear();
+        TasbihRepeatModes.Add(new OptionItem<TasbihRepeatMode>(TasbihRepeatMode.None, LocalizationManager.Translate("TasbihRepeat_None")));
+        TasbihRepeatModes.Add(new OptionItem<TasbihRepeatMode>(TasbihRepeatMode.RepeatReset, LocalizationManager.Translate("TasbihRepeat_Reset")));
+        TasbihRepeatModes.Add(new OptionItem<TasbihRepeatMode>(TasbihRepeatMode.RepeatContinue, LocalizationManager.Translate("TasbihRepeat_Continue")));
+        SelectedTasbihRepeatMode = TasbihRepeatModes.FirstOrDefault(item => item.Value == current)
+            ?? TasbihRepeatModes.FirstOrDefault();
+    }
+
+    private void EnsureTasbihDefaults() {
+        if (_settings.Tasbih.Presets.Count > 0) {
+            return;
+        }
+
+        _settings = new AppSettings {
+            Location = _settings.Location,
+            Method = _settings.Method,
+            Madhhab = _settings.Madhhab,
+            HighLatitudeRule = _settings.HighLatitudeRule,
+            Offsets = _settings.Offsets,
+            FastingOffsets = _settings.FastingOffsets,
+            FastingReminders = _settings.FastingReminders,
+            Notifications = _settings.Notifications,
+            ClockFormat = _settings.ClockFormat,
+            TextScale = _settings.TextScale,
+            Tasbih = TasbihDefaults.BuildDefaults(),
+            Language = _settings.Language,
+            LanguageSelected = _settings.LanguageSelected,
+            ThemeMode = _settings.ThemeMode,
+            ThemeVariant = _settings.ThemeVariant,
+            AccentIndex = _settings.AccentIndex
+        };
+
+        _dataService.SaveSettings(_settings);
+    }
+
+    private void LoadTasbihPresets() {
+        TasbihPresets.Clear();
+        foreach (var preset in _settings.Tasbih.Presets) {
+            var items = preset.Items.Select(item => new TasbihItemEditorViewModel(item.Text, item.TargetCount)).ToList();
+            var viewModel = new TasbihPresetEditorViewModel(preset.Name, preset.RepeatMode, items);
+            viewModel.PropertyChanged += (_, _) => ScheduleSave();
+            foreach (var item in viewModel.Items) {
+                item.PropertyChanged += (_, _) => {
+                    RecalculateTasbihStartIndices();
+                    ScheduleSave();
+                };
+            }
+            TasbihPresets.Add(viewModel);
+        }
+
+        var index = Math.Clamp(_settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, TasbihPresets.Count - 1));
+        SelectedTasbihPreset = TasbihPresets.Count > 0 ? TasbihPresets[index] : null;
+        RecalculateTasbihStartIndices();
+    }
+
+    private void RecalculateTasbihStartIndices() {
+        if (SelectedTasbihPreset == null) {
+            return;
+        }
+
+        var start = 1;
+        foreach (var item in SelectedTasbihPreset.Items) {
+            item.StartIndex = start;
+            start += Math.Max(0, item.TargetCount);
+        }
+    }
+
+    private void AddTasbihItem() {
+        if (SelectedTasbihPreset == null) {
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(NewTasbihText)) {
+            return;
+        }
+        if (!int.TryParse(NewTasbihCount, out var count) || count <= 0) {
+            return;
+        }
+
+        var item = new TasbihItemEditorViewModel(NewTasbihText.Trim(), count);
+        item.PropertyChanged += (_, _) => RecalculateTasbihStartIndices();
+        SelectedTasbihPreset.Items.Add(item);
+        NewTasbihText = "";
+        NewTasbihCount = "";
+        RecalculateTasbihStartIndices();
+        ScheduleSave();
+    }
+
+    private void RemoveTasbihItem(TasbihItemEditorViewModel? item) {
+        if (SelectedTasbihPreset == null || item == null) {
+            return;
+        }
+        SelectedTasbihPreset.Items.Remove(item);
+        RecalculateTasbihStartIndices();
+        ScheduleSave();
+    }
+
+    private void MoveTasbihItemUp(TasbihItemEditorViewModel? item) {
+        if (SelectedTasbihPreset == null || item == null) {
+            return;
+        }
+        var index = SelectedTasbihPreset.Items.IndexOf(item);
+        if (index <= 0) {
+            return;
+        }
+        SelectedTasbihPreset.Items.Move(index, index - 1);
+        RecalculateTasbihStartIndices();
+        ScheduleSave();
+    }
+
+    private void MoveTasbihItemDown(TasbihItemEditorViewModel? item) {
+        if (SelectedTasbihPreset == null || item == null) {
+            return;
+        }
+        var index = SelectedTasbihPreset.Items.IndexOf(item);
+        if (index < 0 || index >= SelectedTasbihPreset.Items.Count - 1) {
+            return;
+        }
+        SelectedTasbihPreset.Items.Move(index, index + 1);
+        RecalculateTasbihStartIndices();
+        ScheduleSave();
+    }
+
     private void IncreaseTextSize() {
         TextScale = Math.Min(TextScale + 1, 6);
         ScheduleSave();
@@ -1033,6 +1221,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(SelectedVibrationPattern)
             or nameof(SelectedAdhanReminderScope)
             or nameof(SelectedAdhanReminderPrayer)
+            or nameof(SelectedTasbihRepeatMode)
             or nameof(SelectedLanguage)
             or nameof(SelectedThemeMode)
             or nameof(SelectedThemeVariant)
@@ -1119,6 +1308,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 Notifications = settings.Notifications,
                 ClockFormat = settings.ClockFormat,
                 TextScale = settings.TextScale,
+                Tasbih = settings.Tasbih,
                 Language = settings.Language,
                 LanguageSelected = settings.LanguageSelected,
                 ThemeMode = settings.ThemeMode,

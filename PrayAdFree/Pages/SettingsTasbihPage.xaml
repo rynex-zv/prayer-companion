@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.SettingsTasbihPage"
+             Title="{loc:Loc TasbihSettings}">
+    <ContentPage.Resources>
+        <Style TargetType="Entry">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style TargetType="Picker">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+    </ContentPage.Resources>
+    <ScrollView>
+        <VerticalStackLayout Spacing="18" Padding="24,32">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc TasbihSettings}" FontSize="16" />
+
+                    <Label Text="{loc:Loc TasbihPresets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc TasbihPresets}" ItemsSource="{Binding TasbihPresets}" ItemDisplayBinding="{Binding Name}" SelectedItem="{Binding SelectedTasbihPreset}" />
+
+                    <Label Text="{loc:Loc TasbihPresetName}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Entry Placeholder="{loc:Loc TasbihPresetName}" Text="{Binding SelectedTasbihPreset.Name}" />
+
+                    <Label Text="{loc:Loc TasbihRepeatMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Picker Title="{loc:Loc TasbihRepeatMode}" ItemsSource="{Binding TasbihRepeatModes}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedTasbihRepeatMode}" />
+
+                    <Label Text="{loc:Loc TasbihItems}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="2*,*,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto">
+                        <Entry Placeholder="{loc:Loc TasbihText}" Text="{Binding NewTasbihText}" />
+                        <Entry Placeholder="{loc:Loc TasbihCount}" Text="{Binding NewTasbihCount}" Grid.Column="1" />
+                        <Button Text="{loc:Loc Add}" Command="{Binding AddTasbihItemCommand}" Grid.Column="2" />
+                    </Grid>
+
+                    <CollectionView ItemsSource="{Binding SelectedTasbihPreset.Items}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="2*,*,Auto,Auto,Auto" ColumnSpacing="8" Padding="0,6">
+                                    <Entry Text="{Binding Text}" />
+                                    <Entry Text="{Binding TargetCount}" Grid.Column="1" />
+                                    <Label Text="{Binding StartIndex}" Grid.Column="2" FontSize="12" VerticalTextAlignment="Center" />
+                                    <Button Text="↑" Command="{Binding BindingContext.MoveTasbihItemUpCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="3" />
+                                    <Button Text="↓" Command="{Binding BindingContext.MoveTasbihItemDownCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" Grid.Column="4" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
