@@ -15,5 +15,4 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy Solution="Debug|Any CPU" />
   </Project>
-  <Project Path="tools/reflection_probe_2/reflection_probe_2.csproj" />
 </Solution>
