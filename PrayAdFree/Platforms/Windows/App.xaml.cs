@@ -16,6 +16,7 @@ namespace Pray_Ad_Free.WinUI {
         private IntPtr _windowHandle;
         private AppWindow? _appWindow;
         private readonly WindowsBackgroundModeService _backgroundModeService = new();
+        private bool _isBackgroundWorkerLaunch;
 
         /// <summary>
         /// Initializes the singleton application object. This is the first line of authored code
@@ -35,7 +36,7 @@ namespace Pray_Ad_Free.WinUI {
 
         private static void OnNotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args) {
             try {
-                if (!IsStopAction(args)) {
+                if (!IsControlNotificationInvocation(args)) {
                     return;
                 }
 
@@ -46,16 +47,29 @@ namespace Pray_Ad_Free.WinUI {
             }
         }
 
-        private static bool IsStopAction(AppNotificationActivatedEventArgs args) {
+        private static bool IsControlNotificationInvocation(AppNotificationActivatedEventArgs args) {
             var argument = args.Argument ?? string.Empty;
+            if (string.Equals(argument, AdhanPlaybackService.WindowsControlNotificationSourceToken, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(argument, $"source={AdhanPlaybackService.WindowsControlNotificationSourceToken}", StringComparison.OrdinalIgnoreCase) ||
+                argument.Contains($"source={AdhanPlaybackService.WindowsControlNotificationSourceToken}", StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+
             if (string.Equals(argument, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(argument, $"action={AdhanPlaybackService.WindowsStopActionToken}", StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
 
             if (args.Arguments is System.Collections.IDictionary values &&
-                values.Contains("action") &&
-                values["action"] is string actionValue &&
+                values.Contains("source") &&
+                values["source"] is string sourceValue &&
+                string.Equals(sourceValue, AdhanPlaybackService.WindowsControlNotificationSourceToken, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+
+            if (args.Arguments is System.Collections.IDictionary actionValues &&
+                actionValues.Contains("action") &&
+                actionValues["action"] is string actionValue &&
                 string.Equals(actionValue, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
@@ -64,10 +78,14 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args) {
-            var backgroundLaunch = WindowsBackgroundModeService.IsBackgroundLaunch(args.Arguments);
+            _isBackgroundWorkerLaunch = WindowsBackgroundModeService.IsBackgroundLaunch(args.Arguments);
+            if (_isBackgroundWorkerLaunch) {
+                WindowsBackgroundModeService.RegisterCurrentBackgroundProcess();
+            }
+
             RegisterNotifications();
             base.OnLaunched(args);
-            HookBackgroundBehavior(backgroundLaunch);
+            HookBackgroundBehavior(_isBackgroundWorkerLaunch);
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -96,7 +114,12 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args) {
+            if (!_isBackgroundWorkerLaunch) {
+                return;
+            }
+
             if (!_backgroundModeService.IsEnabled()) {
+                WindowsBackgroundModeService.UnregisterCurrentBackgroundProcess();
                 return;
             }
 

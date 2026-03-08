@@ -23,6 +23,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const int StopActionId = 54001;
     public const int ControlNotificationId = 54002;
     public const string WindowsStopActionToken = "stop_adhan";
+    public const string WindowsControlNotificationSourceToken = "adhan_control";
     public const string WindowsControlNotificationTag = "adhan_playback_control";
 
     private readonly SettingsService _settingsService;
@@ -36,6 +37,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 #endif
 #if WINDOWS
     private Windows.Media.Playback.MediaPlayer? _windowsPlayer;
+    private CancellationTokenSource? _windowsNotificationMonitorCts;
 #endif
 #if IOS || MACCATALYST
     private AVAudioPlayer? _applePlayer;
@@ -152,7 +154,15 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
     private async Task HandleNotificationActionTappedAsync(NotificationActionEventArgs e) {
         try {
-            if (e?.ActionId != StopActionId) {
+            if (e == null) {
+                return;
+            }
+
+            if (e.ActionId != StopActionId &&
+                e.ActionId != NotificationActionEventArgs.TapActionId &&
+                e.ActionId != NotificationActionEventArgs.DismissedActionId &&
+                !e.IsTapped &&
+                !e.IsDismissed) {
                 return;
             }
 
@@ -165,13 +175,16 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private async Task ShowControlNotificationAsync(string prayerName) {
 #if WINDOWS
         var notification = new AppNotificationBuilder()
+            .AddArgument("source", WindowsControlNotificationSourceToken)
             .AddText(prayerName)
             .AddText(LocalizationManager.Translate("AdhanPlaybackStopHint"))
             .AddButton(new AppNotificationButton(LocalizationManager.Translate("StopAdhan"))
-                .AddArgument("action", WindowsStopActionToken))
+                .AddArgument("action", WindowsStopActionToken)
+                .AddArgument("source", WindowsControlNotificationSourceToken))
             .BuildNotification();
         notification.Tag = WindowsControlNotificationTag;
         AppNotificationManager.Default.Show(notification);
+        StartWindowsNotificationMonitor();
         await Task.CompletedTask;
 #else
         var request = new NotificationRequest {
@@ -274,6 +287,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _windowsPlayer.Dispose();
             _windowsPlayer = null;
         }
+
+        _windowsNotificationMonitorCts?.Cancel();
+        _windowsNotificationMonitorCts?.Dispose();
+        _windowsNotificationMonitorCts = null;
 #endif
 
 #if IOS || MACCATALYST
@@ -312,6 +329,33 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private void OnWindowsMediaFailed(Windows.Media.Playback.MediaPlayer sender, Windows.Media.Playback.MediaPlayerFailedEventArgs args) {
         _logger.LogException(new InvalidOperationException($"Windows media failed: {args.ErrorMessage}"), "AdhanPlaybackService.OnWindowsMediaFailed");
         _ = StopAsync();
+    }
+
+    private void StartWindowsNotificationMonitor() {
+        _windowsNotificationMonitorCts?.Cancel();
+        _windowsNotificationMonitorCts?.Dispose();
+        _windowsNotificationMonitorCts = new CancellationTokenSource();
+        var token = _windowsNotificationMonitorCts.Token;
+
+        _ = Task.Run(async () => {
+            try {
+                await Task.Delay(1000, token).ConfigureAwait(false);
+                while (!token.IsCancellationRequested) {
+                    var notifications = await AppNotificationManager.Default.GetAllAsync();
+                    var exists = notifications.Any(item =>
+                        string.Equals(item.Tag, WindowsControlNotificationTag, StringComparison.Ordinal));
+                    if (!exists) {
+                        await StopAsync().ConfigureAwait(false);
+                        return;
+                    }
+
+                    await Task.Delay(750, token).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+            } catch (Exception ex) {
+                _logger.LogException(ex, "AdhanPlaybackService.StartWindowsNotificationMonitor");
+            }
+        }, token);
     }
 #endif
 
