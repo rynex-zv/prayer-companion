@@ -29,8 +29,38 @@ namespace Pray_Ad_Free.WinUI {
 
         private static void RegisterNotifications() {
             SetCurrentProcessExplicitAppUserModelID("com.rynex.prayadfree");
-            AppNotificationManager.Default.NotificationInvoked += (_, _) => { };
+            AppNotificationManager.Default.NotificationInvoked += OnNotificationInvoked;
             AppNotificationManager.Default.Register();
+        }
+
+        private static void OnNotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args) {
+            try {
+                if (!IsStopAction(args)) {
+                    return;
+                }
+
+                if (global::Pray_Ad_Free.App.Services?.GetService(typeof(IAdhanPlaybackService)) is IAdhanPlaybackService playbackService) {
+                    _ = playbackService.StopAsync();
+                }
+            } catch {
+            }
+        }
+
+        private static bool IsStopAction(AppNotificationActivatedEventArgs args) {
+            var argument = args.Argument ?? string.Empty;
+            if (string.Equals(argument, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(argument, $"action={AdhanPlaybackService.WindowsStopActionToken}", StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+
+            if (args.Arguments is System.Collections.IDictionary values &&
+                values.Contains("action") &&
+                values["action"] is string actionValue &&
+                string.Equals(actionValue, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+
+            return argument.Contains($"action={AdhanPlaybackService.WindowsStopActionToken}", StringComparison.OrdinalIgnoreCase);
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args) {

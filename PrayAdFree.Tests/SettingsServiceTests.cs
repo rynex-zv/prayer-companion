@@ -11,7 +11,8 @@ public class SettingsServiceTests {
         var settings = new AppSettings {
             Method = CalculationMethod.Egypt,
             Madhhab = Madhhab.Hanafi,
-            Location = new LocationSettings { City = "Cairo", Country = "Egypt" }
+            Location = new LocationSettings { City = "Cairo", Country = "Egypt" },
+            Notifications = new NotificationSettings { AdhanVolume = 0.35 }
         };
 
         service.Save(settings);
@@ -20,5 +21,6 @@ public class SettingsServiceTests {
         Assert.Equal(CalculationMethod.Egypt, loaded.Method);
         Assert.Equal(Madhhab.Hanafi, loaded.Madhhab);
         Assert.Equal("Cairo", loaded.Location.City);
+        Assert.Equal(0.35, loaded.Notifications.AdhanVolume, 3);
     }
 }

@@ -9,6 +9,10 @@ using System.Linq;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Storage;
+using Plugin.LocalNotification;
+#if ANDROID
+using Plugin.LocalNotification.AndroidOption;
+#endif
 
 namespace Pray_Ad_Free.ViewModels;
 
@@ -17,6 +21,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private readonly GeoService _geoService;
     private readonly IAppLogger _logger;
     private readonly IWindowsBackgroundModeService _windowsBackgroundModeService;
+    private readonly IAdhanPlaybackService _adhanPlaybackService;
     private AppSettings _settings = new();
     private bool _useGps;
     private string _city = "";
@@ -44,6 +49,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private bool _applyingWindowsBackgroundOption;
     private bool _customSoundBusy;
     private string _minutesBefore = "0";
+    private double _adhanVolume = 100;
+    private string _adhanVolumeLabel = "100%";
     private OptionItem<string>? _selectedLanguage;
     private OptionItem<ThemeMode>? _selectedThemeMode;
     private OptionItem<ThemeVariant>? _selectedThemeVariant;
@@ -68,6 +75,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<QiblaReadingMode>? _selectedQiblaReadingMode;
     private OptionItem<QiblaFilterMode>? _selectedQiblaFilterMode;
     private OptionItem<string>? _selectedAdhanSound;
+    private string? _previewAdhanSoundKey;
+    private bool _previewBusy;
     private OptionItem<VibrationStrength>? _selectedVibrationStrength;
     private OptionItem<VibrationPattern>? _selectedVibrationPattern;
     private OptionItem<AdhanReminderScope>? _selectedAdhanReminderScope;
@@ -91,11 +100,13 @@ public sealed class SettingsViewModel : ViewModelBase {
         PrayerDataService dataService,
         GeoService geoService,
         IAppLogger logger,
-        IWindowsBackgroundModeService windowsBackgroundModeService) {
+        IWindowsBackgroundModeService windowsBackgroundModeService,
+        IAdhanPlaybackService adhanPlaybackService) {
         _dataService = dataService;
         _geoService = geoService;
         _logger = logger;
         _windowsBackgroundModeService = windowsBackgroundModeService;
+        _adhanPlaybackService = adhanPlaybackService;
         Methods = new ObservableCollection<OptionItem<CalculationMethod>>();
         Madhhabs = new ObservableCollection<OptionItem<Madhhab>>();
         HighLatitudeRules = new ObservableCollection<OptionItem<HighLatitudeRule>>();
@@ -115,6 +126,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         QiblaReadingModes = new ObservableCollection<OptionItem<QiblaReadingMode>>();
         QiblaFilterModes = new ObservableCollection<OptionItem<QiblaFilterMode>>();
         AdhanSounds = new ObservableCollection<OptionItem<string>>();
+        AdhanSoundItems = new ObservableCollection<AdhanSoundOptionViewModel>();
         AdhanOverrideSounds = new ObservableCollection<OptionItem<string>>();
         AdhanOverrideVibrations = new ObservableCollection<OptionItem<int>>();
         VibrationStrengths = new ObservableCollection<OptionItem<VibrationStrength>>();
@@ -139,6 +151,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         AddAdhanReminderCommand = new Command(AddAdhanReminder);
         RemoveAdhanReminderCommand = new Command<ReminderOffsetItem>(RemoveAdhanReminder);
         AddCustomAdhanSoundCommand = new Command(async () => await AddCustomAdhanSoundAsync(), () => !_customSoundBusy);
+        SelectAdhanSoundCommand = new Command<AdhanSoundOptionViewModel>(OnSelectAdhanSound);
+        ToggleAdhanPreviewCommand = new Command<AdhanSoundOptionViewModel>(async item => await ToggleAdhanPreviewAsync(item));
+        SendTestNotificationCommand = new Command(async () => await SendTestNotificationAsync());
         IncreaseTextSizeCommand = new Command(IncreaseTextSize);
         DecreaseTextSizeCommand = new Command(DecreaseTextSize);
         AddTasbihItemCommand = new Command(AddTasbihItem);
@@ -212,6 +227,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<QiblaReadingMode>> QiblaReadingModes { get; }
     public ObservableCollection<OptionItem<QiblaFilterMode>> QiblaFilterModes { get; }
     public ObservableCollection<OptionItem<string>> AdhanSounds { get; }
+    public ObservableCollection<AdhanSoundOptionViewModel> AdhanSoundItems { get; }
     public ObservableCollection<OptionItem<string>> AdhanOverrideSounds { get; }
     public ObservableCollection<OptionItem<int>> AdhanOverrideVibrations { get; }
     public ObservableCollection<OptionItem<VibrationStrength>> VibrationStrengths { get; }
@@ -229,6 +245,9 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command AddAdhanReminderCommand { get; }
     public Command RemoveAdhanReminderCommand { get; }
     public Command AddCustomAdhanSoundCommand { get; }
+    public Command<AdhanSoundOptionViewModel> SelectAdhanSoundCommand { get; }
+    public Command<AdhanSoundOptionViewModel> ToggleAdhanPreviewCommand { get; }
+    public Command SendTestNotificationCommand { get; }
     public Command IncreaseTextSizeCommand { get; }
     public Command DecreaseTextSizeCommand { get; }
     public Command AddTasbihItemCommand { get; }
@@ -468,7 +487,11 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     public OptionItem<string>? SelectedAdhanSound {
         get => _selectedAdhanSound;
-        set => SetProperty(ref _selectedAdhanSound, value);
+        set {
+            if (SetProperty(ref _selectedAdhanSound, value)) {
+                SyncAdhanSoundItemStates();
+            }
+        }
     }
 
     public OptionItem<VibrationStrength>? SelectedVibrationStrength {
@@ -580,6 +603,22 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _minutesBefore, value);
     }
 
+    public double AdhanVolume {
+        get => _adhanVolume;
+        set {
+            var clamped = Math.Clamp(value, 0, 100);
+            var rounded = Math.Round(clamped, MidpointRounding.AwayFromZero);
+            if (SetProperty(ref _adhanVolume, rounded)) {
+                AdhanVolumeLabel = $"{(int)rounded}%";
+            }
+        }
+    }
+
+    public string AdhanVolumeLabel {
+        get => _adhanVolumeLabel;
+        set => SetProperty(ref _adhanVolumeLabel, value);
+    }
+
     public OptionItem<string>? SelectedLanguage {
         get => _selectedLanguage;
         set => SetProperty(ref _selectedLanguage, value);
@@ -646,6 +685,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             ? _windowsBackgroundModeService.IsEnabled()
             : _settings.Notifications.RunBackgroundServiceOnWindows;
         MinutesBefore = _settings.Notifications.MinutesBefore.ToString();
+        AdhanVolume = Math.Clamp(_settings.Notifications.AdhanVolume, 0d, 1d) * 100d;
         SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == _settings.Notifications.SoundKey)
             ?? AdhanSounds.FirstOrDefault();
         SelectedVibrationStrength = VibrationStrengths.FirstOrDefault(item => item.Value == _settings.Notifications.VibrationStrength)
@@ -717,6 +757,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             EnableVibration = VibrationEnabled,
             RunBackgroundServiceOnWindows = WindowsBackgroundEnabled,
             MinutesBefore = ParseInt(MinutesBefore),
+            AdhanVolume = Math.Clamp(AdhanVolume / 100d, 0d, 1d),
             SoundKey = SelectedAdhanSound?.Value ?? "adhan_default",
             CustomSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>(),
             VibrationStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium,
@@ -1234,6 +1275,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         foreach (var option in AdhanSoundLibrary.BuildOptions(_settings.Notifications, includeUseGlobal: false)) {
             AdhanSounds.Add(option);
         }
+        RebuildAdhanSoundItems();
 
         VibrationStrengths.Clear();
         VibrationStrengths.Add(new OptionItem<VibrationStrength>(VibrationStrength.Low, LocalizationManager.Translate("Vibration_Low")));
@@ -1266,6 +1308,96 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? AdhanReminderScopes.FirstOrDefault();
         SelectedAdhanReminderPrayer = AdhanReminderPrayers.FirstOrDefault(item => item.Value == currentPrayer)
             ?? AdhanReminderPrayers.FirstOrDefault();
+    }
+
+    private void RebuildAdhanSoundItems() {
+        AdhanSoundItems.Clear();
+        foreach (var option in AdhanSounds) {
+            AdhanSoundItems.Add(new AdhanSoundOptionViewModel(
+                option.Value,
+                option.Label,
+                !AdhanSoundLibrary.IsSilent(option.Value)));
+        }
+
+        SyncAdhanSoundItemStates();
+    }
+
+    private void SyncAdhanSoundItemStates() {
+        var selectedKey = SelectedAdhanSound?.Value ?? string.Empty;
+        foreach (var item in AdhanSoundItems) {
+            item.IsSelected = string.Equals(item.Key, selectedKey, StringComparison.OrdinalIgnoreCase);
+            item.IsPlaying = !string.IsNullOrWhiteSpace(_previewAdhanSoundKey)
+                && string.Equals(item.Key, _previewAdhanSoundKey, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private void OnSelectAdhanSound(AdhanSoundOptionViewModel? item) {
+        if (item == null) {
+            return;
+        }
+
+        var option = AdhanSounds.FirstOrDefault(sound => string.Equals(sound.Value, item.Key, StringComparison.OrdinalIgnoreCase));
+        if (option == null) {
+            return;
+        }
+
+        SelectedAdhanSound = option;
+    }
+
+    private async Task ToggleAdhanPreviewAsync(AdhanSoundOptionViewModel? item) {
+        if (item == null || _previewBusy) {
+            return;
+        }
+
+        try {
+            _previewBusy = true;
+            if (!string.IsNullOrWhiteSpace(_previewAdhanSoundKey) &&
+                string.Equals(_previewAdhanSoundKey, item.Key, StringComparison.OrdinalIgnoreCase)) {
+                await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
+                _previewAdhanSoundKey = null;
+            } else {
+                var started = await _adhanPlaybackService.PlayPreviewAsync(item.Key).ConfigureAwait(false);
+                _previewAdhanSoundKey = started ? item.Key : null;
+            }
+        } catch (Exception ex) {
+            _logger.LogException(ex, "SettingsViewModel.ToggleAdhanPreviewAsync");
+        } finally {
+            _previewBusy = false;
+            RunOnMainThread(SyncAdhanSoundItemStates);
+        }
+    }
+
+    private async Task SendTestNotificationAsync() {
+        try {
+            await LocalNotificationCenter.Current.RequestNotificationPermission();
+            var key = SelectedAdhanSound?.Value ?? _settings.Notifications.SoundKey;
+            var effectiveKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(key);
+            if (OperatingSystem.IsWindows()) {
+                await _adhanPlaybackService.PlayPreviewAsync(effectiveKey).ConfigureAwait(false);
+                return;
+            }
+
+            var payload = AdhanSoundLibrary.IsSilent(effectiveKey)
+                ? string.Empty
+                : AdhanNotificationPayload.BuildPlay(PrayerId.Fajr, effectiveKey);
+
+            var request = new NotificationRequest {
+                NotificationId = 55000 + DateTime.Now.Second,
+                Title = LocalizationManager.Translate("TestNotification"),
+                Description = LocalizationManager.Translate("Notification_PrayerBody").Replace("{0}", LocalizationManager.Translate("Prayer_Fajr")),
+                Silent = true,
+                ReturningData = payload
+            };
+#if ANDROID
+            request.Android = new AndroidOptions {
+                ChannelId = "prayer_times",
+                Priority = AndroidPriority.High
+            };
+#endif
+            await LocalNotificationCenter.Current.Show(request);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "SettingsViewModel.SendTestNotificationAsync");
+        }
     }
 
     private void BuildAdhanOverrideOptions() {
@@ -1611,6 +1743,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                     EnableVibration = _settings.Notifications.EnableVibration,
                     RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
                     MinutesBefore = _settings.Notifications.MinutesBefore,
+                    AdhanVolume = _settings.Notifications.AdhanVolume,
                     SoundKey = _settings.Notifications.SoundKey,
                     CustomSounds = customSounds,
                     PrayerOverrides = _settings.Notifications.PrayerOverrides?.ToList() ?? new List<AdhanPrayerOverride>(),
@@ -1703,6 +1836,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(NotificationsEnabled)
             or nameof(VibrationEnabled)
             or nameof(MinutesBefore)
+            or nameof(AdhanVolume)
             or nameof(SelectedAdhanSound)
             or nameof(SelectedVibrationStrength)
             or nameof(SelectedVibrationPattern)

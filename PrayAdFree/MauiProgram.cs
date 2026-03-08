@@ -3,6 +3,9 @@ using Microsoft.Extensions.Logging;
 using System.IO;
 using System;
 using PrayAdFree.Core.Services;
+using Plugin.LocalNotification;
+using Plugin.LocalNotification.AndroidOption;
+using Plugin.LocalNotification.WindowsOption;
 using Pray_Ad_Free.Pages;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
@@ -13,6 +16,21 @@ namespace Pray_Ad_Free {
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseLocalNotification(options => {
+                    var stopAction = new NotificationAction(AdhanPlaybackService.StopActionId) {
+                        Title = ResolveStopActionTitle(),
+                        Android = new AndroidAction {
+                            LaunchAppWhenTapped = false
+                        },
+                        Windows = new WindowsAction {
+                            LaunchAppWhenTapped = false,
+                            DismissWhenTapped = true
+                        }
+                    };
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Service) {
+                        ActionList = new HashSet<NotificationAction> { stopAction }
+                    });
+                })
                 .ConfigureFonts( fonts => {
                     fonts.AddFont( "OpenSans-Regular.ttf" , "OpenSansRegular" );
                     fonts.AddFont( "OpenSans-Semibold.ttf" , "OpenSansSemibold" );
@@ -47,6 +65,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
+            builder.Services.AddSingleton<IAdhanPlaybackService, AdhanPlaybackService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
             builder.Services.AddSingleton( _ => new PrayerTimesCache( FileSystem.AppDataDirectory ) );
             builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();
@@ -76,6 +95,16 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<AppShell>();
 
             return builder.Build();
+        }
+
+        private static string ResolveStopActionTitle() {
+            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+                "ar" => "إيقاف",
+                "fr" => "Arreter",
+                "es" => "Detener",
+                "tr" => "Durdur",
+                _ => "Stop"
+            };
         }
     }
 }

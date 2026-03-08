@@ -47,6 +47,7 @@ public sealed class WindowsBackgroundModeService : IWindowsBackgroundModeService
                 key.SetValue(RunValueName, command, RegistryValueKind.String);
             } else {
                 key.DeleteValue(RunValueName, false);
+                StopOtherBackgroundProcesses();
             }
 
             return IsEnabled() == enabled;
@@ -79,6 +80,29 @@ public sealed class WindowsBackgroundModeService : IWindowsBackgroundModeService
         }
 
         return $"\"{path}\" {BackgroundArgument}";
+    }
+
+    private static void StopOtherBackgroundProcesses() {
+        try {
+            var currentPath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(currentPath)) {
+                return;
+            }
+
+            var currentId = Environment.ProcessId;
+            var processName = Path.GetFileNameWithoutExtension(currentPath);
+            foreach (var process in Process.GetProcessesByName(processName)) {
+                try {
+                    if (process.Id == currentId) {
+                        continue;
+                    }
+
+                    process.Kill(true);
+                } catch {
+                }
+            }
+        } catch {
+        }
     }
 }
 

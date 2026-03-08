@@ -32,6 +32,49 @@
                     Padding="16">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="{loc:Loc AdhanCustomizations}" FontSize="16" />
+                    <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Button Text="{loc:Loc AddCustomAdhanSound}" Command="{Binding AddCustomAdhanSoundCommand}" />
+                    <Button Text="{loc:Loc TestNotification}" Command="{Binding SendTestNotificationCommand}" />
+                    <CollectionView ItemsSource="{Binding AdhanSoundItems}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="4,2">
+                                    <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="13" />
+                                    <Button Grid.Column="1"
+                                            Command="{Binding BindingContext.SelectAdhanSoundCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc Selected}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc Select}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                    <Button Grid.Column="2"
+                                            IsEnabled="{Binding CanPreview}"
+                                            Command="{Binding BindingContext.ToggleAdhanPreviewCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc Stop}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc Play}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <Label Text="{loc:Loc AdhanVolume}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
+                        <Slider Minimum="0" Maximum="100" Value="{Binding AdhanVolume}" />
+                        <Label Grid.Column="1" Text="{Binding AdhanVolumeLabel}" VerticalOptions="Center" />
+                    </Grid>
+
                     <Label Text="{loc:Loc Method}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc Method}" ItemsSource="{Binding Methods}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedMethod}" />
                     <Label Text="{loc:Loc Madhhab}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

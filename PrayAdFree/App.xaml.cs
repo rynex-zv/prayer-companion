@@ -13,6 +13,11 @@ namespace Pray_Ad_Free {
             Services = services;
             _logger = logger;
             RegisterExceptionHandlers();
+            try {
+                _services.GetRequiredService<IAdhanPlaybackService>().Initialize();
+            } catch (Exception ex) {
+                _logger.LogException(ex, "App.InitializeAdhanPlaybackService");
+            }
         }
 
         protected override Window CreateWindow( IActivationState? activationState ) {

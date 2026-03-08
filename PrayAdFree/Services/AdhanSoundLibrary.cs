@@ -6,6 +6,8 @@ using PrayAdFree.Core.Models;
 namespace Pray_Ad_Free.Services;
 
 public static class AdhanSoundLibrary {
+    public const string DefaultBuiltinKey = "adhan_builtin_01";
+
     private static readonly BuiltinSound[] BuiltinSounds = {
         new("adhan_builtin_01", "adhan_builtin_01.mp3", "Sound_Builtin_1"),
         new("adhan_builtin_02", "adhan_builtin_02.mp3", "Sound_Builtin_2"),
@@ -67,6 +69,45 @@ public static class AdhanSoundLibrary {
         return File.Exists(fullPath) ? fullPath : null;
     }
 
+    public static bool IsSilent(string? soundKey) {
+        return string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string ResolveEffectiveSoundKey(string? soundKey) {
+        if (string.IsNullOrWhiteSpace(soundKey) ||
+            string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            return DefaultBuiltinKey;
+        }
+
+        return soundKey.Trim();
+    }
+
+    public static AdhanPlaybackSource? ResolvePlaybackSource(NotificationSettings settings, string? soundKey) {
+        var resolvedKey = ResolveEffectiveSoundKey(soundKey);
+        if (IsSilent(resolvedKey)) {
+            return null;
+        }
+
+        var builtin = BuiltinSounds.FirstOrDefault(item => item.Key.Equals(resolvedKey, StringComparison.OrdinalIgnoreCase));
+        if (builtin != null) {
+            return new AdhanPlaybackSource(Path.Combine("AdhanBuiltIn", builtin.FileName), IsPackageAsset: true);
+        }
+
+        if (settings.CustomSounds == null) {
+            return null;
+        }
+
+        var custom = settings.CustomSounds.FirstOrDefault(item =>
+            item.Key.Equals(resolvedKey, StringComparison.OrdinalIgnoreCase) && IsValidCustomSound(item));
+        if (custom == null) {
+            return null;
+        }
+
+        var fullPath = Path.Combine(GetCustomSoundsDirectory(), custom.FileName);
+        return File.Exists(fullPath) ? new AdhanPlaybackSource(fullPath, IsPackageAsset: false) : null;
+    }
+
     public static string BuildChannelId(string? soundKey) {
         if (string.IsNullOrWhiteSpace(soundKey)) {
             return "prayer_times_default";
@@ -96,3 +137,5 @@ public static class AdhanSoundLibrary {
 
     private sealed record BuiltinSound(string Key, string FileName, string LabelKey);
 }
+
+public sealed record AdhanPlaybackSource(string Path, bool IsPackageAsset);

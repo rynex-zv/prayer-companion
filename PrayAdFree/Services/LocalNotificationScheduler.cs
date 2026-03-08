@@ -32,15 +32,17 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 var prayerName = LocalizationManager.TranslatePrayer(item.Prayer);
                 var overrideSettings = FindOverride(settings.Notifications.PrayerOverrides, item.Prayer);
                 var soundKey = overrideSettings?.SoundKey ?? settings.Notifications.SoundKey;
-                var isSilent = string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase);
-                var sound = AdhanSoundLibrary.ResolveNotificationSound(settings.Notifications, soundKey);
-                var channelId = AdhanSoundLibrary.BuildChannelId(soundKey);
+                var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey);
+                var isSilent = AdhanSoundLibrary.IsSilent(effectiveSoundKey);
                 var vibrationOverride = overrideSettings?.EnableVibration;
                 var request = new NotificationRequest {
                     NotificationId = BuildId(day.Date, item.Prayer),
                     Title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName),
                     Description = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName),
-                    Silent = isSilent,
+                    Silent = true,
+                    ReturningData = isSilent
+                        ? string.Empty
+                        : AdhanNotificationPayload.BuildPlay(item.Prayer, effectiveSoundKey),
                     Schedule = new NotificationRequestSchedule {
                         NotifyTime = ToLocalKind(item.Time),
                         NotifyRepeatInterval = null
@@ -48,14 +50,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 #if ANDROID
                     Android = new AndroidOptions {
                         Priority = AndroidPriority.Default,
-                        ChannelId = channelId,
+                        ChannelId = "prayer_times",
                         VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride)
                     }
 #endif
                 };
-                if (!string.IsNullOrWhiteSpace(sound)) {
-                    request.Sound = sound!;
-                }
                 requests.Add(request);
             }
 
@@ -176,9 +175,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             var prayer = prayers[p];
             var overrideSettings = FindOverride(notificationSettings.PrayerOverrides, prayer);
             var soundKey = overrideSettings?.SoundKey ?? notificationSettings.SoundKey;
-            var isSilent = string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase);
-            var sound = AdhanSoundLibrary.ResolveNotificationSound(notificationSettings, soundKey);
-            var channelId = AdhanSoundLibrary.BuildChannelId(soundKey);
+            var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey);
+            var isSilent = AdhanSoundLibrary.IsSilent(effectiveSoundKey);
             var baseTime = day.Timings.Get(prayer);
             for (var i = 0; i < offsets.Count; i++) {
                 var notifyTime = baseTime.AddMinutes(offsets[i]);
@@ -190,7 +188,10 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     NotificationId = BuildReminderId(day.Date, 20 + p, i),
                     Title = LocalizationManager.Translate("AdhanReminder"),
                     Description = LocalizationManager.TranslatePrayer(prayer),
-                    Silent = isSilent,
+                    Silent = true,
+                    ReturningData = isSilent
+                        ? string.Empty
+                        : AdhanNotificationPayload.BuildPlay(prayer, effectiveSoundKey),
                     Schedule = new NotificationRequestSchedule {
                         NotifyTime = ToLocalKind(notifyTime),
                         NotifyRepeatInterval = null
@@ -198,14 +199,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 #if ANDROID
                     Android = new AndroidOptions {
                         Priority = AndroidPriority.Default,
-                        ChannelId = channelId,
+                        ChannelId = "prayer_times",
                         VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(notificationSettings, overrideSettings?.EnableVibration)
                     }
 #endif
                 };
-                if (!string.IsNullOrWhiteSpace(sound)) {
-                    request.Sound = sound!;
-                }
                 requests.Add(request);
             }
         }
