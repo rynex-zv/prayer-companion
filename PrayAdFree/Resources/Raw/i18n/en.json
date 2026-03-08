@@ -1,4 +1,4 @@
-{
+﻿{
   "Today": "Today",
   "Calendar": "Calendar",
   "Qibla": "Qibla",
@@ -65,6 +65,15 @@
   "Reminder_Specific": "Specific prayer",
   "Sound_Default": "Default",
   "Sound_Silent": "Silent",
+  "Sound_Builtin_1": "Adhan 1",
+  "Sound_Builtin_2": "Adhan 2",
+  "Sound_Builtin_3": "Adhan 3",
+  "Sound_Builtin_4": "Adhan 4",
+  "Sound_Builtin_5": "Adhan 5",
+  "Sound_Builtin_6": "Adhan 6",
+  "Sound_Builtin_7": "Adhan 7",
+  "Sound_Builtin_8": "Adhan 8",
+  "Sound_Builtin_9": "Adhan 9",
   "Vibration_Low": "Low",
   "Vibration_Medium": "Medium",
   "Vibration_High": "High",
@@ -72,8 +81,18 @@
   "Vibration_Long": "Long",
   "Vibration_Pulse": "Pulse",
   "Notifications": "Notifications",
+  "WindowsBackgroundService": "Windows background service",
+  "WindowsBackgroundServiceEnable": "Run in background after login",
+  "WindowsBackgroundServiceHint": "Keeps prayer notifications active even when the window is closed.",
+  "WindowsBackgroundServiceFailed": "Could not update Windows background mode.",
   "EnableAdhan": "Enable Adhan",
   "AdhanSound": "Adhan sound",
+  "AddCustomAdhanSound": "Add adhan sound from device",
+  "CustomAdhanNamePrompt": "Type a name for this adhan sound.",
+  "CustomAdhanNamePlaceholder": "Example: Makkah adhan",
+  "PickAdhanSound": "Pick adhan sound file",
+  "CustomAdhanSoundAdded": "Adhan sound added.",
+  "CustomAdhanSoundFailed": "Could not add this adhan sound.",
   "AdhanPerPrayer": "Per-prayer adhan",
   "UseGlobal": "Use global",
   "Vibration": "Vibration",
@@ -94,6 +113,7 @@
   "LanguageTitle": "Choose your language",
   "LanguageSubtitle": "You can change it later in Settings.",
   "Continue": "Continue",
+  "Cancel": "Cancel",
   "Auto": "Device language",
   "Clock_Auto": "Auto",
   "Clock_12h": "12-hour",
@@ -183,3 +203,6 @@
   "TasbihPresetNewName": "New preset name",
   "TasbihPreset_New": "New preset"
 }
+
+
+

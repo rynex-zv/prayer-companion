@@ -1,0 +1,98 @@
+using System.Text.RegularExpressions;
+using Microsoft.Maui.Storage;
+using Pray_Ad_Free.Models;
+using PrayAdFree.Core.Models;
+
+namespace Pray_Ad_Free.Services;
+
+public static class AdhanSoundLibrary {
+    private static readonly BuiltinSound[] BuiltinSounds = {
+        new("adhan_builtin_01", "adhan_builtin_01.mp3", "Sound_Builtin_1"),
+        new("adhan_builtin_02", "adhan_builtin_02.mp3", "Sound_Builtin_2"),
+        new("adhan_builtin_03", "adhan_builtin_03.mp3", "Sound_Builtin_3"),
+        new("adhan_builtin_04", "adhan_builtin_04.mp3", "Sound_Builtin_4"),
+        new("adhan_builtin_05", "adhan_builtin_05.mp3", "Sound_Builtin_5"),
+        new("adhan_builtin_06", "adhan_builtin_06.mp3", "Sound_Builtin_6"),
+        new("adhan_builtin_07", "adhan_builtin_07.mp3", "Sound_Builtin_7"),
+        new("adhan_builtin_08", "adhan_builtin_08.mp3", "Sound_Builtin_8"),
+        new("adhan_builtin_09", "adhan_builtin_09.mp3", "Sound_Builtin_9")
+    };
+
+    public static IReadOnlyList<OptionItem<string>> BuildOptions(NotificationSettings settings, bool includeUseGlobal) {
+        var list = new List<OptionItem<string>>();
+        if (includeUseGlobal) {
+            list.Add(new OptionItem<string>("use_global", LocalizationManager.Translate("UseGlobal")));
+        }
+
+        list.Add(new OptionItem<string>("adhan_default", LocalizationManager.Translate("Sound_Default")));
+        list.Add(new OptionItem<string>("adhan_silent", LocalizationManager.Translate("Sound_Silent")));
+
+        foreach (var builtin in BuiltinSounds) {
+            list.Add(new OptionItem<string>(builtin.Key, LocalizationManager.Translate(builtin.LabelKey)));
+        }
+
+        if (settings.CustomSounds != null) {
+            foreach (var custom in settings.CustomSounds.Where(IsValidCustomSound)) {
+                list.Add(new OptionItem<string>(custom.Key, custom.Name));
+            }
+        }
+
+        return list;
+    }
+
+    public static string? ResolveNotificationSound(NotificationSettings settings, string? soundKey) {
+        if (string.IsNullOrWhiteSpace(soundKey) ||
+            string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            return null;
+        }
+
+        var builtin = BuiltinSounds.FirstOrDefault(item => item.Key.Equals(soundKey, StringComparison.OrdinalIgnoreCase));
+        if (builtin != null) {
+            return builtin.FileName;
+        }
+
+        if (settings.CustomSounds == null) {
+            return null;
+        }
+
+        var custom = settings.CustomSounds.FirstOrDefault(item =>
+            item.Key.Equals(soundKey, StringComparison.OrdinalIgnoreCase) && IsValidCustomSound(item));
+        if (custom == null) {
+            return null;
+        }
+
+        var fullPath = Path.Combine(GetCustomSoundsDirectory(), custom.FileName);
+        return File.Exists(fullPath) ? fullPath : null;
+    }
+
+    public static string BuildChannelId(string? soundKey) {
+        if (string.IsNullOrWhiteSpace(soundKey)) {
+            return "prayer_times_default";
+        }
+
+        var normalized = Regex.Replace(soundKey.Trim().ToLowerInvariant(), "[^a-z0-9_]+", "_");
+        if (string.IsNullOrWhiteSpace(normalized)) {
+            normalized = "default";
+        }
+
+        if (normalized.Length > 42) {
+            normalized = normalized[..42];
+        }
+
+        return $"prayer_{normalized}";
+    }
+
+    public static string GetCustomSoundsDirectory() {
+        return Path.Combine(FileSystem.AppDataDirectory, "AdhanSounds");
+    }
+
+    private static bool IsValidCustomSound(CustomAdhanSound item) {
+        return !string.IsNullOrWhiteSpace(item.Key) &&
+               !string.IsNullOrWhiteSpace(item.Name) &&
+               !string.IsNullOrWhiteSpace(item.FileName);
+    }
+
+    private sealed record BuiltinSound(string Key, string FileName, string LabelKey);
+}

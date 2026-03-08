@@ -36,8 +36,26 @@
                         <Label Text="{loc:Loc EnableAdhan}" FontSize="14"/>
                         <Switch IsToggled="{Binding NotificationsEnabled}" />
                     </HorizontalStackLayout>
+                    <Border IsVisible="{Binding IsWindowsBackgroundOptionsVisible}"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="12"
+                            Margin="0,4,0,4">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{loc:Loc WindowsBackgroundService}" FontSize="14" />
+                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                                <Label Text="{loc:Loc WindowsBackgroundServiceEnable}" FontSize="13" />
+                                <Switch IsToggled="{Binding WindowsBackgroundEnabled}" />
+                            </HorizontalStackLayout>
+                            <Label Text="{loc:Loc WindowsBackgroundServiceHint}"
+                                   FontSize="11"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        </VerticalStackLayout>
+                    </Border>
                     <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc AdhanSound}" ItemsSource="{Binding AdhanSounds}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedAdhanSound}" />
+                    <Button Text="{loc:Loc AddCustomAdhanSound}" Command="{Binding AddCustomAdhanSoundCommand}" />
                     <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
                         <Label Text="{loc:Loc Vibration}" FontSize="14"/>
                         <Switch IsToggled="{Binding VibrationEnabled}" />

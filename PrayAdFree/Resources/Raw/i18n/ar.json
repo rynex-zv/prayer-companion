@@ -1,4 +1,4 @@
-{
+﻿{
   "Today": "اليوم",
   "Calendar": "التقويم",
   "Qibla": "القبلة",
@@ -181,5 +181,24 @@
   "Tasbih_Empty": "اختر مجموعة",
   "TasbihAddPreset": "إضافة تسبيح محفوظ",
   "TasbihPresetNewName": "اسم التسبيح الجديد",
-  "TasbihPreset_New": "تسبيح جديد"
+  "TasbihPreset_New": "تسبيح جديد",
+  "Sound_Builtin_1": "أذان 1",
+  "Sound_Builtin_2": "أذان 2",
+  "Sound_Builtin_3": "أذان 3",
+  "Sound_Builtin_4": "أذان 4",
+  "Sound_Builtin_5": "أذان 5",
+  "Sound_Builtin_6": "أذان 6",
+  "Sound_Builtin_7": "أذان 7",
+  "Sound_Builtin_8": "أذان 8",
+  "Sound_Builtin_9": "أذان 9",
+  "AddCustomAdhanSound": "إضافة صوت أذان من الجهاز",
+  "CustomAdhanNamePrompt": "اكتب اسمًا لهذا الصوت.",
+  "CustomAdhanNamePlaceholder": "مثال: أذان مكة",
+  "PickAdhanSound": "اختر ملف صوت الأذان",
+  "CustomAdhanSoundAdded": "تمت إضافة صوت الأذان.",
+  "CustomAdhanSoundFailed": "تعذر إضافة صوت الأذان."
 }
+
+
+
+

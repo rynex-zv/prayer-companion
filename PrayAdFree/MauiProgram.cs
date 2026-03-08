@@ -44,6 +44,7 @@ namespace Pray_Ad_Free {
                 Path.Combine( FileSystem.AppDataDirectory, "geo_cache.json" )
             ) );
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
+            builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
