@@ -8,7 +8,7 @@
   </Configurations>
   <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
   <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
-  <Project Path="PrayAdFree/Pray Ad Free.csproj">
+  <Project Path="PrayAdFree/PrayAdFree.csproj">
     <Platform Solution="*|ARM32" Project="ARM32" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
