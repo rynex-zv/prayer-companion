@@ -122,10 +122,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private async Task HandleNotificationReceivedAsync(NotificationEventArgs e) {
-#if ANDROID || IOS || MACCATALYST
-        await Task.CompletedTask;
-        return;
-#else
         try {
             var request = e?.Request;
             if (request == null || !AdhanNotificationPayload.TryParse(request.ReturningData, out var payload)) {
@@ -154,7 +150,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleNotificationReceivedAsync");
         }
-#endif
     }
 
     private async Task HandleNotificationActionTappedAsync(NotificationActionEventArgs e) {
