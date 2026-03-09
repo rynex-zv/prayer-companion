@@ -510,13 +510,18 @@ public sealed class SettingsViewModel : ViewModelBase {
         set {
             if (SetProperty(ref _selectedAdhanReminderScope, value)) {
                 OnPropertyChanged(nameof(IsReminderPrayerEnabled));
+                RebuildAdhanReminderLabels();
             }
         }
     }
 
     public OptionItem<PrayerId>? SelectedAdhanReminderPrayer {
         get => _selectedAdhanReminderPrayer;
-        set => SetProperty(ref _selectedAdhanReminderPrayer, value);
+        set {
+            if (SetProperty(ref _selectedAdhanReminderPrayer, value)) {
+                RebuildAdhanReminderLabels();
+            }
+        }
     }
 
     public bool IsReminderPrayerEnabled => SelectedAdhanReminderScope?.Value == AdhanReminderScope.SpecificPrayer;
@@ -1137,7 +1142,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             if (minutes == 0) {
                 continue;
             }
-            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildAdhanReminderLabel(minutes)));
         }
     }
 
@@ -1155,7 +1160,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
         AdhanReminders.Clear();
         foreach (var minutes in adhan) {
-            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildAdhanReminderLabel(minutes)));
         }
     }
 
@@ -1170,7 +1175,12 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void AddAdhanReminder() {
-        AddReminder(AdhanReminders, AdhanReminderValue, SelectedAdhanReminderUnit, SelectedAdhanReminderDirection);
+        AddReminder(
+            AdhanReminders,
+            AdhanReminderValue,
+            SelectedAdhanReminderUnit,
+            SelectedAdhanReminderDirection,
+            BuildAdhanReminderLabel);
         AdhanReminderValue = "";
     }
 
@@ -1202,7 +1212,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         ObservableCollection<ReminderOffsetItem> list,
         string rawValue,
         OptionItem<int>? unit,
-        OptionItem<int>? direction) {
+        OptionItem<int>? direction,
+        Func<int, string>? labelBuilder = null) {
         if (!int.TryParse(rawValue, out var value)) {
             return;
         }
@@ -1217,7 +1228,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             return;
         }
 
-        list.Add(new ReminderOffsetItem(minutes, BuildReminderLabel(minutes)));
+        var label = (labelBuilder ?? BuildReminderLabel)(minutes);
+        list.Add(new ReminderOffsetItem(minutes, label));
         SortReminderList(list);
         ScheduleSave();
     }
@@ -1239,6 +1251,25 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
 
         return $"{LocalizationManager.Translate(directionKey)} {abs} {LocalizationManager.Translate("Minutes")}";
+    }
+
+    private string BuildAdhanReminderLabel(int minutes) {
+        var baseLabel = BuildReminderLabel(minutes);
+        var scope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All;
+        if (scope == AdhanReminderScope.SpecificPrayer) {
+            var prayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr;
+            return $"{baseLabel} - {LocalizationManager.TranslatePrayer(prayer)}";
+        }
+
+        return $"{baseLabel} - {LocalizationManager.Translate("Reminder_All")}";
+    }
+
+    private void RebuildAdhanReminderLabels() {
+        var adhan = AdhanReminders.Select(item => item.Minutes).ToList();
+        AdhanReminders.Clear();
+        foreach (var minutes in adhan) {
+            AdhanReminders.Add(new ReminderOffsetItem(minutes, BuildAdhanReminderLabel(minutes)));
+        }
     }
 
     private void BuildClockFormats() {

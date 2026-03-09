@@ -167,6 +167,10 @@ public partial class QiblaPage : ContentPage {
     }
 
     private bool ShouldShowMap() {
+        if (DeviceInfo.Platform == DevicePlatform.Android) {
+            return true;
+        }
+
         var info = DeviceDisplay.MainDisplayInfo;
         var widthDp = info.Width / info.Density;
         var heightDp = info.Height / info.Density;
@@ -214,6 +218,8 @@ public partial class QiblaPage : ContentPage {
     private void SetWebMap(double latitude, double longitude) {
         var lat = latitude.ToString(CultureInfo.InvariantCulture);
         var lon = longitude.ToString(CultureInfo.InvariantCulture);
+        const string kaabaLat = "21.422487";
+        const string kaabaLon = "39.826206";
         var html = $@"
 <!doctype html>
 <html>
@@ -229,12 +235,17 @@ public partial class QiblaPage : ContentPage {
   <div id=""map""></div>
   <script src=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.js""></script>
   <script>
-    var map = L.map('map', {{ zoomControl: true }}).setView([{lat}, {lon}], 12);
+    var user = [{lat}, {lon}];
+    var kaaba = [{kaabaLat}, {kaabaLon}];
+    var map = L.map('map', {{ zoomControl: true }});
     L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }}).addTo(map);
-    L.marker([{lat}, {lon}]).addTo(map);
+    var userMarker = L.marker(user).addTo(map);
+    var kaabaMarker = L.marker(kaaba).addTo(map);
+    var line = L.polyline([user, kaaba], {{ color: '#d35400', weight: 3, opacity: 0.85 }}).addTo(map);
+    map.fitBounds(line.getBounds().pad(0.2));
   </script>
 </body>
 </html>";

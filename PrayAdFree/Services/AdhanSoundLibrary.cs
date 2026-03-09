@@ -43,11 +43,16 @@ public static class AdhanSoundLibrary {
     }
 
     public static string? ResolveNotificationSound(NotificationSettings settings, string? soundKey) {
+        if (string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase)) {
+            return null;
+        }
+
         if (string.IsNullOrWhiteSpace(soundKey) ||
             string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
-            return null;
+            var fallback = BuiltinSounds.FirstOrDefault(item =>
+                item.Key.Equals(DefaultBuiltinKey, StringComparison.OrdinalIgnoreCase));
+            return fallback?.FileName;
         }
 
         var builtin = BuiltinSounds.FirstOrDefault(item => item.Key.Equals(soundKey, StringComparison.OrdinalIgnoreCase));
@@ -123,6 +128,28 @@ public static class AdhanSoundLibrary {
         }
 
         return $"prayer_{normalized}";
+    }
+
+    public static bool IsCustomSound(NotificationSettings settings, string? soundKey) {
+        if (string.IsNullOrWhiteSpace(soundKey)) {
+            return false;
+        }
+
+        if (string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            return false;
+        }
+
+        var builtin = BuiltinSounds.Any(item => item.Key.Equals(soundKey, StringComparison.OrdinalIgnoreCase));
+        if (builtin) {
+            return false;
+        }
+
+        return settings.CustomSounds != null &&
+               settings.CustomSounds.Any(item =>
+                   item.Key.Equals(soundKey, StringComparison.OrdinalIgnoreCase) &&
+                   IsValidCustomSound(item));
     }
 
     public static string GetCustomSoundsDirectory() {
