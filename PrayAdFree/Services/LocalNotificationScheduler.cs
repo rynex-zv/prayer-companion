@@ -254,20 +254,6 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             return;
         }
 
-        if (OperatingSystem.IsWindows()) {
-            var now = DateTime.Now.AddMinutes(2);
-            var next = requests
-                .Where(item => item.Schedule?.NotifyTime > now)
-                .OrderBy(item => item.Schedule!.NotifyTime)
-                .FirstOrDefault();
-            if (next == null) {
-                return;
-            }
-
-            await LocalNotificationCenter.Current.Show(next);
-            return;
-        }
-
 #if ANDROID
         EnsureAndroidChannels(requests);
 #endif

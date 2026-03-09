@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -25,6 +26,8 @@ namespace Pray_Ad_Free.WinUI {
         private WinForms.ToolStripMenuItem? _trayExitItem;
         private WinForms.ToolStripMenuItem? _trayTestAdhanItem;
         private WinForms.ToolStripMenuItem? _trayStartWithWindowsItem;
+        private Drawing.Icon? _trayIconImage;
+        private bool _trayIconFromFile;
         private bool _hideOnLaunch;
         private bool _isExitRequested;
 
@@ -150,8 +153,16 @@ namespace Pray_Ad_Free.WinUI {
             _trayMenu.Items.Add(new WinForms.ToolStripSeparator());
             _trayMenu.Items.Add(_trayExitItem);
 
+            var trayIconPath = Path.Combine(AppContext.BaseDirectory, "tray.ico");
+            if (File.Exists(trayIconPath)) {
+                _trayIconImage = new Drawing.Icon(trayIconPath);
+                _trayIconFromFile = true;
+            } else {
+                _trayIconImage = Drawing.SystemIcons.Application;
+                _trayIconFromFile = false;
+            }
             _trayIcon = new WinForms.NotifyIcon {
-                Icon = Drawing.SystemIcons.Application,
+                Icon = _trayIconImage,
                 Text = "Pray Ad Free",
                 Visible = true,
                 ContextMenuStrip = _trayMenu
@@ -258,6 +269,11 @@ namespace Pray_Ad_Free.WinUI {
                 _trayIcon.Dispose();
                 _trayIcon = null;
             }
+            if (_trayIconImage != null && _trayIconFromFile) {
+                _trayIconImage.Dispose();
+                _trayIconImage = null;
+            }
+            _trayIconFromFile = false;
 
             if (_trayTestAdhanItem != null) {
                 _trayTestAdhanItem.Click -= OnTrayTestAdhanClicked;
