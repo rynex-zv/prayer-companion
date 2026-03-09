@@ -18,10 +18,30 @@ namespace Pray_Ad_Free {
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.InitializeAdhanPlaybackService");
             }
+            TryScheduleNotifications("AppCtor");
         }
 
         protected override Window CreateWindow( IActivationState? activationState ) {
             return new Window( _services.GetRequiredService<AppShell>() );
+        }
+
+        protected override void OnStart() {
+            base.OnStart();
+            TryScheduleNotifications("OnStart");
+        }
+
+        protected override void OnResume() {
+            base.OnResume();
+            TryScheduleNotifications("OnResume");
+        }
+
+        private void TryScheduleNotifications(string reason) {
+            try {
+                var bootstrapper = _services.GetRequiredService<NotificationBootstrapper>();
+                _ = bootstrapper.EnsureScheduledAsync(reason, requestPermissions: true);
+            } catch (Exception ex) {
+                _logger.LogException(ex, "App.TryScheduleNotifications");
+            }
         }
 
         private void RegisterExceptionHandlers() {

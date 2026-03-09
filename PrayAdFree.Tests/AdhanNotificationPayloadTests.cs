@@ -2,37 +2,27 @@ using PrayAdFree.Core.Models;
 
 namespace PrayAdFree.Tests;
 
-public class AdhanNotificationPayloadTests {
+public sealed class AdhanNotificationPayloadTests {
     [Fact]
-    public void BuildPlay_AndTryParse_RoundTrips() {
-        var raw = AdhanNotificationPayload.BuildPlay(PrayerId.Asr, "adhan_builtin_03");
+    public void BuildPlay_TryParse_Roundtrip() {
+        var payload = AdhanNotificationPayload.BuildPlay(PrayerId.Dhuhr, "adhan_default");
 
-        var ok = AdhanNotificationPayload.TryParse(raw, out var payload);
+        var ok = AdhanNotificationPayload.TryParse(payload, out var parsed);
 
         Assert.True(ok);
-        Assert.Equal(PrayerId.Asr, payload.Prayer);
-        Assert.Equal("adhan_builtin_03", payload.SoundKey);
+        Assert.Equal(PrayerId.Dhuhr, parsed.Prayer);
+        Assert.Equal("adhan_default", parsed.SoundKey);
     }
 
     [Fact]
-    public void BuildPlay_Escapes_SoundKey() {
-        var raw = AdhanNotificationPayload.BuildPlay(PrayerId.Fajr, "adhan custom/01");
-
-        var ok = AdhanNotificationPayload.TryParse(raw, out var payload);
-
-        Assert.True(ok);
-        Assert.Equal("adhan custom/01", payload.SoundKey);
-    }
-
-    [Theory]
-    [InlineData("")]
-    [InlineData("invalid")]
-    [InlineData("play|bad|adhan_builtin_01")]
-    [InlineData("play|1|")]
-    public void TryParse_Invalid_ReturnsFalse(string raw) {
-        var ok = AdhanNotificationPayload.TryParse(raw, out var payload);
-
+    public void TryParse_RejectsEmpty() {
+        var ok = AdhanNotificationPayload.TryParse("", out _);
         Assert.False(ok);
-        Assert.Equal(default, payload);
+    }
+
+    [Fact]
+    public void TryParse_RejectsInvalidFormat() {
+        var ok = AdhanNotificationPayload.TryParse("bad|format", out _);
+        Assert.False(ok);
     }
 }

@@ -11,9 +11,11 @@ namespace Pray_Ad_Free.Services;
 
 public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     private readonly PrayerSchedulePlanner _planner;
+    private readonly IAppLogger _logger;
 
-    public LocalNotificationScheduler(PrayerSchedulePlanner planner) {
+    public LocalNotificationScheduler(PrayerSchedulePlanner planner, IAppLogger logger) {
         _planner = planner;
+        _logger = logger;
     }
 
     public async Task ScheduleAsync(IEnumerable<PrayerDay> days, AppSettings settings, CancellationToken cancellationToken, bool requestPermissions = true) {
@@ -82,6 +84,15 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         }
 
         await EmitRequestsAsync(requests, settings);
+        try {
+            var next = requests
+                .Where(item => item.Schedule?.NotifyTime != null)
+                .OrderBy(item => item.Schedule!.NotifyTime)
+                .FirstOrDefault();
+            var nextTime = next?.Schedule?.NotifyTime?.ToString("O") ?? "none";
+            _logger.LogEvent("NotificationScheduledCount", $"{requests.Count}|next={nextTime}");
+        } catch {
+        }
     }
 
     public Task CancelAsync() {

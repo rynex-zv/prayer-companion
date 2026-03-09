@@ -35,7 +35,7 @@ internal static class BootNotificationRescheduler {
                 return;
             }
 
-            var scheduler = new LocalNotificationScheduler(new PrayerSchedulePlanner());
+            var scheduler = new LocalNotificationScheduler(new PrayerSchedulePlanner(), new AppLogger());
             await scheduler.ScheduleAsync(days, settings, CancellationToken.None, requestPermissions: false).ConfigureAwait(false);
             Log.Info(LogTag, $"Rescheduled {days.Count} day(s) of notifications after boot.");
         } catch (Exception ex) {

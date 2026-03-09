@@ -71,6 +71,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();
             builder.Services.AddSingleton<PrayerTimesService>();
             builder.Services.AddSingleton<PrayerDataService>();
+            builder.Services.AddSingleton<NotificationBootstrapper>();
 
             builder.Services.AddTransient<HomeViewModel>();
             builder.Services.AddTransient<CalendarViewModel>();
