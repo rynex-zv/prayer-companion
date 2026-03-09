@@ -84,6 +84,12 @@
 		<FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
 	</ItemGroup>
 
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+		<AndroidResource Include="Resources\Raw\AdhanBuiltIn\*.mp3">
+			<Link>Resources\raw\%(Filename)%(Extension)</Link>
+		</AndroidResource>
+	</ItemGroup>
+
 
 	<ItemGroup>
 	  <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />

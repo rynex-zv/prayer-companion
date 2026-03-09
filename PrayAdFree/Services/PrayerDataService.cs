@@ -69,11 +69,33 @@ public sealed class PrayerDataService {
 
     public async Task ScheduleNotificationsAsync(AppSettings settings, PrayerMonth month, CancellationToken cancellationToken) {
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var day = month.Days.FirstOrDefault(item => item.Date == today);
-        if (day == null) {
+        var daysToSchedule = month.Days
+            .Where(item => item.Date >= today)
+            .OrderBy(item => item.Date)
+            .ToList();
+
+        if (daysToSchedule.Count < 30) {
+            var nextMonthDate = DateTime.Today.AddMonths(1);
+            var nextMonth = await _prayerTimesService
+                .GetMonthAsync(settings, nextMonthDate.Year, nextMonthDate.Month, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var day in nextMonth.Days.Where(item => item.Date >= today).OrderBy(item => item.Date)) {
+                daysToSchedule.Add(day);
+            }
+        }
+
+        var finalDays = daysToSchedule
+            .GroupBy(item => item.Date)
+            .Select(group => group.First())
+            .OrderBy(item => item.Date)
+            .Take(45)
+            .ToList();
+
+        if (finalDays.Count == 0) {
             return;
         }
 
-        await _notificationScheduler.ScheduleAsync(new[] { day }, settings, cancellationToken).ConfigureAwait(false);
+        await _notificationScheduler.ScheduleAsync(finalDays, settings, cancellationToken).ConfigureAwait(false);
     }
 }
