@@ -81,7 +81,9 @@
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows10.0.19041.0'">
 		<Content Include="Resources\Raw\i18n\*.json" CopyToOutputDirectory="PreserveNewest" />
+		<FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
 	</ItemGroup>
+
 
 	<ItemGroup>
 	  <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />

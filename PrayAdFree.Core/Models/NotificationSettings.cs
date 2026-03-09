@@ -5,6 +5,7 @@ namespace PrayAdFree.Core.Models;
 public sealed class NotificationSettings {
     public bool EnableAdhan { get; init; } = true;
     public bool EnableVibration { get; init; } = true;
+    public bool HideOnCloseOnWindows { get; init; }
     public bool RunBackgroundServiceOnWindows { get; init; }
     public int MinutesBefore { get; init; }
     public double AdhanVolume { get; init; } = 1.0;

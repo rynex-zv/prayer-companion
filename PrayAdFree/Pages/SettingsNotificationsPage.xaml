@@ -43,9 +43,13 @@
                             Padding="12"
                             Margin="0,4,0,4">
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="{loc:Loc WindowsBackgroundService}" FontSize="14" />
+                            <Label Text="{loc:Loc WindowsBackgroundOptions}" FontSize="14" />
                             <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
-                                <Label Text="{loc:Loc WindowsBackgroundServiceEnable}" FontSize="13" />
+                                <Label Text="{loc:Loc WindowsHideOnClose}" FontSize="13" />
+                                <Switch IsToggled="{Binding HideOnCloseEnabled}" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                                <Label Text="{loc:Loc WindowsStartMinimizedWithWindows}" FontSize="13" />
                                 <Switch IsToggled="{Binding WindowsBackgroundEnabled}" />
                             </HorizontalStackLayout>
                             <Label Text="{loc:Loc WindowsBackgroundServiceHint}"

@@ -45,6 +45,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _adhanReminderValue = "";
     private bool _notificationsEnabled;
     private bool _vibrationEnabled;
+    private bool _hideOnCloseEnabled;
     private bool _windowsBackgroundEnabled;
     private bool _applyingWindowsBackgroundOption;
     private bool _customSoundBusy;
@@ -578,6 +579,11 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     public bool IsWindowsBackgroundOptionsVisible => _windowsBackgroundModeService.IsSupported;
 
+    public bool HideOnCloseEnabled {
+        get => _hideOnCloseEnabled;
+        set => SetProperty(ref _hideOnCloseEnabled, value);
+    }
+
     public bool WindowsBackgroundEnabled {
         get => _windowsBackgroundEnabled;
         set {
@@ -681,6 +687,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         LoadAdhanReminders();
         NotificationsEnabled = _settings.Notifications.EnableAdhan;
         VibrationEnabled = _settings.Notifications.EnableVibration;
+        HideOnCloseEnabled = _settings.Notifications.HideOnCloseOnWindows;
         WindowsBackgroundEnabled = _windowsBackgroundModeService.IsSupported
             ? _windowsBackgroundModeService.IsEnabled()
             : _settings.Notifications.RunBackgroundServiceOnWindows;
@@ -755,6 +762,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         var notifications = new NotificationSettings {
             EnableAdhan = NotificationsEnabled,
             EnableVibration = VibrationEnabled,
+            HideOnCloseOnWindows = HideOnCloseEnabled,
             RunBackgroundServiceOnWindows = WindowsBackgroundEnabled,
             MinutesBefore = ParseInt(MinutesBefore),
             AdhanVolume = Math.Clamp(AdhanVolume / 100d, 0d, 1d),
@@ -1741,6 +1749,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 Notifications = new NotificationSettings {
                     EnableAdhan = _settings.Notifications.EnableAdhan,
                     EnableVibration = _settings.Notifications.EnableVibration,
+                    HideOnCloseOnWindows = _settings.Notifications.HideOnCloseOnWindows,
                     RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
                     MinutesBefore = _settings.Notifications.MinutesBefore,
                     AdhanVolume = _settings.Notifications.AdhanVolume,
@@ -1842,6 +1851,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(SelectedVibrationPattern)
             or nameof(SelectedAdhanReminderScope)
             or nameof(SelectedAdhanReminderPrayer)
+            or nameof(HideOnCloseEnabled)
             or nameof(WindowsBackgroundEnabled)
             or nameof(SelectedTasbihRepeatMode)
             or nameof(SelectedLanguage)
