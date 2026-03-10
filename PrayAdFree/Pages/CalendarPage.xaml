@@ -57,24 +57,29 @@
                                     <VerticalStackLayout Spacing="2">
                                         <Label Text="{loc:Loc Prayer_Fajr}" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                         <Label Text="{Binding Fajr}" FontSize="14" />
+                                        <Label Text="{Binding FajrBase}" IsVisible="{Binding ShowFajrBase}" FontSize="11" TextColor="{StaticResource TextSubtle}" />
                                     </VerticalStackLayout>
                                     <VerticalStackLayout Spacing="2" Grid.Column="1">
                                         <Label Text="{loc:Loc Prayer_Dhuhr}" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                         <Label Text="{Binding Dhuhr}" FontSize="14" />
+                                        <Label Text="{Binding DhuhrBase}" IsVisible="{Binding ShowDhuhrBase}" FontSize="11" TextColor="{StaticResource TextSubtle}" />
                                     </VerticalStackLayout>
 
                                     <VerticalStackLayout Spacing="2" Grid.Row="1">
                                         <Label Text="{loc:Loc Prayer_Asr}" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                         <Label Text="{Binding Asr}" FontSize="14" />
+                                        <Label Text="{Binding AsrBase}" IsVisible="{Binding ShowAsrBase}" FontSize="11" TextColor="{StaticResource TextSubtle}" />
                                     </VerticalStackLayout>
                                     <VerticalStackLayout Spacing="2" Grid.Row="1" Grid.Column="1">
                                         <Label Text="{loc:Loc Prayer_Maghrib}" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                         <Label Text="{Binding Maghrib}" FontSize="14" />
+                                        <Label Text="{Binding MaghribBase}" IsVisible="{Binding ShowMaghribBase}" FontSize="11" TextColor="{StaticResource TextSubtle}" />
                                     </VerticalStackLayout>
 
                                     <VerticalStackLayout Spacing="2" Grid.Row="2">
                                         <Label Text="{loc:Loc Prayer_Isha}" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                         <Label Text="{Binding Isha}" FontSize="14" />
+                                        <Label Text="{Binding IshaBase}" IsVisible="{Binding ShowIshaBase}" FontSize="11" TextColor="{StaticResource TextSubtle}" />
                                     </VerticalStackLayout>
                                 </Grid>
                             </Grid>

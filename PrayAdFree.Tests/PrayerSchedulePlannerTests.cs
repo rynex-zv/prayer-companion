@@ -5,7 +5,7 @@ namespace PrayAdFree.Tests;
 
 public class PrayerSchedulePlannerTests {
     [Fact]
-    public void BuildSchedule_RespectsMinutesBefore() {
+    public void BuildSchedule_UsesAdjustedPrayerTimesForMainAdhan() {
         var timings = new PrayerTimings {
             Fajr = DateTime.Today.AddHours(5),
             Sunrise = DateTime.Today.AddHours(6),
@@ -21,6 +21,7 @@ public class PrayerSchedulePlannerTests {
 
         var schedule = planner.BuildSchedule(day, settings);
 
-        Assert.Contains(schedule, item => item.Prayer == PrayerId.Fajr && item.Time == DateTime.Today.AddHours(4).AddMinutes(50));
+        Assert.Contains(schedule, item => item.Prayer == PrayerId.Fajr && item.Time == DateTime.Today.AddHours(5));
+        Assert.DoesNotContain(schedule, item => item.Prayer == PrayerId.Fajr && item.Time == DateTime.Today.AddHours(4).AddMinutes(50));
     }
 }

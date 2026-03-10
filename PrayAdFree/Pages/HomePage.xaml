@@ -36,11 +36,14 @@
                                        FontSize="12"
                                        TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
                                 <Label Text="{Binding NextPrayerName}"
-                                       FontSize="12"
-                                       />
+                                       FontSize="12"/>
                                 <Label Text="{Binding NextPrayerClock}"
                                        FontSize="12"
                                        TextColor="{StaticResource Accent}" />
+                                <Label Text="{Binding NextPrayerBaseClock, StringFormat='({0})'}"
+                                       IsVisible="{Binding ShowNextPrayerBaseClock}"
+                                       FontSize="11"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                             </HorizontalStackLayout>
                             <Label Text="{Binding StatusMessage}"
                                    FontSize="12"
@@ -55,12 +58,14 @@
                                 Padding="18">
                             <VerticalStackLayout Spacing="8">
                                 <Label Text="{loc:Loc NextPrayer}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding NextPrayerName}"
-                                      
-                                       FontSize="20"/>
+                                <Label Text="{Binding NextPrayerName}" FontSize="20"/>
                                 <Label Text="{Binding NextPrayerClock}"
                                        FontSize="16"
                                        TextColor="{StaticResource Accent}"/>
+                                <Label Text="{Binding NextPrayerBaseClock}"
+                                       IsVisible="{Binding ShowNextPrayerBaseClock}"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
                             </VerticalStackLayout>
                         </Border>
                         <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
@@ -91,12 +96,18 @@
                                     <Grid ColumnDefinitions="*,Auto"
                                           Padding="8,10">
                                         <Label Text="{Binding Name}"
-                                               FontSize="16"
-                                              />
-                                        <Label Text="{Binding Time}"
-                                               Grid.Column="1"
-                                               FontSize="16"
-                                               TextColor="{StaticResource Accent}"/>
+                                               FontSize="16"/>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
+                                            <Label Text="{Binding Time}"
+                                                   FontSize="16"
+                                                   HorizontalTextAlignment="End"
+                                                   TextColor="{StaticResource Accent}"/>
+                                            <Label Text="{Binding BaseTime}"
+                                                   IsVisible="{Binding ShowBaseTime}"
+                                                   FontSize="11"
+                                                   HorizontalTextAlignment="End"
+                                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
+                                        </VerticalStackLayout>
                                     </Grid>
                                 </DataTemplate>
                             </CollectionView.ItemTemplate>

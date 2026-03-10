@@ -51,11 +51,26 @@ public sealed class CalendarViewModel : ViewModelBase {
                 Days.Add(new PrayerDayRow {
                     Date = day.Date.ToString("dd MMM"),
                     Hijri = day.Hijri.Date,
+
                     Fajr = TimeFormatHelper.FormatTime(day.Timings.Fajr, settings.ClockFormat),
+                    FajrBase = TimeFormatHelper.FormatTime(day.Timings.Fajr.AddMinutes(-settings.Offsets.Fajr), settings.ClockFormat),
+                    ShowFajrBase = settings.Offsets.Fajr != 0,
+
                     Dhuhr = TimeFormatHelper.FormatTime(day.Timings.Dhuhr, settings.ClockFormat),
+                    DhuhrBase = TimeFormatHelper.FormatTime(day.Timings.Dhuhr.AddMinutes(-settings.Offsets.Dhuhr), settings.ClockFormat),
+                    ShowDhuhrBase = settings.Offsets.Dhuhr != 0,
+
                     Asr = TimeFormatHelper.FormatTime(day.Timings.Asr, settings.ClockFormat),
+                    AsrBase = TimeFormatHelper.FormatTime(day.Timings.Asr.AddMinutes(-settings.Offsets.Asr), settings.ClockFormat),
+                    ShowAsrBase = settings.Offsets.Asr != 0,
+
                     Maghrib = TimeFormatHelper.FormatTime(day.Timings.Maghrib, settings.ClockFormat),
-                    Isha = TimeFormatHelper.FormatTime(day.Timings.Isha, settings.ClockFormat)
+                    MaghribBase = TimeFormatHelper.FormatTime(day.Timings.Maghrib.AddMinutes(-settings.Offsets.Maghrib), settings.ClockFormat),
+                    ShowMaghribBase = settings.Offsets.Maghrib != 0,
+
+                    Isha = TimeFormatHelper.FormatTime(day.Timings.Isha, settings.ClockFormat),
+                    IshaBase = TimeFormatHelper.FormatTime(day.Timings.Isha.AddMinutes(-settings.Offsets.Isha), settings.ClockFormat),
+                    ShowIshaBase = settings.Offsets.Isha != 0
                 });
             }
 

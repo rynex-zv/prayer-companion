@@ -750,26 +750,26 @@ public sealed class SettingsViewModel : ViewModelBase {
             Mode = mode,
             City = NormalizeName(City?.Trim()),
             Country = NormalizeName(Country?.Trim()),
-            Latitude = ParseDouble(Latitude),
-            Longitude = ParseDouble(Longitude),
+            Latitude = ParseDouble(Latitude, _settings.Location.Latitude),
+            Longitude = ParseDouble(Longitude, _settings.Location.Longitude),
             CountryCode = _settings.Location.CountryCode,
             TimeZoneId = _settings.Location.TimeZoneId,
             LastUpdatedUtc = _settings.Location.LastUpdatedUtc
         };
 
         var offsets = new PrayerOffsets {
-            Fajr = ParseInt(FajrOffset),
-            Sunrise = ParseInt(SunriseOffset),
-            Dhuhr = ParseInt(DhuhrOffset),
-            Asr = ParseInt(AsrOffset),
-            Maghrib = ParseInt(MaghribOffset),
-            Isha = ParseInt(IshaOffset),
-            Imsak = ParseInt(ImsakOffset)
+            Fajr = ParseInt(FajrOffset, _settings.Offsets.Fajr),
+            Sunrise = ParseInt(SunriseOffset, _settings.Offsets.Sunrise),
+            Dhuhr = ParseInt(DhuhrOffset, _settings.Offsets.Dhuhr),
+            Asr = ParseInt(AsrOffset, _settings.Offsets.Asr),
+            Maghrib = ParseInt(MaghribOffset, _settings.Offsets.Maghrib),
+            Isha = ParseInt(IshaOffset, _settings.Offsets.Isha),
+            Imsak = ParseInt(ImsakOffset, _settings.Offsets.Imsak)
         };
 
         var fastingOffsets = new FastingOffsets {
-            ImsakAdvanceMinutes = ParseInt(ImsakAdvance),
-            IftarDelayMinutes = ParseInt(IftarDelay)
+            ImsakAdvanceMinutes = ParseInt(ImsakAdvance, _settings.FastingOffsets.ImsakAdvanceMinutes),
+            IftarDelayMinutes = ParseInt(IftarDelay, _settings.FastingOffsets.IftarDelayMinutes)
         };
         var fastingReminders = new FastingReminderSettings {
             ImsakRemindersMinutes = ImsakReminders.Select(item => item.Minutes).ToList(),
@@ -781,7 +781,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             EnableVibration = VibrationEnabled,
             HideOnCloseOnWindows = HideOnCloseEnabled,
             RunBackgroundServiceOnWindows = WindowsBackgroundEnabled,
-            MinutesBefore = ParseInt(MinutesBefore),
+            MinutesBefore = ParseInt(MinutesBefore, _settings.Notifications.MinutesBefore),
             AdhanVolume = Math.Clamp(AdhanVolume / 100d, 0d, 1d),
             SoundKey = SelectedAdhanSound?.Value ?? "adhan_default",
             CustomSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>(),
@@ -858,14 +858,14 @@ public sealed class SettingsViewModel : ViewModelBase {
         StatusMessage = "Settings saved";
     }
 
-    private static int ParseInt(string value) {
-        return int.TryParse(value, out var parsed) ? parsed : 0;
+    private static int ParseInt(string value, int fallback) {
+        return int.TryParse(value, out var parsed) ? parsed : fallback;
     }
 
-    private static double ParseDouble(string value) {
+    private static double ParseDouble(string value, double fallback) {
         return double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
             ? parsed
-            : 0;
+            : fallback;
     }
 
     private void UpdateAccentOptions(ThemeVariant variant, int selectedIndex) {
@@ -1927,7 +1927,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             return;
         }
 
-        if (!ShouldAutoSave(e.PropertyName)) {
+        if (!ShouldAutoSave(e.PropertyName) || IsNumericInputPending(e.PropertyName)) {
             return;
         }
 
@@ -1939,6 +1939,85 @@ public sealed class SettingsViewModel : ViewModelBase {
 #endif
 
         ScheduleSave();
+    }
+
+    private bool IsNumericInputPending(string? propertyName) {
+        if (string.IsNullOrWhiteSpace(propertyName)) {
+            return false;
+        }
+
+        if (TryGetIntegerFieldValue(propertyName, out var intValue)) {
+            return IsPendingIntegerValue(intValue);
+        }
+
+        if (TryGetDoubleFieldValue(propertyName, out var doubleValue)) {
+            return IsPendingDoubleValue(doubleValue);
+        }
+
+        return false;
+    }
+
+    private bool TryGetIntegerFieldValue(string propertyName, out string value) {
+        value = propertyName switch {
+            nameof(FajrOffset) => FajrOffset,
+            nameof(SunriseOffset) => SunriseOffset,
+            nameof(DhuhrOffset) => DhuhrOffset,
+            nameof(AsrOffset) => AsrOffset,
+            nameof(MaghribOffset) => MaghribOffset,
+            nameof(IshaOffset) => IshaOffset,
+            nameof(ImsakOffset) => ImsakOffset,
+            nameof(ImsakAdvance) => ImsakAdvance,
+            nameof(IftarDelay) => IftarDelay,
+            nameof(MinutesBefore) => MinutesBefore,
+            _ => string.Empty
+        };
+
+        return !string.IsNullOrEmpty(value) || propertyName is nameof(FajrOffset)
+            or nameof(SunriseOffset)
+            or nameof(DhuhrOffset)
+            or nameof(AsrOffset)
+            or nameof(MaghribOffset)
+            or nameof(IshaOffset)
+            or nameof(ImsakOffset)
+            or nameof(ImsakAdvance)
+            or nameof(IftarDelay)
+            or nameof(MinutesBefore);
+    }
+
+    private bool TryGetDoubleFieldValue(string propertyName, out string value) {
+        value = propertyName switch {
+            nameof(Latitude) => Latitude,
+            nameof(Longitude) => Longitude,
+            _ => string.Empty
+        };
+
+        return propertyName is nameof(Latitude) or nameof(Longitude);
+    }
+
+    private static bool IsPendingIntegerValue(string value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return true;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed is "-" or "+") {
+            return true;
+        }
+
+        return !int.TryParse(trimmed, out _);
+    }
+
+    private static bool IsPendingDoubleValue(string value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return true;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed is "-" or "+" or "." or "-.") {
+            return true;
+        }
+
+        return !double.TryParse(trimmed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
     }
 
     private static bool ShouldAutoSave(string? propertyName) {
@@ -1991,7 +2070,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private async Task DebounceSaveAsync(int version) {
-        await Task.Delay(500).ConfigureAwait(false);
+        await Task.Delay(1200).ConfigureAwait(false);
         if (version != _saveVersion) {
             return;
         }

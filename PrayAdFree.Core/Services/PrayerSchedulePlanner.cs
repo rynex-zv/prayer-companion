@@ -14,7 +14,7 @@ public sealed class PrayerSchedulePlanner {
                 continue;
             }
 
-            var time = day.Timings.Get(prayer).AddMinutes(-settings.MinutesBefore);
+            var time = day.Timings.Get(prayer);
             list.Add(new PrayerNotification(prayer, time));
         }
 

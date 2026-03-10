@@ -13,13 +13,21 @@ public static class NextPrayerCalculator {
     };
 
     public static (PrayerId id, DateTime time) GetNext(PrayerDay day, DateTime now) {
-        foreach (var prayer in Ordered) {
-            var time = day.Timings.Get(prayer);
-            if (time > now) {
-                return (prayer, time);
-            }
+        var candidates = Ordered
+            .Select(prayer => (id: prayer, time: ToNextOccurrence(day.Timings.Get(prayer), now)))
+            .OrderBy(item => item.time)
+            .ToList();
+
+        return candidates.Count > 0
+            ? candidates[0]
+            : (PrayerId.Fajr, ToNextOccurrence(day.Timings.Fajr, now));
+    }
+
+    private static DateTime ToNextOccurrence(DateTime time, DateTime now) {
+        while (time <= now) {
+            time = time.AddDays(1);
         }
 
-        return (PrayerId.Fajr, day.Timings.Fajr.AddDays(1));
+        return time;
     }
 }

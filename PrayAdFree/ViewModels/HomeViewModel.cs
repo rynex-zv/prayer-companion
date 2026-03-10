@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Linq;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -19,6 +19,8 @@ public sealed class HomeViewModel : ViewModelBase {
     private string _gregorianDate = "";
     private string _nextPrayerName = "";
     private string _nextPrayerClock = "";
+    private string _nextPrayerBaseClock = "";
+    private bool _showNextPrayerBaseClock;
     private string _countdown = "";
     private string _statusMessage = "";
     private string _imsakTime = "";
@@ -62,6 +64,16 @@ public sealed class HomeViewModel : ViewModelBase {
     public string NextPrayerClock {
         get => _nextPrayerClock;
         set => SetProperty(ref _nextPrayerClock, value);
+    }
+
+    public string NextPrayerBaseClock {
+        get => _nextPrayerBaseClock;
+        set => SetProperty(ref _nextPrayerBaseClock, value);
+    }
+
+    public bool ShowNextPrayerBaseClock {
+        get => _showNextPrayerBaseClock;
+        set => SetProperty(ref _showNextPrayerBaseClock, value);
     }
 
     public string Countdown {
@@ -161,6 +173,12 @@ public sealed class HomeViewModel : ViewModelBase {
         (_nextPrayerId, _nextPrayerTime) = NextPrayerCalculator.GetNext(_today, now);
         NextPrayerName = LocalizationManager.TranslatePrayer(_nextPrayerId);
         NextPrayerClock = TimeFormatHelper.FormatTime(_nextPrayerTime, _settings.ClockFormat);
+
+        var offset = GetOffsetForPrayer(_nextPrayerId);
+        ShowNextPrayerBaseClock = offset != 0;
+        NextPrayerBaseClock = ShowNextPrayerBaseClock
+            ? TimeFormatHelper.FormatTime(_nextPrayerTime.AddMinutes(-offset), _settings.ClockFormat)
+            : string.Empty;
     }
 
     private void BuildRows() {
@@ -174,11 +192,15 @@ public sealed class HomeViewModel : ViewModelBase {
                 continue;
             }
 
-            var time = _today.Timings.Get(prayer);
+            var adjustedTime = _today.Timings.Get(prayer);
+            var offset = GetOffsetForPrayer(prayer);
+            var baseTime = adjustedTime.AddMinutes(-offset);
             TodayTimings.Add(new PrayerTimeRow {
                 Id = prayer,
                 Name = LocalizationManager.TranslatePrayer(prayer),
-                Time = TimeFormatHelper.FormatTime(time, _settings.ClockFormat),
+                Time = TimeFormatHelper.FormatTime(adjustedTime, _settings.ClockFormat),
+                BaseTime = TimeFormatHelper.FormatTime(baseTime, _settings.ClockFormat),
+                ShowBaseTime = offset != 0,
                 IsNext = prayer == _nextPrayerId
             });
         }
@@ -187,6 +209,19 @@ public sealed class HomeViewModel : ViewModelBase {
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
         ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
         IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
+    }
+
+    private int GetOffsetForPrayer(PrayerId prayer) {
+        return prayer switch {
+            PrayerId.Fajr => _settings.Offsets.Fajr,
+            PrayerId.Sunrise => _settings.Offsets.Sunrise,
+            PrayerId.Dhuhr => _settings.Offsets.Dhuhr,
+            PrayerId.Asr => _settings.Offsets.Asr,
+            PrayerId.Maghrib => _settings.Offsets.Maghrib,
+            PrayerId.Isha => _settings.Offsets.Isha,
+            PrayerId.Imsak => _settings.Offsets.Imsak,
+            _ => 0
+        };
     }
 
     private bool ShouldScheduleNotifications(AppSettings settings) {
@@ -256,4 +291,3 @@ public sealed class HomeViewModel : ViewModelBase {
         return "Current location";
     }
 }
-
