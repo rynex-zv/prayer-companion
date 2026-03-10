@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "Aujourd'hui",
   "Calendar": "Calendrier",
   "Qibla": "Qibla",
@@ -61,7 +61,7 @@
   "ImsakReminder": "Rappel imsak",
   "IftarReminder": "Rappel iftar",
   "Notifications": "Notifications",
-    "WindowsBackgroundService": "Service d'arriere-plan Windows",
+  "WindowsBackgroundService": "Service d'arriere-plan Windows",
   "WindowsBackgroundServiceEnable": "Executer en arriere-plan apres connexion",
   "WindowsBackgroundServiceHint": "Garde les notifications de priere actives meme si la fenetre est fermee.",
   "WindowsBackgroundServiceFailed": "Impossible de mettre a jour le mode d'arriere-plan Windows.",
@@ -191,7 +191,7 @@
   "Tasbih_Empty": "Choisir un modele",
   "Notification_PrayerTitle": "Heure de priere : {0}",
   "Notification_PrayerBody": "C'est l'heure de {0}",
-  "StopAdhan": "Arreter l'adhan",
+  "StopAdhan": "Arreter adhan",
   "AdhanPlaybackStopHint": "L'adhan est en cours. Appuyez sur Arreter pour le couper.",
   "TasbihAddPreset": "Ajouter un preset",
   "TasbihPresetNewName": "Nom du nouveau preset",
@@ -210,9 +210,15 @@
   "CustomAdhanNamePlaceholder": "Exemple : Adhan de La Mecque",
   "PickAdhanSound": "Choisir un fichier audio adhan",
   "CustomAdhanSoundAdded": "Son adhan ajoute.",
-  "CustomAdhanSoundFailed": "Impossible d'ajouter ce son adhan."
+  "CustomAdhanSoundFailed": "Impossible d'ajouter ce son adhan.",
+  "ReminderType": "Type alerte",
+  "ReminderType_Adhan": "Adhan",
+  "ReminderType_Notification": "Notification",
+  "ReminderType_Silent": "Silencieux",
+  "TrayExitApp": "Quitter application",
+  "TrayStartMinimizedWithWindows": "Demarrer reduit avec Windows",
+  "TrayTestAdhan": "Tester adhan",
+  "WindowsBackgroundOptions": "Options en arriere-plan Windows",
+  "WindowsHideOnClose": "Masquer a la fermeture",
+  "WindowsStartMinimizedWithWindows": "Demarrer reduit avec Windows"
 }
-
-
-
-

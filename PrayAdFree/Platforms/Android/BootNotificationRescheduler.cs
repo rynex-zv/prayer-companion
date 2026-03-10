@@ -35,7 +35,7 @@ internal static class BootNotificationRescheduler {
                 return;
             }
 
-            var scheduler = new LocalNotificationScheduler(new PrayerSchedulePlanner(), new AppLogger());
+            var scheduler = new LocalNotificationScheduler(new PrayerSchedulePlanner(), new AppLogger(), new NullWindowsNotificationQueueService());
             await scheduler.ScheduleAsync(days, settings, CancellationToken.None, requestPermissions: false).ConfigureAwait(false);
             Log.Info(LogTag, $"Rescheduled {days.Count} day(s) of notifications after boot.");
         } catch (Exception ex) {
@@ -98,7 +98,7 @@ internal static class BootNotificationRescheduler {
     private static bool ShouldSchedule(AppSettings settings) {
         var hasFastingReminders = settings.FastingReminders.ImsakRemindersMinutes.Count > 0
             || settings.FastingReminders.IftarRemindersMinutes.Count > 0;
-        var hasAdhanReminders = settings.Notifications.ReminderOffsetsMinutes.Count > 0;
+        var hasAdhanReminders = settings.Notifications.ReminderItems.Count > 0 || settings.Notifications.ReminderOffsetsMinutes.Count > 0;
         return settings.Notifications.EnableAdhan || hasFastingReminders || hasAdhanReminders;
     }
 
@@ -108,3 +108,4 @@ internal static class BootNotificationRescheduler {
     }
 }
 #endif
+

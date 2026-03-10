@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "اليوم",
   "Calendar": "التقويم",
   "Qibla": "القبلة",
@@ -213,9 +213,10 @@
   "CustomAdhanNamePlaceholder": "مثال: أذان مكة",
   "PickAdhanSound": "اختر ملف صوت الأذان",
   "CustomAdhanSoundAdded": "تمت إضافة صوت الأذان.",
-  "CustomAdhanSoundFailed": "تعذر إضافة صوت الأذان."
+  "CustomAdhanSoundFailed": "تعذر إضافة صوت الأذان.",
+  "Cancel": "إلغاء",
+  "ReminderType": "نوع التنبيه",
+  "ReminderType_Adhan": "أذان",
+  "ReminderType_Notification": "إشعار",
+  "ReminderType_Silent": "صامت"
 }
-
-
-
-

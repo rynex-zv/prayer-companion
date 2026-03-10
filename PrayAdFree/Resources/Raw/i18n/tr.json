@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "BugÃ¼n",
   "Calendar": "Takvim",
   "Qibla": "KÄ±ble",
@@ -56,7 +56,7 @@
   "ImsakReminder": "Ä°msak hatÄ±rlatÄ±cÄ±sÄ±",
   "IftarReminder": "Ä°ftar hatÄ±rlatÄ±cÄ±sÄ±",
   "Notifications": "Bildirimler",
-    "WindowsBackgroundService": "Windows arka plan hizmeti",
+  "WindowsBackgroundService": "Windows arka plan hizmeti",
   "WindowsBackgroundServiceEnable": "Giris sonrasi arka planda calistir",
   "WindowsBackgroundServiceHint": "Pencere kapali olsa bile namaz bildirimlerini aktif tutar.",
   "WindowsBackgroundServiceFailed": "Windows arka plan modu guncellenemedi.",
@@ -191,7 +191,7 @@
   "Tasbih_Empty": "On ayar sec",
   "Notification_PrayerTitle": "Namaz vakti: {0}",
   "Notification_PrayerBody": "{0} vakti geldi",
-  "StopAdhan": "Ezani durdur",
+  "StopAdhan": "Ezan durdur",
   "AdhanPlaybackStopHint": "Ezan caliyor. Susturmak icin Durdur'a basin.",
   "TasbihAddPreset": "Yeni preset ekle",
   "TasbihPresetNewName": "Yeni preset ad?",
@@ -210,9 +210,15 @@
   "CustomAdhanNamePlaceholder": "Ornek: Mekke ezani",
   "PickAdhanSound": "Ezan ses dosyasi sec",
   "CustomAdhanSoundAdded": "Ezan sesi eklendi.",
-  "CustomAdhanSoundFailed": "Bu ezan sesi eklenemedi."
+  "CustomAdhanSoundFailed": "Bu ezan sesi eklenemedi.",
+  "ReminderType": "Hatirlatma turu",
+  "ReminderType_Adhan": "Ezan",
+  "ReminderType_Notification": "Bildirim",
+  "ReminderType_Silent": "Sessiz",
+  "TrayExitApp": "Uygulamadan cik",
+  "TrayStartMinimizedWithWindows": "Windows ile simge durumunda baslat",
+  "TrayTestAdhan": "Ezan test et",
+  "WindowsBackgroundOptions": "Windows arka plan secenekleri",
+  "WindowsHideOnClose": "Kapatinca gizle",
+  "WindowsStartMinimizedWithWindows": "Windows ile simge durumunda baslat"
 }
-
-
-
-

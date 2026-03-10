@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using System;
@@ -31,10 +31,10 @@ namespace Pray_Ad_Free {
                         ActionList = new HashSet<NotificationAction> { stopAction }
                     });
                 })
-                .ConfigureFonts( fonts => {
-                    fonts.AddFont( "OpenSans-Regular.ttf" , "OpenSansRegular" );
-                    fonts.AddFont( "OpenSans-Semibold.ttf" , "OpenSansSemibold" );
-                } );
+                .ConfigureFonts(fonts => {
+                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                });
 #if !WINDOWS
             builder.UseMauiMaps();
 #endif
@@ -42,32 +42,37 @@ namespace Pray_Ad_Free {
             builder.Logging.AddDebug();
 #endif
 
-            builder.Services.AddSingleton<ISettingsStore>( _ => new FileSettingsStore(
-                Path.Combine( Environment.GetFolderPath( Environment.SpecialFolder.LocalApplicationData ),
+            builder.Services.AddSingleton<ISettingsStore>(_ => new FileSettingsStore(
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "PrayAdFree",
-                    "app_settings.json" ) ) );
+                    "app_settings.json")));
             builder.Services.AddSingleton<SettingsService>();
-            builder.Services.AddHttpClient<PhotonGeoProvider>( client => {
-                client.BaseAddress = new Uri( "https://photon.komoot.io/" );
-            } );
-            builder.Services.AddHttpClient<NominatimGeoProvider>( client => {
-                client.BaseAddress = new Uri( "https://nominatim.openstreetmap.org/" );
-                client.DefaultRequestHeaders.UserAgent.ParseAdd( "PrayAdFree/1.0 (contact: support@example.com)" );
-            } );
-            builder.Services.AddSingleton( sp => new GeoService(
+            builder.Services.AddHttpClient<PhotonGeoProvider>(client => {
+                client.BaseAddress = new Uri("https://photon.komoot.io/");
+            });
+            builder.Services.AddHttpClient<NominatimGeoProvider>(client => {
+                client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("PrayAdFree/1.0 (contact: support@example.com)");
+            });
+            builder.Services.AddSingleton(sp => new GeoService(
                 new IGeoProvider[] {
                     sp.GetRequiredService<PhotonGeoProvider>(),
                     sp.GetRequiredService<NominatimGeoProvider>()
                 },
-                Path.Combine( FileSystem.AppDataDirectory, "geo_cache.json" )
-            ) );
+                Path.Combine(FileSystem.AppDataDirectory, "geo_cache.json")
+            ));
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
+            builder.Services.AddSingleton<IAppLogger, AppLogger>();
+            builder.Services.AddSingleton<IAdhanPlaybackService, AdhanPlaybackService>();
+#if WINDOWS
+            builder.Services.AddSingleton<IWindowsNotificationQueueService, WindowsNotificationQueueService>();
+#else
+            builder.Services.AddSingleton<IWindowsNotificationQueueService, NullWindowsNotificationQueueService>();
+#endif
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
-            builder.Services.AddSingleton<IAdhanPlaybackService, AdhanPlaybackService>();
-            builder.Services.AddSingleton<IAppLogger, AppLogger>();
-            builder.Services.AddSingleton( _ => new PrayerTimesCache( FileSystem.AppDataDirectory ) );
+            builder.Services.AddSingleton(_ => new PrayerTimesCache(FileSystem.AppDataDirectory));
             builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();
             builder.Services.AddSingleton<PrayerTimesService>();
             builder.Services.AddSingleton<PrayerDataService>();
@@ -100,7 +105,7 @@ namespace Pray_Ad_Free {
 
         private static string ResolveStopActionTitle() {
             return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-                "ar" => "إيقاف",
+                "ar" => "\u0625\u064A\u0642\u0627\u0641",
                 "fr" => "Arreter",
                 "es" => "Detener",
                 "tr" => "Durdur",

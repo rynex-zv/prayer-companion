@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "Today",
   "Calendar": "Calendar",
   "Qibla": "Qibla",
@@ -216,8 +216,9 @@
   "Tasbih_Empty": "Choose a preset",
   "TasbihAddPreset": "Add preset",
   "TasbihPresetNewName": "New preset name",
-  "TasbihPreset_New": "New preset"
+  "TasbihPreset_New": "New preset",
+  "ReminderType": "Reminder type",
+  "ReminderType_Adhan": "Adhan",
+  "ReminderType_Notification": "Notification",
+  "ReminderType_Silent": "Silent"
 }
-
-
-

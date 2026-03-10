@@ -1,4 +1,4 @@
-using Plugin.LocalNotification;
+﻿using Plugin.LocalNotification;
 using Plugin.LocalNotification.AndroidOption;
 using Plugin.LocalNotification.EventArgs;
 using Plugin.LocalNotification.WindowsOption;
@@ -22,9 +22,9 @@ namespace Pray_Ad_Free.Services;
 public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const int StopActionId = 54001;
     public const int ControlNotificationId = 54002;
-    public const string WindowsStopActionToken = "stop_adhan";
-    public const string WindowsControlNotificationSourceToken = "adhan_control";
-    public const string WindowsControlNotificationTag = "adhan_playback_control";
+    public const string WindowsStopActionToken = WindowsNotificationActionParser.StopActionToken;
+    public const string WindowsControlNotificationSourceToken = WindowsNotificationActionParser.ControlSourceToken;
+    public const string WindowsControlNotificationTag = WindowsNotificationActionParser.ControlNotificationTag;
 
     private readonly SettingsService _settingsService;
     private readonly IAppLogger _logger;
@@ -79,6 +79,32 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return true;
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.PlayPreviewAsync");
+            return false;
+        } finally {
+            _gate.Release();
+        }
+    }
+
+    public async Task<bool> PlayScheduledAsync(AdhanNotificationPayload payload) {
+        var settings = _settingsService.Load();
+        if (!settings.Notifications.EnableAdhan) {
+            return false;
+        }
+
+        var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
+        if (source == null) {
+            return false;
+        }
+
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            StopCore();
+            StartCore(source, settings.Notifications.AdhanVolume);
+            var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
+            await ShowControlNotificationAsync(prayerName).ConfigureAwait(false);
+            return true;
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.PlayScheduledAsync");
             return false;
         } finally {
             _gate.Release();
@@ -385,3 +411,4 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         return (float)Math.Clamp(volume, 0d, 1d);
     }
 }
+

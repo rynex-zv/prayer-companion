@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Windowing;
@@ -61,33 +62,20 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         private static bool IsControlNotificationInvocation(AppNotificationActivatedEventArgs args) {
-            var argument = args.Argument ?? string.Empty;
-            if (string.Equals(argument, AdhanPlaybackService.WindowsControlNotificationSourceToken, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(argument, $"source={AdhanPlaybackService.WindowsControlNotificationSourceToken}", StringComparison.OrdinalIgnoreCase) ||
-                argument.Contains($"source={AdhanPlaybackService.WindowsControlNotificationSourceToken}", StringComparison.OrdinalIgnoreCase)) {
-                return true;
+            Dictionary<string, string?>? values = null;
+            if (args.Arguments is System.Collections.IDictionary dictionary && dictionary.Count > 0) {
+                values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                foreach (System.Collections.DictionaryEntry entry in dictionary) {
+                    var key = entry.Key?.ToString();
+                    if (string.IsNullOrWhiteSpace(key)) {
+                        continue;
+                    }
+
+                    values[key] = entry.Value?.ToString();
+                }
             }
 
-            if (string.Equals(argument, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(argument, $"action={AdhanPlaybackService.WindowsStopActionToken}", StringComparison.OrdinalIgnoreCase)) {
-                return true;
-            }
-
-            if (args.Arguments is System.Collections.IDictionary values &&
-                values.Contains("source") &&
-                values["source"] is string sourceValue &&
-                string.Equals(sourceValue, AdhanPlaybackService.WindowsControlNotificationSourceToken, StringComparison.OrdinalIgnoreCase)) {
-                return true;
-            }
-
-            if (args.Arguments is System.Collections.IDictionary actionValues &&
-                actionValues.Contains("action") &&
-                actionValues["action"] is string actionValue &&
-                string.Equals(actionValue, AdhanPlaybackService.WindowsStopActionToken, StringComparison.OrdinalIgnoreCase)) {
-                return true;
-            }
-
-            return argument.Contains($"action={AdhanPlaybackService.WindowsStopActionToken}", StringComparison.OrdinalIgnoreCase);
+            return WindowsNotificationActionParser.ShouldStopAdhan(args.Argument, values);
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args) {
@@ -298,3 +286,4 @@ namespace Pray_Ad_Free.WinUI {
         }
     }
 }
+

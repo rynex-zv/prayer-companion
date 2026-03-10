@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace PrayAdFree.Core.Models;
 
@@ -16,5 +16,6 @@ public sealed class NotificationSettings {
     public VibrationPattern VibrationPattern { get; init; } = VibrationPattern.Short;
     public AdhanReminderScope ReminderScope { get; init; } = AdhanReminderScope.All;
     public PrayerId ReminderPrayer { get; init; } = PrayerId.Fajr;
+    public List<AdhanReminderItem> ReminderItems { get; init; } = new();
     public List<int> ReminderOffsetsMinutes { get; init; } = new();
 }

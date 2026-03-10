@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using PrayAdFree.Core.Models;
 
@@ -80,6 +80,7 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
     }
 
     private static string BuildTune(PrayerOffsets offsets) {
+        // Aladhan tune order: imsak,fajr,sunrise,dhuhr,asr,maghrib,sunset,isha,midnight
         var values = new[] {
             offsets.Imsak,
             offsets.Fajr,
@@ -87,8 +88,8 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
             offsets.Dhuhr,
             offsets.Asr,
             offsets.Maghrib,
-            offsets.Isha,
             0,
+            offsets.Isha,
             0
         };
         return string.Join(",", values);
@@ -162,3 +163,4 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
         public string En { get; set; } = "";
     }
 }
+

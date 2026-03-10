@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -73,10 +73,28 @@ public static class LocalizationManager {
     private static string ResolveLanguage(string? language) {
         if (string.IsNullOrWhiteSpace(language) || language == "auto") {
             var device = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-            return IsSupported(device) ? device : "en";
+            if (IsSupported(device) || HasLanguageFile(device)) {
+                return device;
+            }
+
+            return "en";
         }
 
-        return IsSupported(language) ? language : "en";
+        if (IsSupported(language) || HasLanguageFile(language)) {
+            return language;
+        }
+
+        return "en";
+    }
+
+    private static bool HasLanguageFile(string language) {
+        var normalized = language.Trim();
+        if (string.IsNullOrWhiteSpace(normalized)) {
+            return false;
+        }
+
+        var text = TryReadText($"i18n/{normalized}.json");
+        return !string.IsNullOrWhiteSpace(text);
     }
 
     private static bool IsSupported(string language) {
@@ -157,11 +175,11 @@ public static class LocalizationManager {
     private static string? TryReadText(string relativePath) {
         var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
         var candidates = new[] {
-            Path.Combine(FileSystem.AppDataDirectory, normalized),
-            normalized,
             Path.Combine(AppContext.BaseDirectory, normalized),
+            Path.Combine(AppContext.BaseDirectory, "Resources", "Raw", normalized),
             Path.Combine(AppContext.BaseDirectory, "i18n", Path.GetFileName(normalized)),
-            Path.Combine(AppContext.BaseDirectory, "Resources", "Raw", normalized)
+            normalized,
+            Path.Combine(FileSystem.AppDataDirectory, normalized)
         };
 
         foreach (var candidate in candidates) {

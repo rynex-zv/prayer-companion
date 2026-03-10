@@ -1,4 +1,4 @@
-﻿{
+{
   "Today": "Hoy",
   "Calendar": "Calendario",
   "Qibla": "Qibla",
@@ -61,7 +61,7 @@
   "ImsakReminder": "Recordatorio imsak",
   "IftarReminder": "Recordatorio iftar",
   "Notifications": "Notificaciones",
-    "WindowsBackgroundService": "Servicio en segundo plano de Windows",
+  "WindowsBackgroundService": "Servicio en segundo plano de Windows",
   "WindowsBackgroundServiceEnable": "Ejecutar en segundo plano al iniciar sesion",
   "WindowsBackgroundServiceHint": "Mantiene activas las notificaciones de oracion incluso al cerrar la ventana.",
   "WindowsBackgroundServiceFailed": "No se pudo actualizar el modo en segundo plano de Windows.",
@@ -210,9 +210,15 @@
   "CustomAdhanNamePlaceholder": "Ejemplo: Adhan de Meca",
   "PickAdhanSound": "Elige archivo de sonido adhan",
   "CustomAdhanSoundAdded": "Sonido adhan agregado.",
-  "CustomAdhanSoundFailed": "No se pudo agregar este sonido adhan."
+  "CustomAdhanSoundFailed": "No se pudo agregar este sonido adhan.",
+  "ReminderType": "Tipo de recordatorio",
+  "ReminderType_Adhan": "Adhan",
+  "ReminderType_Notification": "Notificacion",
+  "ReminderType_Silent": "Silencioso",
+  "TrayExitApp": "Salir de la aplicacion",
+  "TrayStartMinimizedWithWindows": "Iniciar minimizada con Windows",
+  "TrayTestAdhan": "Probar adhan",
+  "WindowsBackgroundOptions": "Opciones en segundo plano de Windows",
+  "WindowsHideOnClose": "Ocultar al cerrar",
+  "WindowsStartMinimizedWithWindows": "Iniciar minimizada con Windows"
 }
-
-
-
-

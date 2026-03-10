@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -25,6 +25,7 @@ public sealed class HomeViewModel : ViewModelBase {
     private string _iftarTime = "";
     private bool _isBusy;
     private string _lastScheduleKey = "";
+    private bool _refreshPending;
 
     public HomeViewModel(PrayerDataService dataService, IAppLogger logger) {
         _dataService = dataService;
@@ -90,11 +91,13 @@ public sealed class HomeViewModel : ViewModelBase {
 
     public async Task RefreshAsync() {
         if (IsBusy) {
+            _refreshPending = true;
             return;
         }
 
         try {
             IsBusy = true;
+            _refreshPending = false;
             StatusMessage = "Updating times...";
             _settings = _dataService.LoadSettings();
             var month = await _dataService.GetMonthAsync(_settings, DateTime.Today, CancellationToken.None);
@@ -125,6 +128,9 @@ public sealed class HomeViewModel : ViewModelBase {
             StatusMessage = "Update failed.";
         } finally {
             IsBusy = false;
+            if (_refreshPending) {
+                _ = MainThread.InvokeOnMainThreadAsync(async () => await RefreshAsync());
+            }
         }
     }
 
@@ -184,14 +190,13 @@ public sealed class HomeViewModel : ViewModelBase {
     }
 
     private bool ShouldScheduleNotifications(AppSettings settings) {
-        var hasFastingReminders = settings.FastingReminders.ImsakRemindersMinutes.Count > 0
-            || settings.FastingReminders.IftarRemindersMinutes.Count > 0;
-        var hasAdhanReminders = settings.Notifications.ReminderOffsetsMinutes.Count > 0;
-        if (!settings.Notifications.EnableAdhan && !hasFastingReminders && !hasAdhanReminders) {
-            return false;
-        }
+        var overrides = settings.Notifications.PrayerOverrides ?? [];
+        var reminderItems = settings.Notifications.ReminderItems ?? [];
+        var reminderOffsets = settings.Notifications.ReminderOffsetsMinutes ?? [];
+        var imsakReminders = settings.FastingReminders.ImsakRemindersMinutes ?? [];
+        var iftarReminders = settings.FastingReminders.IftarRemindersMinutes ?? [];
 
-        var overrideKey = string.Join(',', settings.Notifications.PrayerOverrides
+        var overrideKey = string.Join(',', overrides
             .OrderBy(item => item.Prayer)
             .Select(item => $"{(int)item.Prayer}:{item.SoundKey ?? ""}:{(item.EnableVibration.HasValue ? (item.EnableVibration.Value ? "1" : "0") : "")}"));
 
@@ -220,9 +225,10 @@ public sealed class HomeViewModel : ViewModelBase {
             settings.Notifications.ReminderScope,
             settings.Notifications.ReminderPrayer,
             overrideKey,
-            string.Join(',', settings.Notifications.ReminderOffsetsMinutes.OrderBy(item => item)),
-            string.Join(',', settings.FastingReminders.ImsakRemindersMinutes.OrderBy(item => item)),
-            string.Join(',', settings.FastingReminders.IftarRemindersMinutes.OrderBy(item => item))
+            string.Join(',', reminderOffsets.OrderBy(item => item)),
+            string.Join(',', reminderItems.OrderBy(item => item.OffsetMinutes).ThenBy(item => item.AlertType).Select(item => $"{item.OffsetMinutes}:{(int)item.AlertType}")),
+            string.Join(',', imsakReminders.OrderBy(item => item)),
+            string.Join(',', iftarReminders.OrderBy(item => item))
         );
 
         if (string.Equals(_lastScheduleKey, key, StringComparison.Ordinal)) {
@@ -250,3 +256,4 @@ public sealed class HomeViewModel : ViewModelBase {
         return "Current location";
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Microsoft.Maui.Storage;
 using Pray_Ad_Free.Models;
 using PrayAdFree.Core.Models;
@@ -43,6 +43,9 @@ public static class AdhanSoundLibrary {
     }
 
     public static string? ResolveNotificationSound(NotificationSettings settings, string? soundKey) {
+        if (OperatingSystem.IsWindows()) {
+            return null;
+        }
         if (string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase)) {
             return null;
         }
@@ -166,3 +169,4 @@ public static class AdhanSoundLibrary {
 }
 
 public sealed record AdhanPlaybackSource(string Path, bool IsPackageAsset);
+
