@@ -2150,7 +2150,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 AccentIndex = settings.AccentIndex
             };
 
-            var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None).ConfigureAwait(false);
+            var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None, forceRefresh: true).ConfigureAwait(false);
             MainThread.BeginInvokeOnMainThread(() => {
                 _suspendSave = true;
                 _settings = updated;

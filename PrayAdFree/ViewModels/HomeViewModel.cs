@@ -110,7 +110,9 @@ public sealed class HomeViewModel : ViewModelBase {
         try {
             IsBusy = true;
             _refreshPending = false;
-            StatusMessage = "Updating times...";
+            if (!string.Equals(StatusMessage, "Updating times...", StringComparison.Ordinal)) {
+                StatusMessage = "Updating times...";
+            }
             _settings = _dataService.LoadSettings();
             var month = await _dataService.GetMonthAsync(_settings, DateTime.Today, CancellationToken.None);
             var today = month.Days.FirstOrDefault(day => day.Date == DateOnly.FromDateTime(DateTime.Today));
@@ -140,6 +142,10 @@ public sealed class HomeViewModel : ViewModelBase {
             StatusMessage = "Update failed.";
         } finally {
             IsBusy = false;
+            if (string.Equals(StatusMessage, "Updating times...", StringComparison.Ordinal)) {
+                StatusMessage = $"Last updated {DateTime.Now:t}";
+            }
+
             if (_refreshPending) {
                 _ = MainThread.InvokeOnMainThreadAsync(async () => await RefreshAsync());
             }

@@ -5,21 +5,30 @@ using System.Linq;
 namespace Pray_Ad_Free.Services;
 
 public sealed class PrayerDataService {
+    private static readonly TimeSpan GpsRefreshInterval = TimeSpan.FromMinutes(15);
+    private const double MeaningfulMovementMeters = 500;
+
     private readonly SettingsService _settingsService;
     private readonly ILocationProvider _locationProvider;
     private readonly PrayerTimesService _prayerTimesService;
     private readonly ILocalNotificationScheduler _notificationScheduler;
+    private readonly IAppLogger _logger;
+    private readonly SemaphoreSlim _locationUpdateGate = new(1, 1);
+    private DateTime _lastGpsRefreshUtc = DateTime.MinValue;
+
     public event EventHandler<AppSettings>? SettingsChanged;
 
     public PrayerDataService(
         SettingsService settingsService,
         ILocationProvider locationProvider,
         PrayerTimesService prayerTimesService,
-        ILocalNotificationScheduler notificationScheduler) {
+        ILocalNotificationScheduler notificationScheduler,
+        IAppLogger logger) {
         _settingsService = settingsService;
         _locationProvider = locationProvider;
         _prayerTimesService = prayerTimesService;
         _notificationScheduler = notificationScheduler;
+        _logger = logger;
     }
 
     public AppSettings LoadSettings() => _settingsService.Load();
@@ -39,32 +48,42 @@ public sealed class PrayerDataService {
         return month.Days.FirstOrDefault(day => day.Date == DateOnly.FromDateTime(DateTime.Today));
     }
 
-    public async Task<AppSettings> UpdateLocationAsync(AppSettings settings, CancellationToken cancellationToken) {
-        var updatedLocation = await _locationProvider.GetLocationAsync(settings.Location, cancellationToken).ConfigureAwait(false);
-        if (updatedLocation.LastUpdatedUtc != settings.Location.LastUpdatedUtc) {
-            settings = new AppSettings {
-                Location = updatedLocation,
-                Method = settings.Method,
-                Madhhab = settings.Madhhab,
-                HighLatitudeRule = settings.HighLatitudeRule,
-                Offsets = settings.Offsets,
-                FastingOffsets = settings.FastingOffsets,
-                FastingReminders = settings.FastingReminders,
-                Notifications = settings.Notifications,
-                Qibla = settings.Qibla,
-                ClockFormat = settings.ClockFormat,
-                TextScale = settings.TextScale,
-                Tasbih = settings.Tasbih,
-                Language = settings.Language,
-                LanguageSelected = settings.LanguageSelected,
-                ThemeMode = settings.ThemeMode,
-                ThemeVariant = settings.ThemeVariant,
-                AccentIndex = settings.AccentIndex
-            };
-            SaveSettings(settings);
-        }
+    public async Task<AppSettings> UpdateLocationAsync(AppSettings settings, CancellationToken cancellationToken, bool forceRefresh = false) {
+        await _locationUpdateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try {
+            if (settings.Location.Mode == LocationMode.Gps &&
+                LocationUpdatePolicy.ShouldThrottleGpsRefresh(DateTime.UtcNow, _lastGpsRefreshUtc, GpsRefreshInterval, forceRefresh)) {
+                _logger.LogEvent("GpsRefreshSkipped", "throttled");
+                return settings;
+            }
 
-        return settings;
+            var updatedLocation = await _locationProvider.GetLocationAsync(settings.Location, cancellationToken).ConfigureAwait(false);
+
+            if (settings.Location.Mode == LocationMode.Gps) {
+                _lastGpsRefreshUtc = DateTime.UtcNow;
+            }
+
+            if (!LocationUpdatePolicy.HasMeaningfulLocationChange(
+                    settings.Location,
+                    updatedLocation,
+                    MeaningfulMovementMeters,
+                    out var distanceMeters)) {
+                if (settings.Location.Mode == LocationMode.Gps) {
+                    _logger.LogEvent("GpsRefreshSkipped", "no_meaningful_change");
+                }
+                return settings;
+            }
+
+            if (settings.Location.Mode == LocationMode.Gps) {
+                _logger.LogEvent("GpsRefreshApplied", $"distance={distanceMeters:F1}");
+            }
+
+            settings = CloneSettingsWithLocation(settings, updatedLocation);
+            SaveSettings(settings);
+            return settings;
+        } finally {
+            _locationUpdateGate.Release();
+        }
     }
 
     public async Task ScheduleNotificationsAsync(AppSettings settings, PrayerMonth month, CancellationToken cancellationToken) {
@@ -97,5 +116,27 @@ public sealed class PrayerDataService {
         }
 
         await _notificationScheduler.ScheduleAsync(finalDays, settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static AppSettings CloneSettingsWithLocation(AppSettings settings, LocationSettings location) {
+        return new AppSettings {
+            Location = location,
+            Method = settings.Method,
+            Madhhab = settings.Madhhab,
+            HighLatitudeRule = settings.HighLatitudeRule,
+            Offsets = settings.Offsets,
+            FastingOffsets = settings.FastingOffsets,
+            FastingReminders = settings.FastingReminders,
+            Notifications = settings.Notifications,
+            Qibla = settings.Qibla,
+            ClockFormat = settings.ClockFormat,
+            TextScale = settings.TextScale,
+            Tasbih = settings.Tasbih,
+            Language = settings.Language,
+            LanguageSelected = settings.LanguageSelected,
+            ThemeMode = settings.ThemeMode,
+            ThemeVariant = settings.ThemeVariant,
+            AccentIndex = settings.AccentIndex
+        };
     }
 }
