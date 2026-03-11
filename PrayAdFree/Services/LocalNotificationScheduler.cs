@@ -102,7 +102,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                             Android = new AndroidOptions {
                                 Priority = AndroidPriority.Default,
                                 ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, AdhanReminderAlertType.Adhan),
-                                VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride)
+                                VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride),
+                                LaunchAppWhenTapped = !playRuntimeAdhan
                             }
 #endif
                         });
@@ -405,7 +406,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     Android = new AndroidOptions {
                         Priority = AndroidPriority.Default,
                         ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, reminder.AlertType),
-                        VibrationPattern = BuildVibration(notificationSettings, overrideSettings?.EnableVibration)
+                        VibrationPattern = BuildVibration(notificationSettings, overrideSettings?.EnableVibration),
+                        LaunchAppWhenTapped = !playRuntimeAdhan
                     }
 #endif
                 });

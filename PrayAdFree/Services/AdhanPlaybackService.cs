@@ -22,6 +22,7 @@ namespace Pray_Ad_Free.Services;
 public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const int StopActionId = 54001;
     public const int ControlNotificationId = 54002;
+    public const string ControlReturningData = "adhan_control";
     public const string WindowsStopActionToken = WindowsNotificationActionParser.StopActionToken;
     public const string WindowsControlNotificationSourceToken = WindowsNotificationActionParser.ControlSourceToken;
     public const string WindowsControlNotificationTag = WindowsNotificationActionParser.ControlNotificationTag;
@@ -34,6 +35,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
 #if ANDROID
     private Android.Media.MediaPlayer? _androidPlayer;
+    private Android.Media.AudioManager? _androidAudioManager;
+    private Android.Media.AudioFocusRequestClass? _androidAudioFocusRequest;
+    private Android.Media.AudioManager.IOnAudioFocusChangeListener? _androidAudioFocusChangeListener;
+    private bool _androidPausedForTransientLoss;
 #endif
 #if WINDOWS
     private Windows.Media.Playback.MediaPlayer? _windowsPlayer;
@@ -184,11 +189,16 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return;
             }
 
-            if (e.ActionId != StopActionId &&
-                e.ActionId != NotificationActionEventArgs.TapActionId &&
-                e.ActionId != NotificationActionEventArgs.DismissedActionId &&
-                !e.IsTapped &&
-                !e.IsDismissed) {
+            var isStopAction = e.ActionId == StopActionId;
+            var isTapAction = e.ActionId == NotificationActionEventArgs.TapActionId || e.IsTapped;
+            var isDismissAction = e.ActionId == NotificationActionEventArgs.DismissedActionId || e.IsDismissed;
+            var isAdhanNotification = IsAdhanNotificationRequest(e.Request);
+
+            if (!isStopAction && !isTapAction && !isDismissAction) {
+                return;
+            }
+
+            if (!isStopAction && !isAdhanNotification) {
                 return;
             }
 
@@ -196,6 +206,26 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleNotificationActionTappedAsync");
         }
+    }
+
+    private static bool IsAdhanNotificationRequest(NotificationRequest? request) {
+        if (request == null) {
+            return false;
+        }
+
+        if (request.NotificationId == ControlNotificationId) {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ReturningData)) {
+            return false;
+        }
+
+        if (string.Equals(request.ReturningData, ControlReturningData, StringComparison.Ordinal)) {
+            return true;
+        }
+
+        return AdhanNotificationPayload.TryParse(request.ReturningData, out _);
     }
 
     private async Task ShowControlNotificationAsync(string prayerName) {
@@ -219,7 +249,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             Title = prayerName,
             Description = LocalizationManager.Translate("AdhanPlaybackStopHint"),
             Silent = true,
-            ReturningData = "adhan_control",
+            ReturningData = ControlReturningData,
             Android = new AndroidOptions {
                 ChannelId = "adhan_playback_control",
                 Priority = AndroidPriority.High,
@@ -239,28 +269,52 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private void StartCore(AdhanPlaybackSource source, double volume) {
         var normalizedVolume = NormalizeVolume(volume);
 #if ANDROID
-        var player = new Android.Media.MediaPlayer();
-        if (source.IsPackageAsset) {
-            var context = Android.App.Application.Context;
-            if (context == null) {
-                return;
-            }
-
-            var assets = context.Assets;
-            if (assets == null) {
-                return;
-            }
-
-            using var asset = assets.OpenFd(NormalizeAssetPath(source.Path));
-            player.SetDataSource(asset.FileDescriptor!, asset.StartOffset, asset.Length);
-        } else {
-            player.SetDataSource(source.Path);
+        if (!TryAcquireAndroidAudioFocus()) {
+            return;
         }
-        player.Completion += OnAndroidCompletion;
-        player.SetVolume(normalizedVolume, normalizedVolume);
-        player.Prepare();
-        player.Start();
-        _androidPlayer = player;
+
+        var player = new Android.Media.MediaPlayer();
+        try {
+            var attributeBuilder = new Android.Media.AudioAttributes.Builder();
+            attributeBuilder.SetUsage(Android.Media.AudioUsageKind.Alarm);
+            attributeBuilder.SetContentType(Android.Media.AudioContentType.Music);
+            var attributes = attributeBuilder.Build();
+            if (attributes != null) {
+                player.SetAudioAttributes(attributes);
+            }
+
+            if (source.IsPackageAsset) {
+                var context = Android.App.Application.Context;
+                if (context == null) {
+                    ReleaseAndroidAudioFocus();
+                    return;
+                }
+
+                var assets = context.Assets;
+                if (assets == null) {
+                    ReleaseAndroidAudioFocus();
+                    return;
+                }
+
+                using var asset = assets.OpenFd(NormalizeAssetPath(source.Path));
+                player.SetDataSource(asset.FileDescriptor!, asset.StartOffset, asset.Length);
+            } else {
+                player.SetDataSource(source.Path);
+            }
+
+            player.Completion += OnAndroidCompletion;
+            player.SetVolume(normalizedVolume, normalizedVolume);
+            player.Prepare();
+            player.Start();
+            _androidPlayer = player;
+            _androidPausedForTransientLoss = false;
+        } catch {
+            player.Completion -= OnAndroidCompletion;
+            player.Release();
+            player.Dispose();
+            ReleaseAndroidAudioFocus();
+            throw;
+        }
 #elif WINDOWS
         var player = new Windows.Media.Playback.MediaPlayer();
         player.MediaEnded += OnWindowsMediaEnded;
@@ -270,20 +324,31 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         player.Play();
         _windowsPlayer = player;
 #elif IOS || MACCATALYST
+        if (!TryActivateAppleAudioSession()) {
+            return;
+        }
+
         var filePath = ResolveApplePath(source);
         if (string.IsNullOrWhiteSpace(filePath)) {
+            DeactivateAppleAudioSession();
             return;
         }
 
         var player = AVAudioPlayer.FromUrl(NSUrl.FromFilename(filePath));
         if (player == null) {
+            DeactivateAppleAudioSession();
             return;
         }
 
         player.FinishedPlaying += OnAppleFinishedPlaying;
         player.Volume = normalizedVolume;
         player.PrepareToPlay();
-        player.Play();
+        if (!player.Play()) {
+            player.FinishedPlaying -= OnAppleFinishedPlaying;
+            player.Dispose();
+            DeactivateAppleAudioSession();
+            return;
+        }
         _applePlayer = player;
 #endif
     }
@@ -302,6 +367,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _androidPlayer.Dispose();
             _androidPlayer = null;
         }
+
+        ReleaseAndroidAudioFocus();
 #endif
 
 #if WINDOWS
@@ -326,14 +393,158 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _applePlayer.Dispose();
             _applePlayer = null;
         }
+
+        DeactivateAppleAudioSession();
 #endif
     }
 
 #if ANDROID
     private static string NormalizeAssetPath(string path) => path.Replace('\\', '/');
 
+    private bool TryAcquireAndroidAudioFocus() {
+        var context = Android.App.Application.Context;
+        if (context == null) {
+            return false;
+        }
+
+        if (context.GetSystemService(Android.Content.Context.AudioService) is not Android.Media.AudioManager audioManager) {
+            return false;
+        }
+
+        _androidAudioManager = audioManager;
+        _androidAudioFocusChangeListener ??= new AndroidAudioFocusChangeListener(OnAndroidAudioFocusChanged);
+
+        if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
+            var attributeBuilder = new Android.Media.AudioAttributes.Builder();
+            attributeBuilder.SetUsage(Android.Media.AudioUsageKind.Alarm);
+            attributeBuilder.SetContentType(Android.Media.AudioContentType.Music);
+            var attributes = attributeBuilder.Build();
+
+            var focusRequestBuilder = new Android.Media.AudioFocusRequestClass.Builder(Android.Media.AudioFocus.GainTransient);
+            if (attributes != null) {
+                focusRequestBuilder.SetAudioAttributes(attributes);
+            }
+            focusRequestBuilder.SetWillPauseWhenDucked(false);
+            focusRequestBuilder.SetOnAudioFocusChangeListener(_androidAudioFocusChangeListener);
+            _androidAudioFocusRequest = focusRequestBuilder.Build();
+            if (_androidAudioFocusRequest == null) {
+                _androidAudioManager = null;
+                return false;
+            }
+
+            var focusResult = audioManager.RequestAudioFocus(_androidAudioFocusRequest);
+            if (focusResult != Android.Media.AudioFocusRequest.Granted) {
+                _androidAudioFocusRequest = null;
+                _androidAudioManager = null;
+                return false;
+            }
+
+            return true;
+        }
+
+#pragma warning disable CS0618
+        var legacyResult = audioManager.RequestAudioFocus(_androidAudioFocusChangeListener, Android.Media.Stream.Alarm, Android.Media.AudioFocus.GainTransient);
+#pragma warning restore CS0618
+        if (legacyResult != Android.Media.AudioFocusRequest.Granted) {
+            _androidAudioManager = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ReleaseAndroidAudioFocus() {
+        if (_androidAudioManager == null) {
+            _androidPausedForTransientLoss = false;
+            _androidAudioFocusRequest = null;
+            return;
+        }
+
+        try {
+            if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
+                if (_androidAudioFocusRequest != null) {
+                    _androidAudioManager.AbandonAudioFocusRequest(_androidAudioFocusRequest);
+                }
+            } else if (_androidAudioFocusChangeListener != null) {
+#pragma warning disable CS0618
+                _androidAudioManager.AbandonAudioFocus(_androidAudioFocusChangeListener);
+#pragma warning restore CS0618
+            }
+        } catch {
+        }
+
+        _androidPausedForTransientLoss = false;
+        _androidAudioFocusRequest = null;
+        _androidAudioManager = null;
+    }
+
+    private void OnAndroidAudioFocusChanged(Android.Media.AudioFocus focusChange) {
+        switch (focusChange) {
+            case Android.Media.AudioFocus.Loss:
+                _ = StopAsync();
+                break;
+            case Android.Media.AudioFocus.LossTransient:
+                _ = PauseForAndroidTransientFocusLossAsync();
+                break;
+            case Android.Media.AudioFocus.Gain:
+                _ = ResumeAfterAndroidFocusGainAsync();
+                break;
+            case Android.Media.AudioFocus.LossTransientCanDuck:
+            default:
+                break;
+        }
+    }
+
+    private async Task PauseForAndroidTransientFocusLossAsync() {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            if (_androidPlayer == null) {
+                return;
+            }
+
+            try {
+                if (_androidPlayer.IsPlaying) {
+                    _androidPlayer.Pause();
+                    _androidPausedForTransientLoss = true;
+                }
+            } catch {
+            }
+        } finally {
+            _gate.Release();
+        }
+    }
+
+    private async Task ResumeAfterAndroidFocusGainAsync() {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            if (_androidPlayer == null || !_androidPausedForTransientLoss) {
+                return;
+            }
+
+            try {
+                _androidPlayer.Start();
+                _androidPausedForTransientLoss = false;
+            } catch {
+            }
+        } finally {
+            _gate.Release();
+        }
+    }
+
     private void OnAndroidCompletion(object? sender, EventArgs e) {
         _ = StopAsync();
+    }
+
+    private sealed class AndroidAudioFocusChangeListener : Java.Lang.Object, Android.Media.AudioManager.IOnAudioFocusChangeListener {
+        private readonly Action<Android.Media.AudioFocus> _onAudioFocusChange;
+
+        public AndroidAudioFocusChangeListener(Action<Android.Media.AudioFocus> onAudioFocusChange) {
+            _onAudioFocusChange = onAudioFocusChange;
+        }
+
+        public void OnAudioFocusChange(Android.Media.AudioFocus focusChange) {
+            _onAudioFocusChange(focusChange);
+        }
     }
 #endif
 
@@ -386,6 +597,31 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 #endif
 
 #if IOS || MACCATALYST
+    private bool TryActivateAppleAudioSession() {
+        try {
+            var session = AVAudioSession.SharedInstance();
+            session.SetCategory(AVAudioSessionCategory.Playback);
+            session.SetActive(true);
+            return true;
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.TryActivateAppleAudioSession");
+            return false;
+        }
+    }
+
+    private void DeactivateAppleAudioSession() {
+        try {
+            var session = AVAudioSession.SharedInstance();
+            try {
+                session.SetActive(false, AVAudioSessionSetActiveOptions.NotifyOthersOnDeactivation);
+            } catch {
+                session.SetActive(false);
+            }
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.DeactivateAppleAudioSession");
+        }
+    }
+
     private static string? ResolveApplePath(AdhanPlaybackSource source) {
         if (!source.IsPackageAsset) {
             return source.Path;
