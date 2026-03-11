@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
@@ -7,28 +7,52 @@
     <Grid>
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="{StaticResource NightTop}" Offset="0"/>
-                <GradientStop Color="{StaticResource NightBase}" Offset="1"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.6"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1"/>
             </LinearGradientBrush>
         </Grid.Background>
 
-        <VerticalStackLayout Spacing="14" Padding="24,32">
-            <Label Text="{Binding AppName}"
-                  
-                   FontSize="26"
-                   TextColor="{StaticResource Accent}" />
-            <Label Text="{Binding Tagline}" FontSize="16" />
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 18"
-                    Padding="16">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="{Binding Source}" FontSize="14" />
-                    <Label Text="{Binding Privacy}" FontSize="14" />
-                    <Label Text="{Binding Contact}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Button Text="{loc:Loc ReportIssue}" Clicked="OnReportClicked" />
-                </VerticalStackLayout>
-            </Border>
-        </VerticalStackLayout>
+        <ScrollView>
+            <VerticalStackLayout Spacing="14" Padding="24,24,24,32">
+                <Label Text="{loc:Loc About}" FontSize="46" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+
+                <Border Padding="24" StrokeShape="RoundRectangle 22">
+                    <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+                        <Border WidthRequest="94"
+                                HeightRequest="94"
+                                StrokeThickness="0"
+                                StrokeShape="Ellipse"
+                                BackgroundColor="#D1AD3A"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center">
+                            <Label Text="☆" FontSize="42" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Border>
+                        <Label Text="{Binding AppName}" FontSize="40" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+                        <Label Text="{Binding Tagline}" FontSize="14" HorizontalTextAlignment="Center" TextColor="#8CA0B6" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Padding="18" StrokeShape="RoundRectangle 20">
+                    <VerticalStackLayout Spacing="10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Label Text="♡" FontSize="24" TextColor="#EAB308" />
+                            <Label Grid.Column="1" Text="{Binding Privacy}" FontSize="13" />
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Label Text="◍" FontSize="24" TextColor="#EAB308" />
+                            <Label Grid.Column="1" Text="{Binding Source}" FontSize="13" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Padding="16" StrokeShape="RoundRectangle 20">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{Binding Contact}" FontSize="13" TextColor="#8CA0B6" />
+                        <Button Text="{loc:Loc ReportIssue}" Clicked="OnReportClicked" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
     </Grid>
 </ContentPage>

@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.LanguageSelectionPageA"
+             Title="{loc:Loc Language}">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.5"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <VerticalStackLayout Spacing="18" Padding="24,40">
+            <Label Text="{loc:Loc LanguageTitle}"
+                  
+                   FontSize="24" />
+            <Label Text="{loc:Loc LanguageSubtitle}"
+                   FontSize="14"
+                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <Picker Title="{loc:Loc Language}"
+                        ItemsSource="{Binding Languages}"
+                        ItemDisplayBinding="{Binding Label}"
+                        SelectedItem="{Binding SelectedLanguage}" />
+            </Border>
+
+            <Button Text="{loc:Loc Continue}" Clicked="OnContinueClicked" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

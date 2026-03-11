@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.ApplicationModel;
+using PrayAdFree.Core.Models;
+using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free {
@@ -6,23 +9,83 @@ namespace Pray_Ad_Free {
         public static IServiceProvider? Services { get; private set; }
         private readonly IServiceProvider _services;
         private readonly IAppLogger _logger;
+        private ThemeVariant _activeThemeVariant = ThemeVariant.B;
+        private Window? _mainWindow;
 
         public App(IServiceProvider services, IAppLogger logger) {
             InitializeComponent();
             _services = services;
             Services = services;
             _logger = logger;
+            _logger.LogEvent("AppCtor", "start");
             RegisterExceptionHandlers();
+
+            var startupSettings = LoadSettingsSafe();
+            _activeThemeVariant = startupSettings.ThemeVariant;
+            _logger.LogEvent("AppCtor", $"Theme.Apply.start:{_activeThemeVariant}");
             try {
-                _services.GetRequiredService<IAdhanPlaybackService>().Initialize();
+                ThemeManager.ApplyTheme(startupSettings);
+                _logger.LogEvent("AppCtor", "Theme.Apply.ok");
+            } catch (Exception ex) {
+                _logger.LogException(ex, "App.ThemeManager.ApplyTheme");
+                _logger.LogEvent("AppCtor", "Theme.Apply.failed");
+            }
+
+            try {
+                _logger.LogEvent("AppCtor", "AdhanPlayback.Resolve.start");
+                var playbackService = _services.GetRequiredService<IAdhanPlaybackService>();
+                _logger.LogEvent("AppCtor", "AdhanPlayback.Resolve.ok");
+                _logger.LogEvent("AppCtor", "AdhanPlayback.Initialize.start");
+                playbackService.Initialize();
+                _logger.LogEvent("AppCtor", "AdhanPlayback.Initialize.ok");
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.InitializeAdhanPlaybackService");
             }
             TryScheduleNotifications("AppCtor");
+            _logger.LogEvent("AppCtor", "end");
         }
 
         protected override Window CreateWindow( IActivationState? activationState ) {
-            return new Window( _services.GetRequiredService<AppShell>() );
+            try {
+                _logger.LogEvent("CreateWindow", "beforeResolveShell");
+                var shell = CreateShellForVariant(_activeThemeVariant);
+                _mainWindow = new Window(shell);
+                return _mainWindow;
+            } catch (Exception ex) {
+                _logger.LogException(ex, "App.CreateWindow");
+                _logger.LogEvent("CreateWindow", "fallbackPage");
+                var fallbackPage = new ContentPage {
+                    BackgroundColor = Color.FromArgb("#08111D"),
+                    Content = new ScrollView {
+                        Content = new VerticalStackLayout {
+                            Padding = new Thickness(20, 36, 20, 20),
+                            Spacing = 12,
+                            Children = {
+                                new Label {
+                                    Text = "Failed to load UI.",
+                                    TextColor = Colors.White,
+                                    FontAttributes = FontAttributes.Bold,
+                                    FontSize = 22
+                                },
+                                new Label {
+                                    Text = ex.Message,
+                                    TextColor = Color.FromArgb("#D3E2F5"),
+                                    FontSize = 14
+                                }
+                            }
+                        }
+                    }
+                };
+                return new Window(fallbackPage);
+            }
+        }
+
+        public static Task ReloadShellForThemeVariantAsync(ThemeVariant variant) {
+            if (Current is not App app) {
+                return Task.CompletedTask;
+            }
+
+            return app.ReloadShellInternalAsync(variant);
         }
 
         protected override void OnStart() {
@@ -37,8 +100,10 @@ namespace Pray_Ad_Free {
 
         private void TryScheduleNotifications(string reason) {
             try {
+                _logger.LogEvent("TryScheduleNotifications", $"start:{reason}");
                 var bootstrapper = _services.GetRequiredService<NotificationBootstrapper>();
                 _ = bootstrapper.EnsureScheduledAsync(reason, requestPermissions: true);
+                _logger.LogEvent("TryScheduleNotifications", $"queued:{reason}");
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.TryScheduleNotifications");
             }
@@ -57,6 +122,41 @@ namespace Pray_Ad_Free {
                 _logger.LogException(args.Exception, "TaskScheduler.UnobservedTaskException");
                 args.SetObserved();
             };
+        }
+
+        private AppSettings LoadSettingsSafe() {
+            try {
+                return _services.GetRequiredService<SettingsService>().Load();
+            } catch (Exception ex) {
+                _logger.LogException(ex, "App.LoadSettingsSafe");
+                return new AppSettings();
+            }
+        }
+
+        private Shell CreateShellForVariant(ThemeVariant variant) {
+            _logger.LogEvent("CreateShell", $"variant:{variant}");
+            return variant == ThemeVariant.A
+                ? _services.GetRequiredService<AppShellA>()
+                : _services.GetRequiredService<AppShell>();
+        }
+
+        private async Task ReloadShellInternalAsync(ThemeVariant variant) {
+            await MainThread.InvokeOnMainThreadAsync(() => {
+                try {
+                    var currentWindow = _mainWindow ?? Current?.Windows.FirstOrDefault();
+                    if (currentWindow == null) {
+                        _logger.LogEvent("ReloadShell", "skip:noWindow");
+                        return;
+                    }
+
+                    _activeThemeVariant = variant;
+                    currentWindow.Page = CreateShellForVariant(variant);
+                    _mainWindow = currentWindow;
+                    _logger.LogEvent("ReloadShell", $"applied:{variant}");
+                } catch (Exception ex) {
+                    _logger.LogException(ex, "App.ReloadShellInternalAsync");
+                }
+            }).ConfigureAwait(false);
         }
     }
 }

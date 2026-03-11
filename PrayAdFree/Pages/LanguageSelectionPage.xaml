@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
@@ -8,30 +8,46 @@
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0"/>
-                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.5"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.6"/>
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1"/>
             </LinearGradientBrush>
         </Grid.Background>
 
-        <VerticalStackLayout Spacing="18" Padding="24,40">
-            <Label Text="{loc:Loc LanguageTitle}"
-                  
-                   FontSize="24" />
-            <Label Text="{loc:Loc LanguageSubtitle}"
-                   FontSize="14"
-                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+        <ScrollView>
+            <VerticalStackLayout Spacing="18" Padding="24,24,24,32">
+                <Label Text="{loc:Loc LanguageTitle}" FontSize="42" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+                <Label Text="{loc:Loc LanguageSubtitle}"
+                       FontSize="13"
+                       TextColor="#8CA0B6"
+                       HorizontalTextAlignment="Center" />
 
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 18"
-                    Padding="16">
-                <Picker Title="{loc:Loc Language}"
-                        ItemsSource="{Binding Languages}"
-                        ItemDisplayBinding="{Binding Label}"
-                        SelectedItem="{Binding SelectedLanguage}" />
-            </Border>
+                <Border Padding="16" BackgroundColor="{AppThemeBinding Light=#102531, Dark=#102531}">
+                    <VerticalStackLayout Spacing="12">
+                        <CollectionView ItemsSource="{Binding Languages}"
+                                        SelectedItem="{Binding SelectedLanguage}"
+                                        SelectionMode="Single">
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Border Padding="14"
+                                                BackgroundColor="#142B38"
+                                                Stroke="#1F3745"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 14">
+                                            <Label Text="{Binding Label}" FontSize="18" HorizontalTextAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
 
-            <Button Text="{loc:Loc Continue}" Clicked="OnContinueClicked" />
-        </VerticalStackLayout>
+                        <Button Text="{loc:Loc Continue}" Clicked="OnContinueClicked" HeightRequest="48" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
     </Grid>
 </ContentPage>

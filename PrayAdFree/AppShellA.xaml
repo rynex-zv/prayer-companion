@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="Pray_Ad_Free.AppShellA"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:pagesA="clr-namespace:Pray_Ad_Free.Pages.ThemeA"
+    xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+    Title="Pray Ad Free">
+
+    <TabBar>
+        <ShellContent Route="today" Title="{loc:Loc Today}" ContentTemplate="{DataTemplate pagesA:HomePageA}" />
+        <ShellContent Route="calendar" Title="{loc:Loc Calendar}" ContentTemplate="{DataTemplate pagesA:CalendarPageA}" />
+        <ShellContent Route="qibla" Title="{loc:Loc Qibla}" ContentTemplate="{DataTemplate pagesA:QiblaPageA}" />
+        <ShellContent Route="tasbih" Title="{loc:Loc Tasbih}" ContentTemplate="{DataTemplate pagesA:TasbihPageA}" />
+        <ShellContent Route="settingsA" Title="{loc:Loc Settings}" ContentTemplate="{DataTemplate pagesA:SettingsPageA}" />
+    </TabBar>
+</Shell>

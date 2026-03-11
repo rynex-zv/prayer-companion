@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -8,6 +9,15 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.ViewModels;
 
 public sealed class HomeViewModel : ViewModelBase {
+    private static readonly PrayerId[] DisplayOrder = {
+        PrayerId.Fajr,
+        PrayerId.Sunrise,
+        PrayerId.Dhuhr,
+        PrayerId.Asr,
+        PrayerId.Maghrib,
+        PrayerId.Isha
+    };
+
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
     private PrayerDay? _today;
@@ -20,6 +30,7 @@ public sealed class HomeViewModel : ViewModelBase {
     private string _nextPrayerName = "";
     private string _nextPrayerClock = "";
     private string _nextPrayerBaseClock = "";
+    private string _nextPrayerDayLabel = "";
     private bool _showNextPrayerBaseClock;
     private string _countdown = "";
     private string _statusMessage = "";
@@ -64,6 +75,11 @@ public sealed class HomeViewModel : ViewModelBase {
     public string NextPrayerClock {
         get => _nextPrayerClock;
         set => SetProperty(ref _nextPrayerClock, value);
+    }
+
+    public string NextPrayerDayLabel {
+        get => _nextPrayerDayLabel;
+        set => SetProperty(ref _nextPrayerDayLabel, value);
     }
 
     public string NextPrayerBaseClock {
@@ -179,6 +195,7 @@ public sealed class HomeViewModel : ViewModelBase {
         (_nextPrayerId, _nextPrayerTime) = NextPrayerCalculator.GetNext(_today, now);
         NextPrayerName = LocalizationManager.TranslatePrayer(_nextPrayerId);
         NextPrayerClock = TimeFormatHelper.FormatTime(_nextPrayerTime, _settings.ClockFormat);
+        NextPrayerDayLabel = ResolveNextPrayerDayLabel(now, _nextPrayerTime);
 
         var offset = GetOffsetForPrayer(_nextPrayerId);
         ShowNextPrayerBaseClock = offset != 0;
@@ -193,11 +210,7 @@ public sealed class HomeViewModel : ViewModelBase {
         }
 
         TodayTimings.Clear();
-        foreach (var prayer in Enum.GetValues<PrayerId>()) {
-            if (prayer == PrayerId.Imsak) {
-                continue;
-            }
-
+        foreach (var prayer in DisplayOrder) {
             var adjustedTime = _today.Timings.Get(prayer);
             var offset = GetOffsetForPrayer(prayer);
             var baseTime = adjustedTime.AddMinutes(-offset);
@@ -215,6 +228,19 @@ public sealed class HomeViewModel : ViewModelBase {
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
         ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
         IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
+    }
+
+    private static string ResolveNextPrayerDayLabel(DateTime now, DateTime nextPrayer) {
+        if (nextPrayer.Date == now.Date) {
+            return LocalizationManager.Translate("Today");
+        }
+
+        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+            "ar" => "غداً",
+            "tr" => "Yarin",
+            "fr" => "Demain",
+            _ => "Tomorrow"
+        };
     }
 
     private int GetOffsetForPrayer(PrayerId prayer) {

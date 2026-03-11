@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
              xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
-             x:Class="Pray_Ad_Free.Pages.SettingsLocationsPage"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.SettingsLocationsPageA"
              Title="{loc:Loc Locations}">
     <ContentPage.Resources>
         <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
@@ -45,11 +45,11 @@
                     Padding="16">
                 <VerticalStackLayout Spacing="10">
                     <Label Text="{loc:Loc Locations}" FontSize="16" />
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                        <Label Text="{loc:Loc UseGps}" FontSize="14" VerticalOptions="Center" />
-                        <Switch Grid.Column="1" IsToggled="{Binding UseGps}" VerticalOptions="Center" HorizontalOptions="Center" />
-                        <Button Grid.Column="2" Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" VerticalOptions="Center" />
-                    </Grid>
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <Label Text="{loc:Loc UseGps}" FontSize="14"/>
+                        <Switch IsToggled="{Binding UseGps}" />
+                        <Button Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" />
+                    </HorizontalStackLayout>
                     <Label Text="{loc:Loc Country}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc Country}" ItemsSource="{Binding CountryOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCountry}" IsEnabled="{Binding IsManualLocationEnabled}" />
                     <Label Text="{loc:Loc City}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

@@ -117,7 +117,7 @@ public sealed class SettingsViewModel : ViewModelBase {
 
         ThemeModes = new ObservableCollection<OptionItem<ThemeMode>>();
         ThemeVariants = new ObservableCollection<OptionItem<ThemeVariant>>();
-        AccentOptions = new ObservableCollection<AccentOption>(ThemeManager.GetAccentOptions(ThemeVariant.A));
+        AccentOptions = new ObservableCollection<AccentOption>(ThemeManager.GetAccentOptions(ThemeVariant.B));
         Languages = new ObservableCollection<OptionItem<string>>();
         CountryOptions = new ObservableCollection<PlaceOption>();
         CityOptions = new ObservableCollection<PlaceOption>();
@@ -658,7 +658,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         get => _selectedThemeVariant;
         set {
             if (SetProperty(ref _selectedThemeVariant, value)) {
-                UpdateAccentOptions(value?.Value ?? ThemeVariant.A, _selectedAccent?.Index ?? 0);
+                UpdateAccentOptions(value?.Value ?? ThemeVariant.B, _selectedAccent?.Index ?? 0);
                 ApplyThemePreview();
             }
         }
@@ -755,7 +755,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         EnsureTasbihDefaults();
         LoadTasbihPresets();
         LoadAdhanOverrides();
-        UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.A, _settings.AccentIndex);
+        UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.B, _settings.AccentIndex);
         BuildPlaceOptions();
         _suspendSave = false;
         if (UseGps) {
@@ -764,6 +764,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void Save() {
+        var previousThemeVariant = _settings.ThemeVariant;
         var mode = UseGps ? LocationMode.Gps : LocationMode.Manual;
         var location = new LocationSettings {
             Mode = mode,
@@ -862,7 +863,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             Language = SelectedLanguage?.Value ?? _settings.Language ?? "auto",
             LanguageSelected = true,
             ThemeMode = SelectedThemeMode?.Value ?? ThemeMode.Auto,
-            ThemeVariant = SelectedThemeVariant?.Value ?? ThemeVariant.A,
+            ThemeVariant = SelectedThemeVariant?.Value ?? ThemeVariant.B,
             AccentIndex = SelectedAccent?.Index ?? 0
         };
 
@@ -874,6 +875,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         try {
             ThemeManager.ApplyTheme(_settings);
         } catch {
+        }
+        if (previousThemeVariant != _settings.ThemeVariant) {
+            _ = App.ReloadShellForThemeVariantAsync(_settings.ThemeVariant);
         }
         StatusMessage = "Settings saved";
     }

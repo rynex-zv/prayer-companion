@@ -1,57 +1,71 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
-             x:Class="Pray_Ad_Free.Pages.SettingsAdhanPage"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.SettingsAdhanPageA"
              Title="{loc:Loc AdhanCustomizations}">
+    <ContentPage.Resources>
+        <Style TargetType="Entry">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+            <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="MinimumWidthRequest" Value="44" />
+        </Style>
+        <Style TargetType="Picker">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+            <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="MinimumWidthRequest" Value="44" />
+        </Style>
+    </ContentPage.Resources>
     <ScrollView>
         <VerticalStackLayout Spacing="18" Padding="24,32">
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 18"
-                    Padding="16"
-                    x:Name="MainCard">
-                <VerticalStackLayout Spacing="12" x:Name="MainContentStack">
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
                     <Label Text="{loc:Loc AdhanCustomizations}" FontSize="16" />
                     <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Button Text="{loc:Loc AddCustomAdhanSound}" Command="{Binding AddCustomAdhanSoundCommand}" />
                     <Button Text="{loc:Loc TestNotification}" Command="{Binding SendTestNotificationCommand}" />
-                    <CollectionView ItemsSource="{Binding AdhanSoundItems}" SelectionMode="None" x:Name="SoundCollection">
+                    <CollectionView ItemsSource="{Binding AdhanSoundItems}" SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="10,8" Margin="0,2">
-                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="4,2">
-                                        <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="13" />
-                                        <Button Grid.Column="1"
-                                                Command="{Binding BindingContext.SelectAdhanSoundCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
-                                                CommandParameter="{Binding .}">
-                                            <Button.Triggers>
-                                                <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter Property="Text" Value="{loc:Loc Selected}" />
-                                                    <Setter Property="BackgroundColor" Value="#1D4C4A" />
-                                                    <Setter Property="BorderColor" Value="#32C7A6" />
-                                                    <Setter Property="Scale" Value="1.02" />
-                                                </DataTrigger>
-                                                <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="False">
-                                                    <Setter Property="Text" Value="{loc:Loc Select}" />
-                                                </DataTrigger>
-                                            </Button.Triggers>
-                                        </Button>
-                                        <Button Grid.Column="2"
-                                                IsEnabled="{Binding CanPreview}"
-                                                Command="{Binding BindingContext.ToggleAdhanPreviewCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
-                                                CommandParameter="{Binding .}">
-                                            <Button.Triggers>
-                                                <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="True">
-                                                    <Setter Property="Text" Value="{loc:Loc Stop}" />
-                                                </DataTrigger>
-                                                <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="False">
-                                                    <Setter Property="Text" Value="{loc:Loc Play}" />
-                                                </DataTrigger>
-                                            </Button.Triggers>
-                                        </Button>
-                                    </Grid>
-                                </Border>
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="4,2">
+                                    <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="13" />
+                                    <Button Grid.Column="1"
+                                            Command="{Binding BindingContext.SelectAdhanSoundCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc Selected}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc Select}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                    <Button Grid.Column="2"
+                                            IsEnabled="{Binding CanPreview}"
+                                            Command="{Binding BindingContext.ToggleAdhanPreviewCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc Stop}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsPlaying}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc Play}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </Grid>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>

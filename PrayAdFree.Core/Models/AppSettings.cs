@@ -16,6 +16,6 @@ public sealed class AppSettings {
     public string Language { get; init; } = "auto";
     public bool LanguageSelected { get; init; }
     public ThemeMode ThemeMode { get; init; } = ThemeMode.Auto;
-    public ThemeVariant ThemeVariant { get; init; } = ThemeVariant.A;
+    public ThemeVariant ThemeVariant { get; init; } = ThemeVariant.B;
     public int AccentIndex { get; init; }
 }

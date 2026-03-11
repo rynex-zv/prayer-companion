@@ -1,4 +1,5 @@
 using Pray_Ad_Free.Services;
+using Microsoft.Maui.Controls.Shapes;
 
 namespace Pray_Ad_Free.Pages;
 
@@ -28,24 +29,39 @@ public sealed class AdhanSnoozePage : ContentPage {
         _selectedDelayMinutes = Math.Clamp( model.InitialDelayMinutes , _minDelayMinutes , _maxDelayMinutes );
 
         Title = LocalizationManager.Translate( "SnoozePageTitle" );
-        BackgroundColor = Application.Current?.RequestedTheme == AppTheme.Dark
-            ? Color.FromArgb( "#0F172A" )
-            : Color.FromArgb( "#F7F3EA" );
+        BackgroundColor = Color.FromArgb( "#08111D" );
+
+        var icon = new Border {
+            WidthRequest = 78 ,
+            HeightRequest = 78 ,
+            StrokeThickness = 0 ,
+            StrokeShape = new RoundRectangle { CornerRadius = 39 } ,
+            BackgroundColor = Color.FromArgb( "#D1AD3A" ) ,
+            HorizontalOptions = LayoutOptions.Center ,
+            Content = new Label {
+                Text = "◷" ,
+                FontSize = 32 ,
+                HorizontalTextAlignment = TextAlignment.Center ,
+                VerticalTextAlignment = TextAlignment.Center ,
+                TextColor = Colors.White
+            }
+        };
 
         var title = new Label {
             Text = LocalizationManager.Translate( "SnoozePageTitle" ) ,
-            FontSize = 22 ,
+            FontSize = 30 ,
+            FontAttributes = FontAttributes.Bold ,
             HorizontalTextAlignment = TextAlignment.Center ,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black
+            TextColor = Colors.White
         };
 
         var subtitle = new Label {
             Text = string.Format(
                 LocalizationManager.Translate( "SnoozePageHint" ) ,
                 model.CurrentPrayerName ) ,
-            FontSize = 14 ,
+            FontSize = 16 ,
             HorizontalTextAlignment = TextAlignment.Center ,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#CBD5E1" ) : Color.FromArgb( "#475569" )
+            TextColor = Color.FromArgb( "#B8C7D8" )
         };
 
         var remaining = new Label {
@@ -53,15 +69,16 @@ public sealed class AdhanSnoozePage : ContentPage {
                 LocalizationManager.Translate( "SnoozeRemainingToNextPrayer" ) ,
                 model.NextPrayerName ,
                 model.RemainingToNextPrayer ) ,
-            FontSize = 13 ,
+            FontSize = 14 ,
             HorizontalTextAlignment = TextAlignment.Center ,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#94A3B8" ) : Color.FromArgb( "#334155" )
+            TextColor = Color.FromArgb( "#8CA0B6" )
         };
 
         _delayLabel = new Label {
-            FontSize = 14 ,
+            FontSize = 16 ,
+            FontAttributes = FontAttributes.Bold ,
             HorizontalTextAlignment = TextAlignment.Center ,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#E2E8F0" ) : Color.FromArgb( "#1E293B" )
+            TextColor = Color.FromArgb( "#EAF1FA" )
         };
 
         _minusButton = new Button {
@@ -73,12 +90,12 @@ public sealed class AdhanSnoozePage : ContentPage {
         _minusButton.Clicked += ( _ , _ ) => ChangeDelay( -1 );
 
         _valueLabel = new Label {
-            WidthRequest = 120 ,
+            WidthRequest = 140 ,
             HorizontalTextAlignment = TextAlignment.Center ,
             VerticalTextAlignment = TextAlignment.Center ,
-            FontSize = 28 ,
+            FontSize = 40 ,
             FontAttributes = FontAttributes.Bold ,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black
+            TextColor = Colors.White
         };
 
         _plusButton = new Button {
@@ -97,13 +114,18 @@ public sealed class AdhanSnoozePage : ContentPage {
 
         var confirmButton = new Button {
             Text = LocalizationManager.Translate( "SnoozePageConfirm" ) ,
-            HeightRequest = 48
+            HeightRequest = 52 ,
+            BackgroundColor = Color.FromArgb( "#FFFFFF" ) ,
+            TextColor = Color.FromArgb( "#0F172A" ) ,
+            FontAttributes = FontAttributes.Bold
         };
         confirmButton.Clicked += async ( _ , _ ) => await ConfirmAsync();
 
         var cancelButton = new Button {
             Text = LocalizationManager.Translate( "SnoozePageCancel" ) ,
-            HeightRequest = 44
+            HeightRequest = 48 ,
+            BackgroundColor = Color.FromArgb( "#132738" ) ,
+            TextColor = Color.FromArgb( "#C7D6E6" )
         };
         cancelButton.Clicked += async ( _ , _ ) => await CloseAsync( navigateToHome: false );
 
@@ -112,6 +134,7 @@ public sealed class AdhanSnoozePage : ContentPage {
             MaximumWidthRequest = 480 ,
             HorizontalOptions = LayoutOptions.Fill ,
             Children = {
+                icon,
                 title,
                 subtitle,
                 remaining,
@@ -120,6 +143,15 @@ public sealed class AdhanSnoozePage : ContentPage {
                 confirmButton,
                 cancelButton
             }
+        };
+
+        var card = new Border {
+            Padding = new Thickness( 22 ) ,
+            StrokeShape = new RoundRectangle { CornerRadius = 24 } ,
+            Stroke = Color.FromArgb( "#20344A" ) ,
+            StrokeThickness = 1 ,
+            BackgroundColor = Color.FromArgb( "#102531" ) ,
+            Content = contentStack
         };
 
         var root = new Grid {
@@ -131,8 +163,8 @@ public sealed class AdhanSnoozePage : ContentPage {
             }
         };
 
-        root.Children.Add( contentStack );
-        Grid.SetRow( contentStack , 1 );
+        root.Children.Add( card );
+        Grid.SetRow( card , 1 );
 
         Content = root;
 

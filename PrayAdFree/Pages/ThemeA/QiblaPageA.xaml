@@ -3,54 +3,70 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
              xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
-             x:Class="Pray_Ad_Free.Pages.QiblaPage"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.QiblaPageA"
              Title="{loc:Loc Qibla}">
     <ContentPage.Resources>
         <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
         <Style x:Key="ChoiceChip" TargetType="Border">
-            <Setter Property="BackgroundColor" Value="#16283A" />
-            <Setter Property="Stroke" Value="#234258" />
-            <Setter Property="StrokeShape" Value="RoundRectangle 18" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 12" />
             <Setter Property="StrokeThickness" Value="1" />
-            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Padding" Value="12,8" />
         </Style>
         <Style x:Key="ChoiceChipLabel" TargetType="Label">
-            <Setter Property="TextColor" Value="#8CA0B6" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
         </Style>
     </ContentPage.Resources>
-
     <Grid>
         <Grid.Background>
-            <RadialGradientBrush Center="0.5,0.3" Radius="0.95">
+            <RadialGradientBrush Center="0.5,0.3" Radius="0.8">
                 <GradientStop Color="{StaticResource NightTop}" Offset="0"/>
                 <GradientStop Color="{StaticResource NightBase}" Offset="1"/>
             </RadialGradientBrush>
         </Grid.Background>
 
         <ScrollView>
-            <VerticalStackLayout Spacing="14"
-                                 Padding="24,20,24,30"
+            <VerticalStackLayout Spacing="20"
+                                 Padding="24,32"
                                  HorizontalOptions="Center"
                                  WidthRequest="{OnPlatform WinUI=720, MacCatalyst=720, Default=-1}">
-                <Label Text="{loc:Loc Qibla}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-
-                <Border Padding="16" StrokeShape="RoundRectangle 20" BackgroundColor="#111C2E" Stroke="#20344A">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="{loc:Loc QiblaDirection}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                        <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}"
-                               FontSize="56"
-                               FontAttributes="Bold"
-                               TextColor="#EAB308"
-                               HorizontalTextAlignment="Center" />
-                        <Label Text="{Binding StatusMessage}" FontSize="13" HorizontalTextAlignment="Center" TextColor="#8CA0B6" />
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="{loc:Loc QiblaDirection}" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Label Text="{Binding LocationTitle}" FontSize="18" />
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                            <Label Text="{Binding StatusMessage}" FontSize="12" TextColor="{StaticResource TextSubtle}" />
+                            <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}"
+                                   Grid.Column="1"
+                                   FontSize="16"
+                                   TextColor="{StaticResource Accent}"
+                                   HorizontalTextAlignment="End" />
+                            <Label Text="{loc:Loc Heading}"
+                                   Grid.Row="1"
+                                   FontSize="11"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                            <Label Text="{Binding Heading, StringFormat='{0:F0} deg'}"
+                                   Grid.Row="1"
+                                   Grid.Column="1"
+                                   FontSize="11"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+                                   HorizontalTextAlignment="End" />
+                        </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Padding="16" StrokeShape="RoundRectangle 20" BackgroundColor="#111C2E" Stroke="#20344A">
-                    <VerticalStackLayout Spacing="12">
-                        <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="#8CA0B6" HorizontalTextAlignment="End" />
-                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="End" BindableLayout.ItemsSource="{Binding ReadingModes}">
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ReadingModes}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
@@ -67,7 +83,7 @@
                                                             <Binding Path="." />
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="#E9F2FD" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -79,8 +95,8 @@
                                                         <Binding Path="." />
                                                     </MultiBinding>
                                                 </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="#2FB79D" />
-                                                <Setter Property="Stroke" Value="#2FB79D" />
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
                                             </DataTrigger>
                                         </Border.Triggers>
                                     </Border>
@@ -88,8 +104,8 @@
                             </BindableLayout.ItemTemplate>
                         </FlexLayout>
 
-                        <Label Text="{loc:Loc CompassFilter}" FontSize="12" TextColor="#8CA0B6" HorizontalTextAlignment="End" />
-                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="End" BindableLayout.ItemsSource="{Binding FilterModes}">
+                        <Label Text="{loc:Loc CompassFilter}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding FilterModes}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
@@ -106,7 +122,7 @@
                                                             <Binding Path="." />
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="#E9F2FD" />
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -118,8 +134,8 @@
                                                         <Binding Path="." />
                                                     </MultiBinding>
                                                 </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="#2FB79D" />
-                                                <Setter Property="Stroke" Value="#2FB79D" />
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
                                             </DataTrigger>
                                         </Border.Triggers>
                                     </Border>
@@ -129,21 +145,22 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <Border BackgroundColor="#111C2E"
-                        Stroke="#20344A"
-                        StrokeShape="RoundRectangle 20"
-                        Padding="16">
-                    <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=320, iOS=320}">
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 24"
+                        Padding="18">
+                    <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
                         <Grid Rotation="{Binding CompassRotation}" AnchorX="0.5" AnchorY="0.5">
-                            <Ellipse Fill="#13273B" />
-                            <Ellipse Stroke="#2FB79D" StrokeThickness="2" Opacity="0.6" />
-                            <Ellipse Stroke="#2FB79D" StrokeThickness="1" Opacity="0.3" Margin="24" />
+                            <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+                            <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="2" Opacity="0.6" />
+                            <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="1" Opacity="0.3"
+                                     Margin="24" />
 
                             <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
-                                <Label Text="ش" Grid.Row="0" Grid.Column="1" FontSize="14" TextColor="#EF4444" HorizontalOptions="Center" />
-                                <Label Text="غ" Grid.Row="1" Grid.Column="0" FontSize="14" TextColor="#EAF1FA" VerticalOptions="Center" />
-                                <Label Text="ق" Grid.Row="1" Grid.Column="2" FontSize="14" TextColor="#EAF1FA" VerticalOptions="Center" />
-                                <Label Text="ج" Grid.Row="2" Grid.Column="1" FontSize="14" TextColor="#EAF1FA" HorizontalOptions="Center" />
+                                <Label Text="N" Grid.Row="0" Grid.Column="1" FontSize="12" TextColor="{StaticResource Accent}" HorizontalOptions="Center" />
+                                <Label Text="W" Grid.Row="1" Grid.Column="0" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="E" Grid.Row="1" Grid.Column="2" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="S" Grid.Row="2" Grid.Column="1" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalOptions="Center" />
                             </Grid>
 
                             <Grid Rotation="{Binding NeedleRotation}" AnchorX="0.5" AnchorY="0.5">
@@ -151,32 +168,32 @@
                                         HeightRequest="18"
                                         StrokeThickness="2"
                                         StrokeShape="Ellipse"
-                                        Stroke="#F0C339"
-                                        BackgroundColor="#F0C339"
-                                        HorizontalOptions="Start"
-                                        VerticalOptions="Center"
-                                        Margin="30,0,0,0">
-                                    <Border.Shadow>
-                                        <Shadow Brush="#EFBF40" Radius="18" Opacity="0.95" Offset="0,0" />
-                                    </Border.Shadow>
-                                </Border>
+                                        Stroke="{StaticResource Accent}"
+                                        BackgroundColor="{StaticResource Accent}"
+                                        HorizontalOptions="Center"
+                                        VerticalOptions="Start"
+                                        Margin="0,6,0,0" />
                             </Grid>
                         </Grid>
 
+                        <Ellipse WidthRequest="8" HeightRequest="8" Fill="{StaticResource Accent}"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center" />
+
                         <VerticalStackLayout Spacing="2" HorizontalOptions="Center" VerticalOptions="Center">
-                            <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}" FontSize="52" FontAttributes="Bold" />
-                            <Label Text="{loc:Loc QiblaDirection}" FontSize="12" TextColor="#8CA0B6" />
-                        </VerticalStackLayout>
-                    </Grid>
-                </Border>
+                        <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}" FontSize="26" />
+                        <Label Text="{loc:Loc Qibla}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
 
                 <Border x:Name="MapContainer"
-                        BackgroundColor="#111C2E"
-                        Stroke="#20344A"
-                        StrokeShape="RoundRectangle 20"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 18"
                         Padding="12">
                     <VerticalStackLayout Spacing="8">
-                        <Label Text="{loc:Loc Location}" FontSize="12" TextColor="#8CA0B6" HorizontalTextAlignment="End" />
+                        <Label Text="{loc:Loc Location}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Grid>
                             <ContentView x:Name="MapHost"
                                          HeightRequest="{OnPlatform WinUI=280, MacCatalyst=280, Android=220, iOS=220}"

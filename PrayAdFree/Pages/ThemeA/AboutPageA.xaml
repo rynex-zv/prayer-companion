@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.AboutPageA"
+             Title="{loc:Loc About}">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{StaticResource NightTop}" Offset="0"/>
+                <GradientStop Color="{StaticResource NightBase}" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <VerticalStackLayout Spacing="14" Padding="24,32">
+            <Label Text="{Binding AppName}"
+                  
+                   FontSize="26"
+                   TextColor="{StaticResource Accent}" />
+            <Label Text="{Binding Tagline}" FontSize="16" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding Source}" FontSize="14" />
+                    <Label Text="{Binding Privacy}" FontSize="14" />
+                    <Label Text="{Binding Contact}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                    <Button Text="{loc:Loc ReportIssue}" Clicked="OnReportClicked" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

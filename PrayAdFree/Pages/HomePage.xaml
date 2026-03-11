@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
@@ -8,126 +8,93 @@
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0"/>
-                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.5"/>
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.6"/>
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1"/>
             </LinearGradientBrush>
         </Grid.Background>
 
-        <RefreshView IsRefreshing="{Binding IsBusy}"
-                     Command="{Binding RefreshCommand}">
+        <RefreshView IsRefreshing="{Binding IsBusy}" Command="{Binding RefreshCommand}">
             <ScrollView>
-                <VerticalStackLayout Spacing="20" Padding="24,32">
-                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 20"
-                            Padding="18">
+                <VerticalStackLayout Spacing="16" Padding="24,20,24,28">
+                    <Label Text="بسم الله الرحمن الرحيم" FontSize="42" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                    <Label Text="مواقيت الصلاة" FontSize="14" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+
+                    <Border Padding="16" StrokeShape="RoundRectangle 20">
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="{Binding LocationTitle}"
-                                   FontSize="18"
-                                  />
-                            <Label Text="{Binding GregorianDate}"
-                                   FontSize="14"
-                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                            <Label Text="{Binding HijriDate}"
-                                   FontSize="14"
-                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                            <HorizontalStackLayout Spacing="8">
-                                <Label Text="{loc:Loc NextPrayer}"
-                                       FontSize="12"
-                                       TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding NextPrayerName}"
-                                       FontSize="12"/>
-                                <Label Text="{Binding NextPrayerClock}"
-                                       FontSize="12"
-                                       TextColor="{StaticResource Accent}" />
-                                <Label Text="{Binding NextPrayerBaseClock, StringFormat='({0})'}"
-                                       IsVisible="{Binding ShowNextPrayerBaseClock}"
-                                       FontSize="11"
-                                       TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            </HorizontalStackLayout>
-                            <Label Text="{Binding StatusMessage}"
-                                   FontSize="12"
-                                   TextColor="{StaticResource TextSubtle}"/>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                <Label Text="◔" FontSize="20" TextColor="#D1AD3A" />
+                                <Label Grid.Column="1" Text="{Binding LocationTitle}" FontSize="32" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            </Grid>
+                            <Label Text="{Binding GregorianDate}" FontSize="13" HorizontalTextAlignment="End" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
                         </VerticalStackLayout>
                     </Border>
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                        <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
-                                StrokeThickness="0"
-                                StrokeShape="RoundRectangle 22"
-                                Padding="18">
-                            <VerticalStackLayout Spacing="8">
-                                <Label Text="{loc:Loc NextPrayer}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding NextPrayerName}" FontSize="20"/>
-                                <Label Text="{Binding NextPrayerClock}"
-                                       FontSize="16"
-                                       TextColor="{StaticResource Accent}"/>
-                                <Label Text="{Binding NextPrayerBaseClock}"
-                                       IsVisible="{Binding ShowNextPrayerBaseClock}"
-                                       FontSize="12"
-                                       TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Border Padding="14"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource DarkSandMid}}"
+                                Stroke="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource SurfaceHighlightDark}}"
+                                StrokeShape="RoundRectangle 18">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{loc:Loc TimeLeft}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
+                                <Label Text="{Binding Countdown}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                <Label Text="{Binding NextPrayerDayLabel}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" HorizontalTextAlignment="End" />
                             </VerticalStackLayout>
                         </Border>
-                        <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
-                                StrokeThickness="0"
-                                StrokeShape="RoundRectangle 22"
-                                Padding="18"
-                                Grid.Column="1">
-                            <VerticalStackLayout Spacing="8">
-                                <Label Text="{loc:Loc TimeLeft}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding Countdown}"
-                                      
-                                       FontSize="20"/>
-                                <Label Text="Stay ready"
-                                       FontSize="12"
-                                       TextColor="{StaticResource TextSubtle}"/>
+                        <Border Padding="14"
+                                Grid.Column="1"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                                Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                                StrokeShape="RoundRectangle 18">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{loc:Loc NextPrayer}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
+                                <Label Text="{Binding NextPrayerName}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                <Label Text="{Binding NextPrayerClock}" FontSize="16" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" HorizontalTextAlignment="End" />
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
 
-                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 18"
-                            Padding="12">
-                        <CollectionView ItemsSource="{Binding TodayTimings}"
-                                        SelectionMode="None">
-                            <CollectionView.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="*,Auto"
-                                          Padding="8,10">
-                                        <Label Text="{Binding Name}"
-                                               FontSize="16"/>
-                                        <VerticalStackLayout Grid.Column="1" Spacing="2" HorizontalOptions="End">
-                                            <Label Text="{Binding Time}"
-                                                   FontSize="16"
+                    <Border Padding="14" StrokeShape="RoundRectangle 20">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="مواقيت اليوم" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="End" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                            <CollectionView ItemsSource="{Binding TodayTimings}" SelectionMode="None" ItemSizingStrategy="MeasureAllItems">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="Auto,*" Padding="8,10" ColumnSpacing="14">
+                                            <VerticalStackLayout Spacing="2" HorizontalOptions="Start">
+                                                <Label Text="{Binding Time}" FontSize="22" HorizontalTextAlignment="Start" TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"/>
+                                                <Label Text="{Binding BaseTime}" IsVisible="{Binding ShowBaseTime}" FontSize="11" HorizontalTextAlignment="Start" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding Name}"
+                                                   FontSize="24"
                                                    HorizontalTextAlignment="End"
-                                                   TextColor="{StaticResource Accent}"/>
-                                            <Label Text="{Binding BaseTime}"
-                                                   IsVisible="{Binding ShowBaseTime}"
-                                                   FontSize="11"
-                                                   HorizontalTextAlignment="End"
-                                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                        </VerticalStackLayout>
-                                    </Grid>
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>
-                        </CollectionView>
+                                                   VerticalTextAlignment="Center"
+                                                   LineBreakMode="NoWrap" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
                     </Border>
 
-                    <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 18"
-                            Padding="14">
-                        <Grid ColumnDefinitions="*,*">
-                            <VerticalStackLayout Spacing="4">
-                                <Label Text="{loc:Loc Imsak}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding ImsakTime}" FontSize="16"/>
-                            </VerticalStackLayout>
-                            <VerticalStackLayout Spacing="4" Grid.Column="1">
-                                <Label Text="{loc:Loc Iftar}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"/>
-                                <Label Text="{Binding IftarTime}" FontSize="16"/>
-                            </VerticalStackLayout>
-                        </Grid>
+                    <Border Padding="16" StrokeShape="RoundRectangle 20">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="الإمساك والإفطار" FontSize="16" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" HorizontalTextAlignment="End" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                                <Border Padding="10" BackgroundColor="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{loc:Loc Iftar}" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
+                                        <Label Text="{Binding IftarTime}" FontSize="32" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" HorizontalTextAlignment="Center" />
+                                    </VerticalStackLayout>
+                                </Border>
+                                <Border Padding="10" Grid.Column="1" BackgroundColor="Transparent" StrokeThickness="0">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="{loc:Loc Imsak}" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
+                                        <Label Text="{Binding ImsakTime}" FontSize="32" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </Grid>
+                        </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>
             </ScrollView>

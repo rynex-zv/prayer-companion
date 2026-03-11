@@ -2,6 +2,7 @@
 using Plugin.LocalNotification.AndroidOption;
 using Plugin.LocalNotification.EventArgs;
 using Plugin.LocalNotification.WindowsOption;
+using Microsoft.Extensions.DependencyInjection;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 #if ANDROID
@@ -34,9 +35,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
     private readonly SettingsService _settingsService;
     private readonly PrayerTimesService _prayerTimesService;
-    private readonly ILocalNotificationScheduler _localNotificationScheduler;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private ILocalNotificationScheduler? _localNotificationScheduler;
     private AdhanNotificationPayload? _activeScheduledPayload;
     private bool _initialized;
     private bool _disposed;
@@ -59,11 +61,11 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public AdhanPlaybackService(
         SettingsService settingsService,
         PrayerTimesService prayerTimesService,
-        ILocalNotificationScheduler localNotificationScheduler,
+        IServiceProvider serviceProvider,
         IAppLogger logger) {
         _settingsService = settingsService;
         _prayerTimesService = prayerTimesService;
-        _localNotificationScheduler = localNotificationScheduler;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -488,9 +490,13 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return;
         }
 
-        await _localNotificationScheduler
+        await ResolveLocalNotificationScheduler()
             .ScheduleAsync(finalDays, normalizedSettings, CancellationToken.None, requestPermissions: false)
             .ConfigureAwait(false);
+    }
+
+    private ILocalNotificationScheduler ResolveLocalNotificationScheduler() {
+        return _localNotificationScheduler ??= _serviceProvider.GetRequiredService<ILocalNotificationScheduler>();
     }
 
     private static AppSettings CloneSettingsWithPendingReminder(AppSettings settings, DeferredAdhanReminder? pendingReminder) {

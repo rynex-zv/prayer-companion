@@ -2,7 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
-             x:Class="Pray_Ad_Free.Pages.SettingsNotificationsPage"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.SettingsNotificationsPageA"
              Title="{loc:Loc Notifications}">
     <ContentPage.Resources>
         <Style TargetType="Entry">
@@ -32,10 +32,10 @@
                     Padding="16">
                 <VerticalStackLayout Spacing="12">
                     <Label Text="{loc:Loc Notifications}" FontSize="16" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                        <Label Text="{loc:Loc EnableAdhan}" FontSize="14" VerticalOptions="Center" />
-                        <Switch Grid.Column="1" IsToggled="{Binding NotificationsEnabled}" VerticalOptions="Center" HorizontalOptions="Center" />
-                    </Grid>
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <Label Text="{loc:Loc EnableAdhan}" FontSize="14"/>
+                        <Switch IsToggled="{Binding NotificationsEnabled}" />
+                    </HorizontalStackLayout>
                     <Border IsVisible="{Binding IsWindowsBackgroundOptionsVisible}"
                             BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                             StrokeThickness="0"
@@ -44,14 +44,14 @@
                             Margin="0,4,0,4">
                         <VerticalStackLayout Spacing="8">
                             <Label Text="{loc:Loc WindowsBackgroundOptions}" FontSize="14" />
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                                <Label Text="{loc:Loc WindowsHideOnClose}" FontSize="13" VerticalOptions="Center" />
-                                <Switch Grid.Column="1" IsToggled="{Binding HideOnCloseEnabled}" VerticalOptions="Center" HorizontalOptions="Center" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                                <Label Text="{loc:Loc WindowsStartMinimizedWithWindows}" FontSize="13" VerticalOptions="Center" />
-                                <Switch Grid.Column="1" IsToggled="{Binding WindowsBackgroundEnabled}" VerticalOptions="Center" HorizontalOptions="Center" />
-                            </Grid>
+                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                                <Label Text="{loc:Loc WindowsHideOnClose}" FontSize="13" />
+                                <Switch IsToggled="{Binding HideOnCloseEnabled}" />
+                            </HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                                <Label Text="{loc:Loc WindowsStartMinimizedWithWindows}" FontSize="13" />
+                                <Switch IsToggled="{Binding WindowsBackgroundEnabled}" />
+                            </HorizontalStackLayout>
                             <Label Text="{loc:Loc WindowsBackgroundServiceHint}"
                                    FontSize="11"
                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
@@ -99,10 +99,10 @@
                         <Slider Minimum="0" Maximum="100" Value="{Binding AdhanVolume}" />
                         <Label Grid.Column="1" Text="{Binding AdhanVolumeLabel}" VerticalOptions="Center" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" VerticalOptions="Center">
-                        <Label Text="{loc:Loc Vibration}" FontSize="14" VerticalOptions="Center" />
-                        <Switch Grid.Column="1" IsToggled="{Binding VibrationEnabled}" VerticalOptions="Center" HorizontalOptions="Center" />
-                    </Grid>
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                        <Label Text="{loc:Loc Vibration}" FontSize="14"/>
+                        <Switch IsToggled="{Binding VibrationEnabled}" />
+                    </HorizontalStackLayout>
                     <Label Text="{loc:Loc VibrationStrength}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Picker Title="{loc:Loc VibrationStrength}" ItemsSource="{Binding VibrationStrengths}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedVibrationStrength}" />
                     <Label Text="{loc:Loc VibrationPattern}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

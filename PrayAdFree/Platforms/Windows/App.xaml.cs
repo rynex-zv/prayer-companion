@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppNotifications;
@@ -11,14 +12,11 @@ using WinRT.Interop;
 using WinForms = System.Windows.Forms;
 using Drawing = System.Drawing;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
-
 namespace Pray_Ad_Free.WinUI {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : MauiWinUIApplication {
+        private static readonly object TraceLock = new();
+        private static readonly string StartupTracePath = BuildTracePath();
+
         private IntPtr _windowHandle;
         private AppWindow? _appWindow;
         private readonly WindowsBackgroundModeService _backgroundModeService = new();
@@ -32,20 +30,25 @@ namespace Pray_Ad_Free.WinUI {
         private bool _hideOnLaunch;
         private bool _isExitRequested;
 
-        /// <summary>
-        /// Initializes the singleton application object. This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
         public App() {
-            this.InitializeComponent();
+            Trace("WinUI.App.ctor:start");
+            InitializeComponent();
+            Trace("WinUI.App.ctor:end");
         }
 
-        protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+        protected override MauiApp CreateMauiApp() {
+            Trace("WinUI.CreateMauiApp:start");
+            var app = MauiProgram.CreateMauiApp();
+            Trace("WinUI.CreateMauiApp:end");
+            return app;
+        }
 
         private static void RegisterNotifications() {
+            Trace("WinUI.RegisterNotifications:start");
             SetCurrentProcessExplicitAppUserModelID("com.rynex.prayadfree");
             AppNotificationManager.Default.NotificationInvoked += OnNotificationInvoked;
             AppNotificationManager.Default.Register();
+            Trace("WinUI.RegisterNotifications:end");
         }
 
         private static void OnNotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args) {
@@ -79,11 +82,26 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args) {
+            Trace($"WinUI.OnLaunched:start args='{args.Arguments ?? string.Empty}'");
             _hideOnLaunch = WindowsBackgroundModeService.IsBackgroundLaunch(args.Arguments) && _backgroundModeService.IsEnabled();
+            Trace($"WinUI.OnLaunched:hideOnLaunch={_hideOnLaunch}");
 
-            RegisterNotifications();
+            try {
+                RegisterNotifications();
+            } catch (Exception ex) {
+                Trace($"WinUI.OnLaunched:RegisterNotifications:exception {ex}");
+            }
+
+            Trace("WinUI.OnLaunched:beforeBase");
             base.OnLaunched(args);
-            HookBackgroundBehavior();
+            Trace("WinUI.OnLaunched:afterBase");
+
+            try {
+                HookBackgroundBehavior();
+                Trace("WinUI.OnLaunched:afterHookBackgroundBehavior");
+            } catch (Exception ex) {
+                Trace($"WinUI.OnLaunched:HookBackgroundBehavior:exception {ex}");
+            }
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -100,26 +118,34 @@ namespace Pray_Ad_Free.WinUI {
         private const int SwRestore = 9;
 
         private void HookBackgroundBehavior() {
+            Trace("WinUI.HookBackgroundBehavior:start");
             var mauiWindow = Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault();
             if (mauiWindow?.Handler?.PlatformView is not Microsoft.UI.Xaml.Window nativeWindow) {
+                Trace("WinUI.HookBackgroundBehavior:noNativeWindow");
                 return;
             }
 
             _windowHandle = WindowNative.GetWindowHandle(nativeWindow);
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_windowHandle);
             _appWindow = AppWindow.GetFromWindowId(windowId);
+            Trace($"WinUI.HookBackgroundBehavior:windowHandle={_windowHandle}");
             _appWindow.Closing -= OnAppWindowClosing;
             _appWindow.Closing += OnAppWindowClosing;
 
             InitializeTrayIcon();
 
             if (_hideOnLaunch) {
+                Trace("WinUI.HookBackgroundBehavior:HideWindow");
                 HideWindow();
             }
+
+            Trace("WinUI.HookBackgroundBehavior:end");
         }
 
         private void InitializeTrayIcon() {
+            Trace("WinUI.InitializeTrayIcon:start");
             if (_trayIcon != null) {
+                Trace("WinUI.InitializeTrayIcon:alreadyInitialized");
                 return;
             }
 
@@ -149,6 +175,7 @@ namespace Pray_Ad_Free.WinUI {
                 _trayIconImage = Drawing.SystemIcons.Application;
                 _trayIconFromFile = false;
             }
+
             _trayIcon = new WinForms.NotifyIcon {
                 Icon = _trayIconImage,
                 Text = "Pray Ad Free",
@@ -156,6 +183,7 @@ namespace Pray_Ad_Free.WinUI {
                 ContextMenuStrip = _trayMenu
             };
             _trayIcon.MouseDoubleClick += OnTrayIconMouseDoubleClick;
+            Trace("WinUI.InitializeTrayIcon:end");
         }
 
         private void OnTrayIconMouseDoubleClick(object? sender, WinForms.MouseEventArgs e) {
@@ -199,24 +227,29 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         private void OnTrayExitClicked(object? sender, EventArgs e) {
+            Trace("WinUI.OnTrayExitClicked");
             _isExitRequested = true;
             DisposeTrayIcon();
             Exit();
         }
 
         private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args) {
+            Trace("WinUI.OnAppWindowClosing:start");
             if (_isExitRequested) {
                 DisposeTrayIcon();
+                Trace("WinUI.OnAppWindowClosing:exitRequested");
                 return;
             }
 
             if (!ShouldHideOnClose()) {
                 DisposeTrayIcon();
+                Trace("WinUI.OnAppWindowClosing:allowClose");
                 return;
             }
 
             args.Cancel = true;
             HideWindow();
+            Trace("WinUI.OnAppWindowClosing:hidden");
         }
 
         private bool ShouldHideOnClose() {
@@ -237,26 +270,31 @@ namespace Pray_Ad_Free.WinUI {
         private void HideWindow() {
             if (_windowHandle != IntPtr.Zero) {
                 ShowWindow(_windowHandle, SwHide);
+                Trace("WinUI.HideWindow:applied");
             }
         }
 
         private void RestoreWindow() {
             if (_windowHandle == IntPtr.Zero) {
+                Trace("WinUI.RestoreWindow:noHandle");
                 return;
             }
 
             ShowWindow(_windowHandle, SwShow);
             ShowWindow(_windowHandle, SwRestore);
             SetForegroundWindow(_windowHandle);
+            Trace("WinUI.RestoreWindow:applied");
         }
 
         private void DisposeTrayIcon() {
+            Trace("WinUI.DisposeTrayIcon:start");
             if (_trayIcon != null) {
                 _trayIcon.Visible = false;
                 _trayIcon.MouseDoubleClick -= OnTrayIconMouseDoubleClick;
                 _trayIcon.Dispose();
                 _trayIcon = null;
             }
+
             if (_trayIconImage != null && _trayIconFromFile) {
                 _trayIconImage.Dispose();
                 _trayIconImage = null;
@@ -283,7 +321,28 @@ namespace Pray_Ad_Free.WinUI {
                 _trayMenu.Dispose();
                 _trayMenu = null;
             }
+            Trace("WinUI.DisposeTrayIcon:end");
+        }
+
+        private static string BuildTracePath() {
+            try {
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                var dir = Path.Combine(desktop, "PrayAdFreeLogs");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "startup-trace.log");
+            } catch {
+                return Path.Combine(Path.GetTempPath(), "PrayAdFree-startup-trace.log");
+            }
+        }
+
+        private static void Trace(string message) {
+            try {
+                var line = $"{DateTime.UtcNow:O} | T{Environment.CurrentManagedThreadId} | {message}";
+                lock (TraceLock) {
+                    File.AppendAllText(StartupTracePath, line + Environment.NewLine, Encoding.UTF8);
+                }
+            } catch {
+            }
         }
     }
 }
-

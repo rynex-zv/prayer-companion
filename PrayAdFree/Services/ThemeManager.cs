@@ -2,11 +2,13 @@ using Microsoft.Maui;
 using Microsoft.Maui.Graphics;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Models;
+using Pray_Ad_Free.Resources.Styles;
 
 namespace Pray_Ad_Free.Services;
 
 public static class ThemeManager {
     private const int AccentCount = 20;
+    private static ThemeBStyles? _themeBStyles;
 
     private static readonly IReadOnlyList<AccentOption> ThemeAAccents = new List<AccentOption> {
         new AccentOption(0, "Teal", "#0E6B61"),
@@ -32,26 +34,26 @@ public static class ThemeManager {
     };
 
     private static readonly IReadOnlyList<AccentOption> ThemeBAccents = new List<AccentOption> {
-        new AccentOption(0, "Ocean", "#1B6EA5"),
-        new AccentOption(1, "Wave", "#1E7FB0"),
-        new AccentOption(2, "Lagoon", "#2B8CB8"),
-        new AccentOption(3, "Harbor", "#3A97B0"),
-        new AccentOption(4, "Glacier", "#4AA3A6"),
-        new AccentOption(5, "Meadow", "#5FAF9D"),
-        new AccentOption(6, "Mist", "#74B892"),
-        new AccentOption(7, "Sage", "#8BC184"),
-        new AccentOption(8, "Lime", "#A3C972"),
-        new AccentOption(9, "Pollen", "#BDC059"),
-        new AccentOption(10, "Saffron", "#D2A94A"),
-        new AccentOption(11, "Coral", "#E08A4F"),
-        new AccentOption(12, "Flare", "#E06C5B"),
-        new AccentOption(13, "Blush", "#D4536E"),
-        new AccentOption(14, "Rose", "#B9487A"),
-        new AccentOption(15, "Iris", "#9B3F86"),
-        new AccentOption(16, "Dusk", "#7C3E8A"),
-        new AccentOption(17, "Indigo", "#5B4A8A"),
-        new AccentOption(18, "Rain", "#3F5685"),
-        new AccentOption(19, "Deep", "#2C6286")
+        new AccentOption(0, "Amber", "#D1AD3A"),
+        new AccentOption(1, "Orange", "#F97316"),
+        new AccentOption(2, "Red", "#EF4444"),
+        new AccentOption(3, "Violet", "#A855F7"),
+        new AccentOption(4, "Blue", "#3B82F6"),
+        new AccentOption(5, "Emerald", "#22C55E"),
+        new AccentOption(6, "Teal", "#2FB79D"),
+        new AccentOption(7, "Mint", "#20C997"),
+        new AccentOption(8, "Cyan", "#22D3EE"),
+        new AccentOption(9, "Sky", "#38BDF8"),
+        new AccentOption(10, "Indigo", "#6366F1"),
+        new AccentOption(11, "Purple", "#8B5CF6"),
+        new AccentOption(12, "Rose", "#F43F5E"),
+        new AccentOption(13, "Pink", "#EC4899"),
+        new AccentOption(14, "Coral", "#FB7185"),
+        new AccentOption(15, "Lime", "#84CC16"),
+        new AccentOption(16, "Olive", "#A3A23B"),
+        new AccentOption(17, "Gold", "#EAB308"),
+        new AccentOption(18, "Copper", "#F59E0B"),
+        new AccentOption(19, "Slate", "#94A3B8")
     };
 
     public static IReadOnlyList<AccentOption> GetAccentOptions(ThemeVariant variant) {
@@ -63,6 +65,8 @@ public static class ThemeManager {
         if (resources == null) {
             return;
         }
+
+        ApplyThemeStyles(resources, settings.ThemeVariant);
 
         Application.Current!.UserAppTheme = settings.ThemeMode switch {
             ThemeMode.Light => AppTheme.Light,
@@ -109,6 +113,27 @@ public static class ThemeManager {
         SetColor(resources, "TextMutedDark", dark.TextMuted);
 
         ApplyTextScale(resources, NormalizeTextScalePercent(settings.TextScale));
+    }
+
+    private static void ApplyThemeStyles(ResourceDictionary resources, ThemeVariant variant) {
+        var merged = resources.MergedDictionaries;
+        var existingThemeB = merged.Where(dictionary => dictionary is ThemeBStyles).ToList();
+
+        if (variant == ThemeVariant.B) {
+            _themeBStyles ??= new ThemeBStyles();
+            if (!merged.Contains(_themeBStyles)) {
+                merged.Add(_themeBStyles);
+            }
+
+            foreach (var dictionary in existingThemeB.Where(dictionary => !ReferenceEquals(dictionary, _themeBStyles))) {
+                merged.Remove(dictionary);
+            }
+            return;
+        }
+
+        foreach (var dictionary in existingThemeB) {
+            merged.Remove(dictionary);
+        }
     }
 
     private static void SetColor(ResourceDictionary resources, string key, string hex) {
@@ -197,34 +222,34 @@ public static class ThemeManager {
         Secondary: "#28313B");
 
     private static readonly ThemeColors ThemeBLight = new(
-        SkyTop: "#E7F3F8",
-        SkyMid: "#D7E9F1",
-        SkyBase: "#CFE2EB",
-        SandTop: "#F1F5F7",
-        SandMid: "#E1E8EE",
-        SandBase: "#C8D3DD",
-        SurfaceGlass: "#F6FAFC",
-        SurfaceSolid: "#FFFFFF",
-        SurfaceHighlight: "#E6F2FA",
-        TextMuted: "#5C6975",
-        TextSubtle: "#748392",
-        NightTop: "#15202B",
-        NightBase: "#0B1118",
-        Secondary: "#E1E8EE");
+        SkyTop: "#0F4A3B",
+        SkyMid: "#165A49",
+        SkyBase: "#236A57",
+        SandTop: "#0E2430",
+        SandMid: "#122B37",
+        SandBase: "#173340",
+        SurfaceGlass: "#102531",
+        SurfaceSolid: "#0F2130",
+        SurfaceHighlight: "#1A3C43",
+        TextMuted: "#8EA0B4",
+        TextSubtle: "#73859A",
+        NightTop: "#0A0F1E",
+        NightBase: "#070C18",
+        Secondary: "#244739");
 
     private static readonly ThemeColors ThemeBDark = new(
-        SkyTop: "#0C141B",
-        SkyMid: "#111D27",
-        SkyBase: "#182531",
-        SandTop: "#0F1720",
-        SandMid: "#161F2A",
-        SandBase: "#1D2834",
-        SurfaceGlass: "#182330",
-        SurfaceSolid: "#0C141B",
-        SurfaceHighlight: "#223043",
-        TextMuted: "#A9B5C2",
-        TextSubtle: "#B7C2CD",
-        NightTop: "#101722",
-        NightBase: "#0A1016",
-        Secondary: "#24303C");
+        SkyTop: "#0B4A3A",
+        SkyMid: "#145B4B",
+        SkyBase: "#1C6A57",
+        SandTop: "#0E2430",
+        SandMid: "#122B37",
+        SandBase: "#173340",
+        SurfaceGlass: "#102531",
+        SurfaceSolid: "#0F2130",
+        SurfaceHighlight: "#1A3C43",
+        TextMuted: "#95A7BC",
+        TextSubtle: "#7A8DA3",
+        NightTop: "#090F1E",
+        NightBase: "#060B17",
+        Secondary: "#254A3B");
 }

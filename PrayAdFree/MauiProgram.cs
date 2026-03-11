@@ -8,6 +8,7 @@ using Plugin.LocalNotification.AndroidOption;
 using Plugin.LocalNotification.iOSOption;
 using Plugin.LocalNotification.WindowsOption;
 using Pray_Ad_Free.Pages;
+using Pray_Ad_Free.Pages.ThemeA;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 
@@ -71,6 +72,8 @@ namespace Pray_Ad_Free {
                 .ConfigureFonts(fonts => {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                    fonts.AddFont("Cairo-Variable.ttf", "Cairo");
+                    fonts.AddFont("NotoNaskhArabic-Variable.ttf", "NotoNaskhArabic");
                 });
 #if !WINDOWS
             builder.UseMauiMaps();
@@ -137,6 +140,17 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();
             builder.Services.AddTransient<AppShell>();
+            builder.Services.AddTransient<HomePageA>();
+            builder.Services.AddTransient<CalendarPageA>();
+            builder.Services.AddTransient<QiblaPageA>();
+            builder.Services.AddTransient<TasbihPageA>();
+            builder.Services.AddTransient<SettingsPageA>();
+            builder.Services.AddTransient<SettingsLocationsPageA>();
+            builder.Services.AddTransient<SettingsAdhanPageA>();
+            builder.Services.AddTransient<SettingsNotificationsPageA>();
+            builder.Services.AddTransient<AboutPageA>();
+            builder.Services.AddTransient<LanguageSelectionPageA>();
+            builder.Services.AddTransient<AppShellA>();
 
             return builder.Build();
         }

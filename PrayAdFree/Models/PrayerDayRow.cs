@@ -8,6 +8,8 @@ public sealed class PrayerDayRow {
     public string FajrBase { get; init; } = "";
     public bool ShowFajrBase { get; init; }
 
+    public string Sunrise { get; init; } = "";
+
     public string Dhuhr { get; init; } = "";
     public string DhuhrBase { get; init; } = "";
     public bool ShowDhuhrBase { get; init; }

@@ -1,4 +1,4 @@
-using Microsoft.Maui.Controls.Maps;
+﻿using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Maps;
@@ -7,9 +7,9 @@ using Pray_Ad_Free.ViewModels;
 using System.Globalization;
 using PrayAdFree.Core.Models;
 
-namespace Pray_Ad_Free.Pages;
+namespace Pray_Ad_Free.Pages.ThemeA;
 
-public partial class QiblaPage : ContentPage {
+public partial class QiblaPageA : ContentPage {
     private QiblaViewModel ViewModel => (QiblaViewModel)BindingContext;
     private bool _animated;
     private bool _compassSupported = true;
@@ -22,13 +22,11 @@ public partial class QiblaPage : ContentPage {
     private bool _applyLowPass = true;
     private QiblaFilterMode _filterMode = QiblaFilterMode.Normal;
     private double? _lastAcceptedHeading;
-    private DateTime _lastCompassReadingUtc = DateTime.MinValue;
-    private CancellationTokenSource? _compassWatchdogCts;
     private Microsoft.Maui.Controls.Maps.Map? _map;
-    public QiblaPage() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
+    public QiblaPageA() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
     }
 
-    public QiblaPage(QiblaViewModel viewModel) {
+    public QiblaPageA(QiblaViewModel viewModel) {
         InitializeComponent();
         BindingContext = viewModel;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -39,7 +37,6 @@ public partial class QiblaPage : ContentPage {
         MapContainer.IsVisible = ShouldShowMap();
         _ = LoadAndUpdateAsync();
         ApplyCompassPreferences(false);
-        _lastCompassReadingUtc = DateTime.MinValue;
         _compassSupported = Compass.IsSupported;
         if (_compassSupported) {
             Compass.ReadingChanged += OnCompassReadingChanged;
@@ -47,7 +44,6 @@ public partial class QiblaPage : ContentPage {
                 _hasSmoothHeading = false;
                 StartCompass();
                 _compassStarted = true;
-                StartCompassWatchdog();
             } catch (FeatureNotSupportedException) {
                 _compassSupported = false;
                 ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
@@ -68,7 +64,6 @@ public partial class QiblaPage : ContentPage {
 
     protected override void OnDisappearing() {
         base.OnDisappearing();
-        StopCompassWatchdog();
         Compass.ReadingChanged -= OnCompassReadingChanged;
         if (_compassStarted && Compass.IsMonitoring) {
             Compass.Stop();
@@ -77,7 +72,6 @@ public partial class QiblaPage : ContentPage {
     }
 
     private void OnCompassReadingChanged(object? sender, CompassChangedEventArgs e) {
-        _lastCompassReadingUtc = DateTime.UtcNow;
         var heading = e.Reading.HeadingMagneticNorth;
         if (IsFiltered(heading)) {
             return;
@@ -98,9 +92,6 @@ public partial class QiblaPage : ContentPage {
         }
 
         MainThread.BeginInvokeOnMainThread(() => {
-            if (string.Equals(ViewModel.StatusMessage, LocalizationManager.Translate("CompassNotSupported"), StringComparison.Ordinal)) {
-                ViewModel.StatusMessage = LocalizationManager.Translate("CompassCalibrationHint");
-            }
             ViewModel.UpdateHeading(smooth);
         });
     }
@@ -139,7 +130,6 @@ public partial class QiblaPage : ContentPage {
             }
             StartCompass();
             _compassStarted = true;
-            _lastCompassReadingUtc = DateTime.MinValue;
         } catch {
             _compassSupported = false;
         }
@@ -177,50 +167,15 @@ public partial class QiblaPage : ContentPage {
     }
 
     private bool ShouldShowMap() {
-        return false;
-    }
-
-    private void StartCompassWatchdog() {
-        StopCompassWatchdog();
-        _compassWatchdogCts = new CancellationTokenSource();
-        var token = _compassWatchdogCts.Token;
-        _ = Task.Run(async () => {
-            var retries = 0;
-            while (!token.IsCancellationRequested) {
-                try {
-                    await Task.Delay(2200, token).ConfigureAwait(false);
-                } catch (TaskCanceledException) {
-                    break;
-                }
-
-                if (!_compassSupported || !_compassStarted || token.IsCancellationRequested) {
-                    continue;
-                }
-
-                if (_lastCompassReadingUtc == DateTime.MinValue || DateTime.UtcNow - _lastCompassReadingUtc > TimeSpan.FromSeconds(2.2)) {
-                    retries++;
-                    if (retries <= 3) {
-                        MainThread.BeginInvokeOnMainThread(RestartCompass);
-                    }
-                } else {
-                    retries = 0;
-                }
-            }
-        }, token);
-    }
-
-    private void StopCompassWatchdog() {
-        if (_compassWatchdogCts == null) {
-            return;
+        if (DeviceInfo.Platform == DevicePlatform.Android) {
+            return true;
         }
 
-        try {
-            _compassWatchdogCts.Cancel();
-            _compassWatchdogCts.Dispose();
-        } catch {
-        } finally {
-            _compassWatchdogCts = null;
-        }
+        var info = DeviceDisplay.MainDisplayInfo;
+        var widthDp = info.Width / info.Density;
+        var heightDp = info.Height / info.Density;
+        var minDp = Math.Min(widthDp, heightDp);
+        return minDp >= 600;
     }
 
     private void UpdateMap() {

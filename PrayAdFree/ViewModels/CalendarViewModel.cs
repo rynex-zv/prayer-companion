@@ -55,6 +55,7 @@ public sealed class CalendarViewModel : ViewModelBase {
                     Fajr = TimeFormatHelper.FormatTime(day.Timings.Fajr, settings.ClockFormat),
                     FajrBase = TimeFormatHelper.FormatTime(day.Timings.Fajr.AddMinutes(-settings.Offsets.Fajr), settings.ClockFormat),
                     ShowFajrBase = settings.Offsets.Fajr != 0,
+                    Sunrise = TimeFormatHelper.FormatTime(day.Timings.Sunrise, settings.ClockFormat),
 
                     Dhuhr = TimeFormatHelper.FormatTime(day.Timings.Dhuhr, settings.ClockFormat),
                     DhuhrBase = TimeFormatHelper.FormatTime(day.Timings.Dhuhr.AddMinutes(-settings.Offsets.Dhuhr), settings.ClockFormat),
