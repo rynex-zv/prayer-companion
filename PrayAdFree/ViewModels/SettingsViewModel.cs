@@ -539,7 +539,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public int TextScale {
         get => _textScale;
         set {
-            var clamped = Math.Clamp(value, -2, 6);
+            var clamped = Math.Clamp(value, 10, 500);
             if (SetProperty(ref _textScale, clamped)) {
                 UpdateTextScaleLabel();
             }
@@ -647,7 +647,11 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     public OptionItem<ThemeMode>? SelectedThemeMode {
         get => _selectedThemeMode;
-        set => SetProperty(ref _selectedThemeMode, value);
+        set {
+            if (SetProperty(ref _selectedThemeMode, value)) {
+                ApplyThemePreview();
+            }
+        }
     }
 
     public OptionItem<ThemeVariant>? SelectedThemeVariant {
@@ -655,6 +659,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         set {
             if (SetProperty(ref _selectedThemeVariant, value)) {
                 UpdateAccentOptions(value?.Value ?? ThemeVariant.A, _selectedAccent?.Index ?? 0);
+                ApplyThemePreview();
             }
         }
     }
@@ -664,6 +669,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         set {
             if (SetProperty(ref _selectedAccent, value)) {
                 AccentPreviewColor = value?.Color ?? Colors.Transparent;
+                ApplyThemePreview();
             }
         }
     }
@@ -671,6 +677,19 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Color AccentPreviewColor {
         get => _accentPreviewColor;
         set => SetProperty(ref _accentPreviewColor, value);
+    }
+
+    private void ApplyThemePreview() {
+        try {
+            ThemeManager.ApplyTheme(new AppSettings {
+                ThemeMode = SelectedThemeMode?.Value ?? _settings.ThemeMode,
+                ThemeVariant = SelectedThemeVariant?.Value ?? _settings.ThemeVariant,
+                AccentIndex = SelectedAccent?.Index ?? _settings.AccentIndex,
+                TextScale = TextScale
+            });
+        } catch (Exception ex) {
+            _logger.LogException(ex, "SettingsViewModel.ApplyThemePreview");
+        }
     }
 
     public string StatusMessage {
@@ -732,7 +751,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? QiblaReadingModes.FirstOrDefault();
         SelectedQiblaFilterMode = QiblaFilterModes.FirstOrDefault(item => item.Value == _settings.Qibla.FilterMode)
             ?? QiblaFilterModes.FirstOrDefault();
-        TextScale = _settings.TextScale;
+        TextScale = ThemeManager.NormalizeTextScalePercent(_settings.TextScale);
         EnsureTasbihDefaults();
         LoadTasbihPresets();
         LoadAdhanOverrides();
@@ -1767,12 +1786,12 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void IncreaseTextSize() {
-        TextScale = Math.Min(TextScale + 1, 6);
+        TextScale = Math.Min(TextScale + 10, 500);
         ScheduleSave();
     }
 
     private void DecreaseTextSize() {
-        TextScale = Math.Max(TextScale - 1, -2);
+        TextScale = Math.Max(TextScale - 10, 10);
         ScheduleSave();
     }
 
@@ -1918,8 +1937,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void UpdateTextScaleLabel() {
-        var percent = 100 + (TextScale * 7);
-        TextScaleLabel = $"{percent}%";
+        TextScaleLabel = $"{TextScale}%";
     }
 
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {

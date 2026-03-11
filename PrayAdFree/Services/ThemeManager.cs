@@ -108,7 +108,7 @@ public static class ThemeManager {
         SetColor(resources, "SurfaceHighlightDark", dark.SurfaceHighlight);
         SetColor(resources, "TextMutedDark", dark.TextMuted);
 
-        ApplyTextScale(resources, settings.TextScale);
+        ApplyTextScale(resources, NormalizeTextScalePercent(settings.TextScale));
     }
 
     private static void SetColor(ResourceDictionary resources, string key, string hex) {
@@ -129,15 +129,23 @@ public static class ThemeManager {
 
     private static int Clamp(int value) => Math.Clamp(value, 0, 255);
 
-    private static void ApplyTextScale(ResourceDictionary resources, int scale) {
-        var clamped = Math.Clamp(scale, -2, 6);
-        var baseSize = 14 + clamped;
-        resources["FontSizeBase"] = (double)baseSize;
-        resources["FontSizeSmall"] = (double)Math.Max(10, baseSize - 2);
-        resources["FontSizeMedium"] = (double)(baseSize + 2);
-        resources["FontSizeLarge"] = (double)(baseSize + 6);
-        resources["FontSizeDisplay"] = (double)(baseSize + 18);
-        resources["FontSizeSubDisplay"] = (double)(baseSize + 10);
+    public static int NormalizeTextScalePercent(int storedValue) {
+        // Legacy values were -2..6; map them to previous displayed percentages.
+        if (storedValue is >= -2 and <= 6) {
+            return Math.Clamp(100 + (storedValue * 7), 10, 500);
+        }
+
+        return Math.Clamp(storedValue, 10, 500);
+    }
+
+    private static void ApplyTextScale(ResourceDictionary resources, int percent) {
+        var factor = percent / 100d;
+        resources["FontSizeBase"] = 14d * factor;
+        resources["FontSizeSmall"] = 12d * factor;
+        resources["FontSizeMedium"] = 16d * factor;
+        resources["FontSizeLarge"] = 20d * factor;
+        resources["FontSizeDisplay"] = 32d * factor;
+        resources["FontSizeSubDisplay"] = 24d * factor;
     }
 
     private sealed record ThemeColors(
