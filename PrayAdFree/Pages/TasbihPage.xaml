@@ -15,15 +15,15 @@
 
         <ScrollView>
             <VerticalStackLayout Spacing="14" Padding="24,20,24,26">
-                <Label Text="{loc:Loc Tasbih}" FontSize="44" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                <Label Text="{loc:Loc Tasbih}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="Center" />
 
                 <Border Padding="20" StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout Spacing="14" HorizontalOptions="Center">
                         <Label Text="{Binding CurrentPhrase}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="Center" TextColor="#EAB308" />
-                        <Border WidthRequest="180" HeightRequest="180" Stroke="#21314D" StrokeThickness="2" StrokeShape="Ellipse" BackgroundColor="Transparent">
+                        <Border WidthRequest="180" HeightRequest="180" Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#21314D}" StrokeThickness="2" StrokeShape="Ellipse" BackgroundColor="Transparent">
                             <VerticalStackLayout Spacing="2" VerticalOptions="Center" HorizontalOptions="Center">
                                 <Label Text="{Binding Count}" FontSize="56" FontAttributes="Bold" HorizontalTextAlignment="Center" />
-                                <Label Text="{Binding ProgressText}" FontSize="14" HorizontalTextAlignment="Center" TextColor="#8CA0B6" />
+                                <Label Text="{Binding ProgressText}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
                             </VerticalStackLayout>
                         </Border>
                         <HorizontalStackLayout Spacing="16" HorizontalOptions="Center">
@@ -35,7 +35,7 @@
 
                 <Border Padding="14" StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="{loc:Loc TasbihPresets}" FontSize="12" TextColor="#8CA0B6" HorizontalTextAlignment="End" />
+                        <Label Text="{loc:Loc TasbihPresets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" HorizontalTextAlignment="End" />
                         <Picker Title="{loc:Loc TasbihPresets}"
                                 ItemsSource="{Binding Presets}"
                                 ItemDisplayBinding="{Binding Name}"
@@ -44,10 +44,10 @@
                         <CollectionView ItemsSource="{Binding PresetItems}" SelectionMode="None">
                             <CollectionView.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="8,10" BackgroundColor="#163A3B" StrokeThickness="0" Margin="0,2">
+                                    <Border Padding="8,10" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#163A3B}" StrokeThickness="0" Margin="0,2">
                                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                                            <Label Text="{Binding TargetCount, StringFormat='x{0}'}" FontSize="14" TextColor="#8CA0B6" />
-                                            <Label Grid.Column="1" Text="{Binding Text}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                            <Label Text="{Binding TargetCount, StringFormat='x{0}'}" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
+                                            <Label Grid.Column="1" Text="{Binding Text}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="End" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

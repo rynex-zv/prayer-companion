@@ -15,7 +15,7 @@
 
         <ScrollView>
             <VerticalStackLayout Spacing="16" Padding="24,24,24,32">
-                <Label Text="{loc:Loc Settings}" FontSize="36" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+                <Label Text="{loc:Loc Settings}" FontSize="32" HorizontalTextAlignment="Center" FontAttributes="Bold" />
 
                 <Border Padding="0" StrokeShape="RoundRectangle 20" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}">
                     <VerticalStackLayout Spacing="0">
@@ -24,7 +24,7 @@
                                 <TapGestureRecognizer Tapped="OnLocationsClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc Locations}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc Locations}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="⌖" FontSize="24" TextColor="#2FB79D" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc QiblaPreferences}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>
@@ -35,7 +35,7 @@
                                 <TapGestureRecognizer Tapped="OnDiagnosticsClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc ThemeMode}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc ThemeMode}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="⌁" FontSize="24" TextColor="#4EC1FF" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc ThemeVariant}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>
@@ -46,7 +46,7 @@
                                 <TapGestureRecognizer Tapped="OnAdhanClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc AdhanCustomizations}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc AdhanCustomizations}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="◔" FontSize="24" TextColor="#EAB308" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>
@@ -57,7 +57,7 @@
                                 <TapGestureRecognizer Tapped="OnNotificationsClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc Notifications}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc Notifications}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="◌" FontSize="24" TextColor="#C66BFF" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc AdhanReminders}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>
@@ -68,7 +68,7 @@
                                 <TapGestureRecognizer Tapped="OnTasbihClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc Tasbih}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc Tasbih}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="◎" FontSize="24" TextColor="#FF4D8D" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc TasbihSettings}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>
@@ -79,7 +79,7 @@
                                 <TapGestureRecognizer Tapped="OnAboutClicked" />
                             </Grid.GestureRecognizers>
                             <Label Text="〈" FontSize="18" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Grid.Column="1" Text="{loc:Loc About}" FontSize="28" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                            <Label Grid.Column="1" Text="{loc:Loc About}" FontSize="18" FontAttributes="Bold" HorizontalTextAlignment="End" />
                             <Label Grid.Column="2" Text="ⓘ" FontSize="24" TextColor="#2FB79D" />
                             <Label Grid.Column="1" Grid.Row="1" Text="{loc:Loc About}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         </Grid>

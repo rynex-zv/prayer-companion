@@ -112,7 +112,12 @@ public static class ThemeManager {
         SetColor(resources, "SurfaceHighlightDark", dark.SurfaceHighlight);
         SetColor(resources, "TextMutedDark", dark.TextMuted);
 
-        ApplyTextScale(resources, NormalizeTextScalePercent(settings.TextScale));
+        var textScalePercent = NormalizeTextScalePercent(settings.TextScale);
+        if (settings.ThemeVariant == ThemeVariant.B) {
+            // Keep Theme B balanced on mobile where oversized text can break layouts.
+            textScalePercent = Math.Clamp(textScalePercent, 85, 130);
+        }
+        ApplyTextScale(resources, textScalePercent);
     }
 
     private static void ApplyThemeStyles(ResourceDictionary resources, ThemeVariant variant) {
@@ -222,20 +227,20 @@ public static class ThemeManager {
         Secondary: "#28313B");
 
     private static readonly ThemeColors ThemeBLight = new(
-        SkyTop: "#0F4A3B",
-        SkyMid: "#165A49",
-        SkyBase: "#236A57",
-        SandTop: "#0E2430",
-        SandMid: "#122B37",
-        SandBase: "#173340",
-        SurfaceGlass: "#102531",
-        SurfaceSolid: "#0F2130",
-        SurfaceHighlight: "#1A3C43",
-        TextMuted: "#8EA0B4",
-        TextSubtle: "#73859A",
-        NightTop: "#0A0F1E",
-        NightBase: "#070C18",
-        Secondary: "#244739");
+        SkyTop: "#EEF7F3",
+        SkyMid: "#E2F2EA",
+        SkyBase: "#D5EDE1",
+        SandTop: "#FFFFFF",
+        SandMid: "#F6FBF8",
+        SandBase: "#EEF6F1",
+        SurfaceGlass: "#FFFFFF",
+        SurfaceSolid: "#FCFEFD",
+        SurfaceHighlight: "#D5E7DE",
+        TextMuted: "#5E6B74",
+        TextSubtle: "#7A8892",
+        NightTop: "#F2F7F5",
+        NightBase: "#E6F1EC",
+        Secondary: "#E2EFE8");
 
     private static readonly ThemeColors ThemeBDark = new(
         SkyTop: "#0B4A3A",

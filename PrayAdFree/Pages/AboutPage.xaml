@@ -15,7 +15,7 @@
 
         <ScrollView>
             <VerticalStackLayout Spacing="14" Padding="24,24,24,32">
-                <Label Text="{loc:Loc About}" FontSize="46" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+                <Label Text="{loc:Loc About}" FontSize="34" HorizontalTextAlignment="Center" FontAttributes="Bold" />
 
                 <Border Padding="24" StrokeShape="RoundRectangle 22">
                     <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
@@ -28,8 +28,8 @@
                                 VerticalOptions="Center">
                             <Label Text="☆" FontSize="42" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                         </Border>
-                        <Label Text="{Binding AppName}" FontSize="40" HorizontalTextAlignment="Center" FontAttributes="Bold" />
-                        <Label Text="{Binding Tagline}" FontSize="14" HorizontalTextAlignment="Center" TextColor="#8CA0B6" />
+                        <Label Text="{Binding AppName}" FontSize="30" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+                        <Label Text="{Binding Tagline}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
                     </VerticalStackLayout>
                 </Border>
 

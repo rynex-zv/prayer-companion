@@ -46,7 +46,7 @@
                                         <Label Text="{Binding Hijri}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
                                     </Border>
                                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                        <Label Text="{Binding Date}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                        <Label Text="{Binding Date}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="End" LineBreakMode="NoWrap" />
                                     </VerticalStackLayout>
                                 </Grid>
 

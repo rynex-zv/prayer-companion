@@ -22,6 +22,7 @@ public partial class QiblaPage : ContentPage {
     private bool _applyLowPass = true;
     private QiblaFilterMode _filterMode = QiblaFilterMode.Normal;
     private double? _lastAcceptedHeading;
+    private int _consecutiveRejectedReadings;
     private DateTime _lastCompassReadingUtc = DateTime.MinValue;
     private CancellationTokenSource? _compassWatchdogCts;
     private Microsoft.Maui.Controls.Maps.Map? _map;
@@ -123,6 +124,7 @@ public partial class QiblaPage : ContentPage {
         };
         _hasSmoothHeading = false;
         _lastAcceptedHeading = null;
+        _consecutiveRejectedReadings = 0;
         if (restart && _compassSupported) {
             RestartCompass();
         }
@@ -140,6 +142,7 @@ public partial class QiblaPage : ContentPage {
             StartCompass();
             _compassStarted = true;
             _lastCompassReadingUtc = DateTime.MinValue;
+            _consecutiveRejectedReadings = 0;
         } catch {
             _compassSupported = false;
         }
@@ -148,21 +151,28 @@ public partial class QiblaPage : ContentPage {
     private bool IsFiltered(double heading) {
         if (_filterMode == QiblaFilterMode.Off) {
             _lastAcceptedHeading = heading;
+            _consecutiveRejectedReadings = 0;
             return false;
         }
 
         if (!_lastAcceptedHeading.HasValue) {
             _lastAcceptedHeading = heading;
+            _consecutiveRejectedReadings = 0;
             return false;
         }
 
         var delta = NormalizeDelta(heading, _lastAcceptedHeading.Value);
         var threshold = _filterMode == QiblaFilterMode.Strict ? 20 : 45;
         if (Math.Abs(delta) > threshold) {
-            return true;
+            // Avoid getting "stuck" forever on devices that report big heading jumps.
+            _consecutiveRejectedReadings++;
+            if (_consecutiveRejectedReadings < 3) {
+                return true;
+            }
         }
 
         _lastAcceptedHeading = heading;
+        _consecutiveRejectedReadings = 0;
         return false;
     }
 

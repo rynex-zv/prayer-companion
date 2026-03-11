@@ -18,6 +18,29 @@ namespace Pray_Ad_Free {
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .ConfigureMauiHandlers(handlers => {
+#if ANDROID
+                    Microsoft.Maui.Handlers.EntryHandler.Mapper.AppendToMapping("PrayAdFree.EntryTint", static (handler, _) => {
+                        if (handler.PlatformView is null) {
+                            return;
+                        }
+
+                        handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
+                            Android.Graphics.Color.ParseColor("#2FB79D"));
+                        ApplyAndroidInputSurface(handler.PlatformView);
+                    });
+
+                    Microsoft.Maui.Handlers.PickerHandler.Mapper.AppendToMapping("PrayAdFree.PickerTint", static (handler, _) => {
+                        if (handler.PlatformView is null) {
+                            return;
+                        }
+
+                        handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
+                            Android.Graphics.Color.ParseColor("#2FB79D"));
+                        ApplyAndroidInputSurface(handler.PlatformView);
+                    });
+#endif
+                })
                 .UseLocalNotification(options => {
                     var stopAction = new NotificationAction(AdhanPlaybackService.StopActionId) {
                         Title = ResolveStopActionTitle(),
@@ -184,5 +207,29 @@ namespace Pray_Ad_Free {
                 _ => "Remind me after"
             };
         }
+
+#if ANDROID
+        private static void ApplyAndroidInputSurface(Android.Views.View view) {
+            view.Background = BuildAndroidInputDrawable(view.Context);
+            var density = view.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+            var horizontal = (int)(12 * density);
+            var vertical = (int)(10 * density);
+            view.SetPadding(horizontal, vertical, horizontal, vertical);
+        }
+
+        private static Android.Graphics.Drawables.GradientDrawable BuildAndroidInputDrawable(Android.Content.Context? context) {
+            var density = context?.Resources?.DisplayMetrics?.Density ?? 1f;
+            var isDark = Application.Current?.RequestedTheme != AppTheme.Light;
+            var fill = Android.Graphics.Color.ParseColor(isDark ? "#163344" : "#ECF4F0");
+            var stroke = Android.Graphics.Color.ParseColor(isDark ? "#25566A" : "#BAD4C9");
+
+            var drawable = new Android.Graphics.Drawables.GradientDrawable();
+            drawable.SetShape(Android.Graphics.Drawables.ShapeType.Rectangle);
+            drawable.SetColor(fill);
+            drawable.SetCornerRadius(14f * density);
+            drawable.SetStroke(Math.Max(1, (int)Math.Round(density)), stroke);
+            return drawable;
+        }
+#endif
     }
 }

@@ -210,7 +210,13 @@ public sealed class HomeViewModel : ViewModelBase {
         }
 
         TodayTimings.Clear();
+        var seen = new HashSet<PrayerId>();
         foreach (var prayer in DisplayOrder) {
+            // Guard against any accidental duplicate insertion.
+            if (!seen.Add(prayer)) {
+                continue;
+            }
+
             var adjustedTime = _today.Timings.Get(prayer);
             var offset = GetOffsetForPrayer(prayer);
             var baseTime = adjustedTime.AddMinutes(-offset);
@@ -228,6 +234,11 @@ public sealed class HomeViewModel : ViewModelBase {
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
         ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
         IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
+
+#if DEBUG
+        _logger.LogEvent("HomeRows",
+            $"count={TodayTimings.Count};next={_nextPrayerId};rows={string.Join(",", TodayTimings.Select(row => $"{row.Id}:{row.Time}"))}");
+#endif
     }
 
     private static string ResolveNextPrayerDayLabel(DateTime now, DateTime nextPrayer) {
