@@ -236,6 +236,7 @@ public sealed class HomeViewModel : ViewModelBase {
         var reminderOffsets = settings.Notifications.ReminderOffsetsMinutes ?? [];
         var imsakReminders = settings.FastingReminders.ImsakRemindersMinutes ?? [];
         var iftarReminders = settings.FastingReminders.IftarRemindersMinutes ?? [];
+        var deferredReminder = settings.Notifications.PendingDeferredReminder;
 
         var overrideKey = string.Join(',', overrides
             .OrderBy(item => item.Prayer)
@@ -265,6 +266,9 @@ public sealed class HomeViewModel : ViewModelBase {
             settings.Notifications.VibrationPattern,
             settings.Notifications.ReminderScope,
             settings.Notifications.ReminderPrayer,
+            deferredReminder?.NotifyTime.ToString("O") ?? string.Empty,
+            deferredReminder?.Prayer.ToString() ?? string.Empty,
+            deferredReminder?.SoundKey ?? string.Empty,
             overrideKey,
             string.Join(',', reminderOffsets.OrderBy(item => item)),
             string.Join(',', reminderItems.OrderBy(item => item.OffsetMinutes).ThenBy(item => item.AlertType).Select(item => $"{item.OffsetMinutes}:{(int)item.AlertType}")),

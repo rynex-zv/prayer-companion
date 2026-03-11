@@ -53,6 +53,26 @@ public class AdditionalCoreTests {
     }
 
     [Fact]
+    public void NextPrayerCalculator_AfterFajr_ReturnsSunrise() {
+        var date = DateOnly.FromDateTime(DateTime.Today);
+        var timings = new PrayerTimings {
+            Fajr = DateTime.Today.AddHours(5),
+            Sunrise = DateTime.Today.AddHours(6),
+            Dhuhr = DateTime.Today.AddHours(12),
+            Asr = DateTime.Today.AddHours(15),
+            Maghrib = DateTime.Today.AddHours(18),
+            Isha = DateTime.Today.AddHours(19),
+            Imsak = DateTime.Today.AddHours(4).AddMinutes(30)
+        };
+        var day = new PrayerDay { Date = date, Timings = timings };
+
+        var (id, time) = NextPrayerCalculator.GetNext(day, DateTime.Today.AddHours(5).AddMinutes(10));
+
+        Assert.Equal(PrayerId.Sunrise, id);
+        Assert.Equal(DateTime.Today.AddHours(6), time);
+    }
+
+    [Fact]
     public void PrayerTimings_ParseLocalDateTime_UsesTimezoneOffset() {
         var date = new DateOnly(2025, 1, 15);
         var timeZone = TimeZoneInfo.Utc;

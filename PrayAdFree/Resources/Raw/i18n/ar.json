@@ -218,5 +218,12 @@
   "ReminderType": "نوع التنبيه",
   "ReminderType_Adhan": "أذان",
   "ReminderType_Notification": "إشعار",
-  "ReminderType_Silent": "صامت"
+  "ReminderType_Silent": "صامت",
+  "SnoozeReminderBody": "تذكير مؤجل للأذان",
+  "SnoozePageTitle": "التذكير بعد",
+  "SnoozePageHint": "حدد تذكيرًا جديدًا لـ {0}",
+  "SnoozeRemainingToNextPrayer": "الصلاة القادمة ({0}) بعد {1}",
+  "SnoozeDelayLabel": "التذكير بعد {0} دقيقة",
+  "SnoozePageConfirm": "تأكيد التذكير",
+  "SnoozePageCancel": "إلغاء"
 }

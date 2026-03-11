@@ -18,4 +18,5 @@ public sealed class NotificationSettings {
     public PrayerId ReminderPrayer { get; init; } = PrayerId.Fajr;
     public List<AdhanReminderItem> ReminderItems { get; init; } = new();
     public List<int> ReminderOffsetsMinutes { get; init; } = new();
+    public DeferredAdhanReminder? PendingDeferredReminder { get; init; }
 }

@@ -825,7 +825,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                 .Distinct()
                 .OrderBy(item => item)
                 .ToList(),
-            PrayerOverrides = BuildAdhanOverrides()
+            PrayerOverrides = BuildAdhanOverrides(),
+            PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
         };
 
         var qibla = new QiblaPreferences {
@@ -1900,7 +1901,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                     ReminderScope = _settings.Notifications.ReminderScope,
                     ReminderPrayer = _settings.Notifications.ReminderPrayer,
                     ReminderItems = _settings.Notifications.ReminderItems?.ToList() ?? new List<AdhanReminderItem>(),
-                    ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>()
+                    ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
+                    PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
                 },
                 Qibla = _settings.Qibla,
                 ClockFormat = _settings.ClockFormat,

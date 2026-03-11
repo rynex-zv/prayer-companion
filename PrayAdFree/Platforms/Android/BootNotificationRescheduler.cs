@@ -99,7 +99,8 @@ internal static class BootNotificationRescheduler {
         var hasFastingReminders = settings.FastingReminders.ImsakRemindersMinutes.Count > 0
             || settings.FastingReminders.IftarRemindersMinutes.Count > 0;
         var hasAdhanReminders = settings.Notifications.ReminderItems.Count > 0 || settings.Notifications.ReminderOffsetsMinutes.Count > 0;
-        return settings.Notifications.EnableAdhan || hasFastingReminders || hasAdhanReminders;
+        var hasDeferredReminder = settings.Notifications.PendingDeferredReminder?.NotifyTime > DateTime.Now;
+        return settings.Notifications.EnableAdhan || hasFastingReminders || hasAdhanReminders || hasDeferredReminder == true;
     }
 
     private static bool HasValidCoordinates(double latitude, double longitude) {

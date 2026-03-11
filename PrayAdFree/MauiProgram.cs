@@ -5,6 +5,7 @@ using System;
 using PrayAdFree.Core.Services;
 using Plugin.LocalNotification;
 using Plugin.LocalNotification.AndroidOption;
+using Plugin.LocalNotification.iOSOption;
 using Plugin.LocalNotification.WindowsOption;
 using Pray_Ad_Free.Pages;
 using Pray_Ad_Free.Services;
@@ -22,13 +23,49 @@ namespace Pray_Ad_Free {
                         Android = new AndroidAction {
                             LaunchAppWhenTapped = false
                         },
+                        IOS = new iOSAction {
+                            Action = iOSActionType.None
+                        },
                         Windows = new WindowsAction {
                             LaunchAppWhenTapped = false,
                             DismissWhenTapped = true
                         }
                     };
+                    var snooze10Action = new NotificationAction(AdhanPlaybackService.Snooze10ActionId) {
+                        Title = ResolveSnooze10ActionTitle(),
+                        Android = new AndroidAction {
+                            LaunchAppWhenTapped = false
+                        },
+                        IOS = new iOSAction {
+                            Action = iOSActionType.None
+                        },
+                        Windows = new WindowsAction {
+                            LaunchAppWhenTapped = false,
+                            DismissWhenTapped = true
+                        }
+                    };
+                    var customSnoozeAction = new NotificationAction(AdhanPlaybackService.OpenCustomSnoozeActionId) {
+                        Title = ResolveCustomSnoozeActionTitle(),
+                        Android = new AndroidAction {
+                            LaunchAppWhenTapped = true
+                        },
+                        IOS = new iOSAction {
+                            Action = iOSActionType.Foreground
+                        },
+                        Windows = new WindowsAction {
+                            LaunchAppWhenTapped = true,
+                            DismissWhenTapped = true
+                        }
+                    };
+
                     options.AddCategory(new NotificationCategory(NotificationCategoryType.Service) {
                         ActionList = new HashSet<NotificationAction> { stopAction }
+                    });
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Alarm) {
+                        ActionList = new HashSet<NotificationAction> { customSnoozeAction, stopAction }
+                    });
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Reminder) {
+                        ActionList = new HashSet<NotificationAction> { snooze10Action, customSnoozeAction, stopAction }
                     });
                 })
                 .ConfigureFonts(fonts => {
@@ -64,7 +101,8 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
-            builder.Services.AddSingleton<IAdhanPlaybackService, AdhanPlaybackService>();
+            builder.Services.AddSingleton<AdhanPlaybackService>();
+            builder.Services.AddSingleton<IAdhanPlaybackService>(sp => sp.GetRequiredService<AdhanPlaybackService>());
 #if WINDOWS
             builder.Services.AddSingleton<IWindowsNotificationQueueService, WindowsNotificationQueueService>();
 #else
@@ -110,6 +148,26 @@ namespace Pray_Ad_Free {
                 "es" => "Detener",
                 "tr" => "Durdur",
                 _ => "Stop"
+            };
+        }
+
+        private static string ResolveSnooze10ActionTitle() {
+            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+                "ar" => "\u0628\u0639\u062f 10\u062f",
+                "fr" => "Dans 10 min",
+                "es" => "En 10 min",
+                "tr" => "10 dk sonra",
+                _ => "After 10m"
+            };
+        }
+
+        private static string ResolveCustomSnoozeActionTitle() {
+            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+                "ar" => "\u0627\u0644\u062A\u0630\u0643\u064A\u0631 \u0628\u0639\u062F",
+                "fr" => "Rappeler plus tard",
+                "es" => "Recordarme despues",
+                "tr" => "Daha sonra hatirlat",
+                _ => "Remind me after"
             };
         }
     }

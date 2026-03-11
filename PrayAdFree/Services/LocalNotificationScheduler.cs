@@ -116,6 +116,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 ScheduleAdhanReminders(day, settings, requests, signatures, now);
             }
 
+            ScheduleDeferredAdhanReminder(settings, requests, signatures, now);
+
             var (scheduledCount, next) = await EmitRequestsAsync(requests, settings).ConfigureAwait(false);
             _lastScheduleAppliedUtc = DateTime.UtcNow;
             try {
@@ -415,6 +417,54 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         }
     }
 
+    private static void ScheduleDeferredAdhanReminder(
+        AppSettings settings,
+        ICollection<NotificationRequest> requests,
+        ISet<string> signatures,
+        DateTime now) {
+        var pending = settings.Notifications.PendingDeferredReminder;
+        if (pending == null) {
+            return;
+        }
+
+        if (!ShouldSchedule(pending.NotifyTime, now)) {
+            return;
+        }
+
+        var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(pending.SoundKey);
+        if (AdhanSoundLibrary.IsSilent(effectiveSoundKey)) {
+            return;
+        }
+
+        var useRuntimeAdhanPlayback = ShouldUseRuntimeAdhanPlayback();
+        AddIfUnique(requests, signatures, new NotificationRequest {
+            NotificationId = AdhanPlaybackService.DeferredAdhanNotificationId,
+            Title = LocalizationManager.Translate("AdhanReminder"),
+            Description = LocalizationManager.Translate("SnoozeReminderBody"),
+            Silent = ResolveNotificationSilent(useRuntimeAdhanPlayback, false),
+            Sound = string.Empty,
+            ReturningData = AdhanNotificationPayload.BuildPlay(pending.Prayer, effectiveSoundKey),
+            Schedule = new NotificationRequestSchedule {
+                NotifyTime = ToLocalKind(pending.NotifyTime),
+                NotifyRepeatInterval = null
+#if ANDROID
+                ,
+                Android = new AndroidScheduleOptions {
+                    AlarmType = AndroidAlarmType.RtcWakeup
+                }
+#endif
+            },
+#if ANDROID
+            Android = new AndroidOptions {
+                Priority = AndroidPriority.Default,
+                ChannelId = BuildAndroidChannelId(effectiveSoundKey, false, true, AdhanReminderAlertType.Adhan),
+                VibrationPattern = BuildVibration(settings.Notifications),
+                LaunchAppWhenTapped = false
+            }
+#endif
+        });
+    }
+
     private async Task<(int scheduledCount, NotificationRequest? next)> EmitRequestsAsync(
         IReadOnlyList<NotificationRequest> requests,
         AppSettings settings) {
@@ -592,6 +642,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         var reminderOffsets = settings.Notifications.ReminderOffsetsMinutes ?? [];
         var imsakReminders = settings.FastingReminders.ImsakRemindersMinutes ?? [];
         var iftarReminders = settings.FastingReminders.IftarRemindersMinutes ?? [];
+        var deferredReminder = settings.Notifications.PendingDeferredReminder;
 
         var daysKey = string.Join(',', days.Select(item =>
             $"{item.Date:yyyyMMdd}:{item.Timings.Fajr:HHmm}:{item.Timings.Dhuhr:HHmm}:{item.Timings.Asr:HHmm}:{item.Timings.Maghrib:HHmm}:{item.Timings.Isha:HHmm}:{item.Timings.Imsak:HHmm}"));
@@ -604,6 +655,10 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             .OrderBy(item => item.OffsetMinutes)
             .ThenBy(item => item.AlertType)
             .Select(item => $"{item.OffsetMinutes}:{(int)item.AlertType}"));
+
+        var deferredKey = deferredReminder == null
+            ? string.Empty
+            : $"{deferredReminder.NotifyTime:O}:{(int)deferredReminder.Prayer}:{deferredReminder.SoundKey}";
 
         return string.Join('|',
             settings.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture),
@@ -633,6 +688,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             settings.Offsets.Isha,
             settings.Offsets.Imsak,
             overrideKey,
+            deferredKey,
             daysKey);
     }
 
