@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="PrayAdFree.DialogOverlay" parent="@style/ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/pray_dialog_bg</item>
+        <item name="android:textColorPrimary">#0F172A</item>
+        <item name="android:textColorSecondary">#4B5E72</item>
+        <item name="android:colorAccent">#1C6A57</item>
+    </style>
+
+    <style name="Maui.MainTheme" parent="Maui.MainTheme.Base">
+        <item name="android:alertDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+        <item name="android:datePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+        <item name="android:timePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+    </style>
+</resources>

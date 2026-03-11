@@ -2,11 +2,10 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
-             xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
+             xmlns:controls="clr-namespace:Pray_Ad_Free.Controls"
              x:Class="Pray_Ad_Free.Pages.QiblaPage"
              Title="{loc:Loc Qibla}">
     <ContentPage.Resources>
-        <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
         <Style x:Key="ChoiceChip" TargetType="Border">
             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#16283A}" />
             <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray300}, Dark=#234258}" />
@@ -17,12 +16,13 @@
         <Style x:Key="ChoiceChipLabel" TargetType="Label">
             <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+            <Setter Property="HorizontalTextAlignment" Value="Center" />
         </Style>
     </ContentPage.Resources>
 
     <Grid>
         <Grid.Background>
-            <RadialGradientBrush Center="0.5,0.3" Radius="0.95">
+            <RadialGradientBrush Center="0.5,0.28" Radius="0.96">
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource NightTop}}" Offset="0"/>
                 <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource NightBase}}" Offset="1"/>
             </RadialGradientBrush>
@@ -35,142 +35,86 @@
                                  WidthRequest="{OnPlatform WinUI=720, MacCatalyst=720, Default=-1}">
                 <Label Text="{loc:Loc Qibla}" FontSize="34" FontAttributes="Bold" HorizontalTextAlignment="Center" />
 
-                <Border Padding="16" StrokeShape="RoundRectangle 20" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}" Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}">
+                <Border Padding="16"
+                        StrokeShape="RoundRectangle 20"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}"
+                        Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}">
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="{loc:Loc QiblaDirection}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <HorizontalStackLayout Spacing="6" HorizontalOptions="Center">
+                            <Label Text="{loc:Loc QiblaDirection}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                            <Label Text="◉" FontSize="16" TextColor="#2FB79D" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
                         <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}"
                                FontSize="56"
                                FontAttributes="Bold"
                                TextColor="#EAB308"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="{Binding StatusMessage}" FontSize="13" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
+                        <Label Text="{Binding DirectionLabel}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
+                        <Label Text="{Binding StatusMessage}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Padding="16" StrokeShape="RoundRectangle 20" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}" Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}">
+                <Border Padding="16"
+                        StrokeShape="RoundRectangle 20"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}"
+                        Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}">
                     <VerticalStackLayout Spacing="12">
-                        <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" HorizontalTextAlignment="End" />
-                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="End" BindableLayout.ItemsSource="{Binding ReadingModes}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Command="{Binding BindingContext.SelectReadingModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
-                                                                  CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
-                                            <Label.Triggers>
-                                                <DataTrigger TargetType="Label" Value="True">
-                                                    <DataTrigger.Binding>
-                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                            <Binding Path="BindingContext.SelectedReadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                            <Binding Path="." />
-                                                        </MultiBinding>
-                                                    </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=#E9F2FD}" />
-                                                </DataTrigger>
-                                            </Label.Triggers>
-                                        </Label>
-                                        <Border.Triggers>
-                                            <DataTrigger TargetType="Border" Value="True">
-                                                <DataTrigger.Binding>
-                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                        <Binding Path="BindingContext.SelectedReadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                        <Binding Path="." />
-                                                    </MultiBinding>
-                                                </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="#2FB79D" />
-                                                <Setter Property="Stroke" Value="#2FB79D" />
-                                            </DataTrigger>
-                                        </Border.Triggers>
-                                    </Border>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </FlexLayout>
+                        <Label Text="وضع العرض" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" HorizontalTextAlignment="End" />
+                        <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
+                            <Border x:Name="ModeCompassChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnModeCompassTapped" />
+                                </Border.GestureRecognizers>
+                                <Label x:Name="ModeCompassLabel" Text="بوصلة" Style="{StaticResource ChoiceChipLabel}" />
+                            </Border>
+                            <Border x:Name="ModeMapChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnModeMapTapped" />
+                                </Border.GestureRecognizers>
+                                <Label x:Name="ModeMapLabel" Text="خريطة" Style="{StaticResource ChoiceChipLabel}" />
+                            </Border>
+                        </HorizontalStackLayout>
 
-                        <Label Text="{loc:Loc CompassFilter}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" HorizontalTextAlignment="End" />
-                        <FlexLayout Wrap="Wrap" Direction="Row" JustifyContent="End" BindableLayout.ItemsSource="{Binding FilterModes}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
-                                        <Border.GestureRecognizers>
-                                            <TapGestureRecognizer Command="{Binding BindingContext.SelectFilterModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
-                                                                  CommandParameter="{Binding .}" />
-                                        </Border.GestureRecognizers>
-                                        <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
-                                            <Label.Triggers>
-                                                <DataTrigger TargetType="Label" Value="True">
-                                                    <DataTrigger.Binding>
-                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                            <Binding Path="BindingContext.SelectedFilterMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                            <Binding Path="." />
-                                                        </MultiBinding>
-                                                    </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark=#E9F2FD}" />
-                                                </DataTrigger>
-                                            </Label.Triggers>
-                                        </Label>
-                                        <Border.Triggers>
-                                            <DataTrigger TargetType="Border" Value="True">
-                                                <DataTrigger.Binding>
-                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                        <Binding Path="BindingContext.SelectedFilterMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                        <Binding Path="." />
-                                                    </MultiBinding>
-                                                </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="#2FB79D" />
-                                                <Setter Property="Stroke" Value="#2FB79D" />
-                                            </DataTrigger>
-                                        </Border.Triggers>
-                                    </Border>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </FlexLayout>
+                        <Label Text="الفلتر" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" HorizontalTextAlignment="End" />
+                        <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
+                            <Border x:Name="FilterNoneChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnFilterNoneTapped" />
+                                </Border.GestureRecognizers>
+                                <Label x:Name="FilterNoneLabel" Text="بدون" Style="{StaticResource ChoiceChipLabel}" />
+                            </Border>
+                            <Border x:Name="FilterNightChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnFilterNightTapped" />
+                                </Border.GestureRecognizers>
+                                <Label x:Name="FilterNightLabel" Text="ليلي" Style="{StaticResource ChoiceChipLabel}" />
+                            </Border>
+                            <Border x:Name="FilterContrastChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnFilterContrastTapped" />
+                                </Border.GestureRecognizers>
+                                <Label x:Name="FilterContrastLabel" Text="عالي التباين" Style="{StaticResource ChoiceChipLabel}" />
+                            </Border>
+                        </HorizontalStackLayout>
                     </VerticalStackLayout>
                 </Border>
 
-                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}"
+                <Border x:Name="CompassCard"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}"
                         Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}"
                         StrokeShape="RoundRectangle 20"
                         Padding="16">
-                    <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=320, iOS=320}">
-                        <Grid Rotation="{Binding CompassRotation}" AnchorX="0.5" AnchorY="0.5">
-                            <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark=#13273B}" />
-                            <Ellipse Stroke="#2FB79D" StrokeThickness="2" Opacity="0.6" />
-                            <Ellipse Stroke="#2FB79D" StrokeThickness="1" Opacity="0.3" Margin="24" />
-
-                            <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
-                                <Label Text="ش" Grid.Row="0" Grid.Column="1" FontSize="14" TextColor="#EF4444" HorizontalOptions="Center" />
-                                <Label Text="غ" Grid.Row="1" Grid.Column="0" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark=#EAF1FA}" VerticalOptions="Center" />
-                                <Label Text="ق" Grid.Row="1" Grid.Column="2" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark=#EAF1FA}" VerticalOptions="Center" />
-                                <Label Text="ج" Grid.Row="2" Grid.Column="1" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark=#EAF1FA}" HorizontalOptions="Center" />
-                            </Grid>
-
-                            <Grid Rotation="{Binding NeedleRotation}" AnchorX="0.5" AnchorY="0.5">
-                                <Border WidthRequest="20"
-                                        HeightRequest="20"
-                                        StrokeThickness="2"
-                                        StrokeShape="Ellipse"
-                                        Stroke="#F0C339"
-                                        BackgroundColor="#F0C339"
-                                        HorizontalOptions="Start"
-                                        VerticalOptions="Center"
-                                        Margin="30,0,0,0">
-                                    <Border.Shadow>
-                                        <Shadow Brush="#F0C339" Radius="26" Opacity="1" Offset="0,0" />
-                                    </Border.Shadow>
-                                </Border>
-                            </Grid>
-                        </Grid>
-
-                        <VerticalStackLayout Spacing="2" HorizontalOptions="Center" VerticalOptions="Center">
-                            <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}" FontSize="52" FontAttributes="Bold" />
-                            <Label Text="{loc:Loc QiblaDirection}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
-                        </VerticalStackLayout>
-                    </Grid>
+                    <controls:QiblaCompassView x:Name="CompassDial"
+                                               Bearing="{Binding Bearing}"
+                                               Heading="{Binding Heading}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"
+                                               WidthRequest="{OnPlatform WinUI=340, MacCatalyst=340, Android=300, iOS=300}"
+                                               HeightRequest="{OnPlatform WinUI=340, MacCatalyst=340, Android=300, iOS=300}" />
                 </Border>
 
                 <Border x:Name="MapContainer"
+                        IsVisible="False"
                         BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark=#111C2E}"
                         Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#20344A}"
                         StrokeShape="RoundRectangle 20"

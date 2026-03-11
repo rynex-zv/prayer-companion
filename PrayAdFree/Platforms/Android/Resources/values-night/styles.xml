@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="PrayAdFree.DialogOverlay" parent="@style/ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/pray_dialog_bg</item>
+        <item name="android:textColorPrimary">#EAF1FA</item>
+        <item name="android:textColorSecondary">#95A7BC</item>
+        <item name="android:colorAccent">#2FB79D</item>
+    </style>
+</resources>

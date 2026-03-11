@@ -1,4 +1,4 @@
-using PrayAdFree.Core.Models;
+﻿using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
@@ -13,6 +13,7 @@ public sealed class QiblaViewModel : ViewModelBase {
     private double _needleRotation;
     private double _compassRotation;
     private string _locationTitle = "";
+    private string _directionLabel = "";
     private string _statusMessage = "";
     private LocationSettings? _location;
     private OptionItem<QiblaReadingMode>? _selectedReadingMode;
@@ -39,6 +40,7 @@ public sealed class QiblaViewModel : ViewModelBase {
         LocalizationManager.LanguageChanged += (_, _) => {
             BuildOptions();
             LoadPreferences();
+            DirectionLabel = ResolveDirectionLabel(Bearing);
         };
     }
 
@@ -48,6 +50,7 @@ public sealed class QiblaViewModel : ViewModelBase {
         get => _selectReadingModeCommand!;
         private set => _selectReadingModeCommand = value;
     }
+
     public Command<OptionItem<QiblaFilterMode>> SelectFilterModeCommand {
         get => _selectFilterModeCommand!;
         private set => _selectFilterModeCommand = value;
@@ -96,6 +99,11 @@ public sealed class QiblaViewModel : ViewModelBase {
         set => SetProperty(ref _locationTitle, value);
     }
 
+    public string DirectionLabel {
+        get => _directionLabel;
+        set => SetProperty(ref _directionLabel, value);
+    }
+
     public string StatusMessage {
         get => _statusMessage;
         set => SetProperty(ref _statusMessage, value);
@@ -113,7 +121,7 @@ public sealed class QiblaViewModel : ViewModelBase {
             Bearing = QiblaCalculator.CalculateBearing(_location.Latitude, _location.Longitude);
             LocationTitle = $"{_location.City}, {_location.Country}".Trim(' ', ',');
             UpdateNeedle();
-            StatusMessage = LocalizationManager.Translate("CompassCalibrationHint");
+            StatusMessage = string.Empty;
         }
     }
 
@@ -125,6 +133,18 @@ public sealed class QiblaViewModel : ViewModelBase {
     private void UpdateNeedle() {
         NeedleRotation = (Bearing + 360) % 360;
         CompassRotation = (-Heading + 360) % 360;
+        DirectionLabel = ResolveDirectionLabel(Bearing);
+    }
+
+    private static string ResolveDirectionLabel(double bearing) {
+        var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var sectors = culture == "ar"
+            ? new[] { "شمال", "شمال شرق", "شرق", "جنوب شرق", "جنوب", "جنوب غرب", "غرب", "شمال غرب" }
+            : new[] { "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West" };
+
+        var normalized = (bearing % 360 + 360) % 360;
+        var index = (int)Math.Round(normalized / 45d, MidpointRounding.AwayFromZero) % 8;
+        return sectors[index];
     }
 
     private void BuildOptions() {

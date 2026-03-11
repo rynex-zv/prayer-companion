@@ -28,8 +28,8 @@
                                             <Button.Triggers>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
                                                     <Setter Property="Text" Value="{loc:Loc Selected}" />
-                                                    <Setter Property="BackgroundColor" Value="#1D4C4A" />
-                                                    <Setter Property="BorderColor" Value="#32C7A6" />
+                                                    <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark=#1D4C4A}" />
+                                                    <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark=#32C7A6}" />
                                                     <Setter Property="Scale" Value="1.02" />
                                                 </DataTrigger>
                                                 <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="False">

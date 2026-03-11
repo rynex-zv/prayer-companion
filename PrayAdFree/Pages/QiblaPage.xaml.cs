@@ -99,9 +99,6 @@ public partial class QiblaPage : ContentPage {
         }
 
         MainThread.BeginInvokeOnMainThread(() => {
-            if (string.Equals(ViewModel.StatusMessage, LocalizationManager.Translate("CompassNotSupported"), StringComparison.Ordinal)) {
-                ViewModel.StatusMessage = LocalizationManager.Translate("CompassCalibrationHint");
-            }
             ViewModel.UpdateHeading(smooth);
         });
     }
@@ -311,6 +308,8 @@ public partial class QiblaPage : ContentPage {
         await ViewModel.LoadAsync();
         if (!_compassSupported) {
             ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
+        } else {
+            ViewModel.StatusMessage = string.Empty;
         }
         if (MapContainer.IsVisible) {
             MainThread.BeginInvokeOnMainThread(UpdateMap);

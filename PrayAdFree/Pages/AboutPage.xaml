@@ -36,11 +36,11 @@
                 <Border Padding="18" StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout Spacing="10">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <Label Text="♡" FontSize="24" TextColor="#EAB308" />
+                            <Label Text="♡" FontSize="24" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark=#EAB308}" />
                             <Label Grid.Column="1" Text="{Binding Privacy}" FontSize="13" />
                         </Grid>
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <Label Text="◍" FontSize="24" TextColor="#EAB308" />
+                            <Label Text="◍" FontSize="24" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark=#EAB308}" />
                             <Label Grid.Column="1" Text="{Binding Source}" FontSize="13" />
                         </Grid>
                     </VerticalStackLayout>
@@ -48,7 +48,7 @@
 
                 <Border Padding="16" StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="{Binding Contact}" FontSize="13" TextColor="#8CA0B6" />
+                        <Label Text="{Binding Contact}" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
                         <Button Text="{loc:Loc ReportIssue}" Clicked="OnReportClicked" />
                     </VerticalStackLayout>
                 </Border>
