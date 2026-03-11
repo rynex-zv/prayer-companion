@@ -3,15 +3,15 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.Pages;
 
 public sealed record AdhanSnoozePageModel(
-    string CurrentPrayerName,
-    string NextPrayerName,
-    string RemainingToNextPrayer,
-    int MinDelayMinutes,
-    int MaxDelayMinutes,
-    int InitialDelayMinutes);
+    string CurrentPrayerName ,
+    string NextPrayerName ,
+    string RemainingToNextPrayer ,
+    int MinDelayMinutes ,
+    int MaxDelayMinutes ,
+    int InitialDelayMinutes );
 
 public sealed class AdhanSnoozePage : ContentPage {
-    private readonly Func<int, Task<bool>> _onConfirm;
+    private readonly Func<int , Task<bool>> _onConfirm;
     private readonly int _minDelayMinutes;
     private readonly int _maxDelayMinutes;
     private readonly Label _delayLabel;
@@ -21,117 +21,130 @@ public sealed class AdhanSnoozePage : ContentPage {
     private bool _isSubmitting;
     private int _selectedDelayMinutes;
 
-    public AdhanSnoozePage(AdhanSnoozePageModel model, Func<int, Task<bool>> onConfirm) {
+    public AdhanSnoozePage( AdhanSnoozePageModel model , Func<int , Task<bool>> onConfirm ) {
         _onConfirm = onConfirm;
         _minDelayMinutes = model.MinDelayMinutes;
         _maxDelayMinutes = model.MaxDelayMinutes;
-        _selectedDelayMinutes = Math.Clamp(model.InitialDelayMinutes, _minDelayMinutes, _maxDelayMinutes);
+        _selectedDelayMinutes = Math.Clamp( model.InitialDelayMinutes , _minDelayMinutes , _maxDelayMinutes );
 
-        Title = LocalizationManager.Translate("SnoozePageTitle");
+        Title = LocalizationManager.Translate( "SnoozePageTitle" );
         BackgroundColor = Application.Current?.RequestedTheme == AppTheme.Dark
-            ? Color.FromArgb("#0F172A")
-            : Color.FromArgb("#F7F3EA");
+            ? Color.FromArgb( "#0F172A" )
+            : Color.FromArgb( "#F7F3EA" );
 
         var title = new Label {
-            Text = LocalizationManager.Translate("SnoozePageTitle"),
-            FontSize = 22,
-            HorizontalTextAlignment = TextAlignment.Center,
+            Text = LocalizationManager.Translate( "SnoozePageTitle" ) ,
+            FontSize = 22 ,
+            HorizontalTextAlignment = TextAlignment.Center ,
             TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black
         };
 
         var subtitle = new Label {
             Text = string.Format(
-                LocalizationManager.Translate("SnoozePageHint"),
-                model.CurrentPrayerName),
-            FontSize = 14,
-            HorizontalTextAlignment = TextAlignment.Center,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb("#CBD5E1") : Color.FromArgb("#475569")
+                LocalizationManager.Translate( "SnoozePageHint" ) ,
+                model.CurrentPrayerName ) ,
+            FontSize = 14 ,
+            HorizontalTextAlignment = TextAlignment.Center ,
+            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#CBD5E1" ) : Color.FromArgb( "#475569" )
         };
 
         var remaining = new Label {
             Text = string.Format(
-                LocalizationManager.Translate("SnoozeRemainingToNextPrayer"),
-                model.NextPrayerName,
-                model.RemainingToNextPrayer),
-            FontSize = 13,
-            HorizontalTextAlignment = TextAlignment.Center,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb("#94A3B8") : Color.FromArgb("#334155")
+                LocalizationManager.Translate( "SnoozeRemainingToNextPrayer" ) ,
+                model.NextPrayerName ,
+                model.RemainingToNextPrayer ) ,
+            FontSize = 13 ,
+            HorizontalTextAlignment = TextAlignment.Center ,
+            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#94A3B8" ) : Color.FromArgb( "#334155" )
         };
 
         _delayLabel = new Label {
-            FontSize = 14,
-            HorizontalTextAlignment = TextAlignment.Center,
-            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb("#E2E8F0") : Color.FromArgb("#1E293B")
+            FontSize = 14 ,
+            HorizontalTextAlignment = TextAlignment.Center ,
+            TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Color.FromArgb( "#E2E8F0" ) : Color.FromArgb( "#1E293B" )
         };
 
         _minusButton = new Button {
-            Text = "-",
-            FontSize = 22,
-            WidthRequest = 56,
+            Text = "-" ,
+            FontSize = 22 ,
+            WidthRequest = 56 ,
             HeightRequest = 56
         };
-        _minusButton.Clicked += (_, _) => ChangeDelay(-1);
+        _minusButton.Clicked += ( _ , _ ) => ChangeDelay( -1 );
 
         _valueLabel = new Label {
-            WidthRequest = 120,
-            HorizontalTextAlignment = TextAlignment.Center,
-            VerticalTextAlignment = TextAlignment.Center,
-            FontSize = 28,
-            FontAttributes = FontAttributes.Bold,
+            WidthRequest = 120 ,
+            HorizontalTextAlignment = TextAlignment.Center ,
+            VerticalTextAlignment = TextAlignment.Center ,
+            FontSize = 28 ,
+            FontAttributes = FontAttributes.Bold ,
             TextColor = Application.Current?.RequestedTheme == AppTheme.Dark ? Colors.White : Colors.Black
         };
 
         _plusButton = new Button {
-            Text = "+",
-            FontSize = 22,
-            WidthRequest = 56,
+            Text = "+" ,
+            FontSize = 22 ,
+            WidthRequest = 56 ,
             HeightRequest = 56
         };
-        _plusButton.Clicked += (_, _) => ChangeDelay(1);
+        _plusButton.Clicked += ( _ , _ ) => ChangeDelay( 1 );
 
         var valueRow = new HorizontalStackLayout {
-            Spacing = 14,
-            HorizontalOptions = LayoutOptions.Center,
-            Children = { _minusButton, _valueLabel, _plusButton }
+            Spacing = 14 ,
+            HorizontalOptions = LayoutOptions.Center ,
+            Children = { _minusButton , _valueLabel , _plusButton }
         };
 
         var confirmButton = new Button {
-            Text = LocalizationManager.Translate("SnoozePageConfirm"),
+            Text = LocalizationManager.Translate( "SnoozePageConfirm" ) ,
             HeightRequest = 48
         };
-        confirmButton.Clicked += async (_, _) => await ConfirmAsync().ConfigureAwait(false);
+        confirmButton.Clicked += async ( _ , _ ) => await ConfirmAsync();
 
         var cancelButton = new Button {
-            Text = LocalizationManager.Translate("SnoozePageCancel"),
+            Text = LocalizationManager.Translate( "SnoozePageCancel" ) ,
             HeightRequest = 44
         };
-        cancelButton.Clicked += async (_, _) => await CloseAsync().ConfigureAwait(false);
+        cancelButton.Clicked += async ( _ , _ ) => await CloseAsync( navigateToHome: false );
 
-        Content = new ScrollView {
-            Content = new VerticalStackLayout {
-                Spacing = 16,
-                Padding = new Thickness(24, 32),
-                Children = {
-                    title,
-                    subtitle,
-                    remaining,
-                    _delayLabel,
-                    valueRow,
-                    confirmButton,
-                    cancelButton
-                }
+        var contentStack = new VerticalStackLayout {
+            Spacing = 16 ,
+            MaximumWidthRequest = 480 ,
+            HorizontalOptions = LayoutOptions.Fill ,
+            Children = {
+                title,
+                subtitle,
+                remaining,
+                _delayLabel,
+                valueRow,
+                confirmButton,
+                cancelButton
             }
         };
+
+        var root = new Grid {
+            Padding = new Thickness( 24 , 24 , 24 , 32 ) ,
+            RowDefinitions = {
+                new RowDefinition(GridLength.Star),
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Star)
+            }
+        };
+
+        root.Children.Add( contentStack );
+        Grid.SetRow( contentStack , 1 );
+
+        Content = root;
 
         UpdateDelayUi();
     }
 
-    private void ChangeDelay(int delta) {
+    private void ChangeDelay( int delta ) {
         if (_isSubmitting) {
             return;
         }
 
-        var next = Math.Clamp(_selectedDelayMinutes + delta, _minDelayMinutes, _maxDelayMinutes);
+        var next = Math.Clamp( _selectedDelayMinutes + delta , _minDelayMinutes , _maxDelayMinutes );
         if (next == _selectedDelayMinutes) {
             return;
         }
@@ -143,8 +156,8 @@ public sealed class AdhanSnoozePage : ContentPage {
     private void UpdateDelayUi() {
         _valueLabel.Text = _selectedDelayMinutes.ToString();
         _delayLabel.Text = string.Format(
-            LocalizationManager.Translate("SnoozeDelayLabel"),
-            _selectedDelayMinutes);
+            LocalizationManager.Translate( "SnoozeDelayLabel" ) ,
+            _selectedDelayMinutes );
         _minusButton.IsEnabled = !_isSubmitting && _selectedDelayMinutes > _minDelayMinutes;
         _plusButton.IsEnabled = !_isSubmitting && _selectedDelayMinutes < _maxDelayMinutes;
     }
@@ -157,18 +170,42 @@ public sealed class AdhanSnoozePage : ContentPage {
         _isSubmitting = true;
         UpdateDelayUi();
         try {
-            await _onConfirm(_selectedDelayMinutes).ConfigureAwait(false);
+            await _onConfirm( _selectedDelayMinutes ).ConfigureAwait( false );
         } finally {
-            await CloseAsync().ConfigureAwait(false);
+            await CloseAsync( navigateToHome: true ).ConfigureAwait( false );
         }
     }
 
-    private async Task CloseAsync() {
-        await MainThread.InvokeOnMainThreadAsync(async () => {
-            var navigation = Shell.Current?.Navigation ?? Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
-            if (navigation != null) {
-                await navigation.PopModalAsync();
+    private async Task CloseAsync( bool navigateToHome ) => await MainThread.InvokeOnMainThreadAsync( async () => {
+        var closed = false;
+
+        try {
+            if (Navigation.ModalStack.Count > 0 && ReferenceEquals( Navigation.ModalStack[^1] , this )) {
+                await Navigation.PopModalAsync();
+                closed = true;
+            } else {
+                var navigation = Shell.Current?.Navigation ?? Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
+                if (navigation?.ModalStack.Count > 0) {
+                    await navigation.PopModalAsync();
+                    closed = true;
+                }
             }
-        });
-    }
+        } catch {
+        }
+
+        if (navigateToHome && Shell.Current != null) {
+            try {
+                await Shell.Current.GoToAsync( "//today" );
+                return;
+            } catch {
+            }
+        }
+
+        if (!closed) {
+            try {
+                Application.Current?.Quit();
+            } catch {
+            }
+        }
+    } );
 }
