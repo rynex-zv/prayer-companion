@@ -1532,11 +1532,16 @@ public sealed class SettingsViewModel : ViewModelBase {
             var payload = AdhanSoundLibrary.IsSilent(effectiveKey)
                 ? string.Empty
                 : AdhanNotificationPayload.BuildPlay(PrayerId.Fajr, effectiveKey);
+            var prayerName = LocalizationManager.Translate("Prayer_Fajr");
+            var bodyTemplate = LocalizationManager.Translate("Notification_PrayerBody");
+            var description = bodyTemplate.Contains("{0}", StringComparison.Ordinal)
+                ? string.Format(bodyTemplate, prayerName)
+                : $"{bodyTemplate} {prayerName}".Trim();
 
             var request = new NotificationRequest {
                 NotificationId = 55000 + DateTime.Now.Second,
                 Title = LocalizationManager.Translate("TestNotification"),
-                Description = LocalizationManager.Translate("Notification_PrayerBody").Replace("{0}", LocalizationManager.Translate("Prayer_Fajr")),
+                Description = description,
                 Silent = true,
                 ReturningData = payload
             };

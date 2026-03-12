@@ -305,19 +305,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
     private static string BuildPrayerNotificationTitle(string prayerName) {
         var template = LocalizationManager.Translate("Notification_PrayerTitle");
-        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerTitle", StringComparison.Ordinal)) {
-            return $"Prayer time: {prayerName}";
-        }
-
         return FormatTemplate(template, prayerName);
     }
 
     private static string BuildPrayerNotificationBody(string prayerName) {
         var template = LocalizationManager.Translate("Notification_PrayerBody");
-        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerBody", StringComparison.Ordinal)) {
-            return $"It is time for {prayerName}";
-        }
-
         return FormatTemplate(template, prayerName);
     }
 
