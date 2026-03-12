@@ -3,6 +3,8 @@ using System.Linq;
 using Microsoft.Maui.ApplicationModel;
 using Plugin.LocalNotification;
 #if ANDROID
+using Android.App;
+using Android.Content;
 using Plugin.LocalNotification.AndroidOption;
 #endif
 using PrayAdFree.Core.Models;
@@ -80,17 +82,24 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     var useRuntimeAdhanPlayback = ShouldUseRuntimeAdhanPlayback();
                     var playRuntimeAdhan = useRuntimeAdhanPlayback && !isSilent;
                     var vibrationOverride = overrideSettings?.EnableVibration;
+                    var showAdhanActions = !isSilent;
+                    var notificationCategory = showAdhanActions
+                        ? NotificationCategoryType.Recommendation
+                        : NotificationCategoryType.None;
 
                     if (ShouldSchedule(item.Time, now)) {
                         AddIfUnique(requests, signatures, new NotificationRequest {
                             NotificationId = BuildId(day.Date, item.Prayer),
+                            CategoryType = notificationCategory,
                             Title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName),
                             Description = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName),
                             Silent = ResolveNotificationSilent(playRuntimeAdhan, isSilent),
                             Sound = playRuntimeAdhan ? string.Empty : notificationSound ?? string.Empty,
-                            ReturningData = isSilent || !playRuntimeAdhan
+                            ReturningData = isSilent
                                 ? string.Empty
-                                : AdhanNotificationPayload.BuildPlay(item.Prayer, effectiveSoundKey),
+                                : playRuntimeAdhan
+                                    ? AdhanNotificationPayload.BuildPlay(item.Prayer, effectiveSoundKey)
+                                    : AdhanPlaybackService.ControlReturningData,
                             Schedule = new NotificationRequestSchedule {
                                 NotifyTime = ToLocalKind(item.Time),
                                 NotifyRepeatInterval = null
@@ -103,7 +112,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                             },
 #if ANDROID
                             Android = new AndroidOptions {
-                                Priority = AndroidPriority.Default,
+                                Priority = AndroidPriority.Max,
                                 ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, AdhanReminderAlertType.Adhan),
                                 VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride),
                                 LaunchAppWhenTapped = !playRuntimeAdhan
@@ -620,7 +629,36 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             return;
         }
 
+        RefreshAndroidChannels(channels);
         LocalNotificationCenter.CreateNotificationChannels(channels);
+    }
+
+    private static void RefreshAndroidChannels(IReadOnlyList<NotificationChannelRequest> channels) {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
+            return;
+        }
+
+        var context = Android.App.Application.Context;
+        if (context == null) {
+            return;
+        }
+
+        if (context.GetSystemService(Context.NotificationService) is not NotificationManager manager) {
+            return;
+        }
+
+        foreach (var channel in channels) {
+            if (string.IsNullOrWhiteSpace(channel.Id)) {
+                continue;
+            }
+
+            try {
+                if (manager.GetNotificationChannel(channel.Id) != null) {
+                    manager.DeleteNotificationChannel(channel.Id);
+                }
+            } catch {
+            }
+        }
     }
 
     private static string? ResolveAndroidChannelSound(string? sound) {
