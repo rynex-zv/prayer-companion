@@ -1,14 +1,48 @@
 using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Resources.Styles;
+using System.Globalization;
+#if ANDROID
+using Android.Util;
+using AToolbar = AndroidX.AppCompat.Widget.Toolbar;
+using Google.Android.Material.BottomNavigation;
+using ATextView = Android.Widget.TextView;
+using AView = Android.Views.View;
+using AViewGroup = Android.Views.ViewGroup;
+#endif
 
 namespace Pray_Ad_Free.Services;
 
 public static class ThemeManager {
     private const int AccentCount = 20;
     private static ThemeBStyles? _themeBStyles;
+    private static int _activeTextScalePercent = 100;
+    private static double _activeTextScaleFactor = 1d;
+    private static double _activeIconScaleFactor = 2d;
+    private static readonly BindableProperty UnscaledFontSizeProperty = BindableProperty.CreateAttached(
+        "UnscaledFontSize",
+        typeof(double),
+        typeof(ThemeManager),
+        0d);
+    private static readonly BindableProperty UnscaledIconWidthProperty = BindableProperty.CreateAttached(
+        "UnscaledIconWidth",
+        typeof(double),
+        typeof(ThemeManager),
+        0d);
+    private static readonly BindableProperty UnscaledIconHeightProperty = BindableProperty.CreateAttached(
+        "UnscaledIconHeight",
+        typeof(double),
+        typeof(ThemeManager),
+        0d);
+    private static readonly BindableProperty UnscaledIconFontSizeProperty = BindableProperty.CreateAttached(
+        "UnscaledIconFontSize",
+        typeof(double),
+        typeof(ThemeManager),
+        0d);
 
     private static readonly IReadOnlyList<AccentOption> ThemeAAccents = new List<AccentOption> {
         new AccentOption(0, "Teal", "#0E6B61"),
@@ -113,11 +147,25 @@ public static class ThemeManager {
         SetColor(resources, "TextMutedDark", dark.TextMuted);
 
         var textScalePercent = NormalizeTextScalePercent(settings.TextScale);
-        if (settings.ThemeVariant == ThemeVariant.B) {
-            // Keep Theme B balanced on mobile where oversized text can break layouts.
-            textScalePercent = Math.Clamp(textScalePercent, 85, 130);
-        }
         ApplyTextScale(resources, textScalePercent);
+        _activeTextScalePercent = textScalePercent;
+        _activeTextScaleFactor = Math.Max(0.1d, textScalePercent / 100d);
+        _activeIconScaleFactor = 2d * _activeTextScaleFactor;
+        ApplyRuntimeTextScale(textScalePercent);
+    }
+
+    public static void RefreshTextScaleOnVisibleUI() {
+        ApplyRuntimeTextScaleCore(Application.Current, _activeTextScaleFactor, _activeIconScaleFactor);
+    }
+
+    public static void RefreshTextScaleOnVisibleUIWithDeferredPasses() {
+        RefreshTextScaleOnVisibleUI();
+        _ = MainThread.InvokeOnMainThreadAsync(async () => {
+            await Task.Delay(220).ConfigureAwait(true);
+            RefreshTextScaleOnVisibleUI();
+            await Task.Delay(650).ConfigureAwait(true);
+            RefreshTextScaleOnVisibleUI();
+        });
     }
 
     private static void ApplyThemeStyles(ResourceDictionary resources, ThemeVariant variant) {
@@ -177,6 +225,388 @@ public static class ThemeManager {
         resources["FontSizeDisplay"] = 32d * factor;
         resources["FontSizeSubDisplay"] = 24d * factor;
     }
+
+    private static void ApplyRuntimeTextScale(int percent) {
+        var factor = Math.Max(0.1d, percent / 100d);
+        var iconFactor = 2d * factor;
+        if (MainThread.IsMainThread) {
+            ApplyRuntimeTextScaleCore(Application.Current, factor, iconFactor);
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => ApplyRuntimeTextScaleCore(Application.Current, factor, iconFactor));
+    }
+
+    private static void ApplyRuntimeTextScaleCore(Application? app, double textFactor, double iconFactor) {
+        if (app == null) {
+            return;
+        }
+
+        foreach (var window in app.Windows) {
+            if (window?.Page is not IVisualTreeElement root) {
+                continue;
+            }
+
+            var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
+            ApplyRuntimeTextScaleNode(root, textFactor, iconFactor, visited);
+            ApplyNativeShellTextScale(window, textFactor);
+        }
+    }
+
+    private static void ApplyRuntimeTextScaleNode(
+        IVisualTreeElement node,
+        double textFactor,
+        double iconFactor,
+        HashSet<object> visited) {
+        if (!visited.Add(node)) {
+            return;
+        }
+
+        if (node is BindableObject bindable) {
+            ApplyRuntimeFontSize(bindable, textFactor);
+            ApplyRuntimeIconSize(bindable, iconFactor);
+
+            if (bindable is Label label && label.FormattedText != null) {
+                foreach (var span in label.FormattedText.Spans) {
+                    ApplyRuntimeFontSize(span, textFactor);
+                }
+            }
+        }
+
+        foreach (var child in node.GetVisualChildren()) {
+            ApplyRuntimeTextScaleNode(child, textFactor, iconFactor, visited);
+        }
+    }
+
+    private static void ApplyRuntimeFontSize(BindableObject target, double factor) {
+        switch (target) {
+            case Label label:
+                ApplyRuntimeFontSizeCore(label, Label.FontSizeProperty, label.FontSize, size => label.FontSize = size, factor);
+                return;
+            case Button button:
+                ApplyRuntimeFontSizeCore(button, Button.FontSizeProperty, button.FontSize, size => button.FontSize = size, factor);
+                return;
+            case Entry entry:
+                ApplyRuntimeFontSizeCore(entry, Entry.FontSizeProperty, entry.FontSize, size => entry.FontSize = size, factor);
+                return;
+            case Editor editor:
+                ApplyRuntimeFontSizeCore(editor, Editor.FontSizeProperty, editor.FontSize, size => editor.FontSize = size, factor);
+                return;
+            case Picker picker:
+                ApplyRuntimeFontSizeCore(picker, Picker.FontSizeProperty, picker.FontSize, size => picker.FontSize = size, factor);
+                return;
+            case SearchBar searchBar:
+                ApplyRuntimeFontSizeCore(searchBar, SearchBar.FontSizeProperty, searchBar.FontSize, size => searchBar.FontSize = size, factor);
+                return;
+            case DatePicker datePicker:
+                ApplyRuntimeFontSizeCore(datePicker, DatePicker.FontSizeProperty, datePicker.FontSize, size => datePicker.FontSize = size, factor);
+                return;
+            case TimePicker timePicker:
+                ApplyRuntimeFontSizeCore(timePicker, TimePicker.FontSizeProperty, timePicker.FontSize, size => timePicker.FontSize = size, factor);
+                return;
+            case RadioButton radioButton:
+                ApplyRuntimeFontSizeCore(radioButton, RadioButton.FontSizeProperty, radioButton.FontSize, size => radioButton.FontSize = size, factor);
+                return;
+            case Span span:
+                ApplyRuntimeFontSizeCore(span, Span.FontSizeProperty, span.FontSize, size => span.FontSize = size, factor);
+                return;
+        }
+    }
+
+    private static void ApplyRuntimeFontSizeCore(
+        BindableObject target,
+        BindableProperty fontSizeProperty,
+        double currentSize,
+        Action<double> setter,
+        double factor) {
+        if (currentSize <= 0 || double.IsNaN(currentSize) || double.IsInfinity(currentSize)) {
+            return;
+        }
+
+        var storedValue = target.GetValue(UnscaledFontSizeProperty) is double stored && stored > 0
+            ? stored
+            : 0d;
+        var hasStored = storedValue > 0;
+        var hasLocalFontSize = target.IsSet(fontSizeProperty);
+
+        if (!hasStored && !hasLocalFontSize) {
+            return;
+        }
+
+        var unscaled = hasStored
+            ? storedValue
+            : hasLocalFontSize
+                ? currentSize
+                : currentSize / factor;
+
+        target.SetValue(UnscaledFontSizeProperty, unscaled);
+        var scaled = Math.Max(1d, Math.Round(unscaled * factor, 2));
+        if (Math.Abs(currentSize - scaled) < 0.01d) {
+            return;
+        }
+
+        setter(scaled);
+    }
+
+    private static void ApplyRuntimeIconSize(BindableObject target, double iconFactor) {
+        switch (target) {
+            case Image image:
+                ApplyRuntimeIconSizeCore(image, image.Source, iconFactor);
+                return;
+            case ImageButton imageButton:
+                ApplyRuntimeIconSizeCore(imageButton, imageButton.Source, iconFactor);
+                return;
+            case Button button when button.ImageSource != null:
+                ApplyRuntimeIconSizeCore(button, button.ImageSource, iconFactor);
+                return;
+            case Label label when IsLikelyGlyphIconText(label.Text):
+                ApplyRuntimeGlyphIconFontSize(label, label.FontSize, size => label.FontSize = size, iconFactor);
+                return;
+            case Button button when button.ImageSource == null && IsLikelyGlyphIconText(button.Text):
+                ApplyRuntimeGlyphIconFontSize(button, button.FontSize, size => button.FontSize = size, iconFactor);
+                return;
+        }
+    }
+
+    private static void ApplyRuntimeIconSizeCore(VisualElement element, ImageSource? source, double iconFactor) {
+        if (source == null) {
+            return;
+        }
+
+        var (unscaledWidth, hasWidth) = GetOrCaptureUnscaledDimension(
+            element,
+            UnscaledIconWidthProperty,
+            element.WidthRequest,
+            element.Width,
+            iconFactor);
+        var (unscaledHeight, hasHeight) = GetOrCaptureUnscaledDimension(
+            element,
+            UnscaledIconHeightProperty,
+            element.HeightRequest,
+            element.Height,
+            iconFactor);
+
+        if (!IsLikelyIcon(source, unscaledWidth, unscaledHeight)) {
+            return;
+        }
+
+        if (hasWidth) {
+            element.WidthRequest = Math.Round(unscaledWidth * iconFactor, 2);
+        }
+
+        if (hasHeight) {
+            element.HeightRequest = Math.Round(unscaledHeight * iconFactor, 2);
+        }
+
+        if (source is FontImageSource fontImage) {
+            var baseline = fontImage.GetValue(UnscaledIconFontSizeProperty) is double stored && stored > 0
+                ? stored
+                : (fontImage.Size > 0 ? fontImage.Size / iconFactor : 0d);
+
+            if (baseline > 0) {
+                fontImage.SetValue(UnscaledIconFontSizeProperty, baseline);
+                fontImage.Size = Math.Round(baseline * iconFactor, 2);
+            }
+        }
+    }
+
+    private static (double Value, bool HasValue) GetOrCaptureUnscaledDimension(
+        BindableObject target,
+        BindableProperty property,
+        double requestValue,
+        double actualValue,
+        double iconFactor) {
+        if (target.GetValue(property) is double stored && stored > 0) {
+            return (stored, true);
+        }
+
+        double raw = 0;
+        if (requestValue > 0 && !double.IsNaN(requestValue) && !double.IsInfinity(requestValue)) {
+            raw = requestValue;
+        } else if (actualValue > 0 && !double.IsNaN(actualValue) && !double.IsInfinity(actualValue)) {
+            raw = actualValue;
+        }
+
+        if (raw <= 0) {
+            return (0, false);
+        }
+
+        var baseline = raw / Math.Max(0.1d, iconFactor);
+        target.SetValue(property, baseline);
+        return (baseline, true);
+    }
+
+    private static bool IsLikelyIcon(ImageSource source, double unscaledWidth, double unscaledHeight) {
+        if (source is FontImageSource) {
+            return true;
+        }
+
+        var largestDimension = Math.Max(unscaledWidth, unscaledHeight);
+        if (largestDimension > 0 && largestDimension <= 96) {
+            return true;
+        }
+
+        if (source is FileImageSource fileImage) {
+            var file = fileImage.File?.ToLowerInvariant() ?? string.Empty;
+            if (file.Contains("icon") || file.Contains("tab_") || file.Contains("glyph")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ApplyRuntimeGlyphIconFontSize(
+        BindableObject target,
+        double currentSize,
+        Action<double> setter,
+        double iconFactor) {
+        if (currentSize <= 0 || double.IsNaN(currentSize) || double.IsInfinity(currentSize)) {
+            return;
+        }
+
+        var baseline = target.GetValue(UnscaledIconFontSizeProperty) is double storedIconBaseline && storedIconBaseline > 0
+            ? storedIconBaseline
+            : target.GetValue(UnscaledFontSizeProperty) is double storedTextBaseline && storedTextBaseline > 0
+                ? storedTextBaseline
+                : currentSize;
+
+        target.SetValue(UnscaledIconFontSizeProperty, baseline);
+        var scaled = Math.Max(1d, Math.Round(baseline * iconFactor, 2));
+        if (Math.Abs(currentSize - scaled) < 0.01d) {
+            return;
+        }
+
+        setter(scaled);
+    }
+
+    private static bool IsLikelyGlyphIconText(string? text) {
+        if (string.IsNullOrWhiteSpace(text)) {
+            return false;
+        }
+
+        var trimmed = text.Trim();
+        if (trimmed.Length > 3) {
+            return false;
+        }
+
+        var symbolCount = 0;
+        foreach (var ch in trimmed) {
+            if (char.IsWhiteSpace(ch)) {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(ch)) {
+                return false;
+            }
+
+            var category = char.GetUnicodeCategory(ch);
+            if (category is UnicodeCategory.MathSymbol
+                or UnicodeCategory.CurrencySymbol
+                or UnicodeCategory.ModifierSymbol
+                or UnicodeCategory.OtherSymbol
+                or UnicodeCategory.DashPunctuation
+                or UnicodeCategory.OpenPunctuation
+                or UnicodeCategory.ClosePunctuation
+                or UnicodeCategory.InitialQuotePunctuation
+                or UnicodeCategory.FinalQuotePunctuation
+                or UnicodeCategory.OtherPunctuation) {
+                symbolCount++;
+            }
+        }
+
+        return symbolCount > 0;
+    }
+
+#if ANDROID
+    private static void ApplyNativeShellTextScale(Microsoft.Maui.Controls.Window window, double textFactor) {
+        if (window.Page?.Handler?.PlatformView is not AView rootView) {
+            return;
+        }
+
+        var bottomNav = FindBottomNavigationView(rootView);
+        if (bottomNav != null) {
+            var tabTextSp = (float)Math.Max(8d, Math.Round(12d * textFactor, 2));
+            ApplyTextSizeRecursive(bottomNav, tabTextSp);
+        }
+
+        var toolbar = FindToolbar(rootView);
+        if (toolbar != null) {
+            var titleTextSp = (float)Math.Max(10d, Math.Round(20d * textFactor, 2));
+            ApplyTextSizeRecursive(toolbar, titleTextSp);
+        }
+    }
+
+    private static BottomNavigationView? FindBottomNavigationView(AView view) {
+        if (view is BottomNavigationView nav) {
+            return nav;
+        }
+
+        if (view is not AViewGroup group) {
+            return null;
+        }
+
+        for (var i = 0; i < group.ChildCount; i++) {
+            var child = group.GetChildAt(i);
+            if (child == null) {
+                continue;
+            }
+
+            var found = FindBottomNavigationView(child);
+            if (found != null) {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static AToolbar? FindToolbar(AView view) {
+        if (view is AToolbar toolbar) {
+            return toolbar;
+        }
+
+        if (view is not AViewGroup group) {
+            return null;
+        }
+
+        for (var i = 0; i < group.ChildCount; i++) {
+            var child = group.GetChildAt(i);
+            if (child == null) {
+                continue;
+            }
+
+            var found = FindToolbar(child);
+            if (found != null) {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static void ApplyTextSizeRecursive(AView view, float textSp) {
+        if (view is ATextView textView) {
+            textView.SetTextSize(ComplexUnitType.Sp, textSp);
+        }
+
+        if (view is not AViewGroup group) {
+            return;
+        }
+
+        for (var i = 0; i < group.ChildCount; i++) {
+            var child = group.GetChildAt(i);
+            if (child == null) {
+                continue;
+            }
+
+            ApplyTextSizeRecursive(child, textSp);
+        }
+    }
+#else
+    private static void ApplyNativeShellTextScale(Microsoft.Maui.Controls.Window window, double textFactor) {
+    }
+#endif
 
     private sealed record ThemeColors(
         string SkyTop,

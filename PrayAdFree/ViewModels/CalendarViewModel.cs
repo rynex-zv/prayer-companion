@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.ApplicationModel;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
@@ -16,6 +17,9 @@ public sealed class CalendarViewModel : ViewModelBase {
         _selectedMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         LoadCommand = new Command(async () => await LoadAsync());
         Days = new ObservableCollection<PrayerDayRow>();
+        _dataService.SettingsChanged += (_, _) => {
+            MainThread.BeginInvokeOnMainThread(async () => await LoadAsync());
+        };
     }
 
     public ObservableCollection<PrayerDayRow> Days { get; }

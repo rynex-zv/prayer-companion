@@ -17,7 +17,8 @@ public partial class CalendarPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        _ = ViewModel.LoadAsync();
+        ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
+        _ = LoadAndScaleAsync();
 
         if (!_animated) {
             _animated = true;
@@ -28,5 +29,10 @@ public partial class CalendarPage : ContentPage {
                 this.FadeToAsync(1, 400, Easing.CubicOut)
             );
         }
+    }
+
+    private async Task LoadAndScaleAsync() {
+        await ViewModel.LoadAsync().ConfigureAwait(false);
+        await MainThread.InvokeOnMainThreadAsync(ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses);
     }
 }

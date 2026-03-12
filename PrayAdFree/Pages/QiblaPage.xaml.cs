@@ -48,6 +48,7 @@ public partial class QiblaPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
+        ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
         ApplyDisplayState();
 
         _ = LoadAndUpdateAsync();
@@ -329,6 +330,7 @@ public partial class QiblaPage : ContentPage {
 
     private async Task LoadAndUpdateAsync() {
         await ViewModel.LoadAsync();
+        ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
         if (!_compassSupported) {
             ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
         } else {

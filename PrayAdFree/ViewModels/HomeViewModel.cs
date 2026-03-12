@@ -36,9 +36,15 @@ public sealed class HomeViewModel : ViewModelBase {
     private string _statusMessage = "";
     private string _imsakTime = "";
     private string _iftarTime = "";
+    private bool _isImsakNext;
+    private bool _isIftarNext;
+    private string _nextFastingCountdown = "--:--:--";
     private bool _isBusy;
     private string _lastScheduleKey = "";
     private bool _refreshPending;
+    private DateTime _imsakDateTime;
+    private DateTime _iftarDateTime;
+    private DateTime _tomorrowImsakDateTime;
 
     public HomeViewModel(PrayerDataService dataService, IAppLogger logger) {
         _dataService = dataService;
@@ -112,6 +118,21 @@ public sealed class HomeViewModel : ViewModelBase {
         set => SetProperty(ref _iftarTime, value);
     }
 
+    public bool IsImsakNext {
+        get => _isImsakNext;
+        set => SetProperty(ref _isImsakNext, value);
+    }
+
+    public bool IsIftarNext {
+        get => _isIftarNext;
+        set => SetProperty(ref _isIftarNext, value);
+    }
+
+    public string NextFastingCountdown {
+        get => _nextFastingCountdown;
+        set => SetProperty(ref _nextFastingCountdown, value);
+    }
+
     public bool IsBusy {
         get => _isBusy;
         set => SetProperty(ref _isBusy, value);
@@ -141,9 +162,14 @@ public sealed class HomeViewModel : ViewModelBase {
             LocationTitle = BuildLocation(_settings.Location);
             HijriDate = today.Hijri.Date;
             GregorianDate = DateTime.Today.ToString("dddd, dd MMM yyyy");
+            var tomorrow = month.Days.FirstOrDefault(day => day.Date == today.Date.AddDays(1));
+            _tomorrowImsakDateTime = tomorrow != null
+                ? tomorrow.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes)
+                : today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes).AddDays(1);
 
             UpdateNextPrayer(DateTime.Now);
             BuildRows();
+            UpdateFastingCountdown(DateTime.Now);
             if (ShouldScheduleNotifications(_settings)) {
                 try {
                     await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
@@ -185,6 +211,7 @@ public sealed class HomeViewModel : ViewModelBase {
         }
 
         Countdown = $"{remaining.Hours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
+        UpdateFastingCountdown(now);
     }
 
     private void UpdateNextPrayer(DateTime now) {
@@ -232,6 +259,8 @@ public sealed class HomeViewModel : ViewModelBase {
 
         var imsak = _today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes);
         var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
+        _imsakDateTime = imsak;
+        _iftarDateTime = iftar;
         ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
         IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
 
@@ -239,6 +268,38 @@ public sealed class HomeViewModel : ViewModelBase {
         _logger.LogEvent("HomeRows",
             $"count={TodayTimings.Count};next={_nextPrayerId};rows={string.Join(",", TodayTimings.Select(row => $"{row.Id}:{row.Time}"))}");
 #endif
+    }
+
+    private void UpdateFastingCountdown(DateTime now) {
+        if (_imsakDateTime == default || _iftarDateTime == default) {
+            IsImsakNext = false;
+            IsIftarNext = false;
+            NextFastingCountdown = "--:--:--";
+            return;
+        }
+
+        DateTime nextTarget;
+        if (now < _imsakDateTime) {
+            IsImsakNext = true;
+            IsIftarNext = false;
+            nextTarget = _imsakDateTime;
+        } else if (now < _iftarDateTime) {
+            IsImsakNext = false;
+            IsIftarNext = true;
+            nextTarget = _iftarDateTime;
+        } else {
+            IsImsakNext = true;
+            IsIftarNext = false;
+            nextTarget = _tomorrowImsakDateTime > now ? _tomorrowImsakDateTime : _imsakDateTime.AddDays(1);
+        }
+
+        var remaining = nextTarget - now;
+        if (remaining < TimeSpan.Zero) {
+            remaining = TimeSpan.Zero;
+        }
+
+        var totalHours = (int)Math.Floor(remaining.TotalHours);
+        NextFastingCountdown = $"{totalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
     }
 
     private static string ResolveNextPrayerDayLabel(DateTime now, DateTime nextPrayer) {

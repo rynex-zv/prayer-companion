@@ -18,7 +18,8 @@ public partial class HomePageA : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        _ = ViewModel.RefreshAsync();
+        ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
+        _ = RefreshAndScaleAsync();
 
         if (!_animated) {
             _animated = true;
@@ -35,5 +36,10 @@ public partial class HomePageA : ContentPage {
             ViewModel.UpdateCountdown(DateTime.Now);
             return true;
         });
+    }
+
+    private async Task RefreshAndScaleAsync() {
+        await ViewModel.RefreshAsync().ConfigureAwait(false);
+        await MainThread.InvokeOnMainThreadAsync(ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses);
     }
 }

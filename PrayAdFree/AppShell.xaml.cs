@@ -19,6 +19,7 @@ namespace Pray_Ad_Free {
             InitializeComponent();
             _logger.LogEvent("AppShellCtor", "afterInitializeComponent");
             _logger.LogEvent("AppShellCtor", "afterApplyTheme");
+            MainThread.BeginInvokeOnMainThread(ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses);
 
             var tabTitles = Items
                 .SelectMany(item => item.Items)
@@ -30,6 +31,7 @@ namespace Pray_Ad_Free {
             _ = InitializeLocalizationAsync(preferredLanguage);
             RegisterRoutes();
             Navigated += (_, _) => {
+                ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
                 _logger.LogEvent("ShellNavigated", Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown");
             };
             _logger.LogEvent("AppShellCtor", "end");

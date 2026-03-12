@@ -21,6 +21,7 @@ public partial class AppShellA : Shell {
         _logger.LogEvent("AppShellACtor", "beforeInitializeComponent");
         InitializeComponent();
         _logger.LogEvent("AppShellACtor", "afterInitializeComponent");
+        MainThread.BeginInvokeOnMainThread(ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses);
 
         var tabTitles = Items
             .SelectMany(item => item.Items)
@@ -33,6 +34,7 @@ public partial class AppShellA : Shell {
         _ = InitializeLocalizationAsync(preferredLanguage);
 
         Navigated += (_, _) => {
+            ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
             _logger.LogEvent("ShellANavigated", Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown");
         };
 

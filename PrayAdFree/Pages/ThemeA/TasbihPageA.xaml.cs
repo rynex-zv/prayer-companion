@@ -11,4 +11,9 @@ public partial class TasbihPageA : ContentPage {
         InitializeComponent();
         BindingContext = viewModel;
     }
+
+    protected override void OnAppearing() {
+        base.OnAppearing();
+        ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
+    }
 }

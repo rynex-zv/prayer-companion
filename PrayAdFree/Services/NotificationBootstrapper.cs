@@ -119,18 +119,42 @@ public sealed class NotificationBootstrapper {
 
             var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>().ConfigureAwait(false);
             _logger.LogEvent("LocationPermission", $"status_before:{status}|{reason}");
+            var granted = status == PermissionStatus.Granted;
             if (status != PermissionStatus.Granted) {
                 var requestStatus = await MainThread.InvokeOnMainThreadAsync(
                     Permissions.RequestAsync<Permissions.LocationWhenInUse>
                 ).ConfigureAwait(false);
                 _logger.LogEvent("LocationPermission", $"status_after:{requestStatus}|{reason}");
+                granted = requestStatus == PermissionStatus.Granted;
             }
 
             _locationPermissionRequestedThisSession = true;
+            if (granted) {
+                await RefreshAfterLocationPermissionGrantAsync(reason).ConfigureAwait(false);
+            }
         } catch (Exception ex) {
             _logger.LogException(ex, "NotificationBootstrapper.RequestLocationPermission");
         } finally {
             _permissionGate.Release();
+        }
+    }
+
+    private async Task RefreshAfterLocationPermissionGrantAsync(string reason) {
+        try {
+            var settings = _settingsService.Load();
+            if (settings.Location.Mode != LocationMode.Gps) {
+                return;
+            }
+
+            var updated = await _dataService
+                .UpdateLocationAsync(settings, CancellationToken.None, forceRefresh: true)
+                .ConfigureAwait(false);
+
+            // Ensure UI listeners refresh immediately even when location did not change meaningfully.
+            _dataService.SaveSettings(updated);
+            _logger.LogEvent("LocationPermission", $"post_grant_refresh:{reason}");
+        } catch (Exception ex) {
+            _logger.LogException(ex, "NotificationBootstrapper.PostLocationPermissionRefresh");
         }
     }
 }
