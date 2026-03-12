@@ -253,5 +253,7 @@
   "SnoozeRemainingToNextPrayer": "Next prayer ({0}) in {1}",
   "SnoozeDelayLabel": "Remind me after {0} minutes",
   "SnoozePageConfirm": "Confirm reminder",
-  "SnoozePageCancel": "Cancel"
+  "SnoozePageCancel": "Cancel",
+  "IssueMailSubject": "Pray Ad Free Issue",
+  "IssueMailBodyTemplate": "Issue details:\nCity:\nCountry:\nMethod:\nMadhhab:\nOffsets:"
 }

@@ -14,8 +14,9 @@ public partial class AboutPage : ContentPage {
     }
 
     private async void OnReportClicked(object? sender, EventArgs e) {
-        var body = Uri.EscapeDataString("Issue details:\nCity:\nCountry:\nMethod:\nMadhhab:\nOffsets:");
-        var uri = new Uri($"mailto:support@example.com?subject=Pray%20Ad%20Free%20Issue&body={body}");
+        var subject = Uri.EscapeDataString(LocalizationManager.Translate("IssueMailSubject"));
+        var body = Uri.EscapeDataString(LocalizationManager.Translate("IssueMailBodyTemplate"));
+        var uri = new Uri($"mailto:support@example.com?subject={subject}&body={body}");
         await Launcher.Default.OpenAsync(uri);
     }
 }

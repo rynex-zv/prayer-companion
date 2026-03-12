@@ -251,5 +251,7 @@
   "MainPageClickedOne": "Clicked {0} time",
   "MainPageClickedMany": "Clicked {0} times",
   "MainPageBotDescription": "dot net bot in a submarine number ten",
-  "MainPageWelcomeDescription": "Welcome to dot net Multi platform App U I"
+  "MainPageWelcomeDescription": "Welcome to dot net Multi platform App U I",
+  "IssueMailSubject": "Pray Ad Free Issue",
+  "IssueMailBodyTemplate": "Issue details:\nCity:\nCountry:\nMethod:\nMadhhab:\nOffsets:"
 }
