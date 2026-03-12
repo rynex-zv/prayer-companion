@@ -3,8 +3,6 @@ using System.Linq;
 using Microsoft.Maui.ApplicationModel;
 using Plugin.LocalNotification;
 #if ANDROID
-using Android.App;
-using Android.Content;
 using Plugin.LocalNotification.AndroidOption;
 #endif
 using PrayAdFree.Core.Models;
@@ -13,6 +11,10 @@ using PrayAdFree.Core.Services;
 namespace Pray_Ad_Free.Services;
 
 public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
+    public const string PrayerNotificationChannelId = "prayer_notification_v3";
+    public const string PrayerRuntimeMediaChannelId = "prayer_runtime_media_v3";
+    public const string PrayerSilentChannelId = "prayer_silent_v3";
+
     private static readonly TimeSpan ScheduleReuseWindow = TimeSpan.FromSeconds(30);
 
     private readonly PrayerSchedulePlanner _planner;
@@ -248,7 +250,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 #if ANDROID
                 Android = new AndroidOptions {
                     Priority = AndroidPriority.Default,
-                    ChannelId = "prayer_notification_v2",
+                    ChannelId = PrayerNotificationChannelId,
                     VibrationPattern = BuildVibration(notificationSettings)
                 }
 #endif
@@ -281,7 +283,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 #if ANDROID
             Android = new AndroidOptions {
                 Priority = AndroidPriority.Default,
-                ChannelId = "prayer_notification_v2",
+                ChannelId = PrayerNotificationChannelId,
                 VibrationPattern = BuildVibration(notificationSettings)
             }
 #endif
@@ -567,15 +569,15 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
     private static string BuildAndroidChannelId(string soundKey, bool isSilent, bool useRuntimeAdhanPlayback, AdhanReminderAlertType alertType) {
         if (alertType == AdhanReminderAlertType.Notification) {
-            return "prayer_notification_v2";
+            return PrayerNotificationChannelId;
         }
 
         if (useRuntimeAdhanPlayback) {
-            return "prayer_runtime_media_v2";
+            return PrayerRuntimeMediaChannelId;
         }
 
         if (isSilent) {
-            return "prayer_silent_v2";
+            return PrayerSilentChannelId;
         }
 
         return AdhanSoundLibrary.BuildChannelId(soundKey);
@@ -629,36 +631,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             return;
         }
 
-        RefreshAndroidChannels(channels);
         LocalNotificationCenter.CreateNotificationChannels(channels);
-    }
-
-    private static void RefreshAndroidChannels(IReadOnlyList<NotificationChannelRequest> channels) {
-        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
-            return;
-        }
-
-        var context = Android.App.Application.Context;
-        if (context == null) {
-            return;
-        }
-
-        if (context.GetSystemService(Context.NotificationService) is not NotificationManager manager) {
-            return;
-        }
-
-        foreach (var channel in channels) {
-            if (string.IsNullOrWhiteSpace(channel.Id)) {
-                continue;
-            }
-
-            try {
-                if (manager.GetNotificationChannel(channel.Id) != null) {
-                    manager.DeleteNotificationChannel(channel.Id);
-                }
-            } catch {
-            }
-        }
     }
 
     private static string? ResolveAndroidChannelSound(string? sound) {
@@ -671,8 +644,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
     private static bool IsAndroidSilentChannel(string channelId) {
         return channelId.StartsWith("prayer_silent", StringComparison.OrdinalIgnoreCase)
-            || channelId.StartsWith("prayer_runtime_media", StringComparison.OrdinalIgnoreCase)
-            || channelId.StartsWith("prayer_notification", StringComparison.OrdinalIgnoreCase);
+            || channelId.StartsWith("prayer_runtime_media", StringComparison.OrdinalIgnoreCase);
     }
 #endif
 

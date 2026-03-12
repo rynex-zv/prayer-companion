@@ -418,19 +418,25 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private async Task ShowPreviewNotificationAsync() {
         var request = new NotificationRequest {
             NotificationId = PreviewNotificationId,
-            CategoryType = NotificationCategoryType.Alarm,
-            Title = LocalizationManager.Translate( "AdhanPreviewTitle" ) ,
+            CategoryType = NotificationCategoryType.None,
+            Title = LocalizationManager.Translate("TestNotification"),
             Description = LocalizationManager.Translate("AdhanPreviewTitle"),
             Silent = false
         };
 
 #if ANDROID
+        var context = Android.App.Application.Context;
+        if (context != null) {
+            EnsureAndroidPrayerNotificationChannel(context);
+        }
+
         request.Android = new AndroidOptions {
-            Priority = AndroidPriority.Max,
-            ChannelId = "prayer_notification_v2",
-            Ongoing = true ,
+            Priority = AndroidPriority.High,
+            ChannelId = LocalNotificationScheduler.PrayerNotificationChannelId,
+            Ongoing = false,
             AutoCancel = true,
-            LaunchAppWhenTapped = true
+            LaunchAppWhenTapped = true,
+            VisibilityType = AndroidVisibilityType.Public
         };
 #endif
 
@@ -595,19 +601,53 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var existing = manager.GetNotificationChannel("adhan_playback_control");
         if (existing != null) {
-            manager.DeleteNotificationChannel("adhan_playback_control");
+            return;
         }
 
         var channel = new NotificationChannel(
             "adhan_playback_control",
             "Adhan Playback Control",
-            NotificationImportance.Max) {
+            NotificationImportance.High) {
             Description = "Controls currently playing adhan"
         };
         channel.SetSound(null, null);
         channel.EnableVibration(true);
         channel.SetVibrationPattern(new long[] { 0, 120, 90, 120 });
         channel.LockscreenVisibility = NotificationVisibility.Public;
+        manager.CreateNotificationChannel(channel);
+    }
+
+    private static void EnsureAndroidPrayerNotificationChannel(Context context) {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
+            return;
+        }
+
+        var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
+        if (manager == null) {
+            return;
+        }
+
+        var existing = manager.GetNotificationChannel(LocalNotificationScheduler.PrayerNotificationChannelId);
+        if (existing != null) {
+            return;
+        }
+
+        var audioAttributesBuilder = new Android.Media.AudioAttributes.Builder();
+        audioAttributesBuilder.SetUsage(Android.Media.AudioUsageKind.Notification);
+        audioAttributesBuilder.SetContentType(Android.Media.AudioContentType.Sonification);
+        var audioAttributes = audioAttributesBuilder.Build();
+        var defaultSound = Android.Media.RingtoneManager.GetDefaultUri(Android.Media.RingtoneType.Notification);
+
+        var channel = new NotificationChannel(
+            LocalNotificationScheduler.PrayerNotificationChannelId,
+            "Prayer Notifications",
+            NotificationImportance.High) {
+            Description = "Prayer notifications and preview alerts"
+        };
+        channel.EnableVibration(true);
+        channel.SetVibrationPattern(new long[] { 0, 120, 80, 120 });
+        channel.LockscreenVisibility = NotificationVisibility.Public;
+        channel.SetSound(defaultSound, audioAttributes);
         manager.CreateNotificationChannel(channel);
     }
 
