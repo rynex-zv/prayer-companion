@@ -476,6 +476,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             .SetAutoCancel(false)
             .SetOnlyAlertOnce(true)
             .SetShowWhen(true)
+            .SetVibrate(new long[] { 0, 80, 70, 80 })
             .SetDeleteIntent(BuildAndroidControlActionPendingIntent(context, AndroidDismissControlActionId));
 
         var compactActionIndexes = new List<int>();
@@ -494,13 +495,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMenuCloseClearCancel, ResolveStopTitle(), BuildAndroidControlActionPendingIntent(context, StopActionId)));
         compactActionIndexes.Add(compactActionIndexes.Count);
 
-        var mediaStyle = new Notification.MediaStyle();
-        mediaStyle.SetShowActionsInCompactView(compactActionIndexes.ToArray());
-        builder.SetStyle(mediaStyle);
+        var details = BuildAndroidControlDetailText(includeSnoozeActions, maxDelayMinutes);
+        builder.SetStyle(new Notification.BigTextStyle().BigText(details));
 
         _logger.LogEvent(
             "AdhanControlNotification.Android",
-            $"includeSnooze={includeSnoozeActions};maxDelay={maxDelayMinutes};summary={body}");
+            $"includeSnooze={includeSnoozeActions};maxDelay={maxDelayMinutes};summary={body};details={details}");
 
         var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
         manager?.Notify(ControlNotificationId, builder.Build());
@@ -520,6 +520,20 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         labels.Add(ResolveStopTitle());
         return string.Join(" | ", labels);
+    }
+
+    private static string BuildAndroidControlDetailText(bool includeSnoozeActions, int maxDelayMinutes) {
+        var lines = new List<string>();
+        if (includeSnoozeActions && maxDelayMinutes >= 10) {
+            lines.Add($"- {ResolveSnooze10Title()}");
+        }
+
+        if (includeSnoozeActions && maxDelayMinutes >= MinSnoozeMinutes) {
+            lines.Add($"- {ResolveCustomSnoozeTitle()}");
+        }
+
+        lines.Add($"- {ResolveStopTitle()}");
+        return string.Join(System.Environment.NewLine, lines);
     }
 
     private static Notification.Action BuildAndroidNativeAction(int iconId, string title, PendingIntent pendingIntent) {
@@ -575,7 +589,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             Description = "Controls currently playing adhan"
         };
         channel.SetSound(null, null);
-        channel.EnableVibration(false);
+        channel.EnableVibration(true);
+        channel.SetVibrationPattern(new long[] { 0, 120, 90, 120 });
         channel.LockscreenVisibility = NotificationVisibility.Public;
         manager.CreateNotificationChannel(channel);
     }
