@@ -13,6 +13,7 @@ namespace Pray_Ad_Free {
             _logger = logger;
             var preferredLanguage = settings.LanguageSelected ? settings.Language : "auto";
             _logger.LogEvent("AppShellCtor", $"start:lang={preferredLanguage}");
+            WindowsStartupSafety.Trace($"Shell.Ctor:start lang={preferredLanguage}");
             ThemeManager.ApplyTheme(settings);
 
             _logger.LogEvent("AppShellCtor", "beforeInitializeComponent");
@@ -32,9 +33,12 @@ namespace Pray_Ad_Free {
             RegisterRoutes();
             Navigated += (_, _) => {
                 ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
-                _logger.LogEvent("ShellNavigated", Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown");
+                var route = Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown";
+                _logger.LogEvent("ShellNavigated", route);
+                WindowsStartupSafety.Trace($"Shell.Navigated:{route}");
             };
             _logger.LogEvent("AppShellCtor", "end");
+            WindowsStartupSafety.Trace("Shell.Ctor:end");
         }
 
         private static void RegisterRoutes() {
@@ -54,14 +58,18 @@ namespace Pray_Ad_Free {
         private async Task InitializeLocalizationAsync(string preferredLanguage) {
             try {
                 _logger.LogEvent("AppShellLocalization", "syncStart");
+                WindowsStartupSafety.Trace("Shell.Localization:syncStart");
                 await Task.Run(() => new LocalizationFileSync().SyncIfNeeded()).ConfigureAwait(false);
                 _logger.LogEvent("AppShellLocalization", "syncDone");
+                WindowsStartupSafety.Trace("Shell.Localization:syncDone");
                 await MainThread.InvokeOnMainThreadAsync(
                     () => LocalizationManager.InitializeAsync(preferredLanguage)
                 ).ConfigureAwait(false);
                 _logger.LogEvent("AppShellLocalization", "initDone");
+                WindowsStartupSafety.Trace("Shell.Localization:initDone");
             } catch (Exception ex) {
                 _logger.LogException(ex, "AppShell.InitializeLocalizationAsync");
+                WindowsStartupSafety.Trace($"Shell.Localization:exception {ex.GetType().Name}:{ex.Message}");
             }
         }
     }

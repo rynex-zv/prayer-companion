@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppNotifications;
@@ -14,9 +13,6 @@ using Drawing = System.Drawing;
 
 namespace Pray_Ad_Free.WinUI {
     public partial class App : MauiWinUIApplication {
-        private static readonly object TraceLock = new();
-        private static readonly string StartupTracePath = BuildTracePath();
-
         private IntPtr _windowHandle;
         private AppWindow? _appWindow;
         private readonly WindowsBackgroundModeService _backgroundModeService = new();
@@ -29,6 +25,8 @@ namespace Pray_Ad_Free.WinUI {
         private bool _trayIconFromFile;
         private bool _hideOnLaunch;
         private bool _isExitRequested;
+        private bool _safeStartupMode;
+        private bool _startupStabilityMarked;
 
         public App() {
             Trace("WinUI.App.ctor:start");
@@ -82,7 +80,10 @@ namespace Pray_Ad_Free.WinUI {
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args) {
+            _safeStartupMode = WindowsStartupSafety.ArmStartupPendingMarker();
+            RuntimeStabilityState.SetWindowsSafeStartupMode(_safeStartupMode);
             Trace($"WinUI.OnLaunched:start args='{args.Arguments ?? string.Empty}'");
+            Trace($"WinUI.OnLaunched:safeStartupMode={_safeStartupMode}");
             _hideOnLaunch = WindowsBackgroundModeService.IsBackgroundLaunch(args.Arguments) && _backgroundModeService.IsEnabled();
             Trace($"WinUI.OnLaunched:hideOnLaunch={_hideOnLaunch}");
 
@@ -97,11 +98,17 @@ namespace Pray_Ad_Free.WinUI {
             Trace("WinUI.OnLaunched:afterBase");
 
             try {
-                HookBackgroundBehavior();
-                Trace("WinUI.OnLaunched:afterHookBackgroundBehavior");
+                if (_safeStartupMode) {
+                    Trace("WinUI.OnLaunched:skipHookBackgroundBehavior_safeMode");
+                } else {
+                    HookBackgroundBehavior();
+                    Trace("WinUI.OnLaunched:afterHookBackgroundBehavior");
+                }
             } catch (Exception ex) {
                 Trace($"WinUI.OnLaunched:HookBackgroundBehavior:exception {ex}");
             }
+
+            _ = MarkStartupStableAfterDelayAsync();
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -324,25 +331,27 @@ namespace Pray_Ad_Free.WinUI {
             Trace("WinUI.DisposeTrayIcon:end");
         }
 
-        private static string BuildTracePath() {
+        private async Task MarkStartupStableAfterDelayAsync() {
+            if (_startupStabilityMarked) {
+                return;
+            }
+
             try {
-                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                var dir = Path.Combine(desktop, "PrayAdFreeLogs");
-                Directory.CreateDirectory(dir);
-                return Path.Combine(dir, "startup-trace.log");
-            } catch {
-                return Path.Combine(Path.GetTempPath(), "PrayAdFree-startup-trace.log");
+                await Task.Delay(TimeSpan.FromSeconds(8)).ConfigureAwait(false);
+                if (_startupStabilityMarked || _isExitRequested) {
+                    return;
+                }
+
+                _startupStabilityMarked = true;
+                WindowsStartupSafety.MarkStartupStable();
+                Trace("WinUI.StartupStable:markerCleared");
+            } catch (Exception ex) {
+                Trace($"WinUI.StartupStable:exception {ex}");
             }
         }
 
         private static void Trace(string message) {
-            try {
-                var line = $"{DateTime.UtcNow:O} | T{Environment.CurrentManagedThreadId} | {message}";
-                lock (TraceLock) {
-                    File.AppendAllText(StartupTracePath, line + Environment.NewLine, Encoding.UTF8);
-                }
-            } catch {
-            }
+            WindowsStartupSafety.Trace(message);
         }
     }
 }

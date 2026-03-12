@@ -8,7 +8,14 @@ public partial class SettingsAdhanPageA : ContentPage {
     }
 
     public SettingsAdhanPageA(SettingsViewModel viewModel) {
+        WindowsStartupSafety.Trace("SettingsAdhanPageA.Ctor:start");
         InitializeComponent();
         BindingContext = viewModel;
+        WindowsStartupSafety.Trace("SettingsAdhanPageA.Ctor:end");
+    }
+
+    protected override void OnAppearing() {
+        base.OnAppearing();
+        WindowsStartupSafety.Trace("SettingsAdhanPageA.OnAppearing");
     }
 }

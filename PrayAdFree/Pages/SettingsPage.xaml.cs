@@ -27,7 +27,9 @@ public partial class SettingsPage : ContentPage {
 
     private async void OnAdhanClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Adhan");
+        WindowsStartupSafety.Trace("SettingsPage.Click:Adhan:start");
         await Shell.Current.GoToAsync("///settings/adhan");
+        WindowsStartupSafety.Trace("SettingsPage.Click:Adhan:end");
     }
 
     private async void OnNotificationsClicked(object? sender, EventArgs e) {

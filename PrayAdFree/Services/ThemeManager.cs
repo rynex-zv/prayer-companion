@@ -151,20 +151,41 @@ public static class ThemeManager {
         _activeTextScalePercent = textScalePercent;
         _activeTextScaleFactor = Math.Max(0.1d, textScalePercent / 100d);
         _activeIconScaleFactor = 2d * _activeTextScaleFactor;
+        if (ShouldBypassRuntimeTextScaling()) {
+            WindowsStartupSafety.Trace($"Theme.TextScale.Apply:runtime_skip_windows_or_safe percent={textScalePercent}");
+            return;
+        }
+
+        WindowsStartupSafety.Trace($"Theme.TextScale.Apply:runtime_start percent={textScalePercent}");
         ApplyRuntimeTextScale(textScalePercent);
+        WindowsStartupSafety.Trace($"Theme.TextScale.Apply:runtime_end percent={textScalePercent}");
     }
 
     public static void RefreshTextScaleOnVisibleUI() {
+        if (ShouldBypassRuntimeTextScaling()) {
+            WindowsStartupSafety.Trace("Theme.TextScale.Refresh:skip_windows_or_safe");
+            return;
+        }
+
+        WindowsStartupSafety.Trace("Theme.TextScale.Refresh:start");
         ApplyRuntimeTextScaleCore(Application.Current, _activeTextScaleFactor, _activeIconScaleFactor);
+        WindowsStartupSafety.Trace("Theme.TextScale.Refresh:end");
     }
 
     public static void RefreshTextScaleOnVisibleUIWithDeferredPasses() {
+        if (ShouldBypassRuntimeTextScaling()) {
+            WindowsStartupSafety.Trace("Theme.TextScale.RefreshDeferred:skip_windows_or_safe");
+            return;
+        }
+
+        WindowsStartupSafety.Trace("Theme.TextScale.RefreshDeferred:start");
         RefreshTextScaleOnVisibleUI();
         _ = MainThread.InvokeOnMainThreadAsync(async () => {
             await Task.Delay(220).ConfigureAwait(true);
             RefreshTextScaleOnVisibleUI();
             await Task.Delay(650).ConfigureAwait(true);
             RefreshTextScaleOnVisibleUI();
+            WindowsStartupSafety.Trace("Theme.TextScale.RefreshDeferred:end");
         });
     }
 
@@ -227,6 +248,11 @@ public static class ThemeManager {
     }
 
     private static void ApplyRuntimeTextScale(int percent) {
+        if (ShouldBypassRuntimeTextScaling()) {
+            WindowsStartupSafety.Trace($"Theme.TextScale.ApplyRuntime:skip_windows_or_safe percent={percent}");
+            return;
+        }
+
         var factor = Math.Max(0.1d, percent / 100d);
         var iconFactor = 2d * factor;
         if (MainThread.IsMainThread) {
@@ -235,6 +261,14 @@ public static class ThemeManager {
         }
 
         MainThread.BeginInvokeOnMainThread(() => ApplyRuntimeTextScaleCore(Application.Current, factor, iconFactor));
+    }
+
+    private static bool ShouldBypassRuntimeTextScaling() {
+        if (OperatingSystem.IsWindows()) {
+            return true;
+        }
+
+        return RuntimeStabilityState.IsWindowsSafeStartupMode;
     }
 
     private static void ApplyRuntimeTextScaleCore(Application? app, double textFactor, double iconFactor) {

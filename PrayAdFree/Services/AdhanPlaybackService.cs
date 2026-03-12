@@ -192,6 +192,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return;
             }
 
+            if (request.NotificationId > 0 && request.NotificationId != ControlNotificationId) {
+                LocalNotificationCenter.Current.Cancel(request.NotificationId);
+            }
+
             await _gate.WaitAsync().ConfigureAwait(false);
             try {
                 StopCore();
@@ -213,9 +217,14 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return;
             }
 
+            var isControlNotification = IsControlNotificationRequest(e.Request);
             var isAdhanNotification = IsAdhanNotificationRequest(e.Request);
+            _logger.LogEvent(
+                "AdhanNotificationAction",
+                $"actionId={e.ActionId};isTapped={e.IsTapped};isDismissed={e.IsDismissed};notifId={e.Request?.NotificationId};returningData={e.Request?.ReturningData ?? "null"};isAdhan={isAdhanNotification};isControl={isControlNotification}");
+
             if (e.ActionId == Snooze10ActionId) {
-                if (!isAdhanNotification) {
+                if (!isControlNotification) {
                     return;
                 }
 
@@ -224,7 +233,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             }
 
             if (e.ActionId == OpenCustomSnoozeActionId) {
-                if (!isAdhanNotification) {
+                if (!isControlNotification) {
                     return;
                 }
 
@@ -232,19 +241,23 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return;
             }
 
-            var isStopAction = e.ActionId == StopActionId;
-            var isTapAction = e.ActionId == NotificationActionEventArgs.TapActionId || e.IsTapped;
-            var isDismissAction = e.ActionId == NotificationActionEventArgs.DismissedActionId || e.IsDismissed;
+            if (e.ActionId == StopActionId) {
+                if (!isControlNotification) {
+                    return;
+                }
 
-            if (!isStopAction && !isTapAction && !isDismissAction) {
+                await StopAsync().ConfigureAwait(false);
                 return;
             }
 
-            if (!isStopAction && !isAdhanNotification) {
+            if (!isControlNotification) {
                 return;
             }
 
-            await StopAsync().ConfigureAwait(false);
+            if (e.ActionId == NotificationActionEventArgs.TapActionId ||
+                e.ActionId == NotificationActionEventArgs.DismissedActionId) {
+                await StopAsync().ConfigureAwait(false);
+            }
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleNotificationActionTappedAsync");
         }
@@ -314,6 +327,18 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         return AdhanNotificationPayload.TryParse(request.ReturningData, out _);
     }
 
+    private static bool IsControlNotificationRequest(NotificationRequest? request) {
+        if (request == null) {
+            return false;
+        }
+
+        if (request.NotificationId == ControlNotificationId) {
+            return true;
+        }
+
+        return string.Equals(request.ReturningData, ControlReturningData, StringComparison.Ordinal);
+    }
+
     private async Task ShowControlNotificationAsync(string prayerName, bool includeSnoozeActions) {
 #if WINDOWS
         var notification = new AppNotificationBuilder()
@@ -330,14 +355,29 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         await Task.CompletedTask;
 #else
         var categoryType = NotificationCategoryType.Service;
+        var buttonsMode = "stop_only";
+        int? maxDelayMinutes = null;
         if (includeSnoozeActions) {
             var window = await TryBuildSnoozeWindowAsync(DateTime.Now).ConfigureAwait(false);
-            if (window?.MaxDelayMinutes >= 10) {
+            if (window == null) {
                 categoryType = NotificationCategoryType.Reminder;
-            } else if (window?.MaxDelayMinutes >= MinSnoozeMinutes) {
+                buttonsMode = "stop_10_custom";
+            } else if (window.Value.MaxDelayMinutes >= 10) {
+                categoryType = NotificationCategoryType.Reminder;
+                buttonsMode = "stop_10_custom";
+                maxDelayMinutes = window.Value.MaxDelayMinutes;
+            } else if (window.Value.MaxDelayMinutes >= MinSnoozeMinutes) {
                 categoryType = NotificationCategoryType.Alarm;
+                buttonsMode = "stop_custom";
+                maxDelayMinutes = window.Value.MaxDelayMinutes;
+            } else {
+                maxDelayMinutes = window.Value.MaxDelayMinutes;
             }
         }
+
+        _logger.LogEvent(
+            "AdhanControlNotification",
+            $"category={categoryType};buttons={buttonsMode};maxDelay={(maxDelayMinutes.HasValue ? maxDelayMinutes.Value.ToString() : "null")}");
 
         var request = new NotificationRequest {
             NotificationId = ControlNotificationId,
@@ -705,7 +745,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             attributeBuilder.SetContentType(Android.Media.AudioContentType.Music);
             var attributes = attributeBuilder.Build();
 
-            var focusRequestBuilder = new Android.Media.AudioFocusRequestClass.Builder(Android.Media.AudioFocus.GainTransient);
+            var focusRequestBuilder = new Android.Media.AudioFocusRequestClass.Builder(Android.Media.AudioFocus.Gain);
             if (attributes != null) {
                 focusRequestBuilder.SetAudioAttributes(attributes);
             }
@@ -728,7 +768,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
 
 #pragma warning disable CS0618
-        var legacyResult = audioManager.RequestAudioFocus(_androidAudioFocusChangeListener, Android.Media.Stream.Alarm, Android.Media.AudioFocus.GainTransient);
+        var legacyResult = audioManager.RequestAudioFocus(_androidAudioFocusChangeListener, Android.Media.Stream.Alarm, Android.Media.AudioFocus.Gain);
 #pragma warning restore CS0618
         if (legacyResult != Android.Media.AudioFocusRequest.Granted) {
             _androidAudioManager = null;
@@ -766,17 +806,65 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private void OnAndroidAudioFocusChanged(Android.Media.AudioFocus focusChange) {
         switch (focusChange) {
             case Android.Media.AudioFocus.Loss:
-                _ = StopAsync();
+                _logger.LogEvent("AdhanAudioFocus", "change=Loss;action=recover_and_continue");
+                _ = RecoverAfterAndroidFocusLossAsync("Loss");
                 break;
             case Android.Media.AudioFocus.LossTransient:
+                _logger.LogEvent("AdhanAudioFocus", "change=LossTransient;action=pause");
                 _ = PauseForAndroidTransientFocusLossAsync();
                 break;
             case Android.Media.AudioFocus.Gain:
+                _logger.LogEvent("AdhanAudioFocus", "change=Gain;action=resume");
                 _ = ResumeAfterAndroidFocusGainAsync();
                 break;
             case Android.Media.AudioFocus.LossTransientCanDuck:
-            default:
+                _logger.LogEvent("AdhanAudioFocus", "change=LossTransientCanDuck;action=ignore");
                 break;
+            default:
+                _logger.LogEvent("AdhanAudioFocus", $"change={focusChange};action=ignore");
+                break;
+        }
+    }
+
+    private async Task RecoverAfterAndroidFocusLossAsync(string reason) {
+        TryReacquireAndroidAudioFocus();
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            if (_androidPlayer == null) {
+                return;
+            }
+
+            try {
+                if (!_androidPlayer.IsPlaying) {
+                    _androidPlayer.Start();
+                }
+                _androidPausedForTransientLoss = false;
+            } catch (Exception ex) {
+                _logger.LogException(ex, $"AdhanPlaybackService.RecoverAfterAndroidFocusLossAsync:{reason}");
+            }
+        } finally {
+            _gate.Release();
+        }
+    }
+
+    private void TryReacquireAndroidAudioFocus() {
+        if (_androidAudioManager == null || _androidAudioFocusChangeListener == null) {
+            return;
+        }
+
+        try {
+            if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
+                if (_androidAudioFocusRequest != null) {
+                    _androidAudioManager.RequestAudioFocus(_androidAudioFocusRequest);
+                }
+                return;
+            }
+
+#pragma warning disable CS0618
+            _androidAudioManager.RequestAudioFocus(_androidAudioFocusChangeListener, Android.Media.Stream.Alarm, Android.Media.AudioFocus.Gain);
+#pragma warning restore CS0618
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.TryReacquireAndroidAudioFocus");
         }
     }
 
@@ -800,6 +888,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private async Task ResumeAfterAndroidFocusGainAsync() {
+        TryReacquireAndroidAudioFocus();
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
             if (_androidPlayer == null || !_androidPausedForTransientLoss) {
