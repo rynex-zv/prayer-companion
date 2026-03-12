@@ -78,7 +78,7 @@
                                 <Label Text="{Binding Countdown}"
                                       
                                        FontSize="20"/>
-                                <Label Text="Stay ready"
+                                <Label Text="{loc:Loc StayReady}"
                                        FontSize="12"
                                        TextColor="{StaticResource TextSubtle}"/>
                             </VerticalStackLayout>

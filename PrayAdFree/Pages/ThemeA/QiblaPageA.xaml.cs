@@ -199,7 +199,7 @@ public partial class QiblaPageA : ContentPage {
         _map.MoveToRegion(MapSpan.FromCenterAndRadius(mapLocation, Distance.FromKilometers(3)));
         _map.Pins.Clear();
         _map.Pins.Add(new Pin {
-            Label = "You",
+            Label = LocalizationManager.Translate("MapYouPin"),
             Location = mapLocation
         });
     }

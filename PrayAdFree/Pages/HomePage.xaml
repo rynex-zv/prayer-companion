@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="Pray_Ad_Free.Pages.HomePage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -21,7 +21,7 @@
                         FontAttributes="Bold"
                         FontSize="34"
                         HorizontalTextAlignment="Center"
-                        Text="بسم الله الرحمن الرحيم" />
+                        Text="{loc:Loc Basmala}" />
                     <Label
                         FontSize="14"
                         HorizontalTextAlignment="Center"
@@ -160,7 +160,7 @@
                                 FontAttributes="Bold"
                                 FontSize="16"
                                 HorizontalTextAlignment="End"
-                                Text="الإمساك والإفطار"
+                                Text="{loc:Loc ImsakAndIftarTitle}"
                                 TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
                                                             Dark={StaticResource Accent}}" />
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">

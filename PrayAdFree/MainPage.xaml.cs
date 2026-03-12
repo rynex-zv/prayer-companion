@@ -10,9 +10,9 @@
             count++;
 
             if (count == 1)
-                CounterBtn.Text = $"Clicked {count} time";
+                CounterBtn.Text = string.Format(Services.LocalizationManager.Translate("MainPageClickedOne"), count);
             else
-                CounterBtn.Text = $"Clicked {count} times";
+                CounterBtn.Text = string.Format(Services.LocalizationManager.Translate("MainPageClickedMany"), count);
 
             SemanticScreenReader.Announce( CounterBtn.Text );
         }

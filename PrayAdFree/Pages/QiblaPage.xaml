@@ -103,7 +103,7 @@
                         <Label
                             FontSize="12"
                             HorizontalTextAlignment="End"
-                            Text="وضع العرض"
+                            Text="{loc:Loc QiblaDisplayMode}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
                                                         Dark=#8CA0B6}" />
                         <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
@@ -114,7 +114,7 @@
                                 <Label
                                     x:Name="ModeCompassLabel"
                                     Style="{StaticResource ChoiceChipLabel}"
-                                    Text="بوصلة" />
+                                    Text="{loc:Loc QiblaModeCompass}" />
                             </Border>
                             <Border x:Name="ModeMapChip" Style="{StaticResource ChoiceChip}">
                                 <Border.GestureRecognizers>
@@ -123,14 +123,14 @@
                                 <Label
                                     x:Name="ModeMapLabel"
                                     Style="{StaticResource ChoiceChipLabel}"
-                                    Text="خريطة" />
+                                    Text="{loc:Loc QiblaModeMap}" />
                             </Border>
                         </HorizontalStackLayout>
 
                         <Label
                             FontSize="12"
                             HorizontalTextAlignment="End"
-                            Text="الفلتر"
+                            Text="{loc:Loc QiblaVisualFilter}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
                                                         Dark=#8CA0B6}" />
                         <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
@@ -141,7 +141,7 @@
                                 <Label
                                     x:Name="FilterNoneLabel"
                                     Style="{StaticResource ChoiceChipLabel}"
-                                    Text="بدون" />
+                                    Text="{loc:Loc QiblaVisualFilter_None}" />
                             </Border>
                             <Border x:Name="FilterNightChip" Style="{StaticResource ChoiceChip}">
                                 <Border.GestureRecognizers>
@@ -150,7 +150,7 @@
                                 <Label
                                     x:Name="FilterNightLabel"
                                     Style="{StaticResource ChoiceChipLabel}"
-                                    Text="ليلي" />
+                                    Text="{loc:Loc QiblaVisualFilter_Night}" />
                             </Border>
                             <Border x:Name="FilterContrastChip" Style="{StaticResource ChoiceChip}">
                                 <Border.GestureRecognizers>
@@ -159,7 +159,7 @@
                                 <Label
                                     x:Name="FilterContrastLabel"
                                     Style="{StaticResource ChoiceChipLabel}"
-                                    Text="عالي التباين" />
+                                    Text="{loc:Loc QiblaVisualFilter_Contrast}" />
                             </Border>
                         </HorizontalStackLayout>
                     </VerticalStackLayout>

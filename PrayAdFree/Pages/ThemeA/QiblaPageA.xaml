@@ -41,7 +41,7 @@
                         <Label Text="{Binding LocationTitle}" FontSize="18" />
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                             <Label Text="{Binding StatusMessage}" FontSize="12" TextColor="{StaticResource TextSubtle}" />
-                            <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}"
+                            <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}"
                                    Grid.Column="1"
                                    FontSize="16"
                                    TextColor="{StaticResource Accent}"
@@ -50,7 +50,7 @@
                                    Grid.Row="1"
                                    FontSize="11"
                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <Label Text="{Binding Heading, StringFormat='{0:F0} deg'}"
+                            <Label Text="{Binding Heading, StringFormat='{0:F0}°'}"
                                    Grid.Row="1"
                                    Grid.Column="1"
                                    FontSize="11"
@@ -157,10 +157,10 @@
                                      Margin="24" />
 
                             <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
-                                <Label Text="N" Grid.Row="0" Grid.Column="1" FontSize="12" TextColor="{StaticResource Accent}" HorizontalOptions="Center" />
-                                <Label Text="W" Grid.Row="1" Grid.Column="0" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
-                                <Label Text="E" Grid.Row="1" Grid.Column="2" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
-                                <Label Text="S" Grid.Row="2" Grid.Column="1" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalOptions="Center" />
+                                <Label Text="{loc:Loc CardinalNorth}" Grid.Row="0" Grid.Column="1" FontSize="12" TextColor="{StaticResource Accent}" HorizontalOptions="Center" />
+                                <Label Text="{loc:Loc CardinalWest}" Grid.Row="1" Grid.Column="0" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="{loc:Loc CardinalEast}" Grid.Row="1" Grid.Column="2" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" VerticalOptions="Center" />
+                                <Label Text="{loc:Loc CardinalSouth}" Grid.Row="2" Grid.Column="1" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalOptions="Center" />
                             </Grid>
 
                             <Grid Rotation="{Binding NeedleRotation}" AnchorX="0.5" AnchorY="0.5">
@@ -181,7 +181,7 @@
                                  VerticalOptions="Center" />
 
                         <VerticalStackLayout Spacing="2" HorizontalOptions="Center" VerticalOptions="Center">
-                        <Label Text="{Binding Bearing, StringFormat='{0:F0} deg'}" FontSize="26" />
+                        <Label Text="{Binding Bearing, StringFormat='{0:F0}°'}" FontSize="26" />
                         <Label Text="{loc:Loc Qibla}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     </VerticalStackLayout>
                 </Grid>
