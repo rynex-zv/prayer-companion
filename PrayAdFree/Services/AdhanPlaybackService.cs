@@ -396,7 +396,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             CategoryType = categoryType,
             Title = prayerName,
             Description = LocalizationManager.Translate("AdhanPlaybackStopHint"),
-            Silent = true,
+            Silent = false,
             ReturningData = ControlReturningData,
             Android = new AndroidOptions {
                 ChannelId = "adhan_playback_control",
@@ -418,17 +418,17 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private async Task ShowPreviewNotificationAsync() {
         var request = new NotificationRequest {
             NotificationId = PreviewNotificationId,
-            CategoryType = NotificationCategoryType.None,
-            Title = LocalizationManager.Translate("AdhanPreviewTitle"),
-            Description = LocalizationManager.Translate("AdhanPlaybackStopHint"),
-            Silent = true
+            CategoryType = NotificationCategoryType.Alarm,
+            Title = LocalizationManager.Translate( "AdhanPreviewTitle" ) ,
+            Description = LocalizationManager.Translate("AdhanPreviewTitle"),
+            Silent = false
         };
 
 #if ANDROID
         request.Android = new AndroidOptions {
-            Priority = AndroidPriority.Default,
+            Priority = AndroidPriority.Max,
             ChannelId = "prayer_notification_v2",
-            Ongoing = false,
+            Ongoing = true ,
             AutoCancel = true,
             LaunchAppWhenTapped = true
         };
@@ -452,11 +452,14 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         EnsureAndroidControlChannel(context);
 
-        var title = prayerName;
+        var title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName);
+        var body = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName);
         var maxDelayMinutes = includeSnoozeActions
             ? TryBuildSnoozeWindowAsync(DateTime.Now).GetAwaiter().GetResult()?.MaxDelayMinutes ?? int.MaxValue
             : int.MinValue;
-        var body = BuildAndroidControlSummary(includeSnoozeActions, maxDelayMinutes);
+        var actionsSummary = BuildAndroidControlSummary(includeSnoozeActions, maxDelayMinutes);
+        var actionsDetails = BuildAndroidControlDetailText(includeSnoozeActions, maxDelayMinutes);
+        var details = $"{LocalizationManager.Translate("AdhanPlaybackStopHint")}{System.Environment.NewLine}{actionsDetails}";
 
         Notification.Builder builder;
         if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
@@ -474,9 +477,11 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             .SetCategory(Notification.CategoryAlarm)
             .SetOngoing(true)
             .SetAutoCancel(false)
-            .SetOnlyAlertOnce(true)
+            .SetOnlyAlertOnce(false)
             .SetShowWhen(true)
             .SetVibrate(new long[] { 0, 80, 70, 80 })
+            .SetContentIntent(BuildAndroidContentPendingIntent(context))
+            .SetFullScreenIntent(BuildAndroidContentPendingIntent(context), true)
             .SetDeleteIntent(BuildAndroidControlActionPendingIntent(context, AndroidDismissControlActionId));
 
         var compactActionIndexes = new List<int>();
@@ -495,12 +500,11 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMenuCloseClearCancel, ResolveStopTitle(), BuildAndroidControlActionPendingIntent(context, StopActionId)));
         compactActionIndexes.Add(compactActionIndexes.Count);
 
-        var details = BuildAndroidControlDetailText(includeSnoozeActions, maxDelayMinutes);
         builder.SetStyle(new Notification.BigTextStyle().BigText(details));
 
         _logger.LogEvent(
             "AdhanControlNotification.Android",
-            $"includeSnooze={includeSnoozeActions};maxDelay={maxDelayMinutes};summary={body};details={details}");
+            $"includeSnooze={includeSnoozeActions};maxDelay={maxDelayMinutes};title={title};body={body};actions={actionsSummary}");
 
         var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
         manager?.Notify(ControlNotificationId, builder.Build());
@@ -567,6 +571,18 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         return PendingIntent.GetActivity(context, actionId, launchIntent, flags)!;
     }
 
+    private static PendingIntent BuildAndroidContentPendingIntent(Context context) {
+        var launchIntent = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName) ?? new Intent(context, typeof(MainActivity));
+        launchIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop);
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            flags |= PendingIntentFlags.Immutable;
+        }
+
+        return PendingIntent.GetActivity(context, 0, launchIntent, flags)!;
+    }
+
     private static void EnsureAndroidControlChannel(Context context) {
         if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
             return;
@@ -585,7 +601,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         var channel = new NotificationChannel(
             "adhan_playback_control",
             "Adhan Playback Control",
-            NotificationImportance.High) {
+            NotificationImportance.Max) {
             Description = "Controls currently playing adhan"
         };
         channel.SetSound(null, null);
