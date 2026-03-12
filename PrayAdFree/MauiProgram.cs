@@ -219,7 +219,11 @@ namespace Pray_Ad_Free {
 
         private static Android.Graphics.Drawables.GradientDrawable BuildAndroidInputDrawable(Android.Content.Context? context) {
             var density = context?.Resources?.DisplayMetrics?.Density ?? 1f;
-            var isDark = Application.Current?.RequestedTheme != AppTheme.Light;
+            var appTheme = Application.Current?.UserAppTheme ?? AppTheme.Unspecified;
+            if (appTheme == AppTheme.Unspecified) {
+                appTheme = Application.Current?.RequestedTheme ?? AppTheme.Unspecified;
+            }
+            var isDark = appTheme != AppTheme.Light;
             var fill = Android.Graphics.Color.ParseColor(isDark ? "#163344" : "#ECF4F0");
             var stroke = Android.Graphics.Color.ParseColor(isDark ? "#25566A" : "#BAD4C9");
 

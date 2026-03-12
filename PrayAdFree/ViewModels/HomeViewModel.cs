@@ -242,12 +242,12 @@ public sealed class HomeViewModel : ViewModelBase {
     }
 
     private static string ResolveNextPrayerDayLabel(DateTime now, DateTime nextPrayer) {
-        if (nextPrayer.Date == now.Date) {
+        if (nextPrayer.Date <= now.Date) {
             return LocalizationManager.Translate("Today");
         }
 
         return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "غداً",
+            "ar" => "غدًا",
             "tr" => "Yarin",
             "fr" => "Demain",
             _ => "Tomorrow"

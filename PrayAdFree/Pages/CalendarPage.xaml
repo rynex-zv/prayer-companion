@@ -54,37 +54,37 @@
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="0" Grid.Column="0">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Fajr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Fajr}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Fajr}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="0" Grid.Column="1">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Sunrise}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Sunrise}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Sunrise}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="0" Grid.Column="2">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Dhuhr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Dhuhr}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Dhuhr}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="1" Grid.Column="0">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Asr}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Asr}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Asr}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="1" Grid.Column="1">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Maghrib}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Maghrib}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Maghrib}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                     <Border Padding="8" MinimumHeightRequest="86" BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource DarkSandMid}}" StrokeThickness="0" Grid.Row="1" Grid.Column="2">
                                         <VerticalStackLayout Spacing="2">
                                             <Label Text="{loc:Loc Prayer_Isha}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="Center" />
-                                            <Label Text="{Binding Isha}" FontSize="17" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
+                                            <Label Text="{Binding Isha}" FontSize="16" HorizontalTextAlignment="Center" LineBreakMode="NoWrap" />
                                         </VerticalStackLayout>
                                     </Border>
                                 </Grid>

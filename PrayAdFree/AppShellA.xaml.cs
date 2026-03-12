@@ -3,6 +3,7 @@ using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Pages;
 using Pray_Ad_Free.Pages.ThemeA;
 using Pray_Ad_Free.Services;
+using System.Linq;
 
 namespace Pray_Ad_Free;
 
@@ -20,6 +21,13 @@ public partial class AppShellA : Shell {
         _logger.LogEvent("AppShellACtor", "beforeInitializeComponent");
         InitializeComponent();
         _logger.LogEvent("AppShellACtor", "afterInitializeComponent");
+
+        var tabTitles = Items
+            .SelectMany(item => item.Items)
+            .SelectMany(section => section.Items)
+            .Select(content => content.Title ?? content.Route ?? "(untitled)")
+            .ToList();
+        _logger.LogEvent("AppShellATabs", $"count={tabTitles.Count};tabs={string.Join(",", tabTitles)}");
 
         RegisterRoutes();
         _ = InitializeLocalizationAsync(preferredLanguage);

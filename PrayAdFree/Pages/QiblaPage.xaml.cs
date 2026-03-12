@@ -2,6 +2,8 @@ using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Devices;
 using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Maps;
+using Microsoft.Maui.Graphics;
+using Pray_Ad_Free.Controls;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 using System.Globalization;
@@ -26,7 +28,16 @@ public partial class QiblaPage : ContentPage {
     private DateTime _lastCompassReadingUtc = DateTime.MinValue;
     private CancellationTokenSource? _compassWatchdogCts;
     private Microsoft.Maui.Controls.Maps.Map? _map;
-    public QiblaPage() : this( ServiceHelper.GetService<QiblaViewModel>() ) {
+
+    private enum QiblaDisplayMode {
+        Compass,
+        Map
+    }
+
+    private QiblaDisplayMode _displayMode = QiblaDisplayMode.Compass;
+    private QiblaCompassVisualFilter _visualFilter = QiblaCompassVisualFilter.None;
+
+    public QiblaPage() : this(ServiceHelper.GetService<QiblaViewModel>()) {
     }
 
     public QiblaPage(QiblaViewModel viewModel) {
@@ -37,7 +48,8 @@ public partial class QiblaPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
-        MapContainer.IsVisible = ShouldShowMap();
+        ApplyDisplayState();
+
         _ = LoadAndUpdateAsync();
         ApplyCompassPreferences(false);
         _lastCompassReadingUtc = DateTime.MinValue;
@@ -83,6 +95,7 @@ public partial class QiblaPage : ContentPage {
         if (IsFiltered(heading)) {
             return;
         }
+
         var radians = heading * Math.PI / 180.0;
         if (!_hasSmoothHeading) {
             _smoothX = Math.Cos(radians);
@@ -161,7 +174,6 @@ public partial class QiblaPage : ContentPage {
         var delta = NormalizeDelta(heading, _lastAcceptedHeading.Value);
         var threshold = _filterMode == QiblaFilterMode.Strict ? 20 : 45;
         if (Math.Abs(delta) > threshold) {
-            // Avoid getting "stuck" forever on devices that report big heading jumps.
             _consecutiveRejectedReadings++;
             if (_consecutiveRejectedReadings < 3) {
                 return true;
@@ -184,7 +196,7 @@ public partial class QiblaPage : ContentPage {
     }
 
     private bool ShouldShowMap() {
-        return false;
+        return _displayMode == QiblaDisplayMode.Map;
     }
 
     private void StartCompassWatchdog() {
@@ -272,6 +284,17 @@ public partial class QiblaPage : ContentPage {
         var lon = longitude.ToString(CultureInfo.InvariantCulture);
         const string kaabaLat = "21.422487";
         const string kaabaLon = "39.826206";
+
+        var isDark = IsDarkTheme();
+        var tileUrl = isDark
+            ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+        var attribution = isDark
+            ? "&copy; OpenStreetMap &copy; CARTO"
+            : "&copy; OpenStreetMap contributors";
+        var lineColor = isDark ? "#2FB79D" : "#2C8A71";
+        var background = isDark ? "#0B1426" : "#F3F6F4";
+
         var html = $@"
 <!doctype html>
 <html>
@@ -280,7 +303,7 @@ public partial class QiblaPage : ContentPage {
   <meta name=""viewport"" content=""width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"">
   <link rel=""stylesheet"" href=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.css""/>
   <style>
-    html, body, #map {{ height: 100%; margin: 0; background: #f3f1ec; }}
+    html, body, #map {{ height: 100%; margin: 0; background: {background}; }}
   </style>
 </head>
 <body>
@@ -290,13 +313,13 @@ public partial class QiblaPage : ContentPage {
     var user = [{lat}, {lon}];
     var kaaba = [{kaabaLat}, {kaabaLon}];
     var map = L.map('map', {{ zoomControl: true }});
-    L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    L.tileLayer('{tileUrl}', {{
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: '{attribution}'
     }}).addTo(map);
     var userMarker = L.marker(user).addTo(map);
     var kaabaMarker = L.marker(kaaba).addTo(map);
-    var line = L.polyline([user, kaaba], {{ color: '#d35400', weight: 3, opacity: 0.85 }}).addTo(map);
+    var line = L.polyline([user, kaaba], {{ color: '{lineColor}', weight: 3, opacity: 0.92 }}).addTo(map);
     map.fitBounds(line.getBounds().pad(0.2));
   </script>
 </body>
@@ -311,8 +334,100 @@ public partial class QiblaPage : ContentPage {
         } else {
             ViewModel.StatusMessage = string.Empty;
         }
-        if (MapContainer.IsVisible) {
+
+        if (ShouldShowMap()) {
             MainThread.BeginInvokeOnMainThread(UpdateMap);
         }
+    }
+
+    private void OnModeCompassTapped(object? sender, TappedEventArgs e) {
+        SetDisplayMode(QiblaDisplayMode.Compass);
+    }
+
+    private void OnModeMapTapped(object? sender, TappedEventArgs e) {
+        SetDisplayMode(QiblaDisplayMode.Map);
+    }
+
+    private void OnFilterNoneTapped(object? sender, TappedEventArgs e) {
+        SetVisualFilter(QiblaCompassVisualFilter.None);
+    }
+
+    private void OnFilterNightTapped(object? sender, TappedEventArgs e) {
+        SetVisualFilter(QiblaCompassVisualFilter.Night);
+    }
+
+    private void OnFilterContrastTapped(object? sender, TappedEventArgs e) {
+        SetVisualFilter(QiblaCompassVisualFilter.Contrast);
+    }
+
+    private void SetDisplayMode(QiblaDisplayMode mode) {
+        if (_displayMode == mode) {
+            return;
+        }
+
+        _displayMode = mode;
+        ApplyDisplayState();
+        if (_displayMode == QiblaDisplayMode.Map) {
+            UpdateMap();
+        }
+    }
+
+    private void SetVisualFilter(QiblaCompassVisualFilter filter) {
+        if (_visualFilter == filter) {
+            return;
+        }
+
+        _visualFilter = filter;
+        ApplyDisplayState();
+    }
+
+    private void ApplyDisplayState() {
+        CompassDial.VisualFilter = _visualFilter;
+
+        var isDark = IsDarkTheme();
+        var inactiveBackground = isDark ? Color.FromArgb("#16283A") : Color.FromArgb("#E8F0EB");
+        var inactiveStroke = isDark ? Color.FromArgb("#234258") : Color.FromArgb("#C5D6CE");
+        var inactiveText = isDark ? Color.FromArgb("#8CA0B6") : Color.FromArgb("#556B7E");
+        var activeBackground = Color.FromArgb("#2FB79D");
+        var activeStroke = Color.FromArgb("#2FB79D");
+        var activeText = Color.FromArgb("#EAF7F8");
+
+        SetChipState(ModeCompassChip, ModeCompassLabel, _displayMode == QiblaDisplayMode.Compass,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+        SetChipState(ModeMapChip, ModeMapLabel, _displayMode == QiblaDisplayMode.Map,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+
+        SetChipState(FilterNoneChip, FilterNoneLabel, _visualFilter == QiblaCompassVisualFilter.None,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+        SetChipState(FilterNightChip, FilterNightLabel, _visualFilter == QiblaCompassVisualFilter.Night,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+        SetChipState(FilterContrastChip, FilterContrastLabel, _visualFilter == QiblaCompassVisualFilter.Contrast,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+
+        CompassCard.IsVisible = _displayMode == QiblaDisplayMode.Compass;
+        MapContainer.IsVisible = _displayMode == QiblaDisplayMode.Map;
+    }
+
+    private static void SetChipState(
+        Border border,
+        Label label,
+        bool selected,
+        Color activeBackground,
+        Color activeStroke,
+        Color activeText,
+        Color inactiveBackground,
+        Color inactiveStroke,
+        Color inactiveText) {
+        border.BackgroundColor = selected ? activeBackground : inactiveBackground;
+        border.Stroke = selected ? new SolidColorBrush(activeStroke) : new SolidColorBrush(inactiveStroke);
+        label.TextColor = selected ? activeText : inactiveText;
+    }
+
+    private static bool IsDarkTheme() {
+        var theme = Application.Current?.UserAppTheme ?? AppTheme.Unspecified;
+        if (theme == AppTheme.Unspecified) {
+            theme = Application.Current?.RequestedTheme ?? AppTheme.Unspecified;
+        }
+        return theme != AppTheme.Light;
     }
 }

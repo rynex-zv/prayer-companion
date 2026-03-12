@@ -1,6 +1,7 @@
 using Microsoft.Maui.ApplicationModel;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
+using System.Linq;
 
 namespace Pray_Ad_Free {
     public partial class AppShell : Shell {
@@ -18,6 +19,13 @@ namespace Pray_Ad_Free {
             InitializeComponent();
             _logger.LogEvent("AppShellCtor", "afterInitializeComponent");
             _logger.LogEvent("AppShellCtor", "afterApplyTheme");
+
+            var tabTitles = Items
+                .SelectMany(item => item.Items)
+                .SelectMany(section => section.Items)
+                .Select(content => content.Title ?? content.Route ?? "(untitled)")
+                .ToList();
+            _logger.LogEvent("AppShellTabs", $"count={tabTitles.Count};tabs={string.Join(",", tabTitles)}");
 
             _ = InitializeLocalizationAsync(preferredLanguage);
             RegisterRoutes();

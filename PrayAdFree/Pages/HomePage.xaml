@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
@@ -56,8 +56,9 @@
                     <Border Padding="14" StrokeShape="RoundRectangle 20">
                         <VerticalStackLayout Spacing="8">
                             <Label Text="مواقيت اليوم" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="End" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                            <CollectionView ItemsSource="{Binding TodayTimings}" SelectionMode="None" ItemSizingStrategy="MeasureAllItems">
-                                <CollectionView.ItemTemplate>
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding TodayTimings}" Spacing="2">
+                                <BindableLayout.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="Auto,*" Padding="8,10" ColumnSpacing="14">
                                             <Label Text="{Binding Time}" FontSize="20" HorizontalTextAlignment="Start" VerticalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"/>
@@ -69,8 +70,8 @@
                                                    LineBreakMode="NoWrap" />
                                         </Grid>
                                     </DataTemplate>
-                                </CollectionView.ItemTemplate>
-                            </CollectionView>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
 
