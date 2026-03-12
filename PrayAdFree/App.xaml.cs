@@ -11,6 +11,7 @@ namespace Pray_Ad_Free {
         private readonly IAppLogger _logger;
         private ThemeVariant _activeThemeVariant = ThemeVariant.B;
         private Window? _mainWindow;
+        private bool _startupNotificationBootstrapQueued;
 
         public App(IServiceProvider services, IAppLogger logger) {
             InitializeComponent();
@@ -41,7 +42,6 @@ namespace Pray_Ad_Free {
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.InitializeAdhanPlaybackService");
             }
-            TryScheduleNotifications("AppCtor");
             _logger.LogEvent("AppCtor", "end");
         }
 
@@ -50,6 +50,7 @@ namespace Pray_Ad_Free {
                 _logger.LogEvent("CreateWindow", "beforeResolveShell");
                 var shell = CreateShellForVariant(_activeThemeVariant);
                 _mainWindow = new Window(shell);
+                QueueStartupNotificationBootstrap("CreateWindow");
                 return _mainWindow;
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.CreateWindow");
@@ -78,6 +79,18 @@ namespace Pray_Ad_Free {
                 };
                 return new Window(fallbackPage);
             }
+        }
+
+        private void QueueStartupNotificationBootstrap(string reason) {
+            if (_startupNotificationBootstrapQueued) {
+                return;
+            }
+
+            _startupNotificationBootstrapQueued = true;
+            _ = MainThread.InvokeOnMainThreadAsync(() => {
+                TryScheduleNotifications(reason);
+                return Task.CompletedTask;
+            });
         }
 
         public static Task ReloadShellForThemeVariantAsync(ThemeVariant variant) {

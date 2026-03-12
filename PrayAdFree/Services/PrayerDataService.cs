@@ -86,7 +86,7 @@ public sealed class PrayerDataService {
         }
     }
 
-    public async Task ScheduleNotificationsAsync(AppSettings settings, PrayerMonth month, CancellationToken cancellationToken) {
+    public async Task ScheduleNotificationsAsync(AppSettings settings, PrayerMonth month, CancellationToken cancellationToken, bool requestPermissions = true) {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var daysToSchedule = month.Days
             .Where(item => item.Date >= today)
@@ -115,7 +115,7 @@ public sealed class PrayerDataService {
             return;
         }
 
-        await _notificationScheduler.ScheduleAsync(finalDays, settings, cancellationToken).ConfigureAwait(false);
+        await _notificationScheduler.ScheduleAsync(finalDays, settings, cancellationToken, requestPermissions).ConfigureAwait(false);
     }
 
     private static AppSettings CloneSettingsWithLocation(AppSettings settings, LocationSettings location) {

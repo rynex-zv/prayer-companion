@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Maui.ApplicationModel;
 using Plugin.LocalNotification;
 #if ANDROID
 using Plugin.LocalNotification.AndroidOption;
@@ -54,7 +55,9 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     RequestPermissionToScheduleExactAlarm = true
                 };
 #endif
-                await LocalNotificationCenter.Current.RequestNotificationPermission(permission).ConfigureAwait(false);
+                await MainThread.InvokeOnMainThreadAsync(
+                    () => LocalNotificationCenter.Current.RequestNotificationPermission(permission)
+                ).ConfigureAwait(false);
             }
 
             await CancelAsyncCore().ConfigureAwait(false);
