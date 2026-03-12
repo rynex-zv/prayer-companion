@@ -225,5 +225,7 @@
   "SnoozeRemainingToNextPrayer": "الصلاة القادمة ({0}) بعد {1}",
   "SnoozeDelayLabel": "التذكير بعد {0} دقيقة",
   "SnoozePageConfirm": "تأكيد التذكير",
-  "SnoozePageCancel": "إلغاء"
+  "SnoozePageCancel": "إلغاء",
+  "TodayPrayTimesLabel": "مواقيت اليوم",
+  "PrayTable": "مواقيت الصلاة"
 }

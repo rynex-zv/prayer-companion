@@ -220,5 +220,7 @@
   "TrayTestAdhan": "Ezan test et",
   "WindowsBackgroundOptions": "Windows arka plan secenekleri",
   "WindowsHideOnClose": "Kapatinca gizle",
-  "WindowsStartMinimizedWithWindows": "Windows ile simge durumunda baslat"
+  "WindowsStartMinimizedWithWindows": "Windows ile simge durumunda baslat",
+  "TodayPrayTimesLabel": "Today Prayer's",
+  "PrayTable": "مواقيت الصلاة"
 }

@@ -220,5 +220,7 @@
   "TrayTestAdhan": "Tester adhan",
   "WindowsBackgroundOptions": "Options en arriere-plan Windows",
   "WindowsHideOnClose": "Masquer a la fermeture",
-  "WindowsStartMinimizedWithWindows": "Demarrer reduit avec Windows"
+  "WindowsStartMinimizedWithWindows": "Demarrer reduit avec Windows",
+  "TodayPrayTimesLabel": "Today Prayer's",
+  "PrayTable": "مواقيت الصلاة"
 }

@@ -190,7 +190,8 @@ public sealed class QiblaCompassView : GraphicsView, IDrawable {
                     Text: Color.FromArgb("#EAF1FA"),
                     Muted: Color.FromArgb("#9EB1C7"),
                     North: Color.FromArgb("#EF4444"),
-                    Dot: Color.FromArgb("#F0C339"),
+                    Dot: App.AccentColor?? Color.FromArgb( "#F0C435" ) ,// App.Current.PlatformAppTheme == AppTheme.Light?   Color.FromArgb("#F0C339"),
+                   // Dot: Color.FromArgb("#F0C339"),
                     DotGlow: Color.FromArgb("#F0C339")),
                 QiblaCompassVisualFilter.Contrast => new CompassPalette(
                     Background: Color.FromArgb("#0A1D2B"),
@@ -202,7 +203,8 @@ public sealed class QiblaCompassView : GraphicsView, IDrawable {
                     Text: Color.FromArgb("#FFFFFF"),
                     Muted: Color.FromArgb("#CBE2F5"),
                     North: Color.FromArgb("#F43F5E"),
-                    Dot: Color.FromArgb("#FFD54A"),
+                    Dot: App.AccentColor?? Color.FromArgb( "#F0C435" ) ,// App.Current.PlatformAppTheme == AppTheme.Light?   Color.FromArgb("#F0C339"),
+                    //Dot: Color.FromArgb("#FFD54A"),
                     DotGlow: Color.FromArgb("#FFD54A")),
                 _ => new CompassPalette(
                     Background: Color.FromArgb("#F4FAF8"),
@@ -214,7 +216,8 @@ public sealed class QiblaCompassView : GraphicsView, IDrawable {
                     Text: Color.FromArgb("#0F172A"),
                     Muted: Color.FromArgb("#5C6E81"),
                     North: Color.FromArgb("#EF4444"),
-                    Dot: Color.FromArgb("#F0C339"),
+                    Dot: App.AccentColor?? Color.FromArgb( "#F0C435" ) ,// App.Current.PlatformAppTheme == AppTheme.Light?   Color.FromArgb("#F0C339"),
+                    //Dot: Color.FromArgb("#F0C339"),
                     DotGlow: Color.FromArgb("#F0C339"))
             };
         }

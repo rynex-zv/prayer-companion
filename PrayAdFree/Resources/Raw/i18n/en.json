@@ -220,5 +220,7 @@
   "ReminderType": "Reminder type",
   "ReminderType_Adhan": "Adhan",
   "ReminderType_Notification": "Notification",
-  "ReminderType_Silent": "Silent"
+  "ReminderType_Silent": "Silent",
+  "TodayPrayTimesLabel": "Today Prayer's",
+  "PrayTable":"Pray Table"
 }

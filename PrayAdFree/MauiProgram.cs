@@ -82,13 +82,13 @@ namespace Pray_Ad_Free {
                         }
                     };
 
-                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Service) {
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Status) {
                         ActionList = new HashSet<NotificationAction> { stopAction }
                     });
-                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Alarm) {
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Event) {
                         ActionList = new HashSet<NotificationAction> { customSnoozeAction, stopAction }
                     });
-                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Reminder) {
+                    options.AddCategory(new NotificationCategory(NotificationCategoryType.Recommendation) {
                         ActionList = new HashSet<NotificationAction> { snooze10Action, customSnoozeAction, stopAction }
                     });
                 })

@@ -354,20 +354,20 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         StartWindowsNotificationMonitor();
         await Task.CompletedTask;
 #else
-        var categoryType = NotificationCategoryType.Service;
+        var categoryType = NotificationCategoryType.Status;
         var buttonsMode = "stop_only";
         int? maxDelayMinutes = null;
         if (includeSnoozeActions) {
             var window = await TryBuildSnoozeWindowAsync(DateTime.Now).ConfigureAwait(false);
             if (window == null) {
-                categoryType = NotificationCategoryType.Reminder;
+                categoryType = NotificationCategoryType.Recommendation;
                 buttonsMode = "stop_10_custom";
             } else if (window.Value.MaxDelayMinutes >= 10) {
-                categoryType = NotificationCategoryType.Reminder;
+                categoryType = NotificationCategoryType.Recommendation;
                 buttonsMode = "stop_10_custom";
                 maxDelayMinutes = window.Value.MaxDelayMinutes;
             } else if (window.Value.MaxDelayMinutes >= MinSnoozeMinutes) {
-                categoryType = NotificationCategoryType.Alarm;
+                categoryType = NotificationCategoryType.Event;
                 buttonsMode = "stop_custom";
                 maxDelayMinutes = window.Value.MaxDelayMinutes;
             } else {
@@ -388,9 +388,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             ReturningData = ControlReturningData,
             Android = new AndroidOptions {
                 ChannelId = "adhan_playback_control",
-                Priority = AndroidPriority.High,
+                Priority = AndroidPriority.Max,
                 Ongoing = true,
                 AutoCancel = false,
+                VisibilityType = AndroidVisibilityType.Public,
                 LaunchAppWhenTapped = false
             },
             Windows = new WindowsOptions {
