@@ -1,28 +1,12 @@
-using Android.App;
 using Android.Content;
-using Android.Content.PM;
-using Android.OS;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 
-namespace Pray_Ad_Free;
+namespace Pray_Ad_Free.Platforms.Android;
 
-[Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-public class MainActivity : MauiAppCompatActivity {
-    protected override void OnCreate(Bundle? savedInstanceState) {
-        base.OnCreate(savedInstanceState);
-        HandleAdhanControlIntent(Intent);
-    }
-
-    protected override void OnNewIntent(Intent? intent) {
-        base.OnNewIntent(intent);
-        if (intent != null) {
-            Intent = intent;
-        }
-        HandleAdhanControlIntent(intent);
-    }
-
-    private static void HandleAdhanControlIntent(Intent? intent) {
+[BroadcastReceiver(Enabled = true, Exported = false)]
+public sealed class AdhanControlActionReceiver : BroadcastReceiver {
+    public override void OnReceive(Context? context, Intent? intent) {
         if (intent == null || !string.Equals(intent.Action, AdhanPlaybackService.AndroidControlAction, StringComparison.Ordinal)) {
             return;
         }

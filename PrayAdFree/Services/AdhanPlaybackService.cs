@@ -7,6 +7,8 @@ using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 #if ANDROID
 using Android.App;
+using Android.Content;
+using Android.OS;
 #endif
 #if WINDOWS
 using Windows.Media.Core;
@@ -26,7 +28,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const int Snooze10ActionId = 54003;
     public const int OpenCustomSnoozeActionId = 54004;
     public const int DeferredAdhanNotificationId = 54005;
+    public const int AndroidDismissControlActionId = 54006;
     public const string ControlReturningData = "adhan_control";
+    public const string AndroidControlAction = "com.rynex.prayadfree.ADHAN_CONTROL";
+    public const string AndroidControlActionIdExtra = "adhan_control_action_id";
     private const int MinSnoozeMinutes = 4;
     private const int BufferBeforeNextPrayerMinutes = 30;
     public const string WindowsStopActionToken = WindowsNotificationActionParser.StopActionToken;
@@ -139,6 +144,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
             StopCore();
+#if ANDROID
+            CancelAndroidControlNotification();
+#endif
 #if WINDOWS
             await AppNotificationManager.Default.RemoveByTagAsync(WindowsControlNotificationTag);
 #else
@@ -223,30 +231,14 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 "AdhanNotificationAction",
                 $"actionId={e.ActionId};isTapped={e.IsTapped};isDismissed={e.IsDismissed};notifId={e.Request?.NotificationId};returningData={e.Request?.ReturningData ?? "null"};isAdhan={isAdhanNotification};isControl={isControlNotification}");
 
-            if (e.ActionId == Snooze10ActionId) {
+            if (e.ActionId == Snooze10ActionId ||
+                e.ActionId == OpenCustomSnoozeActionId ||
+                e.ActionId == StopActionId) {
                 if (!isControlNotification) {
                     return;
                 }
 
-                await HandleSnooze10ActionAsync().ConfigureAwait(false);
-                return;
-            }
-
-            if (e.ActionId == OpenCustomSnoozeActionId) {
-                if (!isControlNotification) {
-                    return;
-                }
-
-                await HandleOpenCustomSnoozeActionAsync().ConfigureAwait(false);
-                return;
-            }
-
-            if (e.ActionId == StopActionId) {
-                if (!isControlNotification) {
-                    return;
-                }
-
-                await StopAsync().ConfigureAwait(false);
+                await HandleControlActionAsync(e.ActionId).ConfigureAwait(false);
                 return;
             }
 
@@ -260,6 +252,21 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             }
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleNotificationActionTappedAsync");
+        }
+    }
+
+    public async Task HandleControlActionAsync(int actionId) {
+        switch (actionId) {
+            case Snooze10ActionId:
+                await HandleSnooze10ActionAsync().ConfigureAwait(false);
+                return;
+            case OpenCustomSnoozeActionId:
+                await HandleOpenCustomSnoozeActionAsync().ConfigureAwait(false);
+                return;
+            case StopActionId:
+            case AndroidDismissControlActionId:
+                await StopAsync().ConfigureAwait(false);
+                return;
         }
     }
 
@@ -340,7 +347,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private async Task ShowControlNotificationAsync(string prayerName, bool includeSnoozeActions) {
-#if WINDOWS
+#if ANDROID
+        ShowAndroidControlNotification(prayerName, includeSnoozeActions);
+        await Task.CompletedTask;
+#elif WINDOWS
         var notification = new AppNotificationBuilder()
             .AddArgument("source", WindowsControlNotificationSourceToken)
             .AddText(prayerName)
@@ -402,6 +412,162 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         await LocalNotificationCenter.Current.Show(request).ConfigureAwait(false);
 #endif
     }
+
+#if ANDROID
+    private void ShowAndroidControlNotification(string prayerName, bool includeSnoozeActions) {
+        var context = Android.App.Application.Context;
+        if (context == null) {
+            return;
+        }
+
+        EnsureAndroidControlChannel(context);
+
+        var title = prayerName;
+        var body = LocalizationManager.Translate("AdhanPlaybackStopHint");
+
+        Notification.Builder builder;
+        if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
+            builder = new Notification.Builder(context, "adhan_playback_control");
+        } else {
+            builder = new Notification.Builder(context);
+        }
+
+        builder
+            .SetSmallIcon(context.ApplicationInfo?.Icon ?? Android.Resource.Drawable.IcDialogInfo)
+            .SetContentTitle(title)
+            .SetContentText(body)
+            .SetPriority((int)NotificationPriority.Max)
+            .SetVisibility(NotificationVisibility.Public)
+            .SetCategory(Notification.CategoryAlarm)
+            .SetOngoing(true)
+            .SetAutoCancel(false)
+            .SetOnlyAlertOnce(true)
+            .SetShowWhen(true)
+            .SetDeleteIntent(BuildAndroidControlActionPendingIntent(context, AndroidDismissControlActionId));
+
+        var compactActionIndexes = new List<int>();
+        if (includeSnoozeActions) {
+            var maxDelayMinutes = TryBuildSnoozeWindowAsync(DateTime.Now).GetAwaiter().GetResult()?.MaxDelayMinutes ?? int.MaxValue;
+            if (maxDelayMinutes >= 10) {
+                builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMenuRecentHistory, ResolveSnooze10Title(), BuildAndroidControlActionPendingIntent(context, Snooze10ActionId)));
+                compactActionIndexes.Add(compactActionIndexes.Count);
+                builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMenuMore, ResolveCustomSnoozeTitle(), BuildAndroidControlLaunchPendingIntent(context, OpenCustomSnoozeActionId)));
+                compactActionIndexes.Add(compactActionIndexes.Count);
+            } else if (maxDelayMinutes >= MinSnoozeMinutes) {
+                builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMenuMore, ResolveCustomSnoozeTitle(), BuildAndroidControlLaunchPendingIntent(context, OpenCustomSnoozeActionId)));
+                compactActionIndexes.Add(compactActionIndexes.Count);
+            }
+        }
+
+        builder.AddAction(BuildAndroidNativeAction(Android.Resource.Drawable.IcMediaPause, ResolveStopTitle(), BuildAndroidControlActionPendingIntent(context, StopActionId)));
+        compactActionIndexes.Add(compactActionIndexes.Count);
+
+        var mediaStyle = new Notification.MediaStyle();
+        mediaStyle.SetShowActionsInCompactView(compactActionIndexes.ToArray());
+        builder.SetStyle(mediaStyle);
+
+        var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
+        manager?.Notify(ControlNotificationId, builder.Build());
+    }
+
+    private static Notification.Action BuildAndroidNativeAction(int iconId, string title, PendingIntent pendingIntent) {
+        return new Notification.Action.Builder(iconId, title, pendingIntent).Build();
+    }
+
+    private static PendingIntent BuildAndroidControlActionPendingIntent(Context context, int actionId) {
+        var intent = new Intent(context, typeof(Pray_Ad_Free.Platforms.Android.AdhanControlActionReceiver));
+        intent.SetAction(AndroidControlAction);
+        intent.PutExtra(AndroidControlActionIdExtra, actionId);
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            flags |= PendingIntentFlags.Immutable;
+        }
+
+        return PendingIntent.GetBroadcast(context, actionId, intent, flags)!;
+    }
+
+    private static PendingIntent BuildAndroidControlLaunchPendingIntent(Context context, int actionId) {
+        var launchIntent = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName) ?? new Intent(context, typeof(MainActivity));
+        launchIntent.SetAction(AndroidControlAction);
+        launchIntent.PutExtra(AndroidControlActionIdExtra, actionId);
+        launchIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop);
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            flags |= PendingIntentFlags.Immutable;
+        }
+
+        return PendingIntent.GetActivity(context, actionId, launchIntent, flags)!;
+    }
+
+    private static void EnsureAndroidControlChannel(Context context) {
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
+            return;
+        }
+
+        var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
+        if (manager == null) {
+            return;
+        }
+
+        var existing = manager.GetNotificationChannel("adhan_playback_control");
+        if (existing != null) {
+            manager.DeleteNotificationChannel("adhan_playback_control");
+        }
+
+        var channel = new NotificationChannel(
+            "adhan_playback_control",
+            "Adhan Playback Control",
+            NotificationImportance.High) {
+            Description = "Controls currently playing adhan"
+        };
+        channel.SetSound(null, null);
+        channel.EnableVibration(false);
+        channel.LockscreenVisibility = NotificationVisibility.Public;
+        manager.CreateNotificationChannel(channel);
+    }
+
+    private static void CancelAndroidControlNotification() {
+        var context = Android.App.Application.Context;
+        if (context == null) {
+            return;
+        }
+
+        var manager = context.GetSystemService(Context.NotificationService) as NotificationManager;
+        manager?.Cancel(ControlNotificationId);
+    }
+
+    private static string ResolveStopTitle() {
+        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+            "ar" => "إيقاف",
+            "fr" => "Arreter",
+            "es" => "Detener",
+            "tr" => "Durdur",
+            _ => "Stop"
+        };
+    }
+
+    private static string ResolveSnooze10Title() {
+        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+            "ar" => "بعد 10د",
+            "fr" => "Dans 10 min",
+            "es" => "En 10 min",
+            "tr" => "10 dk sonra",
+            _ => "After 10m"
+        };
+    }
+
+    private static string ResolveCustomSnoozeTitle() {
+        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
+            "ar" => "التذكير بعد",
+            "fr" => "Rappeler plus tard",
+            "es" => "Recordarme despues",
+            "tr" => "Daha sonra hatirlat",
+            _ => "Remind me after"
+        };
+    }
+#endif
 
     private async Task<SnoozeWindow?> TryBuildSnoozeWindowAsync(DateTime now) {
         try {

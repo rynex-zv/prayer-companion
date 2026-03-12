@@ -78,7 +78,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     var notificationSound = ResolveSystemNotificationSound(settings.Notifications, effectiveSoundKey, isSilent);
                     var isCustomSound = AdhanSoundLibrary.IsCustomSound(settings.Notifications, effectiveSoundKey);
                     var useRuntimeAdhanPlayback = ShouldUseRuntimeAdhanPlayback();
-                    var playRuntimeAdhan = useRuntimeAdhanPlayback && !isSilent && (isCustomSound || string.IsNullOrWhiteSpace(notificationSound));
+                    var playRuntimeAdhan = useRuntimeAdhanPlayback && !isSilent;
                     var vibrationOverride = overrideSettings?.EnableVibration;
 
                     if (ShouldSchedule(item.Time, now)) {
@@ -385,8 +385,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     ? string.Empty
                     : ResolveSystemNotificationSound(notificationSettings, effectiveSoundKey, isSilent) ?? string.Empty;
                 var useRuntimeAdhanPlayback = ShouldUseRuntimeAdhanPlayback();
-                var playRuntimeAdhan = shouldPlayAdhan && useRuntimeAdhanPlayback && !isSilent &&
-                                       (isCustomSound || string.IsNullOrWhiteSpace(notificationSound));
+                var playRuntimeAdhan = shouldPlayAdhan && useRuntimeAdhanPlayback && !isSilent;
 
                 AddIfUnique(requests, signatures, new NotificationRequest {
                     NotificationId = BuildReminderId(day.Date, 20 + p, i),
