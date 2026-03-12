@@ -458,8 +458,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         EnsureAndroidControlChannel(context);
 
-        var title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName);
-        var body = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName);
+        var title = BuildPrayerNotificationTitle(prayerName);
+        var body = BuildPrayerNotificationBody(prayerName);
         var maxDelayMinutes = includeSnoozeActions
             ? TryBuildSnoozeWindowAsync(DateTime.Now).GetAwaiter().GetResult()?.MaxDelayMinutes ?? int.MaxValue
             : int.MinValue;
@@ -689,6 +689,36 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             "tr" => "Daha sonra hatirlat",
             _ => "Remind me after"
         };
+    }
+
+    private static string BuildPrayerNotificationTitle(string prayerName) {
+        var template = LocalizationManager.Translate("Notification_PrayerTitle");
+        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerTitle", StringComparison.Ordinal)) {
+            return $"Prayer time: {prayerName}";
+        }
+
+        return FormatTemplate(template, prayerName);
+    }
+
+    private static string BuildPrayerNotificationBody(string prayerName) {
+        var template = LocalizationManager.Translate("Notification_PrayerBody");
+        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerBody", StringComparison.Ordinal)) {
+            return $"It is time for {prayerName}";
+        }
+
+        return FormatTemplate(template, prayerName);
+    }
+
+    private static string FormatTemplate(string template, string prayerName) {
+        try {
+            if (template.Contains("{0}", StringComparison.Ordinal)) {
+                return string.Format(template, prayerName);
+            }
+
+            return $"{template} {prayerName}".Trim();
+        } catch {
+            return $"{template} {prayerName}".Trim();
+        }
     }
 #endif
 

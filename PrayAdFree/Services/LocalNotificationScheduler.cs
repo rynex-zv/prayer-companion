@@ -90,11 +90,13 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                         : NotificationCategoryType.None;
 
                     if (ShouldSchedule(item.Time, now)) {
+                        var notificationTitle = BuildPrayerNotificationTitle(prayerName);
+                        var notificationBody = BuildPrayerNotificationBody(prayerName);
                         AddIfUnique(requests, signatures, new NotificationRequest {
                             NotificationId = BuildId(day.Date, item.Prayer),
                             CategoryType = notificationCategory,
-                            Title = string.Format(LocalizationManager.Translate("Notification_PrayerTitle"), prayerName),
-                            Description = string.Format(LocalizationManager.Translate("Notification_PrayerBody"), prayerName),
+                            Title = notificationTitle,
+                            Description = notificationBody,
                             Silent = ResolveNotificationSilent(playRuntimeAdhan, isSilent),
                             Sound = playRuntimeAdhan ? string.Empty : notificationSound ?? string.Empty,
                             ReturningData = isSilent
@@ -299,6 +301,36 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         var safeRemaining = Math.Max(1, remainingMinutes);
         var unit = LocalizationManager.Translate("Minutes");
         return $"{prayerName} - {LocalizationManager.Translate("Before")} {safeRemaining} {unit}";
+    }
+
+    private static string BuildPrayerNotificationTitle(string prayerName) {
+        var template = LocalizationManager.Translate("Notification_PrayerTitle");
+        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerTitle", StringComparison.Ordinal)) {
+            return $"Prayer time: {prayerName}";
+        }
+
+        return FormatTemplate(template, prayerName);
+    }
+
+    private static string BuildPrayerNotificationBody(string prayerName) {
+        var template = LocalizationManager.Translate("Notification_PrayerBody");
+        if (string.IsNullOrWhiteSpace(template) || string.Equals(template, "Notification_PrayerBody", StringComparison.Ordinal)) {
+            return $"It is time for {prayerName}";
+        }
+
+        return FormatTemplate(template, prayerName);
+    }
+
+    private static string FormatTemplate(string template, string prayerName) {
+        try {
+            if (template.Contains("{0}", StringComparison.Ordinal)) {
+                return string.Format(template, prayerName);
+            }
+
+            return $"{template} {prayerName}".Trim();
+        } catch {
+            return $"{template} {prayerName}".Trim();
+        }
     }
 
     private static void ScheduleFastingReminders(

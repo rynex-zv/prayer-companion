@@ -48,11 +48,15 @@ public static class LocalizationManager {
     }
 
     public static string Translate(string key) {
-        if (Strings.TryGetValue(CurrentLanguage, out var table) && table.TryGetValue(key, out var value)) {
+        if (Strings.TryGetValue(CurrentLanguage, out var table) &&
+            table.TryGetValue(key, out var value) &&
+            !IsMissingLocalizedValue(key, value)) {
             return value;
         }
 
-        return Strings.TryGetValue("en", out var fallbackTable) && fallbackTable.TryGetValue(key, out var fallback)
+        return Strings.TryGetValue("en", out var fallbackTable) &&
+               fallbackTable.TryGetValue(key, out var fallback) &&
+               !IsMissingLocalizedValue(key, fallback)
             ? fallback
             : key;
     }
@@ -99,6 +103,14 @@ public static class LocalizationManager {
 
     private static bool IsSupported(string language) {
         return _catalog?.Languages.Any(item => item.Code.Equals(language, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static bool IsMissingLocalizedValue(string key, string? value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return true;
+        }
+
+        return string.Equals(value.Trim(), key, StringComparison.Ordinal);
     }
 
     private static void EnsureLanguageLoaded(string language) {
