@@ -377,6 +377,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             MaxDelayMinutes: maxDelayMinutes,
             InitialDelayMinutes: initialDelay);
 
+        var navigation = await WaitForNavigationAsync(TimeSpan.FromSeconds(6)).ConfigureAwait(false);
+        if (navigation == null) {
+            _logger.LogEvent("AdhanAlarmScreen", "navigation_unavailable");
+            return;
+        }
+
         await MainThread.InvokeOnMainThreadAsync(async () => {
             try {
                 var page = new Pages.AdhanSnoozePage(
@@ -388,14 +394,26 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                         payload.BasePrayerTime,
                         openAlarmScreen: true).ConfigureAwait(false));
 
-                var navigation = Shell.Current?.Navigation ?? Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
-                if (navigation != null) {
-                    await navigation.PushModalAsync(page);
-                }
+                await navigation.PushModalAsync(page);
             } catch (Exception ex) {
                 _logger.LogException(ex, "AdhanPlaybackService.ShowAlarmPageAsync");
             }
         });
+    }
+
+    private static async Task<INavigation?> WaitForNavigationAsync(TimeSpan timeout) {
+        var deadlineUtc = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadlineUtc) {
+            var navigation = Shell.Current?.Navigation
+                ?? Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
+            if (navigation != null) {
+                return navigation;
+            }
+
+            await Task.Delay(120).ConfigureAwait(false);
+        }
+
+        return null;
     }
 
     private string ResolveRandomAlarmReminderText(AppSettings settings) {
@@ -911,12 +929,61 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
             var updated = CloneSettingsWithPendingReminder(settings, pendingReminder);
             _settingsService.Save(updated);
-            await RescheduleNotificationsAsync(updated).ConfigureAwait(false);
+            await ScheduleDeferredNotificationNowAsync(updated, pendingReminder).ConfigureAwait(false);
             return true;
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.ScheduleDeferredReminderAsync");
             return false;
         }
+    }
+
+    private static async Task ScheduleDeferredNotificationNowAsync(AppSettings settings, DeferredAdhanReminder pendingReminder) {
+        var request = new NotificationRequest {
+            NotificationId = DeferredAdhanNotificationId,
+            CategoryType = pendingReminder.OpenAlarmScreen ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
+            Title = LocalizationManager.Translate("AdhanReminder"),
+            Description = LocalizationManager.Translate("SnoozeReminderBody"),
+            Silent = ResolveDeferredNotificationSilent(),
+            Sound = string.Empty,
+            ReturningData = pendingReminder.OpenAlarmScreen
+                ? AdhanAlarmPayload.Build(
+                    pendingReminder.Prayer,
+                    pendingReminder.SoundKey,
+                    pendingReminder.BasePrayerTime == default ? pendingReminder.NotifyTime : pendingReminder.BasePrayerTime,
+                    pendingReminder.NotifyTime)
+                : AdhanNotificationPayload.BuildPlay(pendingReminder.Prayer, pendingReminder.SoundKey),
+            Schedule = new NotificationRequestSchedule {
+                NotifyTime = pendingReminder.NotifyTime,
+                NotifyRepeatInterval = null
+#if ANDROID
+                ,
+                Android = new AndroidScheduleOptions {
+                    AlarmType = AndroidAlarmType.RtcWakeup
+                }
+#endif
+            }
+        };
+
+#if ANDROID
+        request.Android = new AndroidOptions {
+            Priority = pendingReminder.OpenAlarmScreen ? AndroidPriority.Max : AndroidPriority.Default,
+            ChannelId = LocalNotificationScheduler.PrayerRuntimeMediaChannelId,
+            VibrationPattern = Array.Empty<long>(),
+            VisibilityType = pendingReminder.OpenAlarmScreen ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
+            LaunchApp = pendingReminder.OpenAlarmScreen ? new AndroidLaunch { InHighPriority = true } : null,
+            LaunchAppWhenTapped = pendingReminder.OpenAlarmScreen
+        };
+#endif
+
+        await LocalNotificationCenter.Current.Show(request).ConfigureAwait(false);
+    }
+
+    private static bool ResolveDeferredNotificationSilent() {
+#if ANDROID
+        return false;
+#else
+        return true;
+#endif
     }
 
     private void ClearPendingDeferredReminder() {

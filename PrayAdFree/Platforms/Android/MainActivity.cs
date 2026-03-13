@@ -3,6 +3,8 @@ using Android.Content;
 using Android.Content.PM;
 using Android.OS;
 using Android.Views;
+using Plugin.LocalNotification;
+using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 
@@ -12,6 +14,7 @@ namespace Pray_Ad_Free;
 public class MainActivity : MauiAppCompatActivity {
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        NotifyNotificationIntent(Intent);
         HandleAlarmPresentationIntent(Intent);
         HandleAdhanControlIntent(Intent);
     }
@@ -21,20 +24,64 @@ public class MainActivity : MauiAppCompatActivity {
         if (intent != null) {
             Intent = intent;
         }
+        NotifyNotificationIntent(intent);
         HandleAlarmPresentationIntent(intent);
         HandleAdhanControlIntent(intent);
     }
 
+    private static void NotifyNotificationIntent(Intent? intent) {
+        if (intent == null) {
+            return;
+        }
+
+        try {
+            LocalNotificationCenter.NotifyNotificationTapped(intent);
+        } catch {
+        }
+    }
+
     private void HandleAlarmPresentationIntent(Intent? intent) {
-        if (intent == null || !string.Equals(intent.Action, AdhanPlaybackService.AndroidAlarmAction, StringComparison.Ordinal)) {
+        if (intent == null || !IsAlarmIntent(intent)) {
             return;
         }
 
         TryEnableAlarmFullscreenPresentation();
     }
 
+    private static bool IsAlarmIntent(Intent intent) {
+        if (string.Equals(intent.Action, AdhanPlaybackService.AndroidAlarmAction, StringComparison.Ordinal)) {
+            return true;
+        }
+
+        var extras = intent.Extras;
+        if (extras == null) {
+            return false;
+        }
+
+        var keys = extras.KeySet();
+        if (keys == null) {
+            return false;
+        }
+
+        foreach (var key in keys) {
+            if (string.IsNullOrWhiteSpace(key)) {
+                continue;
+            }
+
+            var value = extras.Get(key);
+            var text = value?.ToString();
+            if (!string.IsNullOrWhiteSpace(text) && AdhanAlarmPayload.TryParse(text, out _)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void TryEnableAlarmFullscreenPresentation() {
         try {
+            TryWakeScreenForAlarm();
+
             if (OperatingSystem.IsAndroidVersionAtLeast(27)) {
                 SetShowWhenLocked(true);
                 SetTurnScreenOn(true);
@@ -68,6 +115,22 @@ public class MainActivity : MauiAppCompatActivity {
                     SystemUiFlags.ImmersiveSticky);
             }
 #pragma warning restore CS0618
+        } catch {
+        }
+    }
+
+    private void TryWakeScreenForAlarm() {
+        try {
+            if (GetSystemService(PowerService) is not PowerManager powerManager) {
+                return;
+            }
+
+#pragma warning disable CS0618
+            using var wakeLock = powerManager.NewWakeLock(
+                WakeLockFlags.ScreenBright | WakeLockFlags.AcquireCausesWakeup,
+                "PrayAdFree:AlarmWake");
+#pragma warning restore CS0618
+            wakeLock?.Acquire(15_000);
         } catch {
         }
     }
