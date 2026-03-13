@@ -33,6 +33,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const string ControlReturningData = "adhan_control";
     public const string AndroidControlAction = "com.rynex.prayadfree.ADHAN_CONTROL";
     public const string AndroidControlActionIdExtra = "adhan_control_action_id";
+    public const string AndroidAlarmAction = "com.rynex.prayadfree.ADHAN_ALARM_FULLSCREEN";
     private const int MinSnoozeMinutes = 4;
     private const int BufferBeforeNextPrayerMinutes = 30;
     public const string WindowsStopActionToken = WindowsNotificationActionParser.StopActionToken;
@@ -273,6 +274,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _gate.Release();
         }
 
+#if ANDROID
+        TryLaunchAndroidAlarmActivity();
+#endif
         await ShowAlarmPageAsync(payload, settings).ConfigureAwait(false);
     }
 
@@ -676,7 +680,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private static PendingIntent BuildAndroidControlLaunchPendingIntent(Context context, int actionId) {
-        var launchIntent = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName) ?? new Intent(context, typeof(MainActivity));
+        var launchIntent = BuildAndroidMainLaunchIntent(context);
         launchIntent.SetAction(AndroidControlAction);
         launchIntent.PutExtra(AndroidControlActionIdExtra, actionId);
         launchIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop);
@@ -690,7 +694,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private static PendingIntent BuildAndroidContentPendingIntent(Context context) {
-        var launchIntent = context.PackageManager?.GetLaunchIntentForPackage(context.PackageName) ?? new Intent(context, typeof(MainActivity));
+        var launchIntent = BuildAndroidMainLaunchIntent(context);
         launchIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop);
 
         var flags = PendingIntentFlags.UpdateCurrent;
@@ -699,6 +703,33 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
 
         return PendingIntent.GetActivity(context, 0, launchIntent, flags)!;
+    }
+
+    private static Intent BuildAndroidMainLaunchIntent(Context context) {
+        var packageName = context.PackageName;
+        var launchIntent = !string.IsNullOrWhiteSpace(packageName)
+            ? context.PackageManager?.GetLaunchIntentForPackage(packageName)
+            : null;
+        return launchIntent ?? new Intent(context, typeof(MainActivity));
+    }
+
+    private static void TryLaunchAndroidAlarmActivity() {
+        try {
+            var context = Android.App.Application.Context;
+            if (context == null) {
+                return;
+            }
+
+            var launchIntent = BuildAndroidMainLaunchIntent(context);
+            launchIntent.SetAction(AndroidAlarmAction);
+            launchIntent.AddFlags(
+                ActivityFlags.NewTask |
+                ActivityFlags.SingleTop |
+                ActivityFlags.ClearTop |
+                ActivityFlags.ReorderToFront);
+            context.StartActivity(launchIntent);
+        } catch {
+        }
     }
 
     private static void EnsureAndroidControlChannel(Context context) {

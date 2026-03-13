@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Android.Views;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 
@@ -11,6 +12,7 @@ namespace Pray_Ad_Free;
 public class MainActivity : MauiAppCompatActivity {
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        HandleAlarmPresentationIntent(Intent);
         HandleAdhanControlIntent(Intent);
     }
 
@@ -19,7 +21,55 @@ public class MainActivity : MauiAppCompatActivity {
         if (intent != null) {
             Intent = intent;
         }
+        HandleAlarmPresentationIntent(intent);
         HandleAdhanControlIntent(intent);
+    }
+
+    private void HandleAlarmPresentationIntent(Intent? intent) {
+        if (intent == null || !string.Equals(intent.Action, AdhanPlaybackService.AndroidAlarmAction, StringComparison.Ordinal)) {
+            return;
+        }
+
+        TryEnableAlarmFullscreenPresentation();
+    }
+
+    private void TryEnableAlarmFullscreenPresentation() {
+        try {
+            if (OperatingSystem.IsAndroidVersionAtLeast(27)) {
+                SetShowWhenLocked(true);
+                SetTurnScreenOn(true);
+            } else {
+#pragma warning disable CS0618
+                Window?.AddFlags(
+                    WindowManagerFlags.ShowWhenLocked |
+                    WindowManagerFlags.TurnScreenOn);
+#pragma warning restore CS0618
+            }
+
+            Window?.AddFlags(
+                WindowManagerFlags.KeepScreenOn |
+                WindowManagerFlags.DismissKeyguard);
+
+            if (OperatingSystem.IsAndroidVersionAtLeast(30)) {
+                Window?.SetDecorFitsSystemWindows(false);
+                var insetsController = Window?.InsetsController;
+                if (insetsController != null) {
+                    insetsController.Hide(WindowInsets.Type.StatusBars() | WindowInsets.Type.NavigationBars());
+                    insetsController.SystemBarsBehavior = (int)WindowInsetsControllerBehavior.ShowTransientBarsBySwipe;
+                }
+                return;
+            }
+
+#pragma warning disable CS0618
+            if (Window?.DecorView != null) {
+                Window.DecorView.SystemUiVisibility = (StatusBarVisibility)(
+                    SystemUiFlags.Fullscreen |
+                    SystemUiFlags.HideNavigation |
+                    SystemUiFlags.ImmersiveSticky);
+            }
+#pragma warning restore CS0618
+        } catch {
+        }
     }
 
     private static void HandleAdhanControlIntent(Intent? intent) {

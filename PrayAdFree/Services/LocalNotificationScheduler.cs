@@ -127,6 +127,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                                 Priority = AndroidPriority.Max,
                                 ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, AdhanReminderAlertType.Adhan),
                                 VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride),
+                                LaunchApp = openAlarmScreen ? new AndroidLaunch { InHighPriority = true } : null,
                                 LaunchAppWhenTapped = openAlarmScreen || !playRuntimeAdhan
                             }
 #endif
@@ -457,9 +458,10 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     },
 #if ANDROID
                     Android = new AndroidOptions {
-                        Priority = AndroidPriority.Default,
+                        Priority = shouldOpenAlarm ? AndroidPriority.Max : AndroidPriority.Default,
                         ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, normalizedAlertType),
                         VibrationPattern = BuildVibration(notificationSettings, overrideSettings?.EnableVibration),
+                        LaunchApp = shouldOpenAlarm ? new AndroidLaunch { InHighPriority = true } : null,
                         LaunchAppWhenTapped = shouldOpenAlarm || !playRuntimeAdhan
                     }
 #endif
@@ -513,13 +515,14 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             },
 #if ANDROID
             Android = new AndroidOptions {
-                Priority = AndroidPriority.Default,
+                Priority = pending.OpenAlarmScreen ? AndroidPriority.Max : AndroidPriority.Default,
                 ChannelId = BuildAndroidChannelId(
                     effectiveSoundKey,
                     false,
                     true,
                     pending.OpenAlarmScreen ? AdhanReminderAlertType.Alarm : AdhanReminderAlertType.Adhan),
                 VibrationPattern = BuildVibration(settings.Notifications),
+                LaunchApp = pending.OpenAlarmScreen ? new AndroidLaunch { InHighPriority = true } : null,
                 LaunchAppWhenTapped = pending.OpenAlarmScreen
             }
 #endif
