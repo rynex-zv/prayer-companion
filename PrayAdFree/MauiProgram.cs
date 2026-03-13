@@ -151,6 +151,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<TasbihViewModel>();
             builder.Services.AddTransient<LanguageSelectionViewModel>();
             builder.Services.AddTransient<AlarmRemindersViewModel>();
+            builder.Services.AddTransient<AppPermissionsViewModel>();
 
             builder.Services.AddTransient<HomePage>();
             builder.Services.AddTransient<CalendarPage>();
@@ -161,6 +162,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsDiagnosticsPage>();
             builder.Services.AddTransient<SettingsAdhanPage>();
             builder.Services.AddTransient<SettingsNotificationsPage>();
+            builder.Services.AddTransient<SettingsPermissionsPage>();
             builder.Services.AddTransient<SettingsAlarmRemindersPage>();
             builder.Services.AddTransient<SettingsTasbihPage>();
             builder.Services.AddTransient<AboutPage>();
@@ -174,10 +176,13 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsLocationsPageA>();
             builder.Services.AddTransient<SettingsAdhanPageA>();
             builder.Services.AddTransient<SettingsNotificationsPageA>();
+            builder.Services.AddTransient<SettingsPermissionsPageA>();
             builder.Services.AddTransient<SettingsAlarmRemindersPageA>();
             builder.Services.AddTransient<AboutPageA>();
             builder.Services.AddTransient<LanguageSelectionPageA>();
             builder.Services.AddTransient<AppShellA>();
+
+            builder.Services.AddSingleton<AppPermissionCenterService>();
 
             return builder.Build();
         }

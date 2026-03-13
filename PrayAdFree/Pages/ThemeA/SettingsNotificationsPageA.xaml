@@ -65,6 +65,7 @@
                     <Label Text="{loc:Loc AdhanSound}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Button Text="{loc:Loc AddCustomAdhanSound}" Command="{Binding AddCustomAdhanSoundCommand}" />
                     <Button Text="{loc:Loc TestNotification}" Command="{Binding SendTestNotificationCommand}" />
+                    <Button Text="{loc:Loc TestAlarm}" Command="{Binding SendTestAlarmCommand}" />
                     <CollectionView ItemsSource="{Binding AdhanSoundItems}" SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>

@@ -1,4 +1,4 @@
-{
+﻿{
   "Today": "اليوم",
   "Calendar": "التقويم",
   "Qibla": "القبلة",
@@ -267,5 +267,17 @@
   "AlarmRemindersUser": "تذكيراتك وأدعيتك",
   "AlarmReminderEditHint": "حدّث نص التذكير",
   "PrimaryAdhanType": "نوع أذان الصلاة",
-  "AlarmReminderEdit": "تعديل"
+  "AlarmReminderEdit": "تعديل",
+  "PermissionsTitle": "الأذونات",
+  "PermissionsSubtitle": "تحقق من صلاحيات التطبيق وافتح مكان تفعيلها عند الحاجة.",
+  "PermissionStatus_Enabled": "مفعلة",
+  "PermissionStatus_Disabled": "غير مفعلة",
+  "PermissionAction_Request": "تفعيل",
+  "PermissionAction_OpenSettings": "فتح الإعدادات",
+  "PermissionsNotificationsTitle": "الإشعارات",
+  "PermissionsNotificationsDescription": "مطلوبة لتذكيرات الصلاة وإشعارات الأذان.",
+  "PermissionsExactAlarmTitle": "المنبهات الدقيقة",
+  "PermissionsExactAlarmDescription": "مطلوبة لمنبه الصلاة كامل الشاشة ليرن في وقته بدقة.",
+  "PermissionsLocationTitle": "الموقع",
+  "PermissionsLocationDescription": "مطلوبة لتحديد المدينة وحساب مواقيت الصلاة بدقة."
 }

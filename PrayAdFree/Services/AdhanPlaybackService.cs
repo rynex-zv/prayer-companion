@@ -9,6 +9,7 @@ using PrayAdFree.Core.Services;
 using Android.App;
 using Android.Content;
 using Android.OS;
+using Pray_Ad_Free.Platforms.Android;
 #endif
 #if WINDOWS
 using Windows.Media.Core;
@@ -148,6 +149,45 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
     }
 
+    public async Task<bool> ScheduleTestAlarmAsync(string? soundKey, TimeSpan delay) {
+        try {
+            var settings = _settingsService.Load();
+            var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey ?? settings.Notifications.SoundKey);
+            if (AdhanSoundLibrary.IsSilent(effectiveSoundKey)) {
+                return false;
+            }
+
+            var triggerTime = DateTime.Now.Add(delay <= TimeSpan.Zero ? TimeSpan.FromMinutes(1) : delay);
+            var payload = AdhanAlarmPayload.Build(PrayerId.Fajr, effectiveSoundKey, triggerTime, triggerTime);
+
+#if ANDROID
+            AndroidAdhanAlarmScheduler.UpsertAlarm(new AndroidAdhanAlarmScheduler.ScheduledAlarm(
+                54008,
+                triggerTime,
+                payload));
+            await Task.CompletedTask;
+            return true;
+#else
+            var request = new NotificationRequest {
+                NotificationId = 54008,
+                CategoryType = NotificationCategoryType.Alarm,
+                Title = LocalizationManager.Translate("TestAlarm"),
+                Description = LocalizationManager.Translate("TestNotification"),
+                ReturningData = payload,
+                Schedule = new NotificationRequestSchedule {
+                    NotifyTime = triggerTime,
+                    NotifyRepeatInterval = null
+                }
+            };
+            await LocalNotificationCenter.Current.Show(request).ConfigureAwait(false);
+            return true;
+#endif
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.ScheduleTestAlarmAsync");
+            return false;
+        }
+    }
+
     public async Task StopAsync() {
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
@@ -255,30 +295,37 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return;
         }
 
-        var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
-        if (source == null) {
-            return;
-        }
-
-        if (request.NotificationId > 0 && request.NotificationId != ControlNotificationId) {
+        if (!OperatingSystem.IsAndroid() &&
+            request.NotificationId > 0 &&
+            request.NotificationId != ControlNotificationId) {
             LocalNotificationCenter.Current.Cancel(request.NotificationId);
-        }
-
-        await _gate.WaitAsync().ConfigureAwait(false);
-        try {
-            StopCore();
-            _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
-            _activeAlarmPayload = payload;
-            StartCore(source, settings.Notifications.AdhanVolume);
-        } finally {
-            _gate.Release();
         }
 
 #if ANDROID
         TryLaunchAndroidAlarmActivity();
 #endif
-        await ShowAlarmPageAsync(payload, settings).ConfigureAwait(false);
+        await ActivateAlarmAsync(payload, settings).ConfigureAwait(false);
     }
+
+#if ANDROID
+    public async Task HandleAndroidAlarmLaunchAsync(AdhanAlarmPayload payload) {
+        try {
+            var settings = _settingsService.Load();
+            if (!settings.Notifications.EnableAdhan) {
+                return;
+            }
+
+            if (IsMatchingPendingDeferredReminder(settings, payload)) {
+                ClearPendingDeferredReminder();
+                settings = _settingsService.Load();
+            }
+
+            await ActivateAlarmAsync(payload, settings).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.HandleAndroidAlarmLaunchAsync");
+        }
+    }
+#endif
 
     private async Task HandleNotificationActionTappedAsync(NotificationActionEventArgs e) {
         try {
@@ -293,7 +340,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 $"actionId={e.ActionId};isTapped={e.IsTapped};isDismissed={e.IsDismissed};notifId={e.Request?.NotificationId};returningData={e.Request?.ReturningData ?? "null"};isAdhan={isAdhanNotification};isControl={isControlNotification}");
 
             if (e.Request != null && AdhanAlarmPayload.TryParse(e.Request.ReturningData, out var alarmPayload)) {
-                if (e.ActionId == NotificationActionEventArgs.TapActionId) {
+                if (!OperatingSystem.IsAndroid() &&
+                    e.ActionId == NotificationActionEventArgs.TapActionId) {
                     await HandleAlarmNotificationAsync(e.Request, alarmPayload, triggeredByTap: true).ConfigureAwait(false);
                 }
                 return;
@@ -377,7 +425,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             MaxDelayMinutes: maxDelayMinutes,
             InitialDelayMinutes: initialDelay);
 
-        var navigation = await WaitForNavigationAsync(TimeSpan.FromSeconds(6)).ConfigureAwait(false);
+        var navigation = await WaitForNavigationAsync(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
         if (navigation == null) {
             _logger.LogEvent("AdhanAlarmScreen", "navigation_unavailable");
             return;
@@ -399,6 +447,39 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 _logger.LogException(ex, "AdhanPlaybackService.ShowAlarmPageAsync");
             }
         });
+    }
+
+    private async Task ActivateAlarmAsync(AdhanAlarmPayload payload, AppSettings settings) {
+        var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
+        if (source == null) {
+            return;
+        }
+
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            StopCore();
+            _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
+            _activeAlarmPayload = payload;
+            StartCore(source, settings.Notifications.AdhanVolume);
+        } finally {
+            _gate.Release();
+        }
+
+        await ShowAlarmPageAsync(payload, settings).ConfigureAwait(false);
+    }
+
+    private static bool IsMatchingPendingDeferredReminder(AppSettings settings, AdhanAlarmPayload payload) {
+        var pending = settings.Notifications.PendingDeferredReminder;
+        if (pending == null || !pending.OpenAlarmScreen) {
+            return false;
+        }
+
+        return pending.Prayer == payload.Prayer &&
+            string.Equals(
+                AdhanSoundLibrary.ResolveEffectiveSoundKey(pending.SoundKey),
+                AdhanSoundLibrary.ResolveEffectiveSoundKey(payload.SoundKey),
+                StringComparison.OrdinalIgnoreCase) &&
+            Math.Abs((pending.NotifyTime - payload.NotifyTime).TotalSeconds) <= 2;
     }
 
     private static async Task<INavigation?> WaitForNavigationAsync(TimeSpan timeout) {
@@ -949,6 +1030,20 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private static async Task ScheduleDeferredNotificationNowAsync(AppSettings settings, DeferredAdhanReminder pendingReminder) {
+#if ANDROID
+        if (pendingReminder.OpenAlarmScreen) {
+            AndroidAdhanAlarmScheduler.UpsertAlarm(new AndroidAdhanAlarmScheduler.ScheduledAlarm(
+                DeferredAdhanNotificationId,
+                pendingReminder.NotifyTime,
+                AdhanAlarmPayload.Build(
+                    pendingReminder.Prayer,
+                    pendingReminder.SoundKey,
+                    pendingReminder.BasePrayerTime == default ? pendingReminder.NotifyTime : pendingReminder.BasePrayerTime,
+                    pendingReminder.NotifyTime)));
+            await Task.CompletedTask;
+            return;
+        }
+#endif
         var request = new NotificationRequest {
             NotificationId = DeferredAdhanNotificationId,
             CategoryType = pendingReminder.OpenAlarmScreen ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
@@ -1006,6 +1101,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
             var updated = CloneSettingsWithPendingReminder(settings, null);
             _settingsService.Save(updated);
+#if ANDROID
+            AndroidAdhanAlarmScheduler.Cancel(DeferredAdhanNotificationId);
+#endif
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.ClearPendingDeferredReminder");
         }
@@ -1024,6 +1122,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
             var updated = CloneSettingsWithPendingReminder(settings, null);
             _settingsService.Save(updated);
+#if ANDROID
+            AndroidAdhanAlarmScheduler.Cancel(DeferredAdhanNotificationId);
+#endif
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.ClearExpiredPendingDeferredReminder");
         }

@@ -125,6 +125,7 @@
     "LanguageSubtitle":  "You can change it later in Settings.",
     "Continue":  "Continue",
     "TestNotification":  "Test notification",
+    "TestAlarm":  "Test alarm",
     "AdhanPreviewTitle":  "Adhan preview",
     "Cancel":  "Cancel",
     "Auto":  "Device language",
@@ -269,5 +270,17 @@
     "AlarmRemindersUser":  "Your reminders and duas",
     "AlarmReminderEditHint":  "Update your reminder text",
     "PrimaryAdhanType":  "Primary adhan type",
-    "AlarmReminderEdit":  "Edit"
+    "AlarmReminderEdit":  "Edit",
+    "PermissionsTitle":  "Permissions",
+    "PermissionsSubtitle":  "Check the app permissions and open the right system screen when needed.",
+    "PermissionStatus_Enabled":  "Enabled",
+    "PermissionStatus_Disabled":  "Disabled",
+    "PermissionAction_Request":  "Allow",
+    "PermissionAction_OpenSettings":  "Open settings",
+    "PermissionsNotificationsTitle":  "Notifications",
+    "PermissionsNotificationsDescription":  "Needed for prayer reminders and adhan alerts.",
+    "PermissionsExactAlarmTitle":  "Exact alarms",
+    "PermissionsExactAlarmDescription":  "Needed for full-screen prayer alarms to ring at the exact time.",
+    "PermissionsLocationTitle":  "Location",
+    "PermissionsLocationDescription":  "Needed to detect your city and calculate prayer times accurately."
 }

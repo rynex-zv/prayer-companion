@@ -37,6 +37,11 @@ public partial class SettingsPage : ContentPage {
         await Shell.Current.GoToAsync("///settings/notifications");
     }
 
+    private async void OnPermissionsClicked(object? sender, EventArgs e) {
+        Logger.LogEvent("SettingsGroupClick", "Permissions");
+        await Shell.Current.GoToAsync("///settings/permissions");
+    }
+
     private async void OnAlarmRemindersClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "AlarmReminders");
         await Shell.Current.GoToAsync("///settings/alarm-reminders");

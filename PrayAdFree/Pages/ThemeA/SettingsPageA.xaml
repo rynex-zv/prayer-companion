@@ -25,6 +25,7 @@
                         <Button Text="{loc:Loc Diagnostics}" Clicked="OnDiagnosticsClicked" />
                         <Button Text="{loc:Loc AdhanCustomizations}" Clicked="OnAdhanClicked" />
                         <Button Text="{loc:Loc Notifications}" Clicked="OnNotificationsClicked" />
+                        <Button Text="{loc:Loc PermissionsTitle}" Clicked="OnPermissionsClicked" />
                         <Button Text="{loc:Loc AlarmRemindersTitle}" Clicked="OnAlarmRemindersClicked" />
                         <Button Text="{loc:Loc TasbihSettings}" Clicked="OnTasbihClicked" />
                         <Button Text="{loc:Loc About}" Clicked="OnAboutClicked" />

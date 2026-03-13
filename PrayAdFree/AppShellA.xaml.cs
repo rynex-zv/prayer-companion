@@ -54,6 +54,7 @@ public partial class AppShellA : Shell {
         Routing.RegisterRoute("settingsA/diagnostics", typeof(SettingsDiagnosticsPage));
         Routing.RegisterRoute("settingsA/adhan", typeof(SettingsAdhanPageA));
         Routing.RegisterRoute("settingsA/notifications", typeof(SettingsNotificationsPageA));
+        Routing.RegisterRoute("settingsA/permissions", typeof(SettingsPermissionsPageA));
         Routing.RegisterRoute("settingsA/alarm-reminders", typeof(SettingsAlarmRemindersPageA));
         Routing.RegisterRoute("settingsA/tasbih", typeof(SettingsTasbihPage));
         Routing.RegisterRoute("settingsA/about", typeof(AboutPageA));

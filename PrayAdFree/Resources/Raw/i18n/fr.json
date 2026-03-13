@@ -77,6 +77,7 @@
     "LanguageSubtitle":  "Vous pouvez la changer plus tard dans ParamÃƒÂ¨tres.",
     "Continue":  "Continuer",
     "TestNotification":  "Notification de test",
+    "TestAlarm":  "Tester l'alarme",
     "AdhanPreviewTitle":  "Apercu de l\u0027adhan",
     "Cancel":  "Cancel",
     "Auto":  "Langue de l\u0027appareil",
@@ -269,5 +270,17 @@
     "AlarmRemindersUser":  "Vos rappels et invocations",
     "AlarmReminderEditHint":  "Mettre a jour le texte",
     "PrimaryAdhanType":  "Type adhan principal",
-    "AlarmReminderEdit":  "Modifier"
+    "AlarmReminderEdit":  "Modifier",
+    "PermissionsTitle":  "Autorisations",
+    "PermissionsSubtitle":  "Verifiez les autorisations de l'application et ouvrez l'ecran systeme adapte si necessaire.",
+    "PermissionStatus_Enabled":  "Activee",
+    "PermissionStatus_Disabled":  "Desactivee",
+    "PermissionAction_Request":  "Autoriser",
+    "PermissionAction_OpenSettings":  "Ouvrir reglages",
+    "PermissionsNotificationsTitle":  "Notifications",
+    "PermissionsNotificationsDescription":  "Necessaires pour les rappels de priere et les alertes d'adhan.",
+    "PermissionsExactAlarmTitle":  "Alarmes exactes",
+    "PermissionsExactAlarmDescription":  "Necessaires pour faire sonner l'alarme plein ecran a l'heure exacte.",
+    "PermissionsLocationTitle":  "Localisation",
+    "PermissionsLocationDescription":  "Necessaire pour detecter votre ville et calculer les heures de priere."
 }

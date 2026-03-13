@@ -4,7 +4,10 @@ using System.Threading.Tasks;
 using Microsoft.Maui.ApplicationModel;
 using Plugin.LocalNotification;
 #if ANDROID
+using Android.App;
+using Android.Content;
 using Android.OS;
+using Android.Provider;
 using Plugin.LocalNotification.AndroidOption;
 #endif
 using PrayAdFree.Core.Models;
@@ -21,6 +24,7 @@ public sealed class NotificationBootstrapper {
     private DateTime _lastRunUtc = DateTime.MinValue;
     private bool _permissionRequestedThisSession;
     private bool _locationPermissionRequestedThisSession;
+    private bool _exactAlarmPermissionRequestedThisSession;
 
     public NotificationBootstrapper(SettingsService settingsService, PrayerDataService dataService, IAppLogger logger) {
         _settingsService = settingsService;
@@ -93,6 +97,9 @@ public sealed class NotificationBootstrapper {
                 () => LocalNotificationCenter.Current.RequestNotificationPermission(permission)
             ).ConfigureAwait(false);
 
+#if ANDROID
+            await EnsureAndroidExactAlarmPermissionAsync(reason).ConfigureAwait(false);
+#endif
             _permissionRequestedThisSession = true;
             _logger.LogEvent("NotificationPermission", $"requested:{reason}|plugin={pluginResult}");
         } catch (Exception ex) {
@@ -101,6 +108,41 @@ public sealed class NotificationBootstrapper {
             _permissionGate.Release();
         }
     }
+
+#if ANDROID
+    private async Task EnsureAndroidExactAlarmPermissionAsync(string reason) {
+        if (_exactAlarmPermissionRequestedThisSession ||
+            !OperatingSystem.IsAndroidVersionAtLeast(31)) {
+            return;
+        }
+
+        var context = Android.App.Application.Context;
+        if (context == null) {
+            return;
+        }
+
+        var alarmManager = context.GetSystemService(Context.AlarmService) as AlarmManager;
+        var canSchedule = alarmManager?.CanScheduleExactAlarms() ?? true;
+        _logger.LogEvent("NotificationPermission", $"exact_alarm_before:{canSchedule}|{reason}");
+        if (canSchedule) {
+            _exactAlarmPermissionRequestedThisSession = true;
+            return;
+        }
+
+        await MainThread.InvokeOnMainThreadAsync(() => {
+            try {
+                var intent = new Intent(Settings.ActionRequestScheduleExactAlarm);
+                intent.SetData(Android.Net.Uri.Parse($"package:{context.PackageName}"));
+                intent.AddFlags(ActivityFlags.NewTask);
+                context.StartActivity(intent);
+            } catch (Exception ex) {
+                _logger.LogException(ex, "NotificationBootstrapper.RequestExactAlarmPermission");
+            }
+        }).ConfigureAwait(false);
+
+        _exactAlarmPermissionRequestedThisSession = true;
+    }
+#endif
 
     private async Task EnsureLocationPermissionAsync(string reason, bool shouldRequest) {
         if (!shouldRequest || OperatingSystem.IsWindows()) {

@@ -77,6 +77,7 @@
     "LanguageSubtitle":  "Puedes cambiarlo despuÃƒÂ©s en Ajustes.",
     "Continue":  "Continuar",
     "TestNotification":  "Notificacion de prueba",
+    "TestAlarm":  "Probar alarma",
     "AdhanPreviewTitle":  "Vista previa del adhan",
     "Cancel":  "Cancel",
     "Auto":  "Idioma del dispositivo",
@@ -269,5 +270,17 @@
     "AlarmRemindersUser":  "Tus recordatorios y duas",
     "AlarmReminderEditHint":  "Actualizar texto del recordatorio",
     "PrimaryAdhanType":  "Tipo principal de adhan",
-    "AlarmReminderEdit":  "Editar"
+    "AlarmReminderEdit":  "Editar",
+    "PermissionsTitle":  "Permisos",
+    "PermissionsSubtitle":  "Revisa los permisos de la app y abre la pantalla correcta del sistema cuando haga falta.",
+    "PermissionStatus_Enabled":  "Activado",
+    "PermissionStatus_Disabled":  "Desactivado",
+    "PermissionAction_Request":  "Permitir",
+    "PermissionAction_OpenSettings":  "Abrir ajustes",
+    "PermissionsNotificationsTitle":  "Notificaciones",
+    "PermissionsNotificationsDescription":  "Necesarias para recordatorios de oracion y alertas de adhan.",
+    "PermissionsExactAlarmTitle":  "Alarmas exactas",
+    "PermissionsExactAlarmDescription":  "Necesarias para que la alarma de pantalla completa suene a la hora exacta.",
+    "PermissionsLocationTitle":  "Ubicacion",
+    "PermissionsLocationDescription":  "Necesaria para detectar tu ciudad y calcular con precision los horarios de oracion."
 }

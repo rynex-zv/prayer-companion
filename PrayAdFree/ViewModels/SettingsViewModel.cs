@@ -161,6 +161,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectAdhanSoundCommand = new Command<AdhanSoundOptionViewModel>(OnSelectAdhanSound);
         ToggleAdhanPreviewCommand = new Command<AdhanSoundOptionViewModel>(async item => await ToggleAdhanPreviewAsync(item));
         SendTestNotificationCommand = new Command(async () => await SendTestNotificationAsync());
+        SendTestAlarmCommand = new Command(async () => await SendTestAlarmAsync());
         IncreaseTextSizeCommand = new Command(IncreaseTextSize);
         DecreaseTextSizeCommand = new Command(DecreaseTextSize);
         AddTasbihItemCommand = new Command(AddTasbihItem);
@@ -257,6 +258,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command<AdhanSoundOptionViewModel> SelectAdhanSoundCommand { get; }
     public Command<AdhanSoundOptionViewModel> ToggleAdhanPreviewCommand { get; }
     public Command SendTestNotificationCommand { get; }
+    public Command SendTestAlarmCommand { get; }
     public Command IncreaseTextSizeCommand { get; }
     public Command DecreaseTextSizeCommand { get; }
     public Command AddTasbihItemCommand { get; }
@@ -1581,6 +1583,25 @@ public sealed class SettingsViewModel : ViewModelBase {
             await LocalNotificationCenter.Current.Show(request);
         } catch (Exception ex) {
             _logger.LogException(ex, "SettingsViewModel.SendTestNotificationAsync");
+        }
+    }
+
+    private async Task SendTestAlarmAsync() {
+        try {
+#if ANDROID
+            var permission = new NotificationPermission {
+                AskPermission = true,
+                Android = new AndroidNotificationPermission {
+                    RequestPermissionToScheduleExactAlarm = true
+                }
+            };
+            await LocalNotificationCenter.Current.RequestNotificationPermission(permission);
+#endif
+            var key = SelectedAdhanSound?.Value ?? _settings.Notifications.SoundKey;
+            var effectiveKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(key);
+            await _adhanPlaybackService.ScheduleTestAlarmAsync(effectiveKey, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "SettingsViewModel.SendTestAlarmAsync");
         }
     }
 

@@ -18,6 +18,18 @@ public sealed class LocalizationIntegrityTests {
         "ReminderType_Notification",
         "ReminderType_Silent",
         "ReminderType_Alarm",
+        "PermissionsTitle",
+        "PermissionsSubtitle",
+        "PermissionStatus_Enabled",
+        "PermissionStatus_Disabled",
+        "PermissionAction_Request",
+        "PermissionAction_OpenSettings",
+        "PermissionsNotificationsTitle",
+        "PermissionsNotificationsDescription",
+        "PermissionsExactAlarmTitle",
+        "PermissionsExactAlarmDescription",
+        "PermissionsLocationTitle",
+        "PermissionsLocationDescription",
         "AlarmRemindersTitle",
         "AlarmRemindersBuiltIn",
         "AlarmRemindersUser",
@@ -30,6 +42,7 @@ public sealed class LocalizationIntegrityTests {
         "AlarmScreenTitle",
         "AlarmStopButton",
         "AlarmSnoozeButton",
+        "TestAlarm",
         "StopAdhan"
     ];
 

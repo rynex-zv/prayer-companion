@@ -4,6 +4,7 @@ using Microsoft.Maui.ApplicationModel;
 using Plugin.LocalNotification;
 #if ANDROID
 using Plugin.LocalNotification.AndroidOption;
+using Pray_Ad_Free.Platforms.Android;
 #endif
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -144,11 +145,25 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
             ScheduleDeferredAdhanReminder(settings, requests, signatures, now);
 
+#if ANDROID
+            var nativeAlarmRequests = ExtractAndroidAlarmRequests(requests);
+            AndroidAdhanAlarmScheduler.ReplaceScheduledAlarms(nativeAlarmRequests);
+#endif
             var (scheduledCount, next) = await EmitRequestsAsync(requests, settings).ConfigureAwait(false);
             _lastScheduleAppliedUtc = DateTime.UtcNow;
             try {
-                var nextTime = next?.Schedule?.NotifyTime?.ToString("O") ?? "none";
-                _logger.LogEvent("NotificationScheduledCount", $"{scheduledCount}|next={nextTime}");
+                var nextTime = ResolveNextScheduledTime(
+                    next?.Schedule?.NotifyTime
+#if ANDROID
+                    , nativeAlarmRequests
+#endif
+                )?.ToString("O") ?? "none";
+                var totalScheduledCount = scheduledCount
+#if ANDROID
+                    + nativeAlarmRequests.Count
+#endif
+                    ;
+                _logger.LogEvent("NotificationScheduledCount", $"{totalScheduledCount}|next={nextTime}");
             } catch {
             }
         } finally {
@@ -165,6 +180,9 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     private Task CancelAsyncCore() {
         LocalNotificationCenter.Current.CancelAll();
         _windowsNotificationQueueService.Clear();
+#if ANDROID
+        AndroidAdhanAlarmScheduler.CancelAll();
+#endif
         return Task.CompletedTask;
     }
 
@@ -704,7 +722,55 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         return channelId.StartsWith("prayer_silent", StringComparison.OrdinalIgnoreCase)
             || channelId.StartsWith("prayer_runtime_media", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static List<AndroidAdhanAlarmScheduler.ScheduledAlarm> ExtractAndroidAlarmRequests(IList<NotificationRequest> requests) {
+        var alarms = new List<AndroidAdhanAlarmScheduler.ScheduledAlarm>();
+        for (var i = requests.Count - 1; i >= 0; i--) {
+            var request = requests[i];
+            if (request.CategoryType != NotificationCategoryType.Alarm ||
+                request.Schedule?.NotifyTime == null ||
+                !AdhanAlarmPayload.TryParse(request.ReturningData, out var payload)) {
+                continue;
+            }
+
+            alarms.Add(new AndroidAdhanAlarmScheduler.ScheduledAlarm(
+                request.NotificationId,
+                request.Schedule.NotifyTime.Value,
+                AdhanAlarmPayload.Build(payload.Prayer, payload.SoundKey, payload.BasePrayerTime, payload.NotifyTime)));
+            requests.RemoveAt(i);
+        }
+
+        alarms.Reverse();
+        return alarms;
+    }
 #endif
+
+    private static DateTime? ResolveNextScheduledTime(
+        DateTime? nextNotificationTime
+#if ANDROID
+        , IReadOnlyList<AndroidAdhanAlarmScheduler.ScheduledAlarm> nativeAlarms
+#endif
+    ) {
+#if ANDROID
+        var nextNativeTime = nativeAlarms.Count == 0
+            ? (DateTime?)null
+            : nativeAlarms.Min(item => item.When);
+#else
+        DateTime? nextNativeTime = null;
+#endif
+
+        if (nextNotificationTime == null) {
+            return nextNativeTime;
+        }
+
+        if (nextNativeTime == null) {
+            return nextNotificationTime;
+        }
+
+        return nextNotificationTime <= nextNativeTime
+            ? nextNotificationTime
+            : nextNativeTime;
+    }
 
     private static string BuildScheduleSignature(IReadOnlyList<PrayerDay> days, AppSettings settings) {
         var overrides = settings.Notifications.PrayerOverrides ?? [];

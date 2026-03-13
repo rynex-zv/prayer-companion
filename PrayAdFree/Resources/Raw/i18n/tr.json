@@ -72,6 +72,7 @@
     "LanguageSubtitle":  "Daha sonra Ayarlardan deÃ„Å¸iÃ…Å¸tirebilirsiniz.",
     "Continue":  "Devam",
     "TestNotification":  "Test bildirimi",
+    "TestAlarm":  "Alarm testi",
     "AdhanPreviewTitle":  "Ezan onizleme",
     "Cancel":  "Cancel",
     "Auto":  "Cihaz dili",
@@ -269,5 +270,17 @@
     "AlarmRemindersUser":  "Hatirlatmalariniz ve dualariniz",
     "AlarmReminderEditHint":  "Metni guncelle",
     "PrimaryAdhanType":  "Birincil ezan tipi",
-    "AlarmReminderEdit":  "Duzenle"
+    "AlarmReminderEdit":  "Duzenle",
+    "PermissionsTitle":  "Izinler",
+    "PermissionsSubtitle":  "Uygulama izinlerini kontrol et ve gerekirse ilgili sistem ekranini ac.",
+    "PermissionStatus_Enabled":  "Acik",
+    "PermissionStatus_Disabled":  "Kapali",
+    "PermissionAction_Request":  "Izin ver",
+    "PermissionAction_OpenSettings":  "Ayarlari ac",
+    "PermissionsNotificationsTitle":  "Bildirimler",
+    "PermissionsNotificationsDescription":  "Namaz hatirlatmalari ve ezan uyarilari icin gereklidir.",
+    "PermissionsExactAlarmTitle":  "Tam zamanli alarmlar",
+    "PermissionsExactAlarmDescription":  "Tam ekran namaz alarminin tam saatinde calmasi icin gereklidir.",
+    "PermissionsLocationTitle":  "Konum",
+    "PermissionsLocationDescription":  "Sehrinizi bulmak ve namaz vakitlerini dogru hesaplamak icin gereklidir."
 }
