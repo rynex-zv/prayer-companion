@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             x:Class="Pray_Ad_Free.Pages.ThemeA.SettingsAlarmRemindersPageA"
+             Title="{loc:Loc AlarmRemindersTitle}">
+    <ScrollView>
+        <VerticalStackLayout Spacing="18" Padding="24,32">
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 18"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{loc:Loc AlarmRemindersTitle}" FontSize="16" />
+                    <Label Text="{loc:Loc AlarmRemindersBuiltIn}" FontSize="14" />
+
+                    <CollectionView ItemsSource="{Binding BuiltInReminders}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto" Padding="0,4" ColumnSpacing="8">
+                                    <Label Text="{Binding Text}" VerticalOptions="Center" />
+                                    <Button Grid.Column="1"
+                                            Command="{Binding BindingContext.ToggleBuiltInReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsEnabled}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc AlarmReminderDisable}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsEnabled}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc AlarmReminderEnable}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Label Text="{loc:Loc AlarmRemindersUser}" FontSize="14" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Entry Placeholder="{loc:Loc AlarmReminderNewPlaceholder}" Text="{Binding NewReminderText}" />
+                        <Button Grid.Column="1" Text="{loc:Loc Add}" Command="{Binding AddUserReminderCommand}" />
+                    </Grid>
+
+                    <CollectionView ItemsSource="{Binding UserReminders}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" Padding="0,4" ColumnSpacing="8">
+                                    <Label Text="{Binding Text}" VerticalOptions="Center" />
+                                    <Button Grid.Column="1"
+                                            Text="{loc:Loc AlarmReminderEdit}"
+                                            Command="{Binding BindingContext.EditUserReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}" />
+                                    <Button Grid.Column="2"
+                                            Command="{Binding BindingContext.ToggleUserReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsEnabled}" Value="True">
+                                                <Setter Property="Text" Value="{loc:Loc AlarmReminderDisable}" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsEnabled}" Value="False">
+                                                <Setter Property="Text" Value="{loc:Loc AlarmReminderEnable}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                    <Button Grid.Column="3"
+                                            Text="{loc:Loc Remove}"
+                                            Command="{Binding BindingContext.RemoveUserReminderCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                            CommandParameter="{Binding .}" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

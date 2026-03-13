@@ -42,10 +42,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private readonly SettingsService _settingsService;
     private readonly PrayerTimesService _prayerTimesService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly AlarmReminderCatalogService _alarmReminderCatalogService;
     private readonly IAppLogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ILocalNotificationScheduler? _localNotificationScheduler;
     private AdhanNotificationPayload? _activeScheduledPayload;
+    private AdhanAlarmPayload? _activeAlarmPayload;
     private bool _initialized;
     private bool _disposed;
 
@@ -67,10 +69,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public AdhanPlaybackService(
         SettingsService settingsService,
         PrayerTimesService prayerTimesService,
+        AlarmReminderCatalogService alarmReminderCatalogService,
         IServiceProvider serviceProvider,
         IAppLogger logger) {
         _settingsService = settingsService;
         _prayerTimesService = prayerTimesService;
+        _alarmReminderCatalogService = alarmReminderCatalogService;
         _serviceProvider = serviceProvider;
         _logger = logger;
     }
@@ -103,6 +107,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         try {
             StopCore();
             _activeScheduledPayload = null;
+            _activeAlarmPayload = null;
             StartCore(source, settings.Notifications.AdhanVolume);
             await ShowPreviewNotificationAsync().ConfigureAwait(false);
             return true;
@@ -129,6 +134,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         try {
             StopCore();
             _activeScheduledPayload = payload;
+            _activeAlarmPayload = null;
             StartCore(source, settings.Notifications.AdhanVolume);
             var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
             await ShowControlNotificationAsync(prayerName, includeSnoozeActions: true).ConfigureAwait(false);
@@ -184,7 +190,16 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private async Task HandleNotificationReceivedAsync(NotificationEventArgs e) {
         try {
             var request = e?.Request;
-            if (request == null || !AdhanNotificationPayload.TryParse(request.ReturningData, out var payload)) {
+            if (request == null) {
+                return;
+            }
+
+            if (AdhanAlarmPayload.TryParse(request.ReturningData, out var alarmPayload)) {
+                await HandleAlarmNotificationAsync(request, alarmPayload, triggeredByTap: false).ConfigureAwait(false);
+                return;
+            }
+
+            if (!AdhanNotificationPayload.TryParse(request.ReturningData, out var payload)) {
                 return;
             }
 
@@ -210,6 +225,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             try {
                 StopCore();
                 _activeScheduledPayload = payload;
+                _activeAlarmPayload = null;
                 StartCore(source, settings.Notifications.AdhanVolume);
                 var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
                 await ShowControlNotificationAsync(prayerName, includeSnoozeActions: true).ConfigureAwait(false);
@@ -219,6 +235,45 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleNotificationReceivedAsync");
         }
+    }
+
+    private async Task HandleAlarmNotificationAsync(
+        NotificationRequest request,
+        AdhanAlarmPayload payload,
+        bool triggeredByTap) {
+        if (!triggeredByTap && !OperatingSystem.IsAndroid()) {
+            return;
+        }
+
+        if (request.NotificationId == DeferredAdhanNotificationId) {
+            ClearPendingDeferredReminder();
+        }
+
+        var settings = _settingsService.Load();
+        if (!settings.Notifications.EnableAdhan) {
+            return;
+        }
+
+        var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
+        if (source == null) {
+            return;
+        }
+
+        if (request.NotificationId > 0 && request.NotificationId != ControlNotificationId) {
+            LocalNotificationCenter.Current.Cancel(request.NotificationId);
+        }
+
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            StopCore();
+            _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
+            _activeAlarmPayload = payload;
+            StartCore(source, settings.Notifications.AdhanVolume);
+        } finally {
+            _gate.Release();
+        }
+
+        await ShowAlarmPageAsync(payload, settings).ConfigureAwait(false);
     }
 
     private async Task HandleNotificationActionTappedAsync(NotificationActionEventArgs e) {
@@ -232,6 +287,13 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _logger.LogEvent(
                 "AdhanNotificationAction",
                 $"actionId={e.ActionId};isTapped={e.IsTapped};isDismissed={e.IsDismissed};notifId={e.Request?.NotificationId};returningData={e.Request?.ReturningData ?? "null"};isAdhan={isAdhanNotification};isControl={isControlNotification}");
+
+            if (e.Request != null && AdhanAlarmPayload.TryParse(e.Request.ReturningData, out var alarmPayload)) {
+                if (e.ActionId == NotificationActionEventArgs.TapActionId) {
+                    await HandleAlarmNotificationAsync(e.Request, alarmPayload, triggeredByTap: true).ConfigureAwait(false);
+                }
+                return;
+            }
 
             if (e.ActionId == Snooze10ActionId ||
                 e.ActionId == OpenCustomSnoozeActionId ||
@@ -279,7 +341,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var payload = _activeScheduledPayload.Value;
         await StopAsync().ConfigureAwait(false);
-        await ScheduleDeferredReminderAsync(payload, 10).ConfigureAwait(false);
+        await ScheduleDeferredReminderAsync(payload, 10, basePrayerTime: null, openAlarmScreen: false).ConfigureAwait(false);
     }
 
     private async Task HandleOpenCustomSnoozeActionAsync() {
@@ -289,31 +351,80 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var payload = _activeScheduledPayload.Value;
         await StopAsync().ConfigureAwait(false);
+        var settings = _settingsService.Load();
+        var alarmPayload = new AdhanAlarmPayload(payload.Prayer, payload.SoundKey, DateTime.Now, DateTime.Now);
+        await ShowAlarmPageAsync(alarmPayload, settings).ConfigureAwait(false);
+    }
 
+    private async Task ShowAlarmPageAsync(AdhanAlarmPayload payload, AppSettings settings) {
         var window = await TryBuildSnoozeWindowAsync(DateTime.Now).ConfigureAwait(false);
-        if (window == null || window.Value.MaxDelayMinutes < MinSnoozeMinutes) {
-            return;
-        }
+        var maxDelayMinutes = window?.MaxDelayMinutes ?? MinSnoozeMinutes;
+        maxDelayMinutes = Math.Max(MinSnoozeMinutes, maxDelayMinutes);
+        var initialDelay = Math.Clamp(10, MinSnoozeMinutes, maxDelayMinutes);
+        var delayLabel = FormatDelayOffset(payload.NotifyTime - payload.BasePrayerTime);
+        var reminderText = ResolveRandomAlarmReminderText(settings);
 
         var model = new Pages.AdhanSnoozePageModel(
-            LocalizationManager.TranslatePrayer(payload.Prayer),
-            LocalizationManager.TranslatePrayer(window.Value.NextPrayerId),
-            FormatRemaining(window.Value.NextPrayerTime - DateTime.Now),
-            MinSnoozeMinutes,
-            window.Value.MaxDelayMinutes,
-            Math.Clamp(10, MinSnoozeMinutes, window.Value.MaxDelayMinutes));
+            PrayerClock: TimeFormatHelper.FormatTime(payload.BasePrayerTime, settings.ClockFormat),
+            DelayFromBase: delayLabel,
+            PrayerName: LocalizationManager.TranslatePrayer(payload.Prayer),
+            ReminderText: reminderText,
+            MinDelayMinutes: MinSnoozeMinutes,
+            MaxDelayMinutes: maxDelayMinutes,
+            InitialDelayMinutes: initialDelay);
 
         await MainThread.InvokeOnMainThreadAsync(async () => {
             try {
-                var page = new Pages.AdhanSnoozePage(model, async minutes => await ScheduleDeferredReminderAsync(payload, minutes).ConfigureAwait(false));
+                var page = new Pages.AdhanSnoozePage(
+                    model,
+                    onStop: async () => await StopAsync().ConfigureAwait(false),
+                    onSnooze: async minutes => await ScheduleDeferredReminderAsync(
+                        new AdhanNotificationPayload(payload.Prayer, payload.SoundKey),
+                        minutes,
+                        payload.BasePrayerTime,
+                        openAlarmScreen: true).ConfigureAwait(false));
+
                 var navigation = Shell.Current?.Navigation ?? Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
                 if (navigation != null) {
                     await navigation.PushModalAsync(page);
                 }
             } catch (Exception ex) {
-                _logger.LogException(ex, "AdhanPlaybackService.OpenCustomSnoozePage");
+                _logger.LogException(ex, "AdhanPlaybackService.ShowAlarmPageAsync");
             }
         });
+    }
+
+    private string ResolveRandomAlarmReminderText(AppSettings settings) {
+        try {
+            var items = new List<string>();
+            var alarmSettings = settings.AlarmReminders ?? new AlarmRemindersSettings();
+            var disabled = new HashSet<string>(alarmSettings.DisabledBuiltInIds ?? [], StringComparer.OrdinalIgnoreCase);
+            var builtIn = _alarmReminderCatalogService.LoadForCurrentLanguage();
+            foreach (var item in builtIn) {
+                if (string.IsNullOrWhiteSpace(item.Text) || disabled.Contains(item.Id)) {
+                    continue;
+                }
+
+                items.Add(item.Text.Trim());
+            }
+
+            foreach (var item in alarmSettings.UserItems ?? []) {
+                if (!item.IsEnabled || string.IsNullOrWhiteSpace(item.Text)) {
+                    continue;
+                }
+
+                items.Add(item.Text.Trim());
+            }
+
+            if (items.Count == 0) {
+                return string.Empty;
+            }
+
+            return items[Random.Shared.Next(items.Count)];
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.ResolveRandomAlarmReminderText");
+            return string.Empty;
+        }
     }
 
     private static bool IsAdhanNotificationRequest(NotificationRequest? request) {
@@ -333,7 +444,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return true;
         }
 
-        return AdhanNotificationPayload.TryParse(request.ReturningData, out _);
+        return AdhanNotificationPayload.TryParse(request.ReturningData, out _)
+            || AdhanAlarmPayload.TryParse(request.ReturningData, out _);
     }
 
     private static bool IsControlNotificationRequest(NotificationRequest? request) {
@@ -736,7 +848,11 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
     }
 
-    private async Task<bool> ScheduleDeferredReminderAsync(AdhanNotificationPayload payload, int delayMinutes) {
+    private async Task<bool> ScheduleDeferredReminderAsync(
+        AdhanNotificationPayload payload,
+        int delayMinutes,
+        DateTime? basePrayerTime,
+        bool openAlarmScreen) {
         try {
             var now = DateTime.Now;
             var window = await TryBuildSnoozeWindowAsync(now).ConfigureAwait(false);
@@ -756,8 +872,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             var settings = _settingsService.Load();
             var pendingReminder = new DeferredAdhanReminder {
                 NotifyTime = now.AddMinutes(delayMinutes),
+                BasePrayerTime = basePrayerTime ?? now,
                 Prayer = payload.Prayer,
-                SoundKey = effectiveSoundKey
+                SoundKey = effectiveSoundKey,
+                OpenAlarmScreen = openAlarmScreen
             };
 
             var updated = CloneSettingsWithPendingReminder(settings, pendingReminder);
@@ -862,6 +980,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             FastingReminders = settings.FastingReminders,
             Notifications = new NotificationSettings {
                 EnableAdhan = settings.Notifications.EnableAdhan,
+                MobilePrimaryAdhanType = settings.Notifications.MobilePrimaryAdhanType,
                 EnableVibration = settings.Notifications.EnableVibration,
                 HideOnCloseOnWindows = settings.Notifications.HideOnCloseOnWindows,
                 RunBackgroundServiceOnWindows = settings.Notifications.RunBackgroundServiceOnWindows,
@@ -878,6 +997,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 ReminderOffsetsMinutes = settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
                 PendingDeferredReminder = pendingReminder
             },
+            AlarmReminders = settings.AlarmReminders,
             Qibla = settings.Qibla,
             ClockFormat = settings.ClockFormat,
             TextScale = settings.TextScale,
@@ -897,6 +1017,13 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var totalHours = (int)Math.Floor(remaining.TotalHours);
         return $"{totalHours:00}:{remaining.Minutes:00}";
+    }
+
+    private static string FormatDelayOffset(TimeSpan offset) {
+        var sign = offset < TimeSpan.Zero ? "-" : "+";
+        var absolute = offset < TimeSpan.Zero ? offset.Negate() : offset;
+        var totalHours = (int)Math.Floor(absolute.TotalHours);
+        return $"{sign}{totalHours}:{absolute.Minutes:00}";
     }
 
     private readonly record struct SnoozeWindow(int MaxDelayMinutes, PrayerId NextPrayerId, DateTime NextPrayerTime);
@@ -1034,6 +1161,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 #endif
 
         _activeScheduledPayload = null;
+        _activeAlarmPayload = null;
     }
 
 #if ANDROID

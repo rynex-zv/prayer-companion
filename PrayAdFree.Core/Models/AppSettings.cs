@@ -9,6 +9,7 @@ public sealed class AppSettings {
     public FastingOffsets FastingOffsets { get; init; } = FastingOffsets.Default;
     public FastingReminderSettings FastingReminders { get; init; } = FastingReminderSettings.Default;
     public NotificationSettings Notifications { get; init; } = new NotificationSettings();
+    public AlarmRemindersSettings AlarmReminders { get; init; } = new AlarmRemindersSettings();
     public QiblaPreferences Qibla { get; init; } = new QiblaPreferences();
     public ClockFormat ClockFormat { get; init; } = ClockFormat.Auto;
     public int TextScale { get; init; }

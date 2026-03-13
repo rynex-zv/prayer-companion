@@ -75,6 +75,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<int>? _selectedAdhanReminderUnit;
     private OptionItem<int>? _selectedAdhanReminderDirection;
     private OptionItem<AdhanReminderAlertType>? _selectedAdhanReminderAlertType;
+    private OptionItem<MobilePrimaryAdhanType>? _selectedMobilePrimaryAdhanType;
     private OptionItem<ClockFormat>? _selectedClockFormat;
     private OptionItem<QiblaReadingMode>? _selectedQiblaReadingMode;
     private OptionItem<QiblaFilterMode>? _selectedQiblaFilterMode;
@@ -127,6 +128,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         IftarReminders = new ObservableCollection<ReminderOffsetItem>();
         AdhanReminders = new ObservableCollection<ReminderOffsetItem>();
         AdhanReminderAlertTypes = new ObservableCollection<OptionItem<AdhanReminderAlertType>>();
+        MobilePrimaryAdhanTypes = new ObservableCollection<OptionItem<MobilePrimaryAdhanType>>();
         ClockFormats = new ObservableCollection<OptionItem<ClockFormat>>();
         QiblaReadingModes = new ObservableCollection<OptionItem<QiblaReadingMode>>();
         QiblaFilterModes = new ObservableCollection<OptionItem<QiblaFilterMode>>();
@@ -229,6 +231,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<ReminderOffsetItem> IftarReminders { get; }
     public ObservableCollection<ReminderOffsetItem> AdhanReminders { get; }
     public ObservableCollection<OptionItem<AdhanReminderAlertType>> AdhanReminderAlertTypes { get; }
+    public ObservableCollection<OptionItem<MobilePrimaryAdhanType>> MobilePrimaryAdhanTypes { get; }
     public ObservableCollection<OptionItem<ClockFormat>> ClockFormats { get; }
     public ObservableCollection<OptionItem<QiblaReadingMode>> QiblaReadingModes { get; }
     public ObservableCollection<OptionItem<QiblaFilterMode>> QiblaFilterModes { get; }
@@ -481,6 +484,11 @@ public sealed class SettingsViewModel : ViewModelBase {
         set => SetProperty(ref _selectedAdhanReminderAlertType, value);
     }
 
+    public OptionItem<MobilePrimaryAdhanType>? SelectedMobilePrimaryAdhanType {
+        get => _selectedMobilePrimaryAdhanType;
+        set => SetProperty(ref _selectedMobilePrimaryAdhanType, value);
+    }
+
     public OptionItem<ClockFormat>? SelectedClockFormat {
         get => _selectedClockFormat;
         set => SetProperty(ref _selectedClockFormat, value);
@@ -729,6 +737,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         AdhanVolume = Math.Clamp(_settings.Notifications.AdhanVolume, 0d, 1d) * 100d;
         SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == _settings.Notifications.SoundKey)
             ?? AdhanSounds.FirstOrDefault();
+        SelectedMobilePrimaryAdhanType = MobilePrimaryAdhanTypes.FirstOrDefault(item => item.Value == _settings.Notifications.MobilePrimaryAdhanType)
+            ?? MobilePrimaryAdhanTypes.FirstOrDefault();
         SelectedVibrationStrength = VibrationStrengths.FirstOrDefault(item => item.Value == _settings.Notifications.VibrationStrength)
             ?? VibrationStrengths.FirstOrDefault();
         SelectedVibrationPattern = VibrationPatterns.FirstOrDefault(item => item.Value == _settings.Notifications.VibrationPattern)
@@ -798,6 +808,7 @@ public sealed class SettingsViewModel : ViewModelBase {
 
         var notifications = new NotificationSettings {
             EnableAdhan = NotificationsEnabled,
+            MobilePrimaryAdhanType = SelectedMobilePrimaryAdhanType?.Value ?? MobilePrimaryAdhanType.Alarm,
             EnableVibration = VibrationEnabled,
             HideOnCloseOnWindows = HideOnCloseEnabled,
             RunBackgroundServiceOnWindows = WindowsBackgroundEnabled,
@@ -856,6 +867,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             FastingOffsets = fastingOffsets,
             FastingReminders = fastingReminders,
             Notifications = notifications,
+            AlarmReminders = _settings.AlarmReminders,
             Qibla = qibla,
             ClockFormat = SelectedClockFormat?.Value ?? ClockFormat.Auto,
             TextScale = TextScale,
@@ -1324,6 +1336,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             AdhanReminderAlertType.Adhan => LocalizationManager.Translate("ReminderType_Adhan"),
             AdhanReminderAlertType.Notification => LocalizationManager.Translate("ReminderType_Notification"),
             AdhanReminderAlertType.Silent => LocalizationManager.Translate("ReminderType_Silent"),
+            AdhanReminderAlertType.Alarm => LocalizationManager.Translate("ReminderType_Alarm"),
             _ => LocalizationManager.Translate("ReminderType_Adhan")
         };
 
@@ -1399,12 +1412,15 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void BuildNotificationOptions() {
+        var isMobile = OperatingSystem.IsAndroid() || OperatingSystem.IsIOS();
         var currentSound = SelectedAdhanSound?.Value ?? "adhan_default";
         var currentStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium;
         var currentPattern = SelectedVibrationPattern?.Value ?? VibrationPattern.Short;
         var currentScope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All;
         var currentPrayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr;
         var currentAlertType = SelectedAdhanReminderAlertType?.Value ?? AdhanReminderAlertType.Adhan;
+        var currentPrimaryType = SelectedMobilePrimaryAdhanType?.Value
+            ?? _settings.Notifications.MobilePrimaryAdhanType;
 
         AdhanSounds.Clear();
         foreach (var option in AdhanSoundLibrary.BuildOptions(_settings.Notifications, includeUseGlobal: false)) {
@@ -1437,6 +1453,15 @@ public sealed class SettingsViewModel : ViewModelBase {
         AdhanReminderAlertTypes.Add(new OptionItem<AdhanReminderAlertType>(AdhanReminderAlertType.Adhan, LocalizationManager.Translate("ReminderType_Adhan")));
         AdhanReminderAlertTypes.Add(new OptionItem<AdhanReminderAlertType>(AdhanReminderAlertType.Notification, LocalizationManager.Translate("ReminderType_Notification")));
         AdhanReminderAlertTypes.Add(new OptionItem<AdhanReminderAlertType>(AdhanReminderAlertType.Silent, LocalizationManager.Translate("ReminderType_Silent")));
+        if (isMobile) {
+            AdhanReminderAlertTypes.Add(new OptionItem<AdhanReminderAlertType>(AdhanReminderAlertType.Alarm, LocalizationManager.Translate("ReminderType_Alarm")));
+        }
+
+        MobilePrimaryAdhanTypes.Clear();
+        MobilePrimaryAdhanTypes.Add(new OptionItem<MobilePrimaryAdhanType>(MobilePrimaryAdhanType.AdhanNotification, LocalizationManager.Translate("ReminderType_Adhan")));
+        if (isMobile) {
+            MobilePrimaryAdhanTypes.Add(new OptionItem<MobilePrimaryAdhanType>(MobilePrimaryAdhanType.Alarm, LocalizationManager.Translate("ReminderType_Alarm")));
+        }
 
         SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == currentSound)
             ?? AdhanSounds.FirstOrDefault();
@@ -1449,6 +1474,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedAdhanReminderPrayer = AdhanReminderPrayers.FirstOrDefault(item => item.Value == currentPrayer)
             ?? AdhanReminderPrayers.FirstOrDefault();
         SelectedAdhanReminderAlertType = GetReminderAlertTypeOption(currentAlertType);
+        SelectedMobilePrimaryAdhanType = MobilePrimaryAdhanTypes.FirstOrDefault(item => item.Value == currentPrimaryType)
+            ?? MobilePrimaryAdhanTypes.FirstOrDefault();
 
         var previousSuspend = _suspendSave;
         _suspendSave = true;
@@ -1665,6 +1692,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             FastingOffsets = _settings.FastingOffsets,
             FastingReminders = _settings.FastingReminders,
             Notifications = _settings.Notifications,
+            AlarmReminders = _settings.AlarmReminders,
             Qibla = _settings.Qibla,
             ClockFormat = _settings.ClockFormat,
             TextScale = _settings.TextScale,
@@ -1897,6 +1925,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 FastingReminders = _settings.FastingReminders,
                 Notifications = new NotificationSettings {
                     EnableAdhan = _settings.Notifications.EnableAdhan,
+                    MobilePrimaryAdhanType = _settings.Notifications.MobilePrimaryAdhanType,
                     EnableVibration = _settings.Notifications.EnableVibration,
                     HideOnCloseOnWindows = _settings.Notifications.HideOnCloseOnWindows,
                     RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
@@ -1913,6 +1942,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                     ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
                     PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
                 },
+                AlarmReminders = _settings.AlarmReminders,
                 Qibla = _settings.Qibla,
                 ClockFormat = _settings.ClockFormat,
                 TextScale = _settings.TextScale,
@@ -2076,6 +2106,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(MinutesBefore)
             or nameof(AdhanVolume)
             or nameof(SelectedAdhanSound)
+            or nameof(SelectedMobilePrimaryAdhanType)
             or nameof(SelectedVibrationStrength)
             or nameof(SelectedVibrationPattern)
             or nameof(SelectedAdhanReminderScope)
@@ -2168,6 +2199,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 FastingOffsets = settings.FastingOffsets,
                 FastingReminders = settings.FastingReminders,
                 Notifications = settings.Notifications,
+                AlarmReminders = settings.AlarmReminders,
                 Qibla = settings.Qibla,
                 ClockFormat = settings.ClockFormat,
                 TextScale = settings.TextScale,

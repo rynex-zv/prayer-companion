@@ -50,6 +50,7 @@ namespace Pray_Ad_Free {
             Routing.RegisterRoute("settings/diagnostics", typeof(Pages.SettingsDiagnosticsPage));
             Routing.RegisterRoute("settings/adhan", typeof(Pages.SettingsAdhanPage));
             Routing.RegisterRoute("settings/notifications", typeof(Pages.SettingsNotificationsPage));
+            Routing.RegisterRoute("settings/alarm-reminders", typeof(Pages.SettingsAlarmRemindersPage));
             Routing.RegisterRoute("settings/tasbih", typeof(Pages.SettingsTasbihPage));
             Routing.RegisterRoute("settings/about", typeof(Pages.AboutPage));
             _routesRegistered = true;

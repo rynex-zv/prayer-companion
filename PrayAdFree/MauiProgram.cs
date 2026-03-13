@@ -127,6 +127,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
+            builder.Services.AddSingleton<AlarmReminderCatalogService>();
             builder.Services.AddSingleton<AdhanPlaybackService>();
             builder.Services.AddSingleton<IAdhanPlaybackService>(sp => sp.GetRequiredService<AdhanPlaybackService>());
 #if WINDOWS
@@ -149,6 +150,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<AboutViewModel>();
             builder.Services.AddTransient<TasbihViewModel>();
             builder.Services.AddTransient<LanguageSelectionViewModel>();
+            builder.Services.AddTransient<AlarmRemindersViewModel>();
 
             builder.Services.AddTransient<HomePage>();
             builder.Services.AddTransient<CalendarPage>();
@@ -159,6 +161,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsDiagnosticsPage>();
             builder.Services.AddTransient<SettingsAdhanPage>();
             builder.Services.AddTransient<SettingsNotificationsPage>();
+            builder.Services.AddTransient<SettingsAlarmRemindersPage>();
             builder.Services.AddTransient<SettingsTasbihPage>();
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();
@@ -171,6 +174,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsLocationsPageA>();
             builder.Services.AddTransient<SettingsAdhanPageA>();
             builder.Services.AddTransient<SettingsNotificationsPageA>();
+            builder.Services.AddTransient<SettingsAlarmRemindersPageA>();
             builder.Services.AddTransient<AboutPageA>();
             builder.Services.AddTransient<LanguageSelectionPageA>();
             builder.Services.AddTransient<AppShellA>();

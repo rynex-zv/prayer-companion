@@ -8,6 +8,10 @@ public static class ReminderDispatchPolicy {
     }
 
     public static bool ShouldPlayAdhan(AdhanReminderAlertType alertType, bool enableAdhan) {
-        return enableAdhan && alertType == AdhanReminderAlertType.Adhan;
+        return enableAdhan && (alertType == AdhanReminderAlertType.Adhan || alertType == AdhanReminderAlertType.Alarm);
+    }
+
+    public static bool ShouldOpenAlarmScreen(AdhanReminderAlertType alertType) {
+        return alertType == AdhanReminderAlertType.Alarm;
     }
 }

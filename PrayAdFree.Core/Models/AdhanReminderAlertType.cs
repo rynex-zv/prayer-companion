@@ -3,5 +3,6 @@
 public enum AdhanReminderAlertType {
     Adhan = 0,
     Notification = 1,
-    Silent = 2
+    Silent = 2,
+    Alarm = 3
 }

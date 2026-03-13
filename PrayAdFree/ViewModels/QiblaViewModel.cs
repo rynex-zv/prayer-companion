@@ -188,6 +188,7 @@ public sealed class QiblaViewModel : ViewModelBase {
             FastingOffsets = settings.FastingOffsets,
             FastingReminders = settings.FastingReminders,
             Notifications = settings.Notifications,
+            AlarmReminders = settings.AlarmReminders,
             Qibla = new QiblaPreferences {
                 ReadingMode = SelectedReadingMode?.Value ?? QiblaReadingMode.Balanced,
                 FilterMode = SelectedFilterMode?.Value ?? QiblaFilterMode.Normal

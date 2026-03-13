@@ -4,6 +4,7 @@ namespace PrayAdFree.Core.Models;
 
 public sealed class NotificationSettings {
     public bool EnableAdhan { get; init; } = true;
+    public MobilePrimaryAdhanType MobilePrimaryAdhanType { get; init; } = MobilePrimaryAdhanType.Alarm;
     public bool EnableVibration { get; init; } = true;
     public bool HideOnCloseOnWindows { get; init; }
     public bool RunBackgroundServiceOnWindows { get; init; }
