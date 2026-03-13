@@ -118,10 +118,10 @@ internal static class AndroidAdhanAlarmScheduler {
     }
 
     private static PendingIntent BuildShowPendingIntent(Context context, ScheduledAlarm alarm) {
-        var intent = new Intent(context, typeof(MainActivity));
+        var intent = new Intent(context, typeof(AlarmActivity));
         intent.SetAction(AdhanPlaybackService.AndroidAlarmAction);
         intent.PutExtra(AlarmPayloadExtra, alarm.Payload);
-        intent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop | ActivityFlags.ReorderToFront);
+        intent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop);
         return PendingIntent.GetActivity(
             context,
             alarm.RequestCode,

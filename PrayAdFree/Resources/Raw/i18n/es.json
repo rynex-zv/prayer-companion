@@ -279,6 +279,8 @@
     "PermissionAction_OpenSettings":  "Abrir ajustes",
     "PermissionsNotificationsTitle":  "Notificaciones",
     "PermissionsNotificationsDescription":  "Necesarias para recordatorios de oracion y alertas de adhan.",
+    "PermissionsFullScreenIntentTitle":  "Alarmas en pantalla completa",
+    "PermissionsFullScreenIntentDescription":  "Necesarias en Android 14+ para que la alarma de oracion se abra de inmediato sobre la pantalla bloqueada en lugar de mostrar solo una notificacion.",
     "PermissionsExactAlarmTitle":  "Alarmas exactas",
     "PermissionsExactAlarmDescription":  "Necesarias para que la alarma de pantalla completa suene a la hora exacta.",
     "PermissionsLocationTitle":  "Ubicacion",

@@ -18,11 +18,8 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
             return;
         }
 
-        var launchIntent = new Intent(context, typeof(MainActivity));
-        launchIntent.SetAction(AdhanPlaybackService.AndroidAlarmAction);
-        launchIntent.PutExtra(AndroidAdhanAlarmScheduler.AlarmPayloadExtra, payload);
-        launchIntent.AddFlags(ActivityFlags.NewTask | ActivityFlags.SingleTop | ActivityFlags.ClearTop | ActivityFlags.ReorderToFront);
-        context.StartActivity(launchIntent);
+        AndroidAlarmFullscreenNotifier.LaunchActivity(context, payload);
+        AndroidAlarmFullscreenNotifier.Show(context, payload);
     }
 }
 #endif

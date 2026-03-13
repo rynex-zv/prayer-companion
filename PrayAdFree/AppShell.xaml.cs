@@ -36,6 +36,7 @@ namespace Pray_Ad_Free {
                 var route = Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown";
                 _logger.LogEvent("ShellNavigated", route);
                 WindowsStartupSafety.Trace($"Shell.Navigated:{route}");
+                App.NotifyUiActivated("ShellNavigated");
             };
             _logger.LogEvent("AppShellCtor", "end");
             WindowsStartupSafety.Trace("Shell.Ctor:end");

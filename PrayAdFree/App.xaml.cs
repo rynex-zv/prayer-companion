@@ -2,6 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
+#if ANDROID
+using Pray_Ad_Free.Platforms.Android;
+#endif
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free {
@@ -42,6 +45,7 @@ namespace Pray_Ad_Free {
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.InitializeAdhanPlaybackService");
             }
+            TryProcessPendingAlarmUi("AppCtor");
             _logger.LogEvent("AppCtor", "end");
         }
 
@@ -51,6 +55,7 @@ namespace Pray_Ad_Free {
                 var shell = CreateShellForVariant(_activeThemeVariant);
                 _mainWindow = new Window(shell);
                 QueueStartupNotificationBootstrap("CreateWindow");
+                TryProcessPendingAlarmUi("CreateWindow");
                 return _mainWindow;
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.CreateWindow");
@@ -104,11 +109,13 @@ namespace Pray_Ad_Free {
         protected override void OnStart() {
             base.OnStart();
             TryScheduleNotifications("OnStart");
+            TryProcessPendingAlarmUi("OnStart");
         }
 
         protected override void OnResume() {
             base.OnResume();
             TryScheduleNotifications("OnResume");
+            TryProcessPendingAlarmUi("OnResume");
         }
 
         private void TryScheduleNotifications(string reason) {
@@ -120,6 +127,25 @@ namespace Pray_Ad_Free {
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.TryScheduleNotifications");
             }
+        }
+
+        internal static void NotifyUiActivated(string reason) {
+            if (Current is App app) {
+                app.TryProcessPendingAlarmUi(reason);
+            }
+        }
+
+        private void TryProcessPendingAlarmUi(string reason) {
+#if ANDROID
+            try {
+                AndroidAlarmLaunchCoordinator.TryDispatchPending(reason);
+                if (Services?.GetService(typeof(AdhanPlaybackService)) is AdhanPlaybackService playbackService) {
+                    _ = playbackService.TryPresentPendingAlarmScreenAsync(reason);
+                }
+            } catch (Exception ex) {
+                _logger.LogException(ex, $"App.TryProcessPendingAlarmUi:{reason}");
+            }
+#endif
         }
 
         private void RegisterExceptionHandlers() {

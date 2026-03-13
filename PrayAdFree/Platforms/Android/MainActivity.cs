@@ -46,12 +46,13 @@ public class MainActivity : MauiAppCompatActivity {
     }
 
     private void HandleAlarmPresentationIntent(Intent? intent) {
-        if (!TryGetAlarmPayload(intent, out var payloadText, out var payload)) {
+        if (!TryGetAlarmPayload(intent, out var payloadText, out _)) {
             return;
         }
 
+        AndroidAlarmFullscreenNotifier.Cancel(this);
         TryEnableAlarmFullscreenPresentation();
-        DispatchAlarmIntent(payloadText, payload);
+        DispatchAlarmIntent(payloadText);
     }
 
     private static bool IsAlarmIntent(Intent intent) {
@@ -127,23 +128,13 @@ public class MainActivity : MauiAppCompatActivity {
         return false;
     }
 
-    private static void DispatchAlarmIntent(string payloadText, AdhanAlarmPayload payload) {
+    private static void DispatchAlarmIntent(string payloadText) {
         if (string.IsNullOrWhiteSpace(payloadText) || !ShouldDispatchAlarmPayload(payloadText)) {
             return;
         }
 
-        _ = Task.Run(async () => {
-            try {
-                if (App.Services?.GetService(typeof(IAdhanPlaybackService)) is not IAdhanPlaybackService playbackService) {
-                    return;
-                }
-
-                if (playbackService is AdhanPlaybackService concrete) {
-                    await concrete.HandleAndroidAlarmLaunchAsync(payload).ConfigureAwait(false);
-                }
-            } catch {
-            }
-        });
+        AndroidAlarmLaunchCoordinator.Enqueue(payloadText);
+        AndroidAlarmLaunchCoordinator.TryDispatchPending("MainActivity");
     }
 
     private static bool ShouldDispatchAlarmPayload(string payloadText) {

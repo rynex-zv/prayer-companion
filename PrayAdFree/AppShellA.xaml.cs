@@ -39,6 +39,7 @@ public partial class AppShellA : Shell {
             var route = Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown";
             _logger.LogEvent("ShellANavigated", route);
             WindowsStartupSafety.Trace($"ShellA.Navigated:{route}");
+            App.NotifyUiActivated("ShellANavigated");
         };
 
         _logger.LogEvent("AppShellACtor", "end");

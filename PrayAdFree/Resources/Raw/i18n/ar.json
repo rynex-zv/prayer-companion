@@ -276,6 +276,8 @@
   "PermissionAction_OpenSettings": "فتح الإعدادات",
   "PermissionsNotificationsTitle": "الإشعارات",
   "PermissionsNotificationsDescription": "مطلوبة لتذكيرات الصلاة وإشعارات الأذان.",
+  "PermissionsFullScreenIntentTitle": "المنبهات بملء الشاشة",
+  "PermissionsFullScreenIntentDescription": "مطلوبة على Android 14+ لكي يفتح منبه الصلاة فوراً فوق شاشة القفل بدل أن يظهر كإشعار فقط.",
   "PermissionsExactAlarmTitle": "المنبهات الدقيقة",
   "PermissionsExactAlarmDescription": "مطلوبة لمنبه الصلاة كامل الشاشة ليرن في وقته بدقة.",
   "PermissionsLocationTitle": "الموقع",

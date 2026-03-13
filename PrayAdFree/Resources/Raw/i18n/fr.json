@@ -279,6 +279,8 @@
     "PermissionAction_OpenSettings":  "Ouvrir reglages",
     "PermissionsNotificationsTitle":  "Notifications",
     "PermissionsNotificationsDescription":  "Necessaires pour les rappels de priere et les alertes d'adhan.",
+    "PermissionsFullScreenIntentTitle":  "Alarmes plein ecran",
+    "PermissionsFullScreenIntentDescription":  "Necessaires sur Android 14+ pour que l'alarme de priere s'ouvre immediatement sur l'ecran verrouille au lieu d'afficher seulement une notification.",
     "PermissionsExactAlarmTitle":  "Alarmes exactes",
     "PermissionsExactAlarmDescription":  "Necessaires pour faire sonner l'alarme plein ecran a l'heure exacte.",
     "PermissionsLocationTitle":  "Localisation",

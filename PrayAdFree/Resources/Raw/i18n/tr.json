@@ -279,6 +279,8 @@
     "PermissionAction_OpenSettings":  "Ayarlari ac",
     "PermissionsNotificationsTitle":  "Bildirimler",
     "PermissionsNotificationsDescription":  "Namaz hatirlatmalari ve ezan uyarilari icin gereklidir.",
+    "PermissionsFullScreenIntentTitle":  "Tam ekran alarmlar",
+    "PermissionsFullScreenIntentDescription":  "Android 14+ uzerinde namaz alarminin yalnizca bildirim gostermek yerine kilit ekraninin ustunde hemen acilmasi icin gereklidir.",
     "PermissionsExactAlarmTitle":  "Tam zamanli alarmlar",
     "PermissionsExactAlarmDescription":  "Tam ekran namaz alarminin tam saatinde calmasi icin gereklidir.",
     "PermissionsLocationTitle":  "Konum",

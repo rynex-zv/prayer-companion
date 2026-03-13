@@ -12,4 +12,11 @@
         <item name="android:datePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
         <item name="android:timePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
     </style>
+
+    <style name="PrayAdFree.AlarmFullscreen" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@drawable/alarm_fullscreen_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">#08111D</item>
+        <item name="android:windowIsTranslucent">false</item>
+    </style>
 </resources>

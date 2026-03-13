@@ -279,6 +279,8 @@
     "PermissionAction_OpenSettings":  "Open settings",
     "PermissionsNotificationsTitle":  "Notifications",
     "PermissionsNotificationsDescription":  "Needed for prayer reminders and adhan alerts.",
+    "PermissionsFullScreenIntentTitle":  "Full-screen alarms",
+    "PermissionsFullScreenIntentDescription":  "Needed on Android 14+ so the prayer alarm opens immediately over the lock screen instead of only showing a notification.",
     "PermissionsExactAlarmTitle":  "Exact alarms",
     "PermissionsExactAlarmDescription":  "Needed for full-screen prayer alarms to ring at the exact time.",
     "PermissionsLocationTitle":  "Location",

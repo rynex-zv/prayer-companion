@@ -15,6 +15,7 @@ public sealed class AppPermissionsViewModel : ViewModelBase {
         _logger = logger;
         Items = new ObservableCollection<AppPermissionItemViewModel> {
             new(AppPermissionKind.Notifications),
+            new(AppPermissionKind.FullScreenIntents),
             new(AppPermissionKind.ExactAlarms),
             new(AppPermissionKind.Location)
         };
@@ -87,6 +88,7 @@ public sealed class AppPermissionsViewModel : ViewModelBase {
     private static string GetTitle(AppPermissionKind kind) {
         return kind switch {
             AppPermissionKind.Notifications => LocalizationManager.Translate("PermissionsNotificationsTitle"),
+            AppPermissionKind.FullScreenIntents => LocalizationManager.Translate("PermissionsFullScreenIntentTitle"),
             AppPermissionKind.ExactAlarms => LocalizationManager.Translate("PermissionsExactAlarmTitle"),
             AppPermissionKind.Location => LocalizationManager.Translate("PermissionsLocationTitle"),
             _ => LocalizationManager.Translate("PermissionsTitle")
@@ -96,6 +98,7 @@ public sealed class AppPermissionsViewModel : ViewModelBase {
     private static string GetDescription(AppPermissionKind kind) {
         return kind switch {
             AppPermissionKind.Notifications => LocalizationManager.Translate("PermissionsNotificationsDescription"),
+            AppPermissionKind.FullScreenIntents => LocalizationManager.Translate("PermissionsFullScreenIntentDescription"),
             AppPermissionKind.ExactAlarms => LocalizationManager.Translate("PermissionsExactAlarmDescription"),
             AppPermissionKind.Location => LocalizationManager.Translate("PermissionsLocationDescription"),
             _ => string.Empty

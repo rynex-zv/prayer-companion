@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingLeft="24dp"
+    android:paddingTop="36dp"
+    android:paddingRight="24dp"
+    android:paddingBottom="28dp"
+    android:background="@drawable/alarm_fullscreen_bg">
+
+    <TextView
+        android:id="@+id/alarmClockText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="00:00"
+        android:textSize="52sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:fontFamily="sans-serif-light" />
+
+    <TextView
+        android:id="@+id/alarmOffsetText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="+0:00"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#DDEFFF" />
+
+    <TextView
+        android:id="@+id/alarmPrayerNameText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Prayer"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/alarmReminderText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="center"
+        android:text="Reminder"
+        android:textSize="16sp"
+        android:textColor="#EAF5FF"
+        android:lineSpacingExtra="3dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/alarmDecreaseButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/alarm_circle_button_bg"
+            android:text="-"
+            android:textSize="28sp"
+            android:textColor="#FFFFFF" />
+
+        <NumberPicker
+            android:id="@+id/alarmSnoozePicker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:theme="@style/PrayAdFree.DialogOverlay" />
+
+        <Button
+            android:id="@+id/alarmIncreaseButton"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/alarm_circle_button_bg"
+            android:text="+"
+            android:textSize="28sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <Button
+            android:id="@+id/alarmSnoozeButton"
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_weight="1"
+            android:layout_marginRight="8dp"
+            android:background="@drawable/alarm_action_button_bg"
+            android:text="Snooze"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/alarmStopButton"
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="8dp"
+            android:background="@drawable/alarm_stop_button_bg"
+            android:text="Stop"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+</LinearLayout>
