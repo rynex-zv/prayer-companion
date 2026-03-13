@@ -620,8 +620,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             .SetOnlyAlertOnce(false)
             .SetShowWhen(true)
             .SetVibrate(new long[] { 0, 80, 70, 80 })
-            .SetContentIntent(BuildAndroidContentPendingIntent(context))
-            .SetFullScreenIntent(BuildAndroidContentPendingIntent(context), true)
+            .SetContentIntent(BuildAndroidNoOpPendingIntent(context))
             .SetDeleteIntent(BuildAndroidControlActionPendingIntent(context, AndroidDismissControlActionId));
 
         var compactActionIndexes = new List<int>();
@@ -721,6 +720,18 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
 
         return PendingIntent.GetActivity(context, 0, launchIntent, flags)!;
+    }
+
+    private static PendingIntent BuildAndroidNoOpPendingIntent(Context context) {
+        var intent = new Intent(context, typeof(Pray_Ad_Free.Platforms.Android.AdhanControlActionReceiver));
+        intent.SetAction("com.rynex.prayadfree.ADHAN_NOOP");
+
+        var flags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            flags |= PendingIntentFlags.Immutable;
+        }
+
+        return PendingIntent.GetBroadcast(context, 0, intent, flags)!;
     }
 
     private static Intent BuildAndroidMainLaunchIntent(Context context) {
