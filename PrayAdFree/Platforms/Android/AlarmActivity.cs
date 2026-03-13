@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Android.Util;
 using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.App;
@@ -20,6 +21,7 @@ namespace Pray_Ad_Free.Platforms.Android;
     ScreenOrientation = ScreenOrientation.Portrait,
     ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public sealed class AlarmActivity : AppCompatActivity {
+    private const string LogTag = "PrayAdFree.Alarm";
     private TextView? _clockText;
     private TextView? _offsetText;
     private TextView? _prayerNameText;
@@ -35,6 +37,7 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        Log.Info(LogTag, "AlarmActivity.OnCreate");
         ConfigureForLockScreen();
         SetContentView(global::Pray_Ad_Free.Resource.Layout.alarm_activity);
         BindViews();
@@ -43,6 +46,7 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     protected override void OnNewIntent(Intent? intent) {
         base.OnNewIntent(intent);
+        Log.Info(LogTag, "AlarmActivity.OnNewIntent");
         if (intent != null) {
             Intent = intent;
         }
@@ -52,6 +56,7 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     protected override void OnResume() {
         base.OnResume();
+        Log.Info(LogTag, "AlarmActivity.OnResume");
         AndroidAlarmFullscreenNotifier.Cancel(this);
         if (!string.IsNullOrWhiteSpace(_payloadText)) {
             AndroidAlarmLaunchCoordinator.Enqueue(_payloadText);
@@ -129,10 +134,12 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     private void HandleAlarmIntent(Intent? intent, string reason) {
         if (!TryGetAlarmPayload(intent, out var payloadText, out var payload)) {
+            Log.Warn(LogTag, $"AlarmActivity.HandleAlarmIntent failed reason={reason}");
             FinishAlarmUi();
             return;
         }
 
+        Log.Info(LogTag, $"AlarmActivity.HandleAlarmIntent succeeded reason={reason} payloadLength={payloadText.Length}");
         _payloadText = payloadText;
         _payload = payload;
         AndroidAlarmFullscreenNotifier.Cancel(this);
@@ -150,11 +157,13 @@ public sealed class AlarmActivity : AppCompatActivity {
 
         var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(6)).ConfigureAwait(false);
         if (playbackService == null) {
+            Log.Warn(LogTag, $"AlarmActivity.InitializeAlarmAsync playback service unavailable reason={reason}");
             return;
         }
 
         var model = await playbackService.BuildAlarmPresentationModelAsync(_payload).ConfigureAwait(false);
         RunOnUiThread(() => ApplyPresentation(model));
+        Log.Info(LogTag, $"AlarmActivity.InitializeAlarmAsync applied model reason={reason}");
     }
 
     private void ApplyFallbackPresentation(AdhanAlarmPayload payload) {
@@ -274,6 +283,7 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     private void FinishAlarmUi() {
         RunOnUiThread(() => {
+            Log.Info(LogTag, "AlarmActivity.FinishAlarmUi");
             AndroidAlarmFullscreenNotifier.Cancel(this);
             try {
                 FinishAndRemoveTask();

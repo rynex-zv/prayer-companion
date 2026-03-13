@@ -11,6 +11,7 @@ namespace Pray_Ad_Free.Services;
 public enum AppPermissionKind {
     Notifications,
     FullScreenIntents,
+    DisplayOverApps,
     ExactAlarms,
     Location
 }
@@ -25,6 +26,7 @@ public sealed class AppPermissionCenterService {
         var items = new List<AppPermissionSnapshot> {
             new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false),
             new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
+            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
             new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
             new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false)
         };
@@ -39,6 +41,9 @@ public sealed class AppPermissionCenterService {
                 return;
             case AppPermissionKind.FullScreenIntents:
                 await OpenFullScreenIntentSettingsAsync().ConfigureAwait(false);
+                return;
+            case AppPermissionKind.DisplayOverApps:
+                await OpenDisplayOverAppsSettingsAsync().ConfigureAwait(false);
                 return;
             case AppPermissionKind.ExactAlarms:
                 await OpenExactAlarmSettingsAsync().ConfigureAwait(false);
@@ -85,6 +90,16 @@ public sealed class AppPermissionCenterService {
             } catch {
                 return Task.FromResult(false);
             }
+        }
+#endif
+        return Task.FromResult(true);
+    }
+
+    private static Task<bool> IsDisplayOverAppsGrantedAsync() {
+#if ANDROID
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            var context = global::Android.App.Application.Context;
+            return Task.FromResult(context != null && Settings.CanDrawOverlays(context));
         }
 #endif
         return Task.FromResult(true);
@@ -161,6 +176,32 @@ public sealed class AppPermissionCenterService {
 
                 try {
                     var intent = new Intent(Settings.ActionManageAppUseFullScreenIntent);
+                    intent.SetData(global::Android.Net.Uri.Parse($"package:{context.PackageName}"));
+                    intent.AddFlags(ActivityFlags.NewTask);
+                    context.StartActivity(intent);
+                } catch {
+                    AppInfo.Current.ShowSettingsUI();
+                }
+
+                return Task.CompletedTask;
+            });
+        }
+#endif
+        return OpenAppSettingsAsync();
+    }
+
+    private static Task OpenDisplayOverAppsSettingsAsync() {
+#if ANDROID
+        if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
+            return MainThread.InvokeOnMainThreadAsync(() => {
+                var context = global::Android.App.Application.Context;
+                if (context == null) {
+                    AppInfo.Current.ShowSettingsUI();
+                    return Task.CompletedTask;
+                }
+
+                try {
+                    var intent = new Intent(Settings.ActionManageOverlayPermission);
                     intent.SetData(global::Android.Net.Uri.Parse($"package:{context.PackageName}"));
                     intent.AddFlags(ActivityFlags.NewTask);
                     context.StartActivity(intent);

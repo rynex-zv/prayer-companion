@@ -196,6 +196,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         try {
             StopCore();
 #if ANDROID
+            AlarmOverlayService.StopOverlay(Android.App.Application.Context);
             CancelAndroidControlNotification();
 #endif
 #if WINDOWS

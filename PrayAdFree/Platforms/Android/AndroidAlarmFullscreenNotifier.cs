@@ -2,6 +2,7 @@
 using Android.App;
 using Android.Content;
 using Android.OS;
+using Android.Util;
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
@@ -9,9 +10,11 @@ namespace Pray_Ad_Free.Platforms.Android;
 internal static class AndroidAlarmFullscreenNotifier {
     private const string AlarmChannelId = "adhan_alarm_fullscreen";
     private const int AlarmNotificationId = 54009;
+    private const string LogTag = "PrayAdFree.Alarm";
 
     public static void Show(Context context, string payloadText) {
         if (string.IsNullOrWhiteSpace(payloadText)) {
+            Log.Warn(LogTag, "Notifier.Show skipped because payload was empty");
             return;
         }
 
@@ -45,29 +48,35 @@ internal static class AndroidAlarmFullscreenNotifier {
             .SetContentIntent(launchPendingIntent);
 
         var canUseFullScreenIntent = CanUseFullScreenIntent(context);
+        Log.Info(LogTag, $"Notifier.Show screenOnUnlocked={IsScreenOnAndUnlocked(context)} canUseFullScreenIntent={canUseFullScreenIntent}");
         if (canUseFullScreenIntent) {
             builder.SetFullScreenIntent(launchPendingIntent, true);
         }
 
         if (context.GetSystemService(Context.NotificationService) is NotificationManager manager) {
             manager.Notify(AlarmNotificationId, builder.Build());
+            Log.Info(LogTag, "Notifier.Show posted fullscreen notification");
         }
 
         TryVisibleScreenRetryLaunch(context, launchPendingIntent);
 
         if (!canUseFullScreenIntent) {
+            Log.Warn(LogTag, "Notifier.Show falling back to direct activity launch because full-screen intent is unavailable");
             LaunchActivity(context, payloadText);
         }
     }
 
     public static void LaunchActivity(Context context, string payloadText) {
+        Log.Info(LogTag, "Notifier.LaunchActivity requested");
         TryDirectLaunch(context, payloadText);
     }
 
     public static void LaunchApp(Context context, string payloadText) {
         try {
             context.StartActivity(BuildAppLaunchIntent(payloadText));
+            Log.Info(LogTag, "Notifier.LaunchApp succeeded");
         } catch {
+            Log.Warn(LogTag, "Notifier.LaunchApp failed");
         }
     }
 
@@ -81,6 +90,7 @@ internal static class AndroidAlarmFullscreenNotifier {
         }
 
         manager.Cancel(AlarmNotificationId);
+        Log.Debug(LogTag, "Notifier.Cancel removed fullscreen notification");
     }
 
     private static void EnsureChannel(Context context) {
@@ -131,15 +141,19 @@ internal static class AndroidAlarmFullscreenNotifier {
     private static void TryDirectLaunch(Context context, string payloadText) {
         try {
             context.StartActivity(BuildAlarmLaunchIntent(context, payloadText));
+            Log.Info(LogTag, "Notifier.TryDirectLaunch succeeded");
         } catch {
+            Log.Warn(LogTag, "Notifier.TryDirectLaunch failed");
         }
     }
 
     private static void TryVisibleScreenRetryLaunch(Context context, PendingIntent launchPendingIntent) {
         if (!IsScreenOnAndUnlocked(context)) {
+            Log.Debug(LogTag, "Notifier retry launch skipped because screen is not on and unlocked");
             return;
         }
 
+        Log.Info(LogTag, "Notifier retry launch scheduled for visible unlocked screen");
         _ = Task.Run(async () => {
             await Task.Delay(250).ConfigureAwait(false);
             TrySendPendingIntent(launchPendingIntent);
@@ -173,7 +187,9 @@ internal static class AndroidAlarmFullscreenNotifier {
 
         try {
             pendingIntent.Send();
+            Log.Info(LogTag, "Notifier pending intent send succeeded");
         } catch {
+            Log.Warn(LogTag, "Notifier pending intent send failed");
         }
     }
 
@@ -184,8 +200,11 @@ internal static class AndroidAlarmFullscreenNotifier {
         }
 
         try {
-            return manager.CanUseFullScreenIntent();
+            var allowed = manager.CanUseFullScreenIntent();
+            Log.Info(LogTag, $"Notifier full-screen permission result={allowed}");
+            return allowed;
         } catch {
+            Log.Warn(LogTag, "Notifier failed while querying full-screen intent permission");
             return false;
         }
     }
