@@ -1,6 +1,7 @@
 #if ANDROID
 using Android.App;
 using Android.Content;
+using Android.OS;
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
@@ -52,6 +53,8 @@ internal static class AndroidAlarmFullscreenNotifier {
             manager.Notify(AlarmNotificationId, builder.Build());
         }
 
+        TryVisibleScreenRetryLaunch(context, launchPendingIntent);
+
         if (!canUseFullScreenIntent) {
             LaunchActivity(context, payloadText);
         }
@@ -59,6 +62,17 @@ internal static class AndroidAlarmFullscreenNotifier {
 
     public static void LaunchActivity(Context context, string payloadText) {
         TryDirectLaunch(context, payloadText);
+    }
+
+    public static void LaunchApp(Context context, string payloadText) {
+        try {
+            context.StartActivity(BuildAppLaunchIntent(payloadText));
+        } catch {
+        }
+    }
+
+    public static bool ShouldOpenAppDirectly(Context context) {
+        return IsScreenOnAndUnlocked(context);
     }
 
     public static void Cancel(Context? context) {
@@ -103,9 +117,62 @@ internal static class AndroidAlarmFullscreenNotifier {
         return intent;
     }
 
+    private static Intent BuildAppLaunchIntent(string payloadText) {
+        var intent = new Intent(global::Android.App.Application.Context, typeof(global::Pray_Ad_Free.MainActivity));
+        intent.SetAction(AdhanPlaybackService.AndroidAlarmAction);
+        intent.PutExtra(AndroidAdhanAlarmScheduler.AlarmPayloadExtra, payloadText);
+        intent.AddFlags(
+            ActivityFlags.NewTask |
+            ActivityFlags.SingleTop |
+            ActivityFlags.ClearTop);
+        return intent;
+    }
+
     private static void TryDirectLaunch(Context context, string payloadText) {
         try {
             context.StartActivity(BuildAlarmLaunchIntent(context, payloadText));
+        } catch {
+        }
+    }
+
+    private static void TryVisibleScreenRetryLaunch(Context context, PendingIntent launchPendingIntent) {
+        if (!IsScreenOnAndUnlocked(context)) {
+            return;
+        }
+
+        _ = Task.Run(async () => {
+            await Task.Delay(250).ConfigureAwait(false);
+            TrySendPendingIntent(launchPendingIntent);
+
+            await Task.Delay(900).ConfigureAwait(false);
+            TrySendPendingIntent(launchPendingIntent);
+        });
+    }
+
+    private static bool IsScreenOnAndUnlocked(Context context) {
+        try {
+            if (context.GetSystemService(Context.PowerService) is not PowerManager powerManager ||
+                !powerManager.IsInteractive) {
+                return false;
+            }
+
+            if (context.GetSystemService(Context.KeyguardService) is not KeyguardManager keyguardManager) {
+                return true;
+            }
+
+            return !keyguardManager.IsKeyguardLocked;
+        } catch {
+            return false;
+        }
+    }
+
+    private static void TrySendPendingIntent(PendingIntent? pendingIntent) {
+        if (pendingIntent == null) {
+            return;
+        }
+
+        try {
+            pendingIntent.Send();
         } catch {
         }
     }

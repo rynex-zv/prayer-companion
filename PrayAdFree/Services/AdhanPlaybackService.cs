@@ -160,7 +160,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return false;
             }
 
-            var triggerTime = DateTime.Now.Add(delay <= TimeSpan.Zero ? TimeSpan.FromMinutes(1) : delay);
+            var triggerTime = DateTime.Now.Add(delay <= TimeSpan.Zero ? TimeSpan.FromSeconds(12) : delay);
             var payload = AdhanAlarmPayload.Build(PrayerId.Fajr, effectiveSoundKey, triggerTime, triggerTime);
 
 #if ANDROID

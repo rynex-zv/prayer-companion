@@ -18,6 +18,11 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
             return;
         }
 
+        if (AndroidAlarmFullscreenNotifier.ShouldOpenAppDirectly(context)) {
+            AndroidAlarmFullscreenNotifier.LaunchApp(context, payload);
+            return;
+        }
+
         AndroidAlarmFullscreenNotifier.LaunchActivity(context, payload);
         AndroidAlarmFullscreenNotifier.Show(context, payload);
     }

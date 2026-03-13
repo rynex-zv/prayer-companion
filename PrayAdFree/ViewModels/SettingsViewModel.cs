@@ -1599,7 +1599,7 @@ public sealed class SettingsViewModel : ViewModelBase {
 #endif
             var key = SelectedAdhanSound?.Value ?? _settings.Notifications.SoundKey;
             var effectiveKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(key);
-            await _adhanPlaybackService.ScheduleTestAlarmAsync(effectiveKey, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            await _adhanPlaybackService.ScheduleTestAlarmAsync(effectiveKey, TimeSpan.FromSeconds(12)).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger.LogException(ex, "SettingsViewModel.SendTestAlarmAsync");
         }
