@@ -313,7 +313,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
 #if ANDROID
-    public async Task HandleAndroidAlarmLaunchAsync(AdhanAlarmPayload payload, string source = "Android") {
+    public async Task HandleAndroidAlarmLaunchAsync(
+        AdhanAlarmPayload payload,
+        string source = "Android",
+        AlarmPresentationMode presentationMode = AlarmPresentationMode.FullscreenActivity) {
         try {
             var settings = _settingsService.Load();
             if (!settings.Notifications.EnableAdhan) {
@@ -325,8 +328,14 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 settings = _settingsService.Load();
             }
 
-            _logger.LogEvent("AdhanAlarmLaunch.Android", $"source={source};payload={BuildAlarmPayloadKey(payload)}");
+            _logger.LogEvent(
+                "AdhanAlarmLaunch.Android",
+                $"source={source};presentationMode={presentationMode};payload={BuildAlarmPayloadKey(payload)}");
             await ActivateAlarmAsync(payload, settings, showAlarmScreen: false).ConfigureAwait(false);
+            if (presentationMode == AlarmPresentationMode.ControlNotification) {
+                var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
+                await ShowControlNotificationAsync(prayerName, includeSnoozeActions: true).ConfigureAwait(false);
+            }
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.HandleAndroidAlarmLaunchAsync");
         }

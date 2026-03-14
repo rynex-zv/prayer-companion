@@ -20,6 +20,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
     private readonly PrayerSchedulePlanner _planner;
     private readonly IAppLogger _logger;
+    private readonly AndroidAlarmCapabilityService _alarmCapabilityService;
     private readonly IWindowsNotificationQueueService _windowsNotificationQueueService;
     private readonly SemaphoreSlim _scheduleGate = new(1, 1);
     private string _lastScheduleSignature = string.Empty;
@@ -28,9 +29,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     public LocalNotificationScheduler(
         PrayerSchedulePlanner planner,
         IAppLogger logger,
+        AndroidAlarmCapabilityService alarmCapabilityService,
         IWindowsNotificationQueueService windowsNotificationQueueService) {
         _planner = planner;
         _logger = logger;
+        _alarmCapabilityService = alarmCapabilityService;
         _windowsNotificationQueueService = windowsNotificationQueueService;
     }
 
@@ -67,6 +70,9 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
             await CancelAsyncCore().ConfigureAwait(false);
 
+            var alarmDecision = await _alarmCapabilityService.GetCurrentDecisionAsync().ConfigureAwait(false);
+            _logger.LogEvent("AlarmFallbackDecision", $"source=schedule;{AndroidAlarmCapabilityService.BuildLogDetails(alarmDecision)}");
+
             var requests = new List<NotificationRequest>();
             var signatures = new HashSet<string>(StringComparer.Ordinal);
 
@@ -86,7 +92,12 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     var primaryType = NotificationPlatformPolicy.NormalizePrimaryAdhanType(
                         settings.Notifications.MobilePrimaryAdhanType,
                         OperatingSystem.IsAndroid() || OperatingSystem.IsIOS());
-                    var openAlarmScreen = primaryType == MobilePrimaryAdhanType.Alarm;
+                    var wantsAlarmScreen = primaryType == MobilePrimaryAdhanType.Alarm;
+                    if (wantsAlarmScreen && alarmDecision.SchedulingMode == AlarmSchedulingMode.Unsupported) {
+                        continue;
+                    }
+
+                    var openAlarmScreen = wantsAlarmScreen && alarmDecision.SchedulingMode == AlarmSchedulingMode.ExactAlarm;
                     var playRuntimeAdhan = useRuntimeAdhanPlayback && !isSilent;
                     var vibrationOverride = overrideSettings?.EnableVibration;
                     var showAdhanActions = !isSilent;
@@ -140,10 +151,10 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 }
 
                 ScheduleFastingReminders(day, settings, requests, signatures, now);
-                ScheduleAdhanReminders(day, settings, requests, signatures, now);
+                ScheduleAdhanReminders(day, settings, requests, signatures, now, alarmDecision.SchedulingMode);
             }
 
-            ScheduleDeferredAdhanReminder(settings, requests, signatures, now);
+            ScheduleDeferredAdhanReminder(settings, requests, signatures, now, alarmDecision.SchedulingMode);
 
 #if ANDROID
             var nativeAlarmRequests = ExtractAndroidAlarmRequests(requests);
@@ -416,7 +427,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         AppSettings settings,
         ICollection<NotificationRequest> requests,
         ISet<string> signatures,
-        DateTime now) {
+        DateTime now,
+        AlarmSchedulingMode schedulingMode) {
         var notificationSettings = settings.Notifications;
         var reminderItems = AdhanReminderResolver.Resolve(notificationSettings);
         if (reminderItems.Count == 0) {
@@ -447,6 +459,11 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
                 var shouldPlayAdhan = ReminderDispatchPolicy.ShouldPlayAdhan(normalizedAlertType, notificationSettings.EnableAdhan);
                 var shouldOpenAlarm = ReminderDispatchPolicy.ShouldOpenAlarmScreen(normalizedAlertType);
+                if (shouldOpenAlarm && schedulingMode == AlarmSchedulingMode.Unsupported) {
+                    continue;
+                }
+
+                var effectiveOpenAlarm = shouldOpenAlarm && schedulingMode == AlarmSchedulingMode.ExactAlarm;
                 var isSilent = AdhanSoundLibrary.IsSilent(effectiveSoundKey);
                 var notificationSound = normalizedAlertType == AdhanReminderAlertType.Notification
                     ? string.Empty
@@ -456,13 +473,13 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
                 AddIfUnique(requests, signatures, new NotificationRequest {
                     NotificationId = BuildReminderId(day.Date, 20 + p, i),
-                    CategoryType = shouldOpenAlarm ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
+                    CategoryType = effectiveOpenAlarm ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
                     Title = LocalizationManager.Translate("AdhanReminder"),
                     Description = BuildAdhanReminderDescription(prayer, reminder.OffsetMinutes, normalizedAlertType),
                     Silent = ResolveNotificationSilent(playRuntimeAdhan, false),
                     Sound = playRuntimeAdhan ? string.Empty : notificationSound,
                     ReturningData = playRuntimeAdhan
-                        ? shouldOpenAlarm
+                        ? effectiveOpenAlarm
                             ? AdhanAlarmPayload.Build(prayer, effectiveSoundKey, baseTime, notifyTime)
                             : AdhanNotificationPayload.BuildPlay(prayer, effectiveSoundKey)
                         : string.Empty,
@@ -478,12 +495,12 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     },
 #if ANDROID
                     Android = new AndroidOptions {
-                        Priority = shouldOpenAlarm ? AndroidPriority.Max : AndroidPriority.Default,
+                        Priority = effectiveOpenAlarm ? AndroidPriority.Max : AndroidPriority.Default,
                         ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, normalizedAlertType),
                         VibrationPattern = BuildVibration(notificationSettings, overrideSettings?.EnableVibration),
-                        VisibilityType = shouldOpenAlarm ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
-                        LaunchApp = shouldOpenAlarm ? new AndroidLaunch { InHighPriority = true } : null,
-                        LaunchAppWhenTapped = shouldOpenAlarm || !playRuntimeAdhan
+                        VisibilityType = effectiveOpenAlarm ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
+                        LaunchApp = effectiveOpenAlarm ? new AndroidLaunch { InHighPriority = true } : null,
+                        LaunchAppWhenTapped = effectiveOpenAlarm || !playRuntimeAdhan
                     }
 #endif
                 });
@@ -495,7 +512,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         AppSettings settings,
         ICollection<NotificationRequest> requests,
         ISet<string> signatures,
-        DateTime now) {
+        DateTime now,
+        AlarmSchedulingMode schedulingMode) {
         var pending = settings.Notifications.PendingDeferredReminder;
         if (pending == null) {
             return;
@@ -510,15 +528,20 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             return;
         }
 
+        if (pending.OpenAlarmScreen && schedulingMode == AlarmSchedulingMode.Unsupported) {
+            return;
+        }
+
+        var effectiveOpenAlarm = pending.OpenAlarmScreen && schedulingMode == AlarmSchedulingMode.ExactAlarm;
         var useRuntimeAdhanPlayback = ShouldUseRuntimeAdhanPlayback();
         AddIfUnique(requests, signatures, new NotificationRequest {
             NotificationId = AdhanPlaybackService.DeferredAdhanNotificationId,
-            CategoryType = pending.OpenAlarmScreen ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
+            CategoryType = effectiveOpenAlarm ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
             Title = LocalizationManager.Translate("AdhanReminder"),
             Description = LocalizationManager.Translate("SnoozeReminderBody"),
             Silent = ResolveNotificationSilent(useRuntimeAdhanPlayback, false),
             Sound = string.Empty,
-            ReturningData = pending.OpenAlarmScreen
+            ReturningData = effectiveOpenAlarm
                 ? AdhanAlarmPayload.Build(
                     pending.Prayer,
                     effectiveSoundKey,
@@ -537,16 +560,16 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             },
 #if ANDROID
             Android = new AndroidOptions {
-                Priority = pending.OpenAlarmScreen ? AndroidPriority.Max : AndroidPriority.Default,
+                Priority = effectiveOpenAlarm ? AndroidPriority.Max : AndroidPriority.Default,
                 ChannelId = BuildAndroidChannelId(
                     effectiveSoundKey,
                     false,
                     true,
-                    pending.OpenAlarmScreen ? AdhanReminderAlertType.Alarm : AdhanReminderAlertType.Adhan),
+                    effectiveOpenAlarm ? AdhanReminderAlertType.Alarm : AdhanReminderAlertType.Adhan),
                 VibrationPattern = BuildVibration(settings.Notifications),
-                VisibilityType = pending.OpenAlarmScreen ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
-                LaunchApp = pending.OpenAlarmScreen ? new AndroidLaunch { InHighPriority = true } : null,
-                LaunchAppWhenTapped = pending.OpenAlarmScreen
+                VisibilityType = effectiveOpenAlarm ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
+                LaunchApp = effectiveOpenAlarm ? new AndroidLaunch { InHighPriority = true } : null,
+                LaunchAppWhenTapped = effectiveOpenAlarm
             }
 #endif
         });

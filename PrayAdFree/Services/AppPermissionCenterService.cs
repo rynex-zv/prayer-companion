@@ -19,19 +19,28 @@ public enum AppPermissionKind {
 public readonly record struct AppPermissionSnapshot(
     AppPermissionKind Kind,
     bool IsGranted,
-    bool UsesSettingsFlow);
+    bool UsesSettingsFlow,
+    bool IsCritical);
 
 public sealed class AppPermissionCenterService {
     public async Task<IReadOnlyList<AppPermissionSnapshot>> GetSnapshotsAsync() {
         var items = new List<AppPermissionSnapshot> {
-            new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false),
-            new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
-            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
-            new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true),
-            new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false)
+            new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: true),
+            new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false),
+            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false),
+            new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: true),
+            new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: false)
         };
 
         return items;
+    }
+
+    public async Task<AlarmPermissionState> GetAlarmPermissionStateAsync() {
+        return new AlarmPermissionState(
+            NotificationsGranted: await IsNotificationsGrantedAsync().ConfigureAwait(false),
+            ExactAlarmsGranted: await IsExactAlarmsGrantedAsync().ConfigureAwait(false),
+            FullScreenIntentsGranted: await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false),
+            DisplayOverAppsGranted: await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false));
     }
 
     public async Task ResolveAsync(AppPermissionKind kind) {

@@ -136,6 +136,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<IWindowsNotificationQueueService, NullWindowsNotificationQueueService>();
 #endif
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
+            builder.Services.AddSingleton<AndroidAlarmCapabilityService>();
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
             builder.Services.AddSingleton(_ => new PrayerTimesCache(FileSystem.AppDataDirectory));
             builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();

@@ -35,7 +35,11 @@ internal static class BootNotificationRescheduler {
                 return;
             }
 
-            var scheduler = new LocalNotificationScheduler(new PrayerSchedulePlanner(), new AppLogger(), new NullWindowsNotificationQueueService());
+            var scheduler = new LocalNotificationScheduler(
+                new PrayerSchedulePlanner(),
+                new AppLogger(),
+                new AndroidAlarmCapabilityService(new AppPermissionCenterService()),
+                new NullWindowsNotificationQueueService());
             await scheduler.ScheduleAsync(days, settings, CancellationToken.None, requestPermissions: false).ConfigureAwait(false);
             Log.Info(LogTag, $"Rescheduled {days.Count} day(s) of notifications after boot.");
         } catch (Exception ex) {

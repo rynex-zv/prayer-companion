@@ -1,6 +1,7 @@
 #if ANDROID
 using Android.Content;
 using Android.Util;
+using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
@@ -24,16 +25,84 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
         }
 
         Log.Info(LogTag, $"Receiver handling alarm payloadLength={payload.Length}");
+        var pendingResult = GoAsync();
+        _ = Task.Run(async () => {
+            try {
+                await HandleAsync(context, payload).ConfigureAwait(false);
+            } finally {
+                pendingResult.Finish();
+            }
+        });
+    }
 
-        if (AlarmOverlayService.ShouldShowOverlay(context)) {
-            Log.Info(LogTag, "Receiver selected overlay branch");
-            AlarmOverlayService.Start(context, payload);
+    private static async Task HandleAsync(Context context, string payloadText) {
+        var services = ResolveServices(context);
+        var decision = await ResolveDecisionAsync(services).ConfigureAwait(false);
+
+        Log.Info(LogTag, $"Receiver fallback decision {AndroidAlarmCapabilityService.BuildLogDetails(decision)}");
+        if (services?.GetService(typeof(IAppLogger)) is IAppLogger logger) {
+            logger.LogEvent("AlarmFallbackDecision", $"source=receiver;{AndroidAlarmCapabilityService.BuildLogDetails(decision)}");
+        }
+
+        switch (decision.PresentationMode) {
+            case AlarmPresentationMode.Overlay:
+                Log.Info(LogTag, "Receiver selected overlay branch");
+                AlarmOverlayService.Start(context, payloadText);
+                return;
+            case AlarmPresentationMode.FullscreenActivity:
+                Log.Info(LogTag, "Receiver selected fullscreen notification/activity branch");
+                AndroidAlarmFullscreenNotifier.LaunchActivity(context, payloadText);
+                AndroidAlarmFullscreenNotifier.Show(context, payloadText);
+                return;
+            case AlarmPresentationMode.ControlNotification:
+                Log.Info(LogTag, "Receiver selected control notification branch");
+                await StartControlNotificationFallbackAsync(services, payloadText).ConfigureAwait(false);
+                return;
+            default:
+                Log.Warn(LogTag, "Receiver selected unsupported branch");
+                return;
+        }
+    }
+
+    private static async Task<AndroidAlarmCapabilityDecision> ResolveDecisionAsync(IServiceProvider? services) {
+        if (services?.GetService(typeof(AndroidAlarmCapabilityService)) is AndroidAlarmCapabilityService capabilityService) {
+            return await capabilityService.GetCurrentDecisionAsync().ConfigureAwait(false);
+        }
+
+        Log.Warn(LogTag, "Receiver could not resolve capability service; using fullscreen fallback");
+        return new AndroidAlarmCapabilityDecision(
+            Permissions: new AlarmPermissionState(true, true, true, false),
+            ScreenOnAndUnlocked: false,
+            SchedulingMode: AlarmSchedulingMode.ExactAlarm,
+            PresentationMode: AlarmPresentationMode.FullscreenActivity,
+            SupportStatus: AlarmSupportStatus.FullSupport);
+    }
+
+    private static async Task StartControlNotificationFallbackAsync(IServiceProvider? services, string payloadText) {
+        if (!AdhanAlarmPayload.TryParse(payloadText, out var payload)) {
+            Log.Warn(LogTag, "Receiver control notification branch could not parse alarm payload");
             return;
         }
 
-        Log.Info(LogTag, "Receiver selected fullscreen notification/activity branch");
-        AndroidAlarmFullscreenNotifier.LaunchActivity(context, payload);
-        AndroidAlarmFullscreenNotifier.Show(context, payload);
+        if (services?.GetService(typeof(AdhanPlaybackService)) is not AdhanPlaybackService playbackService) {
+            Log.Warn(LogTag, "Receiver control notification branch could not resolve playback service");
+            return;
+        }
+
+        await playbackService.HandleAndroidAlarmLaunchAsync(
+            payload,
+            source: "AndroidReceiver.ControlNotification",
+            presentationMode: AlarmPresentationMode.ControlNotification).ConfigureAwait(false);
+    }
+
+    private static IServiceProvider? ResolveServices(Context context) {
+        if (App.Services != null) {
+            return App.Services;
+        }
+
+        return context.ApplicationContext is MainApplication mainApplication
+            ? mainApplication.Services
+            : null;
     }
 }
 #endif
