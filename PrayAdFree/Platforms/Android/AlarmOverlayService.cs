@@ -155,9 +155,9 @@ public sealed class AlarmOverlayService : Service {
 
         var channel = new NotificationChannel(
             OverlayChannelId,
-            "Prayer Alarm Overlay",
+            LocalizationManager.Translate("AlarmScreenTitle"),
             NotificationImportance.Low) {
-            Description = "Keeps the prayer alarm overlay visible over other apps"
+            Description = LocalizationManager.Translate("AdhanPlaybackStopHint")
         };
         channel.SetSound(null, null);
         channel.EnableVibration(false);
@@ -289,12 +289,12 @@ public sealed class AlarmOverlayService : Service {
         }
 
         if (_snoozeButton != null) {
-            _snoozeButton.Text = "Snooze";
+            _snoozeButton.Text = LocalizationManager.Translate("AlarmSnoozeButton");
             _snoozeButton.Click += async (_, _) => await SnoozeAsync();
         }
 
         if (_stopButton != null) {
-            _stopButton.Text = "Stop";
+            _stopButton.Text = LocalizationManager.Translate("AlarmStopButton");
             _stopButton.Click += async (_, _) => await StopAsync();
         }
     }
@@ -332,7 +332,7 @@ public sealed class AlarmOverlayService : Service {
         }
 
         if (_reminderText != null) {
-            _reminderText.Text = "Prayer alarm is ringing now";
+            _reminderText.Text = LocalizationManager.Translate("AdhanPlaybackStopHint");
         }
     }
 
@@ -351,7 +351,7 @@ public sealed class AlarmOverlayService : Service {
 
         if (_reminderText != null) {
             _reminderText.Text = string.IsNullOrWhiteSpace(model.ReminderText)
-                ? "Prayer alarm is ringing now"
+                ? LocalizationManager.Translate("AdhanPlaybackStopHint")
                 : model.ReminderText;
         }
 
@@ -484,34 +484,15 @@ public sealed class AlarmOverlayService : Service {
     }
 
     private static string ResolvePrayerName(PrayerId prayer) {
-        return prayer switch {
-            PrayerId.Fajr => "Fajr",
-            PrayerId.Dhuhr => "Dhuhr",
-            PrayerId.Asr => "Asr",
-            PrayerId.Maghrib => "Maghrib",
-            PrayerId.Isha => "Isha",
-            _ => "Prayer"
-        };
+        return LocalizationManager.TranslatePrayer(prayer);
     }
 
     private static string ResolveOverlayTitle() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "Prayer alarm overlay",
-            "fr" => "Superposition d'alarme de priere",
-            "es" => "Superposicion de alarma de oracion",
-            "tr" => "Namaz alarmi katmani",
-            _ => "Prayer alarm overlay"
-        };
+        return LocalizationManager.Translate("AlarmScreenTitle");
     }
 
     private static string ResolveOverlayBody() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "Showing the alarm over apps",
-            "fr" => "Affiche l'alarme au-dessus des applications",
-            "es" => "Muestra la alarma sobre las aplicaciones",
-            "tr" => "Alarmi uygulamalarin ustunde gosterir",
-            _ => "Showing the alarm over apps"
-        };
+        return LocalizationManager.Translate("AdhanPlaybackStopHint");
     }
 }
 #endif

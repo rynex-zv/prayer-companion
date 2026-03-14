@@ -362,25 +362,18 @@ public sealed class AlarmActivity : AppCompatActivity {
     }
 
     private static string ResolvePrayerName(PrayerId prayer) {
-        return prayer switch {
-            PrayerId.Fajr => "Fajr",
-            PrayerId.Dhuhr => "Dhuhr",
-            PrayerId.Asr => "Asr",
-            PrayerId.Maghrib => "Maghrib",
-            PrayerId.Isha => "Isha",
-            _ => "Prayer"
-        };
+        return LocalizationManager.TranslatePrayer(prayer);
     }
 
     private static string ResolveFallbackReminderText() {
-        return "Prayer alarm is ringing now";
+        return LocalizationManager.Translate("AdhanPlaybackStopHint");
     }
 
     private static string ResolveSnoozeButtonTitle() {
-        return "Snooze";
+        return LocalizationManager.Translate("AlarmSnoozeButton");
     }
 
     private static string ResolveStopButtonTitle() {
-        return "Stop";
+        return LocalizationManager.Translate("AlarmStopButton");
     }
 }

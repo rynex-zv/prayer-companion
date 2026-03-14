@@ -714,8 +714,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 var isSilentChannel = IsAndroidSilentChannel(group.Key);
                 return new NotificationChannelRequest {
                     Id = group.Key,
-                    Name = "Prayer Alerts",
-                    Description = "Prayer and adhan notifications",
+                    Name = LocalizationManager.Translate("AdhanReminders"),
+                    Description = LocalizationManager.Translate("ReminderType_Notification"),
                     Importance = AndroidImportance.High,
                     EnableVibration = vibrationPattern.Length > 0,
                     VibrationPattern = vibrationPattern,

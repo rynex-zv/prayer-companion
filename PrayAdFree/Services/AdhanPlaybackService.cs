@@ -971,9 +971,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var channel = new NotificationChannel(
             "adhan_playback_control",
-            "Adhan Playback Control",
+            LocalizationManager.Translate("AdhanReminder"),
             NotificationImportance.High) {
-            Description = "Controls currently playing adhan"
+            Description = LocalizationManager.Translate("AdhanPlaybackStopHint")
         };
         channel.SetSound(null, null);
         channel.EnableVibration(true);
@@ -1005,9 +1005,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         var channel = new NotificationChannel(
             LocalNotificationScheduler.PrayerNotificationChannelId,
-            "Prayer Notifications",
+            LocalizationManager.Translate("AdhanReminders"),
             NotificationImportance.High) {
-            Description = "Prayer notifications and preview alerts"
+            Description = LocalizationManager.Translate("ReminderType_Notification")
         };
         channel.EnableVibration(true);
         channel.SetVibrationPattern(new long[] { 0, 120, 80, 120 });
@@ -1027,33 +1027,15 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private static string ResolveStopTitle() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "إيقاف",
-            "fr" => "Arreter",
-            "es" => "Detener",
-            "tr" => "Durdur",
-            _ => "Stop"
-        };
+        return LocalizationManager.Translate("Stop");
     }
 
     private static string ResolveSnooze10Title() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "بعد 10د",
-            "fr" => "Dans 10 min",
-            "es" => "En 10 min",
-            "tr" => "10 dk sonra",
-            _ => "After 10m"
-        };
+        return string.Format(LocalizationManager.Translate("SnoozeDelayLabel"), 10);
     }
 
     private static string ResolveCustomSnoozeTitle() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "التذكير بعد",
-            "fr" => "Rappeler plus tard",
-            "es" => "Recordarme despues",
-            "tr" => "Daha sonra hatirlat",
-            _ => "Remind me after"
-        };
+        return LocalizationManager.Translate("SnoozePageTitle");
     }
 
     private static string BuildPrayerNotificationTitle(string prayerName) {

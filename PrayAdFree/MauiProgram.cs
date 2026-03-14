@@ -189,33 +189,15 @@ namespace Pray_Ad_Free {
         }
 
         private static string ResolveStopActionTitle() {
-            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-                "ar" => "\u0625\u064A\u0642\u0627\u0641",
-                "fr" => "Arreter",
-                "es" => "Detener",
-                "tr" => "Durdur",
-                _ => "Stop"
-            };
+            return LocalizationManager.Translate("Stop");
         }
 
         private static string ResolveSnooze10ActionTitle() {
-            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-                "ar" => "\u0628\u0639\u062f 10\u062f",
-                "fr" => "Dans 10 min",
-                "es" => "En 10 min",
-                "tr" => "10 dk sonra",
-                _ => "After 10m"
-            };
+            return string.Format(LocalizationManager.Translate("SnoozeDelayLabel"), 10);
         }
 
         private static string ResolveCustomSnoozeActionTitle() {
-            return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-                "ar" => "\u0627\u0644\u062A\u0630\u0643\u064A\u0631 \u0628\u0639\u062F",
-                "fr" => "Rappeler plus tard",
-                "es" => "Recordarme despues",
-                "tr" => "Daha sonra hatirlat",
-                _ => "Remind me after"
-            };
+            return LocalizationManager.Translate("SnoozePageTitle");
         }
 
 #if ANDROID

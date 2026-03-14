@@ -6,39 +6,39 @@ public static class TasbihDefaults {
     public static TasbihSettings BuildDefaults() {
         var presets = new List<TasbihPresetSettings> {
             new TasbihPresetSettings {
-                Name = LocalizationManager.Translate("TasbihPreset_AfterPrayer"),
+                Name = "TasbihPreset_AfterPrayer",
                 RepeatMode = TasbihRepeatMode.RepeatReset,
                 Items = new List<TasbihItemSettings> {
                     new TasbihItemSettings {
-                        Text = LocalizationManager.Translate("Tasbih_SubhanAllah"),
+                        Text = "Tasbih_SubhanAllah",
                         TargetCount = 33
                     },
                     new TasbihItemSettings {
-                        Text = LocalizationManager.Translate("Tasbih_Alhamdulillah"),
+                        Text = "Tasbih_Alhamdulillah",
                         TargetCount = 33
                     },
                     new TasbihItemSettings {
-                        Text = LocalizationManager.Translate("Tasbih_AllahuAkbar"),
+                        Text = "Tasbih_AllahuAkbar",
                         TargetCount = 34
                     }
                 }
             },
             new TasbihPresetSettings {
-                Name = LocalizationManager.Translate("TasbihPreset_Hundred"),
+                Name = "TasbihPreset_Hundred",
                 RepeatMode = TasbihRepeatMode.None,
                 Items = new List<TasbihItemSettings> {
                     new TasbihItemSettings {
-                        Text = LocalizationManager.Translate("Tasbih_SubhanAllah"),
+                        Text = "Tasbih_SubhanAllah",
                         TargetCount = 100
                     }
                 }
             },
             new TasbihPresetSettings {
-                Name = LocalizationManager.Translate("TasbihPreset_Salawat"),
+                Name = "TasbihPreset_Salawat",
                 RepeatMode = TasbihRepeatMode.None,
                 Items = new List<TasbihItemSettings> {
                     new TasbihItemSettings {
-                        Text = LocalizationManager.Translate("Tasbih_Salawat"),
+                        Text = "Tasbih_Salawat",
                         TargetCount = 100
                     }
                 }

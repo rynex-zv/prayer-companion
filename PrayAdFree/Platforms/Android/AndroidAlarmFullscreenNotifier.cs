@@ -105,9 +105,9 @@ internal static class AndroidAlarmFullscreenNotifier {
 
         var channel = new NotificationChannel(
             AlarmChannelId,
-            "Prayer Alarm Full Screen",
+            LocalizationManager.Translate("AlarmScreenTitle"),
             NotificationImportance.High) {
-            Description = "Displays prayer alarms over the lock screen"
+            Description = LocalizationManager.Translate("AdhanPlaybackStopHint")
         };
         channel.SetSound(null, null);
         channel.EnableVibration(true);
@@ -218,23 +218,11 @@ internal static class AndroidAlarmFullscreenNotifier {
     }
 
     private static string ResolveTitle() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "Prayer alarm",
-            "fr" => "Alarme de priere",
-            "es" => "Alarma de oracion",
-            "tr" => "Namaz alarmi",
-            _ => "Prayer alarm"
-        };
+        return LocalizationManager.Translate("AlarmScreenTitle");
     }
 
     private static string ResolveBody() {
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName switch {
-            "ar" => "Open alarm now",
-            "fr" => "Ouvrir l'alarme maintenant",
-            "es" => "Abrir la alarma ahora",
-            "tr" => "Alarmi simdi ac",
-            _ => "Open alarm now"
-        };
+        return LocalizationManager.Translate("AdhanPlaybackStopHint");
     }
 }
 #endif
