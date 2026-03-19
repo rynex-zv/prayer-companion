@@ -20,10 +20,14 @@
                     <VerticalStackLayout Spacing="8">
                         <Label Text="{loc:Loc Load}" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" HorizontalTextAlignment="End" />
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                            <Button Text="‹" WidthRequest="44" HeightRequest="44" Command="{Binding LoadCommand}" />
-                            <DatePicker Grid.Column="1" Date="{Binding SelectedMonth}" HorizontalOptions="Fill" />
-                            <Button Grid.Column="2" Text="›" WidthRequest="44" HeightRequest="44" Command="{Binding LoadCommand}" />
+                            <Button Text="‹" WidthRequest="44" HeightRequest="44" Command="{Binding PreviousMonthCommand}" />
+                            <DatePicker Grid.Column="1" Date="{Binding SelectedMonth}" Format="MMMM yyyy" HorizontalOptions="Fill" />
+                            <Button Grid.Column="2" Text="›" WidthRequest="44" HeightRequest="44" Command="{Binding NextMonthCommand}" />
                         </Grid>
+                        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                            <Button Text="{loc:Loc Today}" Command="{Binding TodayCommand}" />
+                            <Button Text="{loc:Loc Load}" Command="{Binding LoadCommand}" />
+                        </HorizontalStackLayout>
                         <Label Text="{Binding StatusMessage}" FontSize="12" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     </VerticalStackLayout>
                 </Border>

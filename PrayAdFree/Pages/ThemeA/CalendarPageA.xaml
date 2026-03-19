@@ -20,7 +20,10 @@
                     Padding="12"
                     Grid.Row="0">
                 <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
-                    <DatePicker Date="{Binding SelectedMonth}" />
+                    <Button Text="‹" Command="{Binding PreviousMonthCommand}" />
+                    <DatePicker Date="{Binding SelectedMonth}" Format="MMMM yyyy" />
+                    <Button Text="›" Command="{Binding NextMonthCommand}" />
+                    <Button Text="{loc:Loc Today}" Command="{Binding TodayCommand}" />
                     <Button Text="{loc:Loc Load}" Command="{Binding LoadCommand}" />
                     <Label Text="{Binding StatusMessage}" FontSize="12" TextColor="{StaticResource TextSubtle}" />
                 </HorizontalStackLayout>
