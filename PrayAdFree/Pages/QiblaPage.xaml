@@ -106,6 +106,33 @@
                             Text="{loc:Loc QiblaDisplayMode}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
                                                         Dark=#8CA0B6}" />
+                        <Label
+                            FontSize="12"
+                            HorizontalTextAlignment="End"
+                            Text="{loc:Loc QiblaHeadingMode}"
+                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                        Dark=#8CA0B6}" />
+                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
+                            <Border x:Name="HeadingAutoChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnHeadingAutoTapped" />
+                                </Border.GestureRecognizers>
+                                <Label
+                                    x:Name="HeadingAutoLabel"
+                                    Style="{StaticResource ChoiceChipLabel}"
+                                    Text="{loc:Loc QiblaHeadingMode_Auto}" />
+                            </Border>
+                            <Border x:Name="HeadingManualChip" Style="{StaticResource ChoiceChip}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnHeadingManualTapped" />
+                                </Border.GestureRecognizers>
+                                <Label
+                                    x:Name="HeadingManualLabel"
+                                    Style="{StaticResource ChoiceChipLabel}"
+                                    Text="{loc:Loc QiblaHeadingMode_Manual}" />
+                            </Border>
+                        </HorizontalStackLayout>
+
                         <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
                             <Border x:Name="ModeCompassChip" Style="{StaticResource ChoiceChip}">
                                 <Border.GestureRecognizers>
@@ -173,6 +200,9 @@
                     Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
                                              Dark=#20344A}"
                     StrokeShape="RoundRectangle 20">
+                    <Border.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnManualPanUpdated" />
+                    </Border.GestureRecognizers>
                     <controls:QiblaCompassView
                         x:Name="CompassDial"
                         Bearing="{Binding Bearing}"

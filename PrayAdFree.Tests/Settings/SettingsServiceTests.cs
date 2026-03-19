@@ -32,6 +32,12 @@ public class SettingsServiceTests {
                         IsEnabled = true
                     }
                 }
+            },
+            Qibla = new QiblaPreferences {
+                HeadingMode = QiblaHeadingMode.Manual,
+                ManualHeading = 127.5,
+                ReadingMode = QiblaReadingMode.Fast,
+                FilterMode = QiblaFilterMode.Strict
             }
         };
 
@@ -49,5 +55,9 @@ public class SettingsServiceTests {
         Assert.True(loaded.Notifications.PendingDeferredReminder!.OpenAlarmScreen);
         Assert.Contains("khushu", loaded.AlarmReminders.DisabledBuiltInIds);
         Assert.Contains(loaded.AlarmReminders.UserItems, item => item.Id == "user_1" && item.Text == "Test dua" && item.IsEnabled);
+        Assert.Equal(QiblaHeadingMode.Manual, loaded.Qibla.HeadingMode);
+        Assert.Equal(127.5, loaded.Qibla.ManualHeading, 3);
+        Assert.Equal(QiblaReadingMode.Fast, loaded.Qibla.ReadingMode);
+        Assert.Equal(QiblaFilterMode.Strict, loaded.Qibla.FilterMode);
     }
 }

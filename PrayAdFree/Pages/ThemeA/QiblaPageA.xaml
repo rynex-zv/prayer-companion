@@ -65,6 +65,45 @@
                         StrokeShape="RoundRectangle 18"
                         Padding="16">
                     <VerticalStackLayout Spacing="10">
+                        <Label Text="{loc:Loc QiblaHeadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding HeadingModes}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.SelectHeadingModeCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Value="True">
+                                                    <DataTrigger.Binding>
+                                                        <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                            <Binding Path="BindingContext.SelectedHeadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                            <Binding Path="." />
+                                                        </MultiBinding>
+                                                    </DataTrigger.Binding>
+                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
+                                                        <Binding Path="BindingContext.SelectedHeadingMode" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
+                                                        <Binding Path="." />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
+                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+
                         <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ReadingModes}">
                             <BindableLayout.ItemTemplate>
@@ -145,10 +184,14 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
+                <Border x:Name="CompassCard"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceSolid}, Dark={StaticResource SurfaceGlassDark}}"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 24"
                         Padding="18">
+                    <Border.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnManualPanUpdated" />
+                    </Border.GestureRecognizers>
                     <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
                         <Grid Rotation="{Binding CompassRotation}" AnchorX="0.5" AnchorY="0.5">
                             <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />

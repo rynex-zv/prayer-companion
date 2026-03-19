@@ -19,8 +19,15 @@ public enum QiblaDirectionMode {
     Both
 }
 
+public enum QiblaHeadingMode {
+    Sensor,
+    Manual
+}
+
 public sealed class QiblaPreferences {
     public QiblaReadingMode ReadingMode { get; init; } = QiblaReadingMode.Balanced;
     public QiblaFilterMode FilterMode { get; init; } = QiblaFilterMode.Normal;
     public QiblaDirectionMode DirectionMode { get; init; } = QiblaDirectionMode.Both;
+    public QiblaHeadingMode HeadingMode { get; init; } = QiblaHeadingMode.Sensor;
+    public double ManualHeading { get; init; }
 }

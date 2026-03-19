@@ -12,6 +12,7 @@ using PrayAdFree.Core.Models;
 namespace Pray_Ad_Free.Pages;
 
 public partial class QiblaPage : ContentPage {
+    private const double ManualHeadingSensitivity = 0.45;
     private QiblaViewModel ViewModel => (QiblaViewModel)BindingContext;
     private bool _animated;
     private bool _compassSupported = true;
@@ -28,6 +29,7 @@ public partial class QiblaPage : ContentPage {
     private DateTime _lastCompassReadingUtc = DateTime.MinValue;
     private CancellationTokenSource? _compassWatchdogCts;
     private Microsoft.Maui.Controls.Maps.Map? _map;
+    private double _manualPanLastTotalX;
 
     private enum QiblaDisplayMode {
         Compass,
@@ -49,29 +51,18 @@ public partial class QiblaPage : ContentPage {
     protected override async void OnAppearing() {
         base.OnAppearing();
         ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
+        ApplyInitialDisplayMode();
         ApplyDisplayState();
 
         _ = LoadAndUpdateAsync();
         ApplyCompassPreferences(false);
         _lastCompassReadingUtc = DateTime.MinValue;
         _compassSupported = Compass.IsSupported;
+        Compass.ReadingChanged -= OnCompassReadingChanged;
         if (_compassSupported) {
             Compass.ReadingChanged += OnCompassReadingChanged;
-            try {
-                _hasSmoothHeading = false;
-                StartCompass();
-                _compassStarted = true;
-                StartCompassWatchdog();
-            } catch (FeatureNotSupportedException) {
-                _compassSupported = false;
-                ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
-            } catch (Exception) {
-                _compassSupported = false;
-                ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
-            }
-        } else {
-            ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
         }
+        ApplyHeadingMode(restartCompass: true);
 
         if (!_animated) {
             _animated = true;
@@ -118,6 +109,13 @@ public partial class QiblaPage : ContentPage {
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
+        if (e.PropertyName == nameof(QiblaViewModel.SelectedHeadingMode)) {
+            ApplyInitialDisplayMode();
+            ApplyHeadingMode(restartCompass: true);
+            ApplyDisplayState();
+            return;
+        }
+
         if (e.PropertyName == nameof(QiblaViewModel.SelectedReadingMode)
             || e.PropertyName == nameof(QiblaViewModel.SelectedFilterMode)) {
             ApplyCompassPreferences(true);
@@ -198,6 +196,71 @@ public partial class QiblaPage : ContentPage {
 
     private bool ShouldShowMap() {
         return _displayMode == QiblaDisplayMode.Map;
+    }
+
+    private void ApplyInitialDisplayMode() {
+        if (ViewModel.IsManualHeadingMode) {
+            _displayMode = QiblaDisplayMode.Compass;
+        }
+    }
+
+    private void HandleCompassUnavailable() {
+        _compassSupported = false;
+        StopCompassWatchdog();
+        StopCompassMonitoring();
+        UpdateStatusMessage();
+    }
+
+    private void ApplyHeadingMode(bool restartCompass) {
+        if (ViewModel.IsManualHeadingMode) {
+            StopCompassMonitoring();
+            UpdateStatusMessage();
+            SetDisplayMode(QiblaDisplayMode.Compass);
+            return;
+        }
+
+        if (!_compassSupported) {
+            HandleCompassUnavailable();
+            return;
+        }
+
+        try {
+            if (restartCompass && Compass.IsMonitoring) {
+                Compass.Stop();
+            }
+
+            if (restartCompass || !Compass.IsMonitoring) {
+                _hasSmoothHeading = false;
+                StartCompass();
+                _compassStarted = true;
+            }
+
+            StartCompassWatchdog();
+            UpdateStatusMessage();
+        } catch (FeatureNotSupportedException) {
+            HandleCompassUnavailable();
+        } catch (Exception) {
+            HandleCompassUnavailable();
+        }
+    }
+
+    private void StopCompassMonitoring() {
+        StopCompassWatchdog();
+        if (_compassStarted && Compass.IsMonitoring) {
+            Compass.Stop();
+        }
+        _compassStarted = false;
+    }
+
+    private void UpdateStatusMessage() {
+        if (ViewModel.IsManualHeadingMode) {
+            ViewModel.StatusMessage = LocalizationManager.Translate("QiblaManualHint");
+            return;
+        }
+
+        ViewModel.StatusMessage = _compassSupported
+            ? string.Empty
+            : LocalizationManager.Translate("CompassNotSupported");
     }
 
     private void StartCompassWatchdog() {
@@ -331,11 +394,7 @@ public partial class QiblaPage : ContentPage {
     private async Task LoadAndUpdateAsync() {
         await ViewModel.LoadAsync();
         ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
-        if (!_compassSupported) {
-            ViewModel.StatusMessage = LocalizationManager.Translate("CompassNotSupported");
-        } else {
-            ViewModel.StatusMessage = string.Empty;
-        }
+        UpdateStatusMessage();
 
         if (ShouldShowMap()) {
             MainThread.BeginInvokeOnMainThread(UpdateMap);
@@ -344,6 +403,42 @@ public partial class QiblaPage : ContentPage {
 
     private void OnModeCompassTapped(object? sender, TappedEventArgs e) {
         SetDisplayMode(QiblaDisplayMode.Compass);
+    }
+
+    private void OnHeadingAutoTapped(object? sender, TappedEventArgs e) {
+        var option = ViewModel.HeadingModes.FirstOrDefault(item => item.Value == QiblaHeadingMode.Sensor);
+        if (option != null) {
+            ViewModel.SelectedHeadingMode = option;
+        }
+    }
+
+    private void OnHeadingManualTapped(object? sender, TappedEventArgs e) {
+        var option = ViewModel.HeadingModes.FirstOrDefault(item => item.Value == QiblaHeadingMode.Manual);
+        if (option != null) {
+            ViewModel.SelectedHeadingMode = option;
+        }
+    }
+
+    private void OnManualPanUpdated(object? sender, PanUpdatedEventArgs e) {
+        if (!ViewModel.IsManualHeadingMode) {
+            return;
+        }
+
+        switch (e.StatusType) {
+            case GestureStatus.Started:
+                _manualPanLastTotalX = 0;
+                break;
+            case GestureStatus.Running:
+                var deltaX = e.TotalX - _manualPanLastTotalX;
+                _manualPanLastTotalX = e.TotalX;
+                ViewModel.AdjustManualHeading(deltaX * ManualHeadingSensitivity);
+                break;
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                _manualPanLastTotalX = 0;
+                ViewModel.CommitManualHeading();
+                break;
+        }
     }
 
     private void OnModeMapTapped(object? sender, TappedEventArgs e) {
@@ -397,6 +492,10 @@ public partial class QiblaPage : ContentPage {
         SetChipState(ModeCompassChip, ModeCompassLabel, _displayMode == QiblaDisplayMode.Compass,
             activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
         SetChipState(ModeMapChip, ModeMapLabel, _displayMode == QiblaDisplayMode.Map,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+        SetChipState(HeadingAutoChip, HeadingAutoLabel, !ViewModel.IsManualHeadingMode,
+            activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
+        SetChipState(HeadingManualChip, HeadingManualLabel, ViewModel.IsManualHeadingMode,
             activeBackground, activeStroke, activeText, inactiveBackground, inactiveStroke, inactiveText);
 
         SetChipState(FilterNoneChip, FilterNoneLabel, _visualFilter == QiblaCompassVisualFilter.None,

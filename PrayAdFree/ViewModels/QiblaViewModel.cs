@@ -10,23 +10,32 @@ public sealed class QiblaViewModel : ViewModelBase {
     private readonly PrayerDataService _dataService;
     private double _bearing;
     private double _heading;
+    private double _manualHeading;
     private double _needleRotation;
     private double _compassRotation;
     private string _locationTitle = "";
     private string _directionLabel = "";
     private string _statusMessage = "";
     private LocationSettings? _location;
+    private OptionItem<QiblaHeadingMode>? _selectedHeadingMode;
     private OptionItem<QiblaReadingMode>? _selectedReadingMode;
     private OptionItem<QiblaFilterMode>? _selectedFilterMode;
     private bool _suspendPreferenceSave;
+    private Command<OptionItem<QiblaHeadingMode>>? _selectHeadingModeCommand;
     private Command<OptionItem<QiblaReadingMode>>? _selectReadingModeCommand;
     private Command<OptionItem<QiblaFilterMode>>? _selectFilterModeCommand;
 
     public QiblaViewModel(PrayerDataService dataService) {
         _dataService = dataService;
+        HeadingModes = new ObservableCollection<OptionItem<QiblaHeadingMode>>();
         ReadingModes = new ObservableCollection<OptionItem<QiblaReadingMode>>();
         FilterModes = new ObservableCollection<OptionItem<QiblaFilterMode>>();
         BuildOptions();
+        SelectHeadingModeCommand = new Command<OptionItem<QiblaHeadingMode>>(item => {
+            if (item != null) {
+                SelectedHeadingMode = item;
+            }
+        });
         SelectReadingModeCommand = new Command<OptionItem<QiblaReadingMode>>(item => {
             if (item != null) {
                 SelectedReadingMode = item;
@@ -37,6 +46,7 @@ public sealed class QiblaViewModel : ViewModelBase {
                 SelectedFilterMode = item;
             }
         });
+        LoadPreferences();
         LocalizationManager.LanguageChanged += (_, _) => {
             BuildOptions();
             LoadPreferences();
@@ -44,8 +54,14 @@ public sealed class QiblaViewModel : ViewModelBase {
         };
     }
 
+    public ObservableCollection<OptionItem<QiblaHeadingMode>> HeadingModes { get; }
     public ObservableCollection<OptionItem<QiblaReadingMode>> ReadingModes { get; }
     public ObservableCollection<OptionItem<QiblaFilterMode>> FilterModes { get; }
+    public Command<OptionItem<QiblaHeadingMode>> SelectHeadingModeCommand {
+        get => _selectHeadingModeCommand!;
+        private set => _selectHeadingModeCommand = value;
+    }
+
     public Command<OptionItem<QiblaReadingMode>> SelectReadingModeCommand {
         get => _selectReadingModeCommand!;
         private set => _selectReadingModeCommand = value;
@@ -54,6 +70,17 @@ public sealed class QiblaViewModel : ViewModelBase {
     public Command<OptionItem<QiblaFilterMode>> SelectFilterModeCommand {
         get => _selectFilterModeCommand!;
         private set => _selectFilterModeCommand = value;
+    }
+
+    public OptionItem<QiblaHeadingMode>? SelectedHeadingMode {
+        get => _selectedHeadingMode;
+        set {
+            if (SetProperty(ref _selectedHeadingMode, value)) {
+                ApplyHeadingPreference();
+                OnPropertyChanged(nameof(IsManualHeadingMode));
+                SavePreferences();
+            }
+        }
     }
 
     public OptionItem<QiblaReadingMode>? SelectedReadingMode {
@@ -78,6 +105,8 @@ public sealed class QiblaViewModel : ViewModelBase {
         get => _bearing;
         set => SetProperty(ref _bearing, value);
     }
+
+    public bool IsManualHeadingMode => SelectedHeadingMode?.Value == QiblaHeadingMode.Manual;
 
     public double Heading {
         get => _heading;
@@ -120,14 +149,35 @@ public sealed class QiblaViewModel : ViewModelBase {
         if (_location != null) {
             Bearing = QiblaCalculator.CalculateBearing(_location.Latitude, _location.Longitude);
             LocationTitle = $"{_location.City}, {_location.Country}".Trim(' ', ',');
+            ApplyHeadingPreference();
             UpdateNeedle();
             StatusMessage = string.Empty;
         }
     }
 
     public void UpdateHeading(double heading) {
-        Heading = heading;
+        if (IsManualHeadingMode) {
+            return;
+        }
+
+        Heading = NormalizeHeading(heading);
         UpdateNeedle();
+    }
+
+    public void AdjustManualHeading(double delta) {
+        if (!IsManualHeadingMode) {
+            return;
+        }
+
+        SetManualHeading(_manualHeading + delta, persist: false);
+    }
+
+    public void CommitManualHeading() {
+        if (!IsManualHeadingMode) {
+            return;
+        }
+
+        SavePreferences();
     }
 
     private void UpdateNeedle() {
@@ -148,6 +198,10 @@ public sealed class QiblaViewModel : ViewModelBase {
     }
 
     private void BuildOptions() {
+        HeadingModes.Clear();
+        HeadingModes.Add(new OptionItem<QiblaHeadingMode>(QiblaHeadingMode.Sensor, LocalizationManager.Translate("QiblaHeadingMode_Auto")));
+        HeadingModes.Add(new OptionItem<QiblaHeadingMode>(QiblaHeadingMode.Manual, LocalizationManager.Translate("QiblaHeadingMode_Manual")));
+
         ReadingModes.Clear();
         ReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Smooth, LocalizationManager.Translate("CompassReading_Smooth")));
         ReadingModes.Add(new OptionItem<QiblaReadingMode>(QiblaReadingMode.Balanced, LocalizationManager.Translate("CompassReading_Balanced")));
@@ -164,10 +218,14 @@ public sealed class QiblaViewModel : ViewModelBase {
         var settings = _dataService.LoadSettings();
         _suspendPreferenceSave = true;
         try {
+            SelectedHeadingMode = HeadingModes.FirstOrDefault(item => item.Value == settings.Qibla.HeadingMode)
+                ?? HeadingModes.FirstOrDefault();
             SelectedReadingMode = ReadingModes.FirstOrDefault(item => item.Value == settings.Qibla.ReadingMode)
                 ?? ReadingModes.FirstOrDefault();
             SelectedFilterMode = FilterModes.FirstOrDefault(item => item.Value == settings.Qibla.FilterMode)
                 ?? FilterModes.FirstOrDefault();
+            _manualHeading = NormalizeHeading(settings.Qibla.ManualHeading);
+            ApplyHeadingPreference();
         } finally {
             _suspendPreferenceSave = false;
         }
@@ -190,8 +248,11 @@ public sealed class QiblaViewModel : ViewModelBase {
             Notifications = settings.Notifications,
             AlarmReminders = settings.AlarmReminders,
             Qibla = new QiblaPreferences {
+                HeadingMode = SelectedHeadingMode?.Value ?? QiblaHeadingMode.Sensor,
+                ManualHeading = _manualHeading,
                 ReadingMode = SelectedReadingMode?.Value ?? QiblaReadingMode.Balanced,
-                FilterMode = SelectedFilterMode?.Value ?? QiblaFilterMode.Normal
+                FilterMode = SelectedFilterMode?.Value ?? QiblaFilterMode.Normal,
+                DirectionMode = settings.Qibla.DirectionMode
             },
             ClockFormat = settings.ClockFormat,
             TextScale = settings.TextScale,
@@ -203,5 +264,29 @@ public sealed class QiblaViewModel : ViewModelBase {
             AccentIndex = settings.AccentIndex
         };
         _dataService.SaveSettings(settings);
+    }
+
+    private void ApplyHeadingPreference() {
+        if (!IsManualHeadingMode) {
+            return;
+        }
+
+        Heading = _manualHeading;
+        UpdateNeedle();
+    }
+
+    private void SetManualHeading(double heading, bool persist) {
+        _manualHeading = NormalizeHeading(heading);
+        Heading = _manualHeading;
+        UpdateNeedle();
+
+        if (persist) {
+            SavePreferences();
+        }
+    }
+
+    private static double NormalizeHeading(double heading) {
+        var normalized = heading % 360d;
+        return normalized < 0 ? normalized + 360d : normalized;
     }
 }
