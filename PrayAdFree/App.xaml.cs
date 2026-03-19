@@ -56,6 +56,9 @@ namespace Pray_Ad_Free {
                 _mainWindow = new Window(shell);
                 QueueStartupNotificationBootstrap("CreateWindow");
                 TryProcessPendingAlarmUi("CreateWindow");
+#if ANDROID
+                WidgetUpdateCoordinator.RequestImmediateRefresh("CreateWindow");
+#endif
                 return _mainWindow;
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.CreateWindow");
@@ -110,12 +113,18 @@ namespace Pray_Ad_Free {
             base.OnStart();
             TryScheduleNotifications("OnStart");
             TryProcessPendingAlarmUi("OnStart");
+#if ANDROID
+            WidgetUpdateCoordinator.RequestImmediateRefresh("OnStart");
+#endif
         }
 
         protected override void OnResume() {
             base.OnResume();
             TryScheduleNotifications("OnResume");
             TryProcessPendingAlarmUi("OnResume");
+#if ANDROID
+            WidgetUpdateCoordinator.RequestImmediateRefresh("OnResume");
+#endif
         }
 
         private void TryScheduleNotifications(string reason) {

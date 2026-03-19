@@ -180,6 +180,7 @@
   "UpdateGps": "تحديث الموقع (GPS)",
   "Notification_PrayerTitle": "وقت الصلاة: {0}",
   "Notification_PrayerBody": "حان وقت {0}",
+  "TestAlarm": "منبّه تجريبي",
   "StopAdhan": "إيقاف الأذان",
   "AdhanPlaybackStopHint": "الأذان قيد التشغيل. اضغط إيقاف لكتمه.",
   "TasbihSettings": "إعدادات التسبيح",

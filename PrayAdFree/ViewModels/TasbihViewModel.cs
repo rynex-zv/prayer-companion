@@ -2,28 +2,16 @@ using System.Collections.ObjectModel;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 using PrayAdFree.Core.Models;
+using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.ViewModels;
 
 public sealed class TasbihViewModel : ViewModelBase {
-    private static readonly Dictionary<string, string> LegacyTasbihValueMap = new(StringComparer.OrdinalIgnoreCase) {
-        ["After prayer (33/33/34)"] = "TasbihPreset_AfterPrayer",
-        ["100x Subhan Allah"] = "TasbihPreset_Hundred",
-        ["100x Salawat"] = "TasbihPreset_Salawat",
-        ["Subhan Allah"] = "Tasbih_SubhanAllah",
-        ["Alhamdulillah"] = "Tasbih_Alhamdulillah",
-        ["Allahu Akbar"] = "Tasbih_AllahuAkbar",
-        ["La ilaha illa Allah"] = "Tasbih_LaIlahaIllaAllah",
-        ["Astaghfirullah"] = "Tasbih_Astaghfirullah",
-        ["La hawla wa la quwwata illa billah"] = "Tasbih_LaHawla",
-        ["Salawat"] = "Tasbih_Salawat",
-        ["New preset"] = "TasbihPreset_New"
-    };
-
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
+    private readonly TasbihProgressCalculator _progressCalculator = new();
     private AppSettings _settings = new();
     private int _count;
     private string _currentPhrase = "";
@@ -93,23 +81,15 @@ public sealed class TasbihViewModel : ViewModelBase {
             return;
         }
 
-        var totalTarget = SelectedPreset.TotalTarget;
-        if (totalTarget == 0) {
-            return;
-        }
-
-        if (SelectedPreset.RepeatMode == TasbihRepeatMode.None && Count >= totalTarget) {
+        var preset = ToSettings(SelectedPreset);
+        if (_progressCalculator.GetTotalTarget(preset) == 0) {
             return;
         }
 
 #if DEBUG
         _logger.LogEvent("TasbihIncrement", $"Preset={SelectedPreset.Name} Count={Count + 1}");
 #endif
-        Count++;
-        if (SelectedPreset.RepeatMode == TasbihRepeatMode.RepeatReset && Count >= totalTarget) {
-            Count = 0;
-        }
-
+        Count = _progressCalculator.GetNextCount(preset, Count);
         UpdateCurrentPhrase();
     }
 
@@ -181,34 +161,15 @@ public sealed class TasbihViewModel : ViewModelBase {
             return;
         }
 
-        var totalTarget = SelectedPreset.TotalTarget;
-        if (totalTarget == 0) {
+        var snapshot = _progressCalculator.BuildSnapshot(ToSettings(SelectedPreset), Count);
+        if (snapshot.IsEmpty) {
             CurrentPhrase = LocalizationManager.Translate("Tasbih_Empty");
             ProgressText = "";
             return;
         }
 
-        var position = SelectedPreset.RepeatMode == TasbihRepeatMode.RepeatContinue
-            ? Count % totalTarget
-            : Math.Min(Count, totalTarget);
-        var running = 0;
-        foreach (var item in SelectedPreset.Items) {
-            if (item.TargetCount <= 0) {
-                continue;
-            }
-            var next = running + item.TargetCount;
-            if (position < next) {
-                CurrentPhrase = TranslateValue(item.Text);
-                var localCount = position - running;
-                ProgressText = $"{localCount}/{item.TargetCount}";
-                return;
-            }
-            running = next;
-        }
-
-        var last = SelectedPreset.Items.Last();
-        CurrentPhrase = TranslateValue(last.Text);
-        ProgressText = $"{last.TargetCount}/{last.TargetCount}";
+        CurrentPhrase = TranslateValue(snapshot.CurrentText);
+        ProgressText = $"{snapshot.LocalCount}/{snapshot.LocalTarget}";
     }
 
     private void SaveSelectedPreset() {
@@ -277,16 +238,20 @@ public sealed class TasbihViewModel : ViewModelBase {
     }
 
     private static string TranslateValue(string value) {
-        if (string.IsNullOrWhiteSpace(value)) {
-            return value;
-        }
+        return TasbihTextResolver.Translate(value);
+    }
 
-        var trimmed = value.Trim();
-        if (LegacyTasbihValueMap.TryGetValue(trimmed, out var key)) {
-            return LocalizationManager.Translate(key);
-        }
-
-        return LocalizationManager.Translate(trimmed);
+    private static TasbihPresetSettings ToSettings(TasbihPresetItem preset) {
+        return new TasbihPresetSettings {
+            Name = preset.Name,
+            RepeatMode = preset.RepeatMode,
+            Items = preset.Items
+                .Select(item => new TasbihItemSettings {
+                    Text = item.Text,
+                    TargetCount = item.TargetCount
+                })
+                .ToList()
+        };
     }
 
     private static void RunOnMainThread(Action action) {

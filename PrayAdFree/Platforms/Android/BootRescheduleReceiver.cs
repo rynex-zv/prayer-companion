@@ -28,6 +28,7 @@ public sealed class BootRescheduleReceiver : BroadcastReceiver {
                 try {
                     Log.Info(LogTag, $"Received boot broadcast: {action}");
                     await BootNotificationRescheduler.RescheduleAsync(context).ConfigureAwait(false);
+                    await WidgetUpdateCoordinator.UpdateAllAsync(context, "BootReceiver").ConfigureAwait(false);
                 } catch (Exception ex) {
                     Log.Error(LogTag, $"Boot receiver failed: {ex}");
                 }
@@ -39,6 +40,7 @@ public sealed class BootRescheduleReceiver : BroadcastReceiver {
             try {
                 Log.Info(LogTag, $"Received boot broadcast: {action}");
                 await BootNotificationRescheduler.RescheduleAsync(context).ConfigureAwait(false);
+                await WidgetUpdateCoordinator.UpdateAllAsync(context, "BootReceiver").ConfigureAwait(false);
             } catch (Exception ex) {
                 Log.Error(LogTag, $"Boot receiver failed: {ex}");
             } finally {

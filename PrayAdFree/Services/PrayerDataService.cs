@@ -1,6 +1,9 @@
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using System.Linq;
+#if ANDROID
+using Pray_Ad_Free.Platforms.Android;
+#endif
 
 namespace Pray_Ad_Free.Services;
 
@@ -36,6 +39,9 @@ public sealed class PrayerDataService {
     public void SaveSettings(AppSettings settings) {
         _settingsService.Save(settings);
         SettingsChanged?.Invoke(this, settings);
+#if ANDROID
+        WidgetUpdateCoordinator.RequestImmediateRefresh("SettingsSaved");
+#endif
     }
 
     public async Task<PrayerMonth> GetMonthAsync(AppSettings settings, DateTime date, CancellationToken cancellationToken) {

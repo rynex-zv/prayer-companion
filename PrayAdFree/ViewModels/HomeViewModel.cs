@@ -9,18 +9,11 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.ViewModels;
 
 public sealed class HomeViewModel : ViewModelBase {
-    private static readonly PrayerId[] DisplayOrder = {
-        PrayerId.Fajr,
-        PrayerId.Sunrise,
-        PrayerId.Dhuhr,
-        PrayerId.Asr,
-        PrayerId.Maghrib,
-        PrayerId.Isha
-    };
-
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
+    private readonly WidgetSnapshotFactory _widgetSnapshotFactory = new();
     private PrayerDay? _today;
+    private PrayerDay? _tomorrow;
     private PrayerId _nextPrayerId;
     private DateTime _nextPrayerTime;
     private AppSettings _settings = new();
@@ -162,14 +155,9 @@ public sealed class HomeViewModel : ViewModelBase {
             LocationTitle = BuildLocation(_settings.Location);
             HijriDate = today.Hijri.Date;
             GregorianDate = DateTime.Today.ToString("dddd, dd MMM yyyy");
-            var tomorrow = month.Days.FirstOrDefault(day => day.Date == today.Date.AddDays(1));
-            _tomorrowImsakDateTime = tomorrow != null
-                ? tomorrow.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes)
-                : today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes).AddDays(1);
+            _tomorrow = month.Days.FirstOrDefault(day => day.Date == today.Date.AddDays(1));
 
-            UpdateNextPrayer(DateTime.Now);
-            BuildRows();
-            UpdateFastingCountdown(DateTime.Now);
+            ApplySnapshots(DateTime.Now);
             if (ShouldScheduleNotifications(_settings)) {
                 try {
                     await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
@@ -201,8 +189,7 @@ public sealed class HomeViewModel : ViewModelBase {
         }
 
         if (now >= _nextPrayerTime) {
-            UpdateNextPrayer(now);
-            BuildRows();
+            ApplySnapshots(now);
         }
 
         var remaining = _nextPrayerTime - now;
@@ -214,60 +201,60 @@ public sealed class HomeViewModel : ViewModelBase {
         UpdateFastingCountdown(now);
     }
 
-    private void UpdateNextPrayer(DateTime now) {
+    private void ApplySnapshots(DateTime now) {
         if (_today == null) {
             return;
         }
 
-        (_nextPrayerId, _nextPrayerTime) = NextPrayerCalculator.GetNext(_today, now);
+        var snapshot = _widgetSnapshotFactory.Build(_today, _tomorrow, _settings, now);
+        ApplyPrayerSnapshot(snapshot.DailyPrayer, now);
+        BuildRows(snapshot.DailyPrayer);
+        ApplyFastingSnapshot(snapshot.Fasting);
+    }
+
+    private void ApplyPrayerSnapshot(DailyPrayerSnapshot snapshot, DateTime now) {
+        _nextPrayerId = snapshot.NextPrayerId;
+        _nextPrayerTime = snapshot.NextPrayerTime;
         NextPrayerName = LocalizationManager.TranslatePrayer(_nextPrayerId);
         NextPrayerClock = TimeFormatHelper.FormatTime(_nextPrayerTime, _settings.ClockFormat);
         NextPrayerDayLabel = ResolveNextPrayerDayLabel(now, _nextPrayerTime);
-
-        var offset = GetOffsetForPrayer(_nextPrayerId);
-        ShowNextPrayerBaseClock = offset != 0;
-        NextPrayerBaseClock = ShowNextPrayerBaseClock
-            ? TimeFormatHelper.FormatTime(_nextPrayerTime.AddMinutes(-offset), _settings.ClockFormat)
+        ShowNextPrayerBaseClock = snapshot.NextPrayerBaseTime.HasValue;
+        NextPrayerBaseClock = snapshot.NextPrayerBaseTime.HasValue
+            ? TimeFormatHelper.FormatTime(snapshot.NextPrayerBaseTime.Value, _settings.ClockFormat)
             : string.Empty;
     }
 
-    private void BuildRows() {
-        if (_today == null) {
-            return;
-        }
-
+    private void BuildRows(DailyPrayerSnapshot snapshot) {
         TodayTimings.Clear();
-        var seen = new HashSet<PrayerId>();
-        foreach (var prayer in DisplayOrder) {
-            // Guard against any accidental duplicate insertion.
-            if (!seen.Add(prayer)) {
-                continue;
-            }
-
-            var adjustedTime = _today.Timings.Get(prayer);
-            var offset = GetOffsetForPrayer(prayer);
-            var baseTime = adjustedTime.AddMinutes(-offset);
+        foreach (var entry in snapshot.Entries) {
             TodayTimings.Add(new PrayerTimeRow {
-                Id = prayer,
-                Name = LocalizationManager.TranslatePrayer(prayer),
-                Time = TimeFormatHelper.FormatTime(adjustedTime, _settings.ClockFormat),
-                BaseTime = TimeFormatHelper.FormatTime(baseTime, _settings.ClockFormat),
-                ShowBaseTime = offset != 0,
-                IsNext = prayer == _nextPrayerId
+                Id = entry.Prayer,
+                Name = LocalizationManager.TranslatePrayer(entry.Prayer),
+                Time = TimeFormatHelper.FormatTime(entry.AdjustedTime, _settings.ClockFormat),
+                BaseTime = TimeFormatHelper.FormatTime(entry.BaseTime, _settings.ClockFormat),
+                ShowBaseTime = entry.ShowBaseTime,
+                IsNext = entry.IsNext
             });
         }
-
-        var imsak = _today.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes);
-        var iftar = _today.Timings.Maghrib.AddMinutes(_settings.FastingOffsets.IftarDelayMinutes);
-        _imsakDateTime = imsak;
-        _iftarDateTime = iftar;
-        ImsakTime = TimeFormatHelper.FormatTime(imsak, _settings.ClockFormat);
-        IftarTime = TimeFormatHelper.FormatTime(iftar, _settings.ClockFormat);
 
 #if DEBUG
         _logger.LogEvent("HomeRows",
             $"count={TodayTimings.Count};next={_nextPrayerId};rows={string.Join(",", TodayTimings.Select(row => $"{row.Id}:{row.Time}"))}");
 #endif
+    }
+
+    private void ApplyFastingSnapshot(FastingSnapshot snapshot) {
+        _imsakDateTime = snapshot.ImsakTime;
+        _iftarDateTime = snapshot.IftarTime;
+        _tomorrowImsakDateTime = _tomorrow != null
+            ? _tomorrow.Timings.Imsak.AddMinutes(-_settings.FastingOffsets.ImsakAdvanceMinutes)
+            : snapshot.ImsakTime.AddDays(1);
+        ImsakTime = TimeFormatHelper.FormatTime(snapshot.ImsakTime, _settings.ClockFormat);
+        IftarTime = TimeFormatHelper.FormatTime(snapshot.IftarTime, _settings.ClockFormat);
+        IsImsakNext = snapshot.IsImsakNext;
+        IsIftarNext = snapshot.IsIftarNext;
+        var totalHours = (int)Math.Floor(snapshot.Remaining.TotalHours);
+        NextFastingCountdown = $"{totalHours:00}:{snapshot.Remaining.Minutes:00}:{snapshot.Remaining.Seconds:00}";
     }
 
     private void UpdateFastingCountdown(DateTime now) {
@@ -312,19 +299,6 @@ public sealed class HomeViewModel : ViewModelBase {
             "tr" => "Yarin",
             "fr" => "Demain",
             _ => "Tomorrow"
-        };
-    }
-
-    private int GetOffsetForPrayer(PrayerId prayer) {
-        return prayer switch {
-            PrayerId.Fajr => _settings.Offsets.Fajr,
-            PrayerId.Sunrise => _settings.Offsets.Sunrise,
-            PrayerId.Dhuhr => _settings.Offsets.Dhuhr,
-            PrayerId.Asr => _settings.Offsets.Asr,
-            PrayerId.Maghrib => _settings.Offsets.Maghrib,
-            PrayerId.Isha => _settings.Offsets.Isha,
-            PrayerId.Imsak => _settings.Offsets.Imsak,
-            _ => 0
         };
     }
 
@@ -387,8 +361,7 @@ public sealed class HomeViewModel : ViewModelBase {
             return;
         }
 
-        NextPrayerName = LocalizationManager.TranslatePrayer(_nextPrayerId);
-        BuildRows();
+        ApplySnapshots(DateTime.Now);
     }
 
     private static string BuildLocation(LocationSettings location) {
