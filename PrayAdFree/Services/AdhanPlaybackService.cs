@@ -459,9 +459,11 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
     private async Task<AlarmPresentationModel> BuildAlarmPresentationModelAsync(AdhanAlarmPayload payload, AppSettings settings) {
         var window = await TryBuildSnoozeWindowAsync(DateTime.Now).ConfigureAwait(false);
-        var maxDelayMinutes = window?.MaxDelayMinutes ?? MinSnoozeMinutes;
-        maxDelayMinutes = Math.Max(MinSnoozeMinutes, maxDelayMinutes);
-        var initialDelay = Math.Clamp(10, MinSnoozeMinutes, maxDelayMinutes);
+        var canSnooze = window != null && window.Value.MaxDelayMinutes >= MinSnoozeMinutes;
+        var maxDelayMinutes = canSnooze ? window!.Value.MaxDelayMinutes : MinSnoozeMinutes;
+        var initialDelay = canSnooze
+            ? Math.Clamp(10, MinSnoozeMinutes, maxDelayMinutes)
+            : MinSnoozeMinutes;
         var delayLabel = FormatDelayOffset(payload.NotifyTime - payload.BasePrayerTime);
         var reminderText = ResolveRandomAlarmReminderText(settings);
 
@@ -470,6 +472,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             DelayFromBase: delayLabel,
             PrayerName: LocalizationManager.TranslatePrayer(payload.Prayer),
             ReminderText: reminderText,
+            CanSnooze: canSnooze,
             MinDelayMinutes: MinSnoozeMinutes,
             MaxDelayMinutes: maxDelayMinutes,
             InitialDelayMinutes: initialDelay);
@@ -488,6 +491,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 DelayFromBase: presentation.DelayFromBase,
                 PrayerName: presentation.PrayerName,
                 ReminderText: presentation.ReminderText,
+                CanSnooze: presentation.CanSnooze,
                 MinDelayMinutes: presentation.MinDelayMinutes,
                 MaxDelayMinutes: presentation.MaxDelayMinutes,
                 InitialDelayMinutes: presentation.InitialDelayMinutes);

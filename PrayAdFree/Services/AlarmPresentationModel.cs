@@ -5,6 +5,7 @@ public sealed record AlarmPresentationModel(
     string DelayFromBase,
     string PrayerName,
     string ReminderText,
+    bool CanSnooze,
     int MinDelayMinutes,
     int MaxDelayMinutes,
     int InitialDelayMinutes);

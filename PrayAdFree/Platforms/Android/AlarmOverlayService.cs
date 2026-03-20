@@ -37,6 +37,7 @@ public sealed class AlarmOverlayService : Service {
     private string? _payloadText;
     private AdhanAlarmPayload _payload;
     private bool _isBusy;
+    private bool _canSnooze = true;
 
     public override IBinder? OnBind(Intent? intent) {
         return null;
@@ -337,6 +338,7 @@ public sealed class AlarmOverlayService : Service {
     }
 
     private void ApplyPresentation(AlarmPresentationModel model) {
+        _canSnooze = model.CanSnooze;
         if (_clockText != null) {
             _clockText.Text = model.PrayerClock;
         }
@@ -359,7 +361,10 @@ public sealed class AlarmOverlayService : Service {
             _snoozePicker.MinValue = model.MinDelayMinutes;
             _snoozePicker.MaxValue = model.MaxDelayMinutes;
             _snoozePicker.Value = Math.Clamp(model.InitialDelayMinutes, model.MinDelayMinutes, model.MaxDelayMinutes);
+            _snoozePicker.Enabled = model.CanSnooze;
         }
+
+        SetButtonsEnabled(!_isBusy);
     }
 
     private async Task StopAsync() {
@@ -377,7 +382,7 @@ public sealed class AlarmOverlayService : Service {
     }
 
     private async Task SnoozeAsync() {
-        if (_isBusy) {
+        if (_isBusy || !_canSnooze) {
             return;
         }
 
@@ -408,15 +413,19 @@ public sealed class AlarmOverlayService : Service {
 
     private void SetButtonsEnabled(bool enabled) {
         if (_decreaseButton != null) {
-            _decreaseButton.Enabled = enabled;
+            _decreaseButton.Enabled = enabled && _canSnooze;
         }
 
         if (_increaseButton != null) {
-            _increaseButton.Enabled = enabled;
+            _increaseButton.Enabled = enabled && _canSnooze;
+        }
+
+        if (_snoozePicker != null) {
+            _snoozePicker.Enabled = enabled && _canSnooze;
         }
 
         if (_snoozeButton != null) {
-            _snoozeButton.Enabled = enabled;
+            _snoozeButton.Enabled = enabled && _canSnooze;
         }
 
         if (_stopButton != null) {

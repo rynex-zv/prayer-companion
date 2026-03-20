@@ -9,6 +9,7 @@ public sealed record AdhanSnoozePageModel(
     string DelayFromBase,
     string PrayerName,
     string ReminderText,
+    bool CanSnooze,
     int MinDelayMinutes,
     int MaxDelayMinutes,
     int InitialDelayMinutes);
@@ -16,6 +17,7 @@ public sealed record AdhanSnoozePageModel(
 public sealed class AdhanSnoozePage : ContentPage {
     private readonly Func<Task> _onStop;
     private readonly Func<int, Task<bool>> _onSnooze;
+    private readonly bool _canSnooze;
     private readonly int _minDelayMinutes;
     private readonly int _maxDelayMinutes;
     private readonly Label _snoozeValueLabel;
@@ -31,6 +33,7 @@ public sealed class AdhanSnoozePage : ContentPage {
         Func<int, Task<bool>> onSnooze) {
         _onStop = onStop;
         _onSnooze = onSnooze;
+        _canSnooze = model.CanSnooze;
         _minDelayMinutes = model.MinDelayMinutes;
         _maxDelayMinutes = model.MaxDelayMinutes;
         _selectedDelayMinutes = Math.Clamp(model.InitialDelayMinutes, _minDelayMinutes, _maxDelayMinutes);
@@ -187,7 +190,7 @@ public sealed class AdhanSnoozePage : ContentPage {
     }
 
     private void ChangeDelay(int delta) {
-        if (_isSubmitting || _maxDelayMinutes < _minDelayMinutes) {
+        if (_isSubmitting || !_canSnooze || _maxDelayMinutes < _minDelayMinutes) {
             return;
         }
 
@@ -201,15 +204,18 @@ public sealed class AdhanSnoozePage : ContentPage {
     }
 
     private void UpdateDelayUi() {
-        _snoozeValueLabel.Text = $"+{_selectedDelayMinutes}";
-        var canSnooze = _maxDelayMinutes >= _minDelayMinutes;
+        _snoozeValueLabel.Text = _canSnooze ? $"+{_selectedDelayMinutes}" : "--";
+        var canSnooze = _canSnooze && _maxDelayMinutes >= _minDelayMinutes;
         _minusButton.IsEnabled = canSnooze && !_isSubmitting && _selectedDelayMinutes > _minDelayMinutes;
         _plusButton.IsEnabled = canSnooze && !_isSubmitting && _selectedDelayMinutes < _maxDelayMinutes;
         _snoozeButton.IsEnabled = canSnooze && !_isSubmitting;
+        _minusButton.Opacity = _minusButton.IsEnabled ? 1d : 0.45d;
+        _plusButton.Opacity = _plusButton.IsEnabled ? 1d : 0.45d;
+        _snoozeButton.Opacity = _snoozeButton.IsEnabled ? 1d : 0.45d;
     }
 
     private async Task StopAsync() {
-        if (_isSubmitting) {
+        if (_isSubmitting || !_canSnooze) {
             return;
         }
 
