@@ -47,6 +47,7 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             Method = settings.Method,
             Madhhab = settings.Madhhab,
             HighLatitudeRule = settings.HighLatitudeRule,
+            SunAngles = settings.SunAngles,
             Offsets = settings.Offsets,
             FastingOffsets = settings.FastingOffsets,
             FastingReminders = settings.FastingReminders,

@@ -33,6 +33,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<CalculationMethod>? _selectedMethod;
     private OptionItem<Madhhab>? _selectedMadhhab;
     private OptionItem<HighLatitudeRule>? _selectedHighLatitude;
+    private string _customFajrAngle = "18";
+    private string _customIshaAngle = "17";
     private string _fajrOffset = "0";
     private string _sunriseOffset = "0";
     private string _dhuhrOffset = "0";
@@ -378,7 +380,14 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     public OptionItem<CalculationMethod>? SelectedMethod {
         get => _selectedMethod;
-        set => SetProperty(ref _selectedMethod, value);
+        set {
+            if (SetProperty(ref _selectedMethod, value)) {
+                OnPropertyChanged(nameof(IsCustomMethodSelected));
+                OnPropertyChanged(nameof(IsSunAnglesReadOnly));
+                OnPropertyChanged(nameof(FajrAngle));
+                OnPropertyChanged(nameof(IshaAngle));
+            }
+        }
     }
 
     public OptionItem<Madhhab>? SelectedMadhhab {
@@ -389,6 +398,28 @@ public sealed class SettingsViewModel : ViewModelBase {
     public OptionItem<HighLatitudeRule>? SelectedHighLatitude {
         get => _selectedHighLatitude;
         set => SetProperty(ref _selectedHighLatitude, value);
+    }
+
+    public bool IsCustomMethodSelected => SelectedMethod?.Value == CalculationMethod.Custom;
+
+    public bool IsSunAnglesReadOnly => !IsCustomMethodSelected;
+
+    public string FajrAngle {
+        get => IsCustomMethodSelected ? _customFajrAngle : ResolveDisplayedSunAngles().Fajr;
+        set {
+            if (IsCustomMethodSelected) {
+                SetProperty(ref _customFajrAngle, value);
+            }
+        }
+    }
+
+    public string IshaAngle {
+        get => IsCustomMethodSelected ? _customIshaAngle : ResolveDisplayedSunAngles().Isha;
+        set {
+            if (IsCustomMethodSelected) {
+                SetProperty(ref _customIshaAngle, value);
+            }
+        }
     }
 
     public string FajrOffset {
@@ -695,7 +726,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                 ThemeMode = SelectedThemeMode?.Value ?? _settings.ThemeMode,
                 ThemeVariant = SelectedThemeVariant?.Value ?? _settings.ThemeVariant,
                 AccentIndex = SelectedAccent?.Index ?? _settings.AccentIndex,
-                TextScale = TextScale
+                TextScale = TextScale,
+                SunAngles = _settings.SunAngles
             });
         } catch (Exception ex) {
             _logger.LogException(ex, "SettingsViewModel.ApplyThemePreview");
@@ -718,6 +750,10 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedMethod = Methods.FirstOrDefault(item => item.Value == _settings.Method);
         SelectedMadhhab = Madhhabs.FirstOrDefault(item => item.Value == _settings.Madhhab);
         SelectedHighLatitude = HighLatitudeRules.FirstOrDefault(item => item.Value == _settings.HighLatitudeRule);
+        _customFajrAngle = FormatDouble(_settings.SunAngles.Fajr);
+        _customIshaAngle = FormatDouble(_settings.SunAngles.Isha);
+        OnPropertyChanged(nameof(FajrAngle));
+        OnPropertyChanged(nameof(IshaAngle));
         FajrOffset = _settings.Offsets.Fajr.ToString();
         SunriseOffset = _settings.Offsets.Sunrise.ToString();
         DhuhrOffset = _settings.Offsets.Dhuhr.ToString();
@@ -798,6 +834,10 @@ public sealed class SettingsViewModel : ViewModelBase {
             Isha = ParseInt(IshaOffset, _settings.Offsets.Isha),
             Imsak = ParseInt(ImsakOffset, _settings.Offsets.Imsak)
         };
+        var sunAngles = new SunAngleSettings {
+            Fajr = ParseDouble(_customFajrAngle, _settings.SunAngles.Fajr),
+            Isha = ParseDouble(_customIshaAngle, _settings.SunAngles.Isha)
+        };
 
         var fastingOffsets = new FastingOffsets {
             ImsakAdvanceMinutes = ParseInt(ImsakAdvance, _settings.FastingOffsets.ImsakAdvanceMinutes),
@@ -865,6 +905,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             Method = SelectedMethod?.Value ?? CalculationMethod.Auto,
             Madhhab = SelectedMadhhab?.Value ?? Madhhab.Shafi,
             HighLatitudeRule = SelectedHighLatitude?.Value ?? HighLatitudeRule.MiddleOfTheNight,
+            SunAngles = sunAngles,
             Offsets = offsets,
             FastingOffsets = fastingOffsets,
             FastingReminders = fastingReminders,
@@ -904,6 +945,22 @@ public sealed class SettingsViewModel : ViewModelBase {
         return double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : fallback;
+    }
+
+    private static string FormatDouble(double value) {
+        return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private CalculationMethodPresetCatalog.SunAnglePreset ResolveDisplayedSunAngles() {
+        var method = SelectedMethod?.Value ?? _settings.Method;
+        return CalculationMethodPresetCatalog.ResolvePreset(new AppSettings {
+            Location = _settings.Location,
+            Method = method,
+            SunAngles = new SunAngleSettings {
+                Fajr = ParseDouble(_customFajrAngle, _settings.SunAngles.Fajr),
+                Isha = ParseDouble(_customIshaAngle, _settings.SunAngles.Isha)
+            }
+        });
     }
 
     private void UpdateAccentOptions(ThemeVariant variant, int selectedIndex) {
@@ -1709,6 +1766,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             Method = _settings.Method,
             Madhhab = _settings.Madhhab,
             HighLatitudeRule = _settings.HighLatitudeRule,
+            SunAngles = _settings.SunAngles,
             Offsets = _settings.Offsets,
             FastingOffsets = _settings.FastingOffsets,
             FastingReminders = _settings.FastingReminders,
@@ -1941,6 +1999,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 Method = _settings.Method,
                 Madhhab = _settings.Madhhab,
                 HighLatitudeRule = _settings.HighLatitudeRule,
+                SunAngles = _settings.SunAngles,
                 Offsets = _settings.Offsets,
                 FastingOffsets = _settings.FastingOffsets,
                 FastingReminders = _settings.FastingReminders,
@@ -2068,10 +2127,12 @@ public sealed class SettingsViewModel : ViewModelBase {
         value = propertyName switch {
             nameof(Latitude) => Latitude,
             nameof(Longitude) => Longitude,
+            nameof(FajrAngle) => _customFajrAngle,
+            nameof(IshaAngle) => _customIshaAngle,
             _ => string.Empty
         };
 
-        return propertyName is nameof(Latitude) or nameof(Longitude);
+        return propertyName is nameof(Latitude) or nameof(Longitude) or nameof(FajrAngle) or nameof(IshaAngle);
     }
 
     private static bool IsPendingIntegerValue(string value) {
@@ -2106,6 +2167,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(Country)
             or nameof(Latitude)
             or nameof(Longitude)
+            or nameof(FajrAngle)
+            or nameof(IshaAngle)
             or nameof(SelectedMethod)
             or nameof(SelectedMadhhab)
             or nameof(SelectedHighLatitude)
@@ -2216,6 +2279,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 Method = settings.Method,
                 Madhhab = settings.Madhhab,
                 HighLatitudeRule = settings.HighLatitudeRule,
+                SunAngles = settings.SunAngles,
                 Offsets = settings.Offsets,
                 FastingOffsets = settings.FastingOffsets,
                 FastingReminders = settings.FastingReminders,

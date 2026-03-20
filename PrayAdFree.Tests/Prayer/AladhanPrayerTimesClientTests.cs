@@ -84,6 +84,50 @@ public class AladhanPrayerTimesClientTests {
         Assert.Contains("tune=0,0,0,0,0,0,0,50,0", handler.LastRequestUri!.Query, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task GetMonthAsync_CustomMethodIncludesMethodSettings() {
+        var json = """
+        {
+          "data": [
+            {
+              "timings": {
+                "Fajr": "05:00 (+03)",
+                "Sunrise": "06:10 (+03)",
+                "Dhuhr": "12:00 (+03)",
+                "Asr": "15:00 (+03)",
+                "Maghrib": "18:00 (+03)",
+                "Isha": "19:00 (+03)",
+                "Imsak": "04:40 (+03)"
+              },
+              "date": {
+                "gregorian": { "date": "01-01-2025" },
+                "hijri": { "day": "01", "year": "1446", "month": { "en": "Muharram" } }
+              }
+            }
+          ]
+        }
+        """;
+
+        var handler = new StubHandler(json);
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.aladhan.com/v1/") };
+        var api = new AladhanPrayerTimesClient(client);
+        var settings = new AppSettings {
+            Location = new LocationSettings { Latitude = 24.0, Longitude = 46.0, TimeZoneId = TimeZoneInfo.Local.Id },
+            Method = CalculationMethod.Custom,
+            SunAngles = new SunAngleSettings {
+                Fajr = 18.5,
+                Isha = 17.5
+            }
+        };
+
+        _ = await api.GetMonthAsync(settings, 2025, 1, CancellationToken.None);
+
+        Assert.NotNull(handler.LastRequestUri);
+        var query = Uri.UnescapeDataString(handler.LastRequestUri!.Query);
+        Assert.Contains("method=99", query, StringComparison.Ordinal);
+        Assert.Contains("methodSettings=18.5,null,17.5", query, StringComparison.Ordinal);
+    }
+
     private sealed class StubHandler : HttpMessageHandler {
         private readonly string _response;
 

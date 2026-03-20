@@ -1,0 +1,63 @@
+using System.Globalization;
+using PrayAdFree.Core.Models;
+
+namespace PrayAdFree.Core.Services;
+
+public static class CalculationMethodPresetCatalog {
+    private static readonly IReadOnlyDictionary<CalculationMethod, SunAnglePreset> Presets =
+        new Dictionary<CalculationMethod, SunAnglePreset> {
+            [CalculationMethod.Jafari] = new("16", "14"),
+            [CalculationMethod.Karachi] = new("18", "18"),
+            [CalculationMethod.Isna] = new("15", "15"),
+            [CalculationMethod.MuslimWorldLeague] = new("18", "17"),
+            [CalculationMethod.UmmAlQura] = new("18.5", "90 min"),
+            [CalculationMethod.Egypt] = new("19.5", "17.5"),
+            [CalculationMethod.Tehran] = new("17.7", "14"),
+            [CalculationMethod.Gulf] = new("19.5", "90 min"),
+            [CalculationMethod.Kuwait] = new("18", "17.5"),
+            [CalculationMethod.Qatar] = new("18", "90 min"),
+            [CalculationMethod.Singapore] = new("20", "18"),
+            [CalculationMethod.France] = new("12", "12"),
+            [CalculationMethod.Turkey] = new("18", "17"),
+            [CalculationMethod.Russia] = new("16", "15"),
+            [CalculationMethod.Moonsighting] = new("18", "General shafaq"),
+            [CalculationMethod.Dubai] = new("18.2", "18.2"),
+            [CalculationMethod.Jakim] = new("20", "18"),
+            [CalculationMethod.Tunisia] = new("18", "18"),
+            [CalculationMethod.Algeria] = new("18", "17"),
+            [CalculationMethod.Kemenag] = new("20", "18"),
+            [CalculationMethod.Morocco] = new("19", "17"),
+            [CalculationMethod.Portugal] = new("18", "77 min"),
+            [CalculationMethod.Jordan] = new("18", "18")
+        };
+
+    public static SunAnglePreset ResolvePreset(AppSettings settings) {
+        var method = settings.Method == CalculationMethod.Auto
+            ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
+            : settings.Method;
+
+        if (method == CalculationMethod.Custom) {
+            return new SunAnglePreset(
+                FormatAngle(settings.SunAngles.Fajr),
+                FormatAngle(settings.SunAngles.Isha));
+        }
+
+        return Presets.TryGetValue(method, out var preset)
+            ? preset
+            : Presets[CalculationMethod.MuslimWorldLeague];
+    }
+
+    private static string FormatAngle(double value) {
+        return value.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    public sealed class SunAnglePreset {
+        public SunAnglePreset(string fajr, string isha) {
+            Fajr = fajr;
+            Isha = isha;
+        }
+
+        public string Fajr { get; }
+        public string Isha { get; }
+    }
+}

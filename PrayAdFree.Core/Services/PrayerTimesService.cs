@@ -29,7 +29,7 @@ public sealed class PrayerTimesService {
         var method = settings.Method == CalculationMethod.Auto
             ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
             : settings.Method;
-        var raw = $"{year}-{month}-{settings.Location.Latitude:F4}-{settings.Location.Longitude:F4}-{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{OffsetsKey(settings.Offsets)}";
+        var raw = $"{year}-{month}-{settings.Location.Latitude:F4}-{settings.Location.Longitude:F4}-{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{OffsetsKey(settings.Offsets)}-{SunAnglesKey(settings.SunAngles)}";
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
@@ -37,5 +37,9 @@ public sealed class PrayerTimesService {
 
     private static string OffsetsKey(PrayerOffsets offsets) {
         return $"{offsets.Imsak},{offsets.Fajr},{offsets.Sunrise},{offsets.Dhuhr},{offsets.Asr},{offsets.Maghrib},{offsets.Isha}";
+    }
+
+    private static string SunAnglesKey(SunAngleSettings sunAngles) {
+        return $"{sunAngles.Fajr:0.##},{sunAngles.Isha:0.##}";
     }
 }

@@ -190,6 +190,7 @@ public sealed class AlarmRemindersViewModel : ViewModelBase {
             Method = current.Method,
             Madhhab = current.Madhhab,
             HighLatitudeRule = current.HighLatitudeRule,
+            SunAngles = current.SunAngles,
             Offsets = current.Offsets,
             FastingOffsets = current.FastingOffsets,
             FastingReminders = current.FastingReminders,

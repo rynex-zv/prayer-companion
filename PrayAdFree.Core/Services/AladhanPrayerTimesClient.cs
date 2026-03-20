@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using PrayAdFree.Core.Models;
 
@@ -28,13 +29,16 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
             : settings.Method;
 
         var school = settings.Madhhab == Madhhab.Hanafi ? 1 : 0;
-        var url = $"calendar?latitude={location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
-                  $"&longitude={location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
+        var url = $"calendar?latitude={location.Latitude.ToString(CultureInfo.InvariantCulture)}" +
+                  $"&longitude={location.Longitude.ToString(CultureInfo.InvariantCulture)}" +
                   $"&method={(int)method}" +
                   $"&school={school}" +
                   $"&latitudeAdjustmentMethod={(int)settings.HighLatitudeRule}" +
                   $"&month={month}&year={year}" +
                   $"&tune={BuildTune(settings.Offsets)}";
+        if (method == CalculationMethod.Custom) {
+            url += $"&methodSettings={BuildMethodSettings(settings.SunAngles)}";
+        }
 
         using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
@@ -50,7 +54,9 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
             Year = year,
             Month = month,
             LocationKey = $"{location.Latitude:F4},{location.Longitude:F4}",
-            MethodKey = $"{method}-{settings.Madhhab}-{settings.HighLatitudeRule}",
+            MethodKey = method == CalculationMethod.Custom
+                ? $"{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{BuildMethodSettings(settings.SunAngles)}"
+                : $"{method}-{settings.Madhhab}-{settings.HighLatitudeRule}",
             FetchedOnUtc = DateTime.UtcNow,
             Days = days
         };
@@ -95,6 +101,14 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
         return string.Join(",", values);
     }
 
+    private static string BuildMethodSettings(SunAngleSettings sunAngles) {
+        return $"{FormatDouble(sunAngles.Fajr)},null,{FormatDouble(sunAngles.Isha)}";
+    }
+
+    private static string FormatDouble(double value) {
+        return value.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
     private static string TrimTime(string raw) {
         var spaceIndex = raw.IndexOf(' ');
         return spaceIndex > 0 ? raw[..spaceIndex] : raw;
@@ -104,13 +118,13 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
         if (DateTime.TryParseExact(
                 raw,
                 "dd-MM-yyyy",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
                 out var parsed)) {
             return DateOnly.FromDateTime(parsed);
         }
 
-        return DateOnly.FromDateTime(DateTime.Parse(raw, System.Globalization.CultureInfo.CurrentCulture));
+        return DateOnly.FromDateTime(DateTime.Parse(raw, CultureInfo.CurrentCulture));
     }
 
     private static bool IsValidCoordinate(double latitude, double longitude) {
@@ -163,4 +177,3 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
         public string En { get; set; } = "";
     }
 }
-
