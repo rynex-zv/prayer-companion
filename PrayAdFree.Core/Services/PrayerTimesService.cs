@@ -15,13 +15,21 @@ public sealed class PrayerTimesService {
 
     public async Task<PrayerMonth> GetMonthAsync(AppSettings settings, int year, int month, CancellationToken cancellationToken) {
         var cacheKey = BuildCacheKey(settings, year, month);
-        var cached = await _cache.TryReadAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+        PrayerMonth? cached = null;
+        try {
+            cached = await _cache.TryReadAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+        } catch {
+        }
+
         if (cached != null && cached.FetchedOnUtc.Date == DateTime.UtcNow.Date) {
             return cached;
         }
 
         var fresh = await _client.GetMonthAsync(settings, year, month, cancellationToken).ConfigureAwait(false);
-        await _cache.WriteAsync(cacheKey, fresh, cancellationToken).ConfigureAwait(false);
+        try {
+            await _cache.WriteAsync(cacheKey, fresh, cancellationToken).ConfigureAwait(false);
+        } catch {
+        }
         return fresh;
     }
 

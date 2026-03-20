@@ -125,7 +125,7 @@ public class AladhanPrayerTimesClientTests {
         Assert.NotNull(handler.LastRequestUri);
         var query = Uri.UnescapeDataString(handler.LastRequestUri!.Query);
         Assert.Contains("method=99", query, StringComparison.Ordinal);
-        Assert.Contains("methodSettings=18.5,null,17.5", query, StringComparison.Ordinal);
+        Assert.Contains("methodSettings=18.5,0,17.5", query, StringComparison.Ordinal);
     }
 
     private sealed class StubHandler : HttpMessageHandler {

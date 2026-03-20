@@ -27,7 +27,11 @@ public sealed class LocationProvider : ILocationProvider {
             }
 
             var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(10));
-            var location = await Geolocation.GetLocationAsync(request, cancellationToken).ConfigureAwait(false);
+            var location = MainThread.IsMainThread
+                ? await Geolocation.GetLocationAsync(request, cancellationToken).ConfigureAwait(false)
+                : await MainThread.InvokeOnMainThreadAsync(
+                    () => Geolocation.GetLocationAsync(request, cancellationToken)
+                ).ConfigureAwait(false);
             if (location == null) {
                 return current;
             }

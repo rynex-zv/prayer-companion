@@ -7,20 +7,85 @@ public class PrayerTimesCacheTests {
     [Fact]
     public async Task WriteAndRead_RoundTrips() {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var cache = new PrayerTimesCache(tempDir);
-        var month = new PrayerMonth {
-            Year = 2025,
-            Month = 1,
-            LocationKey = "0,0",
-            MethodKey = "test",
-            FetchedOnUtc = DateTime.UtcNow,
-            Days = new List<PrayerDay>()
-        };
+        try {
+            var cache = new PrayerTimesCache(tempDir);
+            var month = new PrayerMonth {
+                Year = 2025,
+                Month = 1,
+                LocationKey = "0,0",
+                MethodKey = "test",
+                FetchedOnUtc = DateTime.UtcNow,
+                Days = new List<PrayerDay>()
+            };
 
-        await cache.WriteAsync("key", month, CancellationToken.None);
-        var loaded = await cache.TryReadAsync("key", CancellationToken.None);
+            await cache.WriteAsync("key", month, CancellationToken.None);
+            var loaded = await cache.TryReadAsync("key", CancellationToken.None);
 
-        Assert.NotNull(loaded);
-        Assert.Equal(month.Year, loaded?.Year);
+            Assert.NotNull(loaded);
+            Assert.Equal(month.Year, loaded?.Year);
+        } finally {
+            if (Directory.Exists(tempDir)) {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TryReadAsync_InvalidJson_ReturnsNull() {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try {
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "broken.json"), "{ not-json");
+            var cache = new PrayerTimesCache(tempDir);
+
+            var loaded = await cache.TryReadAsync("broken", CancellationToken.None);
+
+            Assert.Null(loaded);
+        } finally {
+            if (Directory.Exists(tempDir)) {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task WriteAsync_TargetFileLocked_DoesNotCorruptExistingCache() {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try {
+            var cache = new PrayerTimesCache(tempDir);
+            var original = new PrayerMonth {
+                Year = 2025,
+                Month = 1,
+                LocationKey = "0,0",
+                MethodKey = "test",
+                FetchedOnUtc = DateTime.UtcNow,
+                Days = new List<PrayerDay>()
+            };
+            await cache.WriteAsync("locked", original, CancellationToken.None);
+
+            var path = Path.Combine(tempDir, "locked.json");
+            await using var lockStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+            var updated = new PrayerMonth {
+                Year = 2026,
+                Month = 2,
+                LocationKey = "1,1",
+                MethodKey = "new",
+                FetchedOnUtc = DateTime.UtcNow,
+                Days = new List<PrayerDay>()
+            };
+
+            await Assert.ThrowsAnyAsync<Exception>(() => cache.WriteAsync("locked", updated, CancellationToken.None));
+
+            lockStream.Dispose();
+            var loaded = await cache.TryReadAsync("locked", CancellationToken.None);
+            Assert.NotNull(loaded);
+            Assert.Equal(original.Year, loaded!.Year);
+        } finally {
+            if (Directory.Exists(tempDir)) {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
     }
 }

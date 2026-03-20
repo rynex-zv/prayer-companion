@@ -33,8 +33,8 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<CalculationMethod>? _selectedMethod;
     private OptionItem<Madhhab>? _selectedMadhhab;
     private OptionItem<HighLatitudeRule>? _selectedHighLatitude;
-    private string _customFajrAngle = "18";
-    private string _customIshaAngle = "17";
+    private string _customFajrAngle = "+18";
+    private string _customIshaAngle = "+17";
     private string _fajrOffset = "0";
     private string _sunriseOffset = "0";
     private string _dhuhrOffset = "0";
@@ -750,8 +750,8 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedMethod = Methods.FirstOrDefault(item => item.Value == _settings.Method);
         SelectedMadhhab = Madhhabs.FirstOrDefault(item => item.Value == _settings.Madhhab);
         SelectedHighLatitude = HighLatitudeRules.FirstOrDefault(item => item.Value == _settings.HighLatitudeRule);
-        _customFajrAngle = FormatDouble(_settings.SunAngles.Fajr);
-        _customIshaAngle = FormatDouble(_settings.SunAngles.Isha);
+        _customFajrAngle = FormatSignedDouble(_settings.SunAngles.Fajr);
+        _customIshaAngle = FormatSignedDouble(_settings.SunAngles.Isha);
         OnPropertyChanged(nameof(FajrAngle));
         OnPropertyChanged(nameof(IshaAngle));
         FajrOffset = _settings.Offsets.Fajr.ToString();
@@ -949,6 +949,11 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private static string FormatDouble(double value) {
         return value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatSignedDouble(double value) {
+        var formatted = FormatDouble(value);
+        return value >= 0 ? "+" + formatted : formatted;
     }
 
     private CalculationMethodPresetCatalog.SunAnglePreset ResolveDisplayedSunAngles() {

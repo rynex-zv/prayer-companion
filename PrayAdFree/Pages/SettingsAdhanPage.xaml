@@ -72,8 +72,8 @@
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
                         <Label Text="{loc:Loc FajrAngle}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                         <Label Text="{loc:Loc IshaAngle}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
-                        <Entry Placeholder="{loc:Loc FajrAngle}" Text="{Binding FajrAngle}" Grid.Row="1" Keyboard="Numeric" IsReadOnly="{Binding IsSunAnglesReadOnly}" />
-                        <Entry Placeholder="{loc:Loc IshaAngle}" Text="{Binding IshaAngle}" Grid.Row="1" Grid.Column="1" Keyboard="Numeric" IsReadOnly="{Binding IsSunAnglesReadOnly}" />
+                        <Entry Placeholder="{loc:Loc FajrAngle}" Text="{Binding FajrAngle}" Grid.Row="1" Keyboard="Default" IsReadOnly="{Binding IsSunAnglesReadOnly}" />
+                        <Entry Placeholder="{loc:Loc IshaAngle}" Text="{Binding IshaAngle}" Grid.Row="1" Grid.Column="1" Keyboard="Default" IsReadOnly="{Binding IsSunAnglesReadOnly}" />
                     </Grid>
 
                     <Label Text="{loc:Loc Offsets}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

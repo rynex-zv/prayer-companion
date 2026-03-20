@@ -102,7 +102,10 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
     }
 
     private static string BuildMethodSettings(SunAngleSettings sunAngles) {
-        return $"{FormatDouble(sunAngles.Fajr)},null,{FormatDouble(sunAngles.Isha)}";
+        // The API treats a null custom maghrib setting as a midnight-based value
+        // for some high-latitude modes. We do not expose maghrib customization,
+        // so pin it to 0 to keep maghrib aligned with sunset.
+        return $"{FormatDouble(sunAngles.Fajr)},0,{FormatDouble(sunAngles.Isha)}";
     }
 
     private static string FormatDouble(double value) {
