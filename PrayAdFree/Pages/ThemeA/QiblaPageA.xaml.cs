@@ -286,6 +286,10 @@ public partial class QiblaPageA : ContentPage {
   <link rel=""stylesheet"" href=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.css""/>
   <style>
     html, body, #map {{ height: 100%; margin: 0; background: #f3f1ec; }}
+    #map {{
+      touch-action: pan-y pinch-zoom;
+      -ms-touch-action: pan-y pinch-zoom;
+    }}
   </style>
 </head>
 <body>
@@ -295,7 +299,12 @@ public partial class QiblaPageA : ContentPage {
     var user = [{lat}, {lon}];
     var kaaba = [{kaabaLat}, {kaabaLon}];
     var path = [{geodesicPath}];
-    var map = L.map('map', {{ zoomControl: true }});
+    var map = L.map('map', {{
+      zoomControl: true,
+      dragging: false,
+      tap: false,
+      touchZoom: true
+    }});
     L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'

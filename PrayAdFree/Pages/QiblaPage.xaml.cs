@@ -372,6 +372,10 @@ public partial class QiblaPage : ContentPage {
   <link rel=""stylesheet"" href=""https://unpkg.com/leaflet@1.9.4/dist/leaflet.css""/>
   <style>
     html, body, #map {{ height: 100%; margin: 0; background: {background}; }}
+    #map {{
+      touch-action: pan-y pinch-zoom;
+      -ms-touch-action: pan-y pinch-zoom;
+    }}
   </style>
 </head>
 <body>
@@ -381,7 +385,12 @@ public partial class QiblaPage : ContentPage {
     var user = [{lat}, {lon}];
     var kaaba = [{kaabaLat}, {kaabaLon}];
     var path = [{geodesicPath}];
-    var map = L.map('map', {{ zoomControl: true }});
+    var map = L.map('map', {{
+      zoomControl: true,
+      dragging: false,
+      tap: false,
+      touchZoom: true
+    }});
     L.tileLayer('{tileUrl}', {{
       maxZoom: 19,
       attribution: '{attribution}'
