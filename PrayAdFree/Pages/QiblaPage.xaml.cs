@@ -8,6 +8,7 @@ using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 using System.Globalization;
 using PrayAdFree.Core.Models;
+using PrayAdFree.Core.Services;
 
 namespace Pray_Ad_Free.Pages;
 
@@ -346,8 +347,11 @@ public partial class QiblaPage : ContentPage {
     private void SetWebMap(double latitude, double longitude) {
         var lat = latitude.ToString(CultureInfo.InvariantCulture);
         var lon = longitude.ToString(CultureInfo.InvariantCulture);
-        const string kaabaLat = "21.422487";
-        const string kaabaLon = "39.826206";
+        var kaabaLat = QiblaCalculator.KaabaLatitudeDegrees.ToString(CultureInfo.InvariantCulture);
+        var kaabaLon = QiblaCalculator.KaabaLongitudeDegrees.ToString(CultureInfo.InvariantCulture);
+        var geodesicPath = string.Join(", ",
+            QiblaCalculator.CreatePathToKaaba(latitude, longitude)
+                .Select(point => $"[{point.Latitude.ToString(CultureInfo.InvariantCulture)}, {point.Longitude.ToString(CultureInfo.InvariantCulture)}]"));
 
         var isDark = IsDarkTheme();
         var tileUrl = isDark
@@ -376,6 +380,7 @@ public partial class QiblaPage : ContentPage {
   <script>
     var user = [{lat}, {lon}];
     var kaaba = [{kaabaLat}, {kaabaLon}];
+    var path = [{geodesicPath}];
     var map = L.map('map', {{ zoomControl: true }});
     L.tileLayer('{tileUrl}', {{
       maxZoom: 19,
@@ -383,7 +388,7 @@ public partial class QiblaPage : ContentPage {
     }}).addTo(map);
     var userMarker = L.marker(user).addTo(map);
     var kaabaMarker = L.marker(kaaba).addTo(map);
-    var line = L.polyline([user, kaaba], {{ color: '{lineColor}', weight: 3, opacity: 0.92 }}).addTo(map);
+    var line = L.polyline(path, {{ color: '{lineColor}', weight: 3, opacity: 0.92 }}).addTo(map);
     map.fitBounds(line.getBounds().pad(0.2));
   </script>
 </body>
