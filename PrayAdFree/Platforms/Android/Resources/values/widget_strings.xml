@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_prayer_times_label">Prayer Times</string>
+  <string name="widget_prayer_times_description">Shows the next prayer and the daily prayer times.</string>
+  <string name="widget_fasting_label">Imsak and Iftar</string>
+  <string name="widget_fasting_description">Shows imsak, iftar, and the remaining time.</string>
+  <string name="widget_tasbih_label">Tasbih Counter</string>
+  <string name="widget_tasbih_description">Quick tasbih counter on the home screen.</string>
+</resources>

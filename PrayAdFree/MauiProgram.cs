@@ -15,6 +15,8 @@ using Pray_Ad_Free.ViewModels;
 namespace Pray_Ad_Free {
     public static class MauiProgram {
         public static MauiApp CreateMauiApp() {
+            LocalizationBootstrapper.EnsureInitialized();
+
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()

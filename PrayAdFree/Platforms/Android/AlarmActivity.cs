@@ -38,6 +38,7 @@ public sealed class AlarmActivity : AppCompatActivity {
 
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        LocalizationBootstrapper.EnsureInitialized();
         Log.Info(LogTag, "AlarmActivity.OnCreate");
         ConfigureForLockScreen();
         SetContentView(global::Pray_Ad_Free.Resource.Layout.alarm_activity);

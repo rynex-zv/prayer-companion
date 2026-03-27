@@ -9,7 +9,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
 
-[BroadcastReceiver(Enabled = true, Exported = true)]
+[BroadcastReceiver(Enabled = true, Exported = true, Label = "@string/widget_tasbih_label")]
 [IntentFilterAttribute([AppWidgetManager.ActionAppwidgetUpdate, ActionIncrement, ActionReset, ActionPresetPrevious, ActionPresetNext])]
 [MetaData("android.appwidget.provider", Resource = "@xml/tasbih_widget_info")]
 public sealed class TasbihWidgetProvider : AppWidgetProvider {

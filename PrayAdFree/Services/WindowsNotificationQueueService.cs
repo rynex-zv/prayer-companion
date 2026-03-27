@@ -94,34 +94,47 @@ public sealed class WindowsNotificationQueueService : IWindowsNotificationQueueS
             }
 
             try {
-                ShowToast(current);
-
+                var playedAdhan = false;
                 if (current.PlayAdhan && AdhanNotificationPayload.TryParse(current.ReturningData, out var payload)) {
-                    await _adhanPlaybackService.PlayScheduledAsync(payload).ConfigureAwait(false);
+                    playedAdhan = await _adhanPlaybackService.PlayScheduledAsync(payload).ConfigureAwait(false);
                 }
+
+                _logger.LogEvent(
+                    "WindowsQueueDue",
+                    $"id={current.NotificationId};time={current.NotifyTime:O};playAdhan={current.PlayAdhan};played={playedAdhan}");
+
+                ShowToast(current, playFallbackAudio: current.PlayAdhan && !playedAdhan);
             } catch (Exception ex) {
                 _logger.LogException(ex, "WindowsNotificationQueueService.ProcessDue");
             }
         }
     }
 
-    private void ShowToast(PlannedNotification notification) {
+    private void ShowToast(PlannedNotification notification, bool playFallbackAudio) {
 #if WINDOWS
         if (string.IsNullOrWhiteSpace(notification.Title) || string.IsNullOrWhiteSpace(notification.Description)) {
             return;
         }
 
-        var appNotification = new AppNotificationBuilder()
+        var builder = new AppNotificationBuilder()
             .AddArgument("source", "prayer_schedule")
             .AddArgument("id", notification.NotificationId.ToString())
             .AddText(notification.Title)
-            .AddText(notification.Description)
-            .BuildNotification();
+            .AddText(notification.Description);
+
+        if (playFallbackAudio) {
+            builder.SetAudioEvent(AppNotificationSoundEvent.Alarm);
+        } else {
+            builder.MuteAudio();
+        }
+
+        var appNotification = builder.BuildNotification();
 
         appNotification.Tag = $"prayer_{notification.NotificationId}_{notification.NotifyTime:yyyyMMddHHmmss}";
         AppNotificationManager.Default.Show(appNotification);
 #else
         _ = notification;
+        _ = playFallbackAudio;
 #endif
     }
 }

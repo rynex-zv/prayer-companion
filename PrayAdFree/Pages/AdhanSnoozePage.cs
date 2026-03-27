@@ -94,7 +94,8 @@ public sealed class AdhanSnoozePage : ContentPage {
             HeightRequest = 60,
             CornerRadius = 28,
             BackgroundColor = Color.FromArgb("#355571"),
-            TextColor = Colors.White
+            TextColor = Colors.White,
+            LineBreakMode = LineBreakMode.TailTruncation
         };
         _snoozeButton.Clicked += async (_, _) => await SnoozeAsync();
 
@@ -109,7 +110,8 @@ public sealed class AdhanSnoozePage : ContentPage {
             HeightRequest = 60,
             CornerRadius = 28,
             BackgroundColor = Color.FromArgb("#355571"),
-            TextColor = Colors.White
+            TextColor = Colors.White,
+            LineBreakMode = LineBreakMode.TailTruncation
         };
         stopButton.Clicked += async (_, _) => await StopAsync();
 
@@ -215,7 +217,7 @@ public sealed class AdhanSnoozePage : ContentPage {
     }
 
     private async Task StopAsync() {
-        if (_isSubmitting || !_canSnooze) {
+        if (_isSubmitting) {
             return;
         }
 

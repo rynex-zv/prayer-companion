@@ -9,7 +9,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
 
-[BroadcastReceiver(Enabled = true, Exported = true)]
+[BroadcastReceiver(Enabled = true, Exported = true, Label = "@string/widget_prayer_times_label")]
 [IntentFilterAttribute([AppWidgetManager.ActionAppwidgetUpdate])]
 [MetaData("android.appwidget.provider", Resource = "@xml/prayer_times_widget_info")]
 public sealed class PrayerTimesWidgetProvider : AppWidgetProvider {

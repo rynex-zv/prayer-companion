@@ -44,6 +44,7 @@ public sealed class AlarmOverlayService : Service {
     }
 
     public override StartCommandResult OnStartCommand(Intent? intent, StartCommandFlags flags, int startId) {
+        LocalizationBootstrapper.EnsureInitialized();
         Log.Info(LogTag, $"OverlayService.OnStartCommand action={intent?.Action ?? "<null>"}");
         if (string.Equals(intent?.Action, StopAction, StringComparison.Ordinal)) {
             Log.Info(LogTag, "OverlayService received stop action");

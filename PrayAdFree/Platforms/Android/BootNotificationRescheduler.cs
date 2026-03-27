@@ -23,10 +23,7 @@ internal static class BootNotificationRescheduler {
                 return;
             }
 
-            try {
-                await LocalizationManager.InitializeAsync(settings.Language).ConfigureAwait(false);
-            } catch {
-            }
+            LocalizationBootstrapper.EnsureInitialized(settings.Language);
 
             var prayerTimesService = CreatePrayerTimesService(context);
             var days = await BuildDaysToScheduleAsync(prayerTimesService, settings).ConfigureAwait(false);

@@ -18,14 +18,24 @@ public static class LocalizationManager {
     public static string CurrentLanguage { get; private set; } = "en";
     public static event EventHandler? LanguageChanged;
 
+    public static void EnsureInitialized(string? language) {
+        if (!_initialized) {
+            _catalog = LoadCatalogAsync().GetAwaiter().GetResult();
+            _initialized = true;
+        }
+
+        SetLanguage(language);
+    }
+
     public static async Task InitializeAsync(string? language) {
         if (_initialized) {
+            SetLanguage(language);
             return;
         }
 
         _catalog = await LoadCatalogAsync().ConfigureAwait(false);
-        SetLanguage(language);
         _initialized = true;
+        SetLanguage(language);
     }
 
     public static void SetLanguage(string? language) {

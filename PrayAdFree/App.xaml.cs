@@ -25,6 +25,7 @@ namespace Pray_Ad_Free {
             RegisterExceptionHandlers();
 
             var startupSettings = LoadSettingsSafe();
+            LocalizationBootstrapper.EnsureInitialized(startupSettings.Language);
             _activeThemeVariant = startupSettings.ThemeVariant;
             _logger.LogEvent("AppCtor", $"Theme.Apply.start:{_activeThemeVariant}");
             try {

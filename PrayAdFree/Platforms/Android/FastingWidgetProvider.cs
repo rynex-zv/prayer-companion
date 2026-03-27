@@ -7,7 +7,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
 
-[BroadcastReceiver(Enabled = true, Exported = true)]
+[BroadcastReceiver(Enabled = true, Exported = true, Label = "@string/widget_fasting_label")]
 [IntentFilterAttribute([AppWidgetManager.ActionAppwidgetUpdate])]
 [MetaData("android.appwidget.provider", Resource = "@xml/fasting_widget_info")]
 public sealed class FastingWidgetProvider : AppWidgetProvider {
