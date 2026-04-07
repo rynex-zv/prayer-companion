@@ -18,6 +18,7 @@ internal static class AndroidAlarmFullscreenNotifier {
             return;
         }
 
+        EnsureLocalizationReady();
         EnsureChannel(context);
 
         var launchIntent = BuildAlarmLaunchIntent(context, payloadText);
@@ -67,12 +68,14 @@ internal static class AndroidAlarmFullscreenNotifier {
     }
 
     public static void LaunchActivity(Context context, string payloadText) {
+        EnsureLocalizationReady();
         Log.Info(LogTag, "Notifier.LaunchActivity requested");
         TryDirectLaunch(context, payloadText);
     }
 
     public static void LaunchApp(Context context, string payloadText) {
         try {
+            EnsureLocalizationReady();
             context.StartActivity(BuildAppLaunchIntent(payloadText));
             Log.Info(LogTag, "Notifier.LaunchApp succeeded");
         } catch {
@@ -114,6 +117,13 @@ internal static class AndroidAlarmFullscreenNotifier {
         channel.SetVibrationPattern(new long[] { 0, 180, 120, 180 });
         channel.LockscreenVisibility = NotificationVisibility.Public;
         manager.CreateNotificationChannel(channel);
+    }
+
+    private static void EnsureLocalizationReady() {
+        try {
+            LocalizationBootstrapper.EnsureInitialized();
+        } catch {
+        }
     }
 
     private static Intent BuildAlarmLaunchIntent(Context context, string payloadText) {

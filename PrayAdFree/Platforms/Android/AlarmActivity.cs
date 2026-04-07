@@ -22,6 +22,8 @@ namespace Pray_Ad_Free.Platforms.Android;
     ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public sealed class AlarmActivity : AppCompatActivity {
     private const string LogTag = "PrayAdFree.Alarm";
+    private const int DefaultSnoozeDelayMinutes = 10;
+    private const int DefaultMaxSnoozeDelayMinutes = 30;
     private TextView? _clockText;
     private TextView? _offsetText;
     private TextView? _prayerNameText;
@@ -110,9 +112,9 @@ public sealed class AlarmActivity : AppCompatActivity {
 
         if (_snoozePicker != null) {
             _snoozePicker.WrapSelectorWheel = false;
-            _snoozePicker.MinValue = 4;
-            _snoozePicker.MaxValue = 30;
-            _snoozePicker.Value = 10;
+            _snoozePicker.MinValue = DefaultSnoozeDelayMinutes;
+            _snoozePicker.MaxValue = DefaultMaxSnoozeDelayMinutes;
+            _snoozePicker.Value = DefaultSnoozeDelayMinutes;
         }
 
         if (_decreaseButton != null) {
@@ -157,7 +159,7 @@ public sealed class AlarmActivity : AppCompatActivity {
         AndroidAlarmLaunchCoordinator.Enqueue(_payloadText);
         AndroidAlarmLaunchCoordinator.TryDispatchPending($"AlarmActivity.{reason}");
 
-        var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(6)).ConfigureAwait(false);
+        var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
         if (playbackService == null) {
             Log.Warn(LogTag, $"AlarmActivity.InitializeAlarmAsync playback service unavailable reason={reason}");
             return;

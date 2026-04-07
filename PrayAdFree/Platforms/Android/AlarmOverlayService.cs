@@ -22,6 +22,8 @@ public sealed class AlarmOverlayService : Service {
     private const string OverlayChannelId = "adhan_alarm_overlay";
     private const int OverlayNotificationId = 54010;
     private const string LogTag = "PrayAdFree.Alarm";
+    private const int DefaultSnoozeDelayMinutes = 10;
+    private const int DefaultMaxSnoozeDelayMinutes = 30;
 
     private IWindowManager? _windowManager;
     private global::Android.Views.View? _overlayView;
@@ -277,9 +279,9 @@ public sealed class AlarmOverlayService : Service {
 
         if (_snoozePicker != null) {
             _snoozePicker.WrapSelectorWheel = false;
-            _snoozePicker.MinValue = 4;
-            _snoozePicker.MaxValue = 30;
-            _snoozePicker.Value = 10;
+            _snoozePicker.MinValue = DefaultSnoozeDelayMinutes;
+            _snoozePicker.MaxValue = DefaultMaxSnoozeDelayMinutes;
+            _snoozePicker.Value = DefaultSnoozeDelayMinutes;
         }
 
         if (_decreaseButton != null) {
@@ -309,7 +311,7 @@ public sealed class AlarmOverlayService : Service {
         AndroidAlarmLaunchCoordinator.Enqueue(_payloadText);
         AndroidAlarmLaunchCoordinator.TryDispatchPending("AlarmOverlayService");
 
-        var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(6)).ConfigureAwait(false);
+        var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
         if (playbackService == null) {
             Log.Warn(LogTag, "OverlayService could not resolve playback service");
             return;

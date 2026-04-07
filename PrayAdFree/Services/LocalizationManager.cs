@@ -12,6 +12,7 @@ public static class LocalizationManager {
     private const string CatalogPath = "i18n/index.json";
     private static readonly Dictionary<string, Dictionary<string, string>> Strings = new(StringComparer.OrdinalIgnoreCase);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly object InitializationLock = new();
     private static LocalizationCatalog? _catalog;
     private static bool _initialized;
 
@@ -58,6 +59,8 @@ public static class LocalizationManager {
     }
 
     public static string Translate(string key) {
+        EnsureReadyForTranslate();
+
         if (Strings.TryGetValue(CurrentLanguage, out var table) &&
             table.TryGetValue(key, out var value) &&
             !IsMissingLocalizedValue(key, value)) {
@@ -82,6 +85,28 @@ public static class LocalizationManager {
             PrayerId.Imsak => Translate("Prayer_Imsak"),
             _ => prayer.ToString()
         };
+    }
+
+    private static void EnsureReadyForTranslate() {
+        if (_initialized && Strings.Count > 0) {
+            return;
+        }
+
+        lock (InitializationLock) {
+            if (_initialized && Strings.Count > 0) {
+                return;
+            }
+
+            try {
+                EnsureInitialized(null);
+            } catch {
+                _catalog ??= DefaultCatalog();
+                _initialized = true;
+                if (!Strings.ContainsKey("en")) {
+                    Strings["en"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
     }
 
     private static string ResolveLanguage(string? language) {

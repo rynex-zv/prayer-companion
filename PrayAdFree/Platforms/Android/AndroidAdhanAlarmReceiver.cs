@@ -36,6 +36,8 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
     }
 
     private static async Task HandleAsync(Context context, string payloadText) {
+        LocalizationBootstrapper.EnsureInitialized();
+
         var services = ResolveServices(context);
         var decision = await ResolveDecisionAsync(services).ConfigureAwait(false);
 
