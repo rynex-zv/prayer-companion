@@ -192,7 +192,7 @@
                     <Border.GestureRecognizers>
                         <PanGestureRecognizer PanUpdated="OnManualPanUpdated" />
                     </Border.GestureRecognizers>
-                    <Grid HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
+                    <Grid x:Name="CompassSurface" HeightRequest="{OnPlatform WinUI=380, MacCatalyst=380, Android=300, iOS=300}">
                         <Grid Rotation="{Binding CompassRotation}" AnchorX="0.5" AnchorY="0.5">
                             <Ellipse Fill="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
                             <Ellipse Stroke="{StaticResource Accent}" StrokeThickness="2" Opacity="0.6" />

@@ -9,6 +9,10 @@ using Pray_Ad_Free.ViewModels;
 using System.Globalization;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
+#if ANDROID
+using AView = Android.Views.View;
+using MotionEventActions = Android.Views.MotionEventActions;
+#endif
 
 namespace Pray_Ad_Free.Pages;
 
@@ -31,6 +35,11 @@ public partial class QiblaPage : ContentPage {
     private CancellationTokenSource? _compassWatchdogCts;
     private Microsoft.Maui.Controls.Maps.Map? _map;
     private double _manualPanLastTotalX;
+#if ANDROID
+    private AView? _compassPlatformView;
+    private bool _androidManualTouchActive;
+    private float _androidManualLastX;
+#endif
 
     private enum QiblaDisplayMode {
         Compass,
@@ -47,6 +56,9 @@ public partial class QiblaPage : ContentPage {
         InitializeComponent();
         BindingContext = viewModel;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+#if ANDROID
+        CompassDial.HandlerChanged += OnCompassDialHandlerChanged;
+#endif
     }
 
     protected override async void OnAppearing() {
@@ -64,6 +76,9 @@ public partial class QiblaPage : ContentPage {
             Compass.ReadingChanged += OnCompassReadingChanged;
         }
         ApplyHeadingMode(restartCompass: true);
+#if ANDROID
+        AttachCompassTouchInterception();
+#endif
 
         if (!_animated) {
             _animated = true;
@@ -454,6 +469,81 @@ public partial class QiblaPage : ContentPage {
                 break;
         }
     }
+
+#if ANDROID
+    private void OnCompassDialHandlerChanged(object? sender, EventArgs e) {
+        AttachCompassTouchInterception();
+    }
+
+    private void AttachCompassTouchInterception() {
+        if (CompassDial.Handler?.PlatformView is not AView platformView) {
+            return;
+        }
+
+        if (ReferenceEquals(_compassPlatformView, platformView)) {
+            return;
+        }
+
+        if (_compassPlatformView != null) {
+            _compassPlatformView.Touch -= OnCompassPlatformViewTouch;
+        }
+
+        _compassPlatformView = platformView;
+        _compassPlatformView.Touch += OnCompassPlatformViewTouch;
+    }
+
+    private void OnCompassPlatformViewTouch(object? sender, AView.TouchEventArgs e) {
+        if (sender is not AView platformView || e.Event == null || !ViewModel.IsManualHeadingMode) {
+            return;
+        }
+
+        switch (e.Event.ActionMasked) {
+            case MotionEventActions.Down:
+                _androidManualTouchActive = IsInsideCompassCircle(platformView, e.Event.GetX(), e.Event.GetY());
+                if (_androidManualTouchActive) {
+                    _androidManualLastX = e.Event.GetX();
+                    platformView.Parent?.RequestDisallowInterceptTouchEvent(true);
+                    e.Handled = true;
+                }
+                break;
+            case MotionEventActions.Move:
+                if (_androidManualTouchActive) {
+                    var currentX = e.Event.GetX();
+                    var deltaX = currentX - _androidManualLastX;
+                    _androidManualLastX = currentX;
+                    ViewModel.AdjustManualHeading(deltaX * ManualHeadingSensitivity);
+                    platformView.Parent?.RequestDisallowInterceptTouchEvent(true);
+                    e.Handled = true;
+                }
+                break;
+            case MotionEventActions.Up:
+            case MotionEventActions.Cancel:
+                if (_androidManualTouchActive) {
+                    ViewModel.CommitManualHeading();
+                    e.Handled = true;
+                }
+
+                _androidManualTouchActive = false;
+                platformView.Parent?.RequestDisallowInterceptTouchEvent(false);
+                break;
+        }
+    }
+
+    private static bool IsInsideCompassCircle(AView platformView, float x, float y) {
+        var width = platformView.Width;
+        var height = platformView.Height;
+        if (width <= 0 || height <= 0) {
+            return false;
+        }
+
+        var centerX = width / 2f;
+        var centerY = height / 2f;
+        var radius = (Math.Min(width, height) / 2f) - 8f;
+        var dx = x - centerX;
+        var dy = y - centerY;
+        return (dx * dx) + (dy * dy) <= (radius * radius);
+    }
+#endif
 
     private void OnModeMapTapped(object? sender, TappedEventArgs e) {
         SetDisplayMode(QiblaDisplayMode.Map);
