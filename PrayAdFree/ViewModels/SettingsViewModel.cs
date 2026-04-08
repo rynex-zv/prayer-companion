@@ -1963,7 +1963,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                 return;
             }
 
-            var pick = await FilePicker.Default.PickAsync(new PickOptions {
+            var pick = await MainThread.InvokeOnMainThreadAsync(() => FilePicker.Default.PickAsync(new PickOptions {
                 PickerTitle = LocalizationManager.Translate("PickAdhanSound"),
                 FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>> {
                     { DevicePlatform.Android, new[] { "audio/*" } },
@@ -1971,7 +1971,7 @@ public sealed class SettingsViewModel : ViewModelBase {
                     { DevicePlatform.MacCatalyst, new[] { "public.audio" } },
                     { DevicePlatform.WinUI, new[] { ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".wma", ".opus", ".amr", ".3gp", ".mp4", ".aiff", ".aif", ".caf" } }
                 })
-            });
+            }));
 
             if (pick == null) {
                 return;
@@ -1982,8 +1982,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             Directory.CreateDirectory(directory);
             var headerBuffer = new byte[64];
 
-            await using (var source = await pick.OpenReadAsync().ConfigureAwait(false)) {
-                var headerLength = await source.ReadAsync(headerBuffer.AsMemory(0, headerBuffer.Length)).ConfigureAwait(false);
+            await using (var source = await pick.OpenReadAsync()) {
+                var headerLength = await source.ReadAsync(headerBuffer.AsMemory(0, headerBuffer.Length));
                 if (headerLength <= 0) {
                     throw new InvalidDataException("Selected audio file is empty.");
                 }
@@ -1995,8 +1995,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                 importedFilePath = Path.Combine(directory, fileName);
 
                 await using var target = File.Create(importedFilePath);
-                await target.WriteAsync(headerBuffer.AsMemory(0, headerLength)).ConfigureAwait(false);
-                await source.CopyToAsync(target).ConfigureAwait(false);
+                await target.WriteAsync(headerBuffer.AsMemory(0, headerLength));
+                await source.CopyToAsync(target);
 
                 var customSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>();
                 customSounds.Add(new CustomAdhanSound {
@@ -2067,7 +2067,7 @@ public sealed class SettingsViewModel : ViewModelBase {
             StatusMessage = LocalizationManager.Translate("CustomAdhanSoundFailed");
         } finally {
             _customSoundBusy = false;
-            AddCustomAdhanSoundCommand.ChangeCanExecute();
+            RunOnMainThread(AddCustomAdhanSoundCommand.ChangeCanExecute);
         }
     }
 
