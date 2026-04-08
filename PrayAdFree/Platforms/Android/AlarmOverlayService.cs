@@ -103,15 +103,10 @@ public sealed class AlarmOverlayService : Service {
 
         try {
             var intent = new Intent(context, typeof(AlarmOverlayService));
-            intent.SetAction(StopAction);
-            if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
-                context.StartForegroundService(intent);
-                return;
-            }
-
-            context.StartService(intent);
-        } catch {
-            Log.Warn(LogTag, "OverlayService.StopOverlay failed");
+            var stopped = context.StopService(intent);
+            Log.Info(LogTag, $"OverlayService.StopOverlay stopService={stopped}");
+        } catch (Exception ex) {
+            Log.Warn(LogTag, $"OverlayService.StopOverlay failed: {ex.GetType().Name}");
         }
     }
 

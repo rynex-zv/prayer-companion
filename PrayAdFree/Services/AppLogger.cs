@@ -1,9 +1,14 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Maui.Storage;
+#if ANDROID
+using Android.Util;
+#endif
 
 namespace Pray_Ad_Free.Services;
 
 public sealed class AppLogger : IAppLogger {
+    private const string Tag = "PrayAdFree";
     private static int _initialized;
     private readonly string _exceptionPath;
     private readonly string _eventPath;
@@ -29,7 +34,9 @@ public sealed class AppLogger : IAppLogger {
             builder.AppendLine($"UTC: {DateTime.UtcNow:O}");
             builder.AppendLine($"Context: {context}");
             builder.AppendLine(exception.ToString());
-            Append(_exceptionPath, builder.ToString());
+            var payload = builder.ToString();
+            Append(_exceptionPath, payload);
+            WritePlatformLog(payload, isError: true);
         } catch {
         }
     }
@@ -39,6 +46,7 @@ public sealed class AppLogger : IAppLogger {
         try {
             var line = $"UTC: {DateTime.UtcNow:O} | {name} | {details}";
             Append(_eventPath, line + Environment.NewLine);
+            WritePlatformLog(line, isError: false);
         } catch {
         }
 #endif
@@ -59,6 +67,20 @@ public sealed class AppLogger : IAppLogger {
     private void Append(string path, string text) {
         lock (_lock) {
             File.AppendAllText(path, text);
+        }
+    }
+
+    private static void WritePlatformLog(string message, bool isError) {
+        try {
+            Debug.WriteLine(message);
+#if ANDROID
+            if (isError) {
+                Log.Error(Tag, message);
+            } else {
+                Log.Debug(Tag, message);
+            }
+#endif
+        } catch {
         }
     }
 }

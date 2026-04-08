@@ -4,15 +4,17 @@ public sealed class AdhanSoundOptionViewModel : ViewModelBase {
     private bool _isSelected;
     private bool _isPlaying;
 
-    public AdhanSoundOptionViewModel(string key, string label, bool canPreview) {
+    public AdhanSoundOptionViewModel(string key, string label, bool canPreview, bool isCustom) {
         Key = key;
         Label = label;
         CanPreview = canPreview;
+        IsCustom = isCustom;
     }
 
     public string Key { get; }
     public string Label { get; }
     public bool CanPreview { get; }
+    public bool IsCustom { get; }
 
     public bool IsSelected {
         get => _isSelected;

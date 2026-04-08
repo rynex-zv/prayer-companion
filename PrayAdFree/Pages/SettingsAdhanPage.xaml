@@ -20,7 +20,7 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Border Padding="10,8" Margin="0,2">
-                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="4,2">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Padding="4,2">
                                         <Label Text="{Binding Label}" VerticalOptions="Center" FontSize="13" />
                                         <Button Grid.Column="1"
                                                 Command="{Binding BindingContext.SelectAdhanSoundCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
@@ -50,6 +50,11 @@
                                                 </DataTrigger>
                                             </Button.Triggers>
                                         </Button>
+                                        <Button Grid.Column="3"
+                                                Text="{loc:Loc Remove}"
+                                                IsVisible="{Binding IsCustom}"
+                                                Command="{Binding BindingContext.RemoveCustomAdhanSoundCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                                CommandParameter="{Binding .}" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>

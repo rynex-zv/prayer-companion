@@ -160,6 +160,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         AddAdhanReminderCommand = new Command(AddAdhanReminder);
         RemoveAdhanReminderCommand = new Command<ReminderOffsetItem>(RemoveAdhanReminder);
         AddCustomAdhanSoundCommand = new Command(async () => await AddCustomAdhanSoundAsync(), () => !_customSoundBusy);
+        RemoveCustomAdhanSoundCommand = new Command<AdhanSoundOptionViewModel>(
+            async item => await RemoveCustomAdhanSoundAsync(item),
+            item => !_customSoundBusy && item?.IsCustom == true);
         SelectAdhanSoundCommand = new Command<AdhanSoundOptionViewModel>(OnSelectAdhanSound);
         ToggleAdhanPreviewCommand = new Command<AdhanSoundOptionViewModel>(async item => await ToggleAdhanPreviewAsync(item));
         SendTestNotificationCommand = new Command(async () => await SendTestNotificationAsync());
@@ -257,6 +260,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command AddAdhanReminderCommand { get; }
     public Command RemoveAdhanReminderCommand { get; }
     public Command AddCustomAdhanSoundCommand { get; }
+    public Command<AdhanSoundOptionViewModel> RemoveCustomAdhanSoundCommand { get; }
     public Command<AdhanSoundOptionViewModel> SelectAdhanSoundCommand { get; }
     public Command<AdhanSoundOptionViewModel> ToggleAdhanPreviewCommand { get; }
     public Command SendTestNotificationCommand { get; }
@@ -765,6 +769,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         IftarDelay = _settings.FastingOffsets.IftarDelayMinutes.ToString();
         LoadReminders();
         LoadAdhanReminders();
+        BuildNotificationOptions();
         NotificationsEnabled = _settings.Notifications.EnableAdhan;
         VibrationEnabled = _settings.Notifications.EnableVibration;
         HideOnCloseEnabled = _settings.Notifications.HideOnCloseOnWindows;
@@ -802,6 +807,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         TextScale = ThemeManager.NormalizeTextScalePercent(_settings.TextScale);
         EnsureTasbihDefaults();
         LoadTasbihPresets();
+        BuildAdhanOverrideOptions();
         LoadAdhanOverrides();
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.B, _settings.AccentIndex);
         BuildPlaceOptions();
@@ -812,6 +818,14 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void Save() {
+        SaveCore(updateStatusMessage: true);
+    }
+
+    private void SaveWithoutStatus() {
+        SaveCore(updateStatusMessage: false);
+    }
+
+    private void SaveCore(bool updateStatusMessage) {
         var previousThemeVariant = _settings.ThemeVariant;
         var mode = UseGps ? LocationMode.Gps : LocationMode.Manual;
         var location = new LocationSettings {
@@ -934,7 +948,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         if (previousThemeVariant != _settings.ThemeVariant) {
             _ = App.ReloadShellForThemeVariantAsync(_settings.ThemeVariant);
         }
-        StatusMessage = "Settings saved";
+        if (updateStatusMessage) {
+            StatusMessage = "Settings saved";
+        }
     }
 
     private static int ParseInt(string value, int fallback) {
@@ -1477,11 +1493,11 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private void BuildNotificationOptions() {
         var isMobile = OperatingSystem.IsAndroid() || OperatingSystem.IsIOS();
-        var currentSound = SelectedAdhanSound?.Value ?? "adhan_default";
-        var currentStrength = SelectedVibrationStrength?.Value ?? VibrationStrength.Medium;
-        var currentPattern = SelectedVibrationPattern?.Value ?? VibrationPattern.Short;
-        var currentScope = SelectedAdhanReminderScope?.Value ?? AdhanReminderScope.All;
-        var currentPrayer = SelectedAdhanReminderPrayer?.Value ?? PrayerId.Fajr;
+        var currentSound = SelectedAdhanSound?.Value ?? _settings.Notifications.SoundKey;
+        var currentStrength = SelectedVibrationStrength?.Value ?? _settings.Notifications.VibrationStrength;
+        var currentPattern = SelectedVibrationPattern?.Value ?? _settings.Notifications.VibrationPattern;
+        var currentScope = SelectedAdhanReminderScope?.Value ?? _settings.Notifications.ReminderScope;
+        var currentPrayer = SelectedAdhanReminderPrayer?.Value ?? _settings.Notifications.ReminderPrayer;
         var currentAlertType = SelectedAdhanReminderAlertType?.Value ?? AdhanReminderAlertType.Adhan;
         var currentPrimaryType = SelectedMobilePrimaryAdhanType?.Value
             ?? _settings.Notifications.MobilePrimaryAdhanType;
@@ -1559,7 +1575,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             AdhanSoundItems.Add(new AdhanSoundOptionViewModel(
                 option.Value,
                 option.Label,
-                !AdhanSoundLibrary.IsSilent(option.Value)));
+                !AdhanSoundLibrary.IsSilent(option.Value),
+                AdhanSoundLibrary.IsCustomSound(_settings.Notifications, option.Value)));
         }
 
         SyncAdhanSoundItemStates();
@@ -1938,31 +1955,26 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private async Task AddCustomAdhanSoundAsync() {
         if (_customSoundBusy) {
+            LogCustomAdhanImport("skipped_busy");
             return;
         }
 
         string? importedFilePath = null;
+        string? key = null;
+        string? fileName = null;
         try {
+            LogCustomAdhanImport("start");
             _customSoundBusy = true;
-            AddCustomAdhanSoundCommand.ChangeCanExecute();
+            UpdateCustomSoundCommandState();
+            LogCustomAdhanImport("command_locked");
 
             var page = GetActivePage();
             if (page == null) {
+                LogCustomAdhanImport("no_active_page");
                 return;
             }
 
-            var name = await MainThread.InvokeOnMainThreadAsync(async () =>
-                await page.DisplayPromptAsync(
-                    LocalizationManager.Translate("AddCustomAdhanSound"),
-                    LocalizationManager.Translate("CustomAdhanNamePrompt"),
-                    accept: LocalizationManager.Translate("Add"),
-                    cancel: LocalizationManager.Translate("Cancel"),
-                    placeholder: LocalizationManager.Translate("CustomAdhanNamePlaceholder")));
-
-            if (string.IsNullOrWhiteSpace(name)) {
-                return;
-            }
-
+            LogCustomAdhanImport("picker_open");
             var pick = await MainThread.InvokeOnMainThreadAsync(() => FilePicker.Default.PickAsync(new PickOptions {
                 PickerTitle = LocalizationManager.Translate("PickAdhanSound"),
                 FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>> {
@@ -1974,16 +1986,20 @@ public sealed class SettingsViewModel : ViewModelBase {
             }));
 
             if (pick == null) {
+                LogCustomAdhanImport("picker_cancelled");
                 return;
             }
+            LogCustomAdhanImport("picker_selected", $"fileName={pick.FileName}");
 
-            var key = $"adhan_custom_{Guid.NewGuid():N}";
+            key = $"adhan_custom_{Guid.NewGuid():N}";
             var directory = AdhanSoundLibrary.GetCustomSoundsDirectory();
             Directory.CreateDirectory(directory);
             var headerBuffer = new byte[64];
 
             await using (var source = await pick.OpenReadAsync()) {
+                LogCustomAdhanImport("stream_opened");
                 var headerLength = await source.ReadAsync(headerBuffer.AsMemory(0, headerBuffer.Length));
+                LogCustomAdhanImport("header_read", $"bytes={headerLength}");
                 if (headerLength <= 0) {
                     throw new InvalidDataException("Selected audio file is empty.");
                 }
@@ -1991,84 +2007,234 @@ public sealed class SettingsViewModel : ViewModelBase {
                 var extension = AudioFileTypeDetector.ResolveExtension(
                     pick.FileName,
                     headerBuffer.AsSpan(0, headerLength));
-                var fileName = $"{key}{extension}";
+                LogCustomAdhanImport("extension_resolved", $"extension={extension}");
+                fileName = $"{key}{extension}";
                 importedFilePath = Path.Combine(directory, fileName);
 
                 await using var target = File.Create(importedFilePath);
                 await target.WriteAsync(headerBuffer.AsMemory(0, headerLength));
                 await source.CopyToAsync(target);
+                LogCustomAdhanImport("file_copied", $"path={importedFilePath}");
+            }
 
-                var customSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>();
-                customSounds.Add(new CustomAdhanSound {
-                    Key = key,
-                    Name = name.Trim(),
-                    FileName = fileName
-                });
+            var suggestedName = Path.GetFileNameWithoutExtension(pick.FileName)?.Trim() ?? string.Empty;
+            var name = await MainThread.InvokeOnMainThreadAsync(async () =>
+                await page.DisplayPromptAsync(
+                    LocalizationManager.Translate("AddCustomAdhanSound"),
+                    LocalizationManager.Translate("CustomAdhanNamePrompt"),
+                    accept: LocalizationManager.Translate("Add"),
+                    cancel: LocalizationManager.Translate("Cancel"),
+                    placeholder: LocalizationManager.Translate("CustomAdhanNamePlaceholder"),
+                    initialValue: suggestedName));
+            LogCustomAdhanImport(
+                "prompt_completed",
+                $"accepted={!string.IsNullOrWhiteSpace(name)};nameLength={(name ?? string.Empty).Trim().Length}");
 
-                _settings = new AppSettings {
-                    Location = _settings.Location,
-                    Method = _settings.Method,
-                    Madhhab = _settings.Madhhab,
-                    HighLatitudeRule = _settings.HighLatitudeRule,
-                    SunAngles = _settings.SunAngles,
-                    Offsets = _settings.Offsets,
-                    FastingOffsets = _settings.FastingOffsets,
-                    FastingReminders = _settings.FastingReminders,
-                    Notifications = new NotificationSettings {
-                        EnableAdhan = _settings.Notifications.EnableAdhan,
-                        MobilePrimaryAdhanType = _settings.Notifications.MobilePrimaryAdhanType,
-                        EnableVibration = _settings.Notifications.EnableVibration,
-                        HideOnCloseOnWindows = _settings.Notifications.HideOnCloseOnWindows,
-                        RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
-                        MinutesBefore = _settings.Notifications.MinutesBefore,
-                        AdhanVolume = _settings.Notifications.AdhanVolume,
-                        SoundKey = _settings.Notifications.SoundKey,
-                        CustomSounds = customSounds,
-                        PrayerOverrides = _settings.Notifications.PrayerOverrides?.ToList() ?? new List<AdhanPrayerOverride>(),
-                        VibrationStrength = _settings.Notifications.VibrationStrength,
-                        VibrationPattern = _settings.Notifications.VibrationPattern,
-                        ReminderScope = _settings.Notifications.ReminderScope,
-                        ReminderPrayer = _settings.Notifications.ReminderPrayer,
-                        ReminderItems = _settings.Notifications.ReminderItems?.ToList() ?? new List<AdhanReminderItem>(),
-                        ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
-                        PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
-                    },
-                    AlarmReminders = _settings.AlarmReminders,
-                    Qibla = _settings.Qibla,
-                    ClockFormat = _settings.ClockFormat,
-                    TextScale = _settings.TextScale,
-                    Tasbih = _settings.Tasbih,
-                    Language = _settings.Language,
-                    LanguageSelected = _settings.LanguageSelected,
-                    ThemeMode = _settings.ThemeMode,
-                    ThemeVariant = _settings.ThemeVariant,
-                    AccentIndex = _settings.AccentIndex
-                };
+            if (string.IsNullOrWhiteSpace(name)) {
+                LogCustomAdhanImport("cancelled_name_after_upload");
+                DeleteImportedCustomSound(importedFilePath);
+                importedFilePath = null;
+                return;
+            }
+
+            var customSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>();
+            customSounds.Add(new CustomAdhanSound {
+                Key = key,
+                Name = name.Trim(),
+                FileName = fileName ?? string.Empty
+            });
+            LogCustomAdhanImport("settings_patch_ready", $"customSounds={customSounds.Count};key={key}");
+
+            _settings = CloneSettingsWithNotifications(new NotificationSettings {
+                EnableAdhan = _settings.Notifications.EnableAdhan,
+                MobilePrimaryAdhanType = _settings.Notifications.MobilePrimaryAdhanType,
+                EnableVibration = _settings.Notifications.EnableVibration,
+                HideOnCloseOnWindows = _settings.Notifications.HideOnCloseOnWindows,
+                RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
+                MinutesBefore = _settings.Notifications.MinutesBefore,
+                AdhanVolume = _settings.Notifications.AdhanVolume,
+                SoundKey = key,
+                CustomSounds = customSounds,
+                PrayerOverrides = _settings.Notifications.PrayerOverrides?.ToList() ?? new List<AdhanPrayerOverride>(),
+                VibrationStrength = _settings.Notifications.VibrationStrength,
+                VibrationPattern = _settings.Notifications.VibrationPattern,
+                ReminderScope = _settings.Notifications.ReminderScope,
+                ReminderPrayer = _settings.Notifications.ReminderPrayer,
+                ReminderItems = _settings.Notifications.ReminderItems?.ToList() ?? new List<AdhanReminderItem>(),
+                ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
+                PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
+            });
+
+            LogCustomAdhanImport("rebuild_options_start");
+            BuildNotificationOptions();
+            BuildAdhanOverrideOptions();
+            RefreshAdhanOverridesLocalization();
+            SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == key) ?? SelectedAdhanSound;
+            LogCustomAdhanImport(
+                "rebuild_options_done",
+                $"selectedKey={SelectedAdhanSound?.Value ?? "null"};items={AdhanSounds.Count}");
+            SaveWithoutStatus();
+            StatusMessage = LocalizationManager.Translate("CustomAdhanSoundAdded");
+            LogCustomAdhanImport("success", $"status={StatusMessage}");
+        } catch (Exception ex) {
+            if (!string.IsNullOrWhiteSpace(importedFilePath) && File.Exists(importedFilePath)) {
+                try {
+                    File.Delete(importedFilePath);
+                    LogCustomAdhanImport("cleanup_deleted", $"path={importedFilePath}");
+                } catch {
+                }
+            }
+            try {
+                _logger.LogEvent("CustomAdhanImportFailed", $"{ex.GetType().Name}|{ex.Message}");
+            } catch {
+            }
+            _logger.LogException(ex, "SettingsViewModel.AddCustomAdhanSoundAsync");
+            StatusMessage = LocalizationManager.Translate("CustomAdhanSoundFailed");
+            LogCustomAdhanImport("failed", $"type={ex.GetType().Name};message={ex.Message}");
+        } finally {
+            _customSoundBusy = false;
+            UpdateCustomSoundCommandState();
+            LogCustomAdhanImport("finally");
+        }
+    }
+
+    private async Task RemoveCustomAdhanSoundAsync(AdhanSoundOptionViewModel? item) {
+        if (_customSoundBusy || item == null || !item.IsCustom) {
+            return;
+        }
+
+        string? deletedFilePath = null;
+        try {
+            _customSoundBusy = true;
+            UpdateCustomSoundCommandState();
+
+            if (!string.IsNullOrWhiteSpace(_previewAdhanSoundKey) &&
+                string.Equals(_previewAdhanSoundKey, item.Key, StringComparison.OrdinalIgnoreCase)) {
+                await _adhanPlaybackService.StopAsync();
+                _previewAdhanSoundKey = null;
+            }
+
+            var customSounds = _settings.Notifications.CustomSounds?.ToList() ?? new List<CustomAdhanSound>();
+            var existing = customSounds.FirstOrDefault(sound =>
+                string.Equals(sound.Key, item.Key, StringComparison.OrdinalIgnoreCase));
+            if (existing == null) {
+                return;
+            }
+
+            customSounds.Remove(existing);
+            deletedFilePath = Path.Combine(AdhanSoundLibrary.GetCustomSoundsDirectory(), existing.FileName);
+            var nextSoundKey = string.Equals(_settings.Notifications.SoundKey, item.Key, StringComparison.OrdinalIgnoreCase)
+                ? "adhan_default"
+                : _settings.Notifications.SoundKey;
+            var updatedOverrides = RemoveDeletedSoundFromOverrides(item.Key);
+
+            _settings = CloneSettingsWithNotifications(new NotificationSettings {
+                EnableAdhan = _settings.Notifications.EnableAdhan,
+                MobilePrimaryAdhanType = _settings.Notifications.MobilePrimaryAdhanType,
+                EnableVibration = _settings.Notifications.EnableVibration,
+                HideOnCloseOnWindows = _settings.Notifications.HideOnCloseOnWindows,
+                RunBackgroundServiceOnWindows = _settings.Notifications.RunBackgroundServiceOnWindows,
+                MinutesBefore = _settings.Notifications.MinutesBefore,
+                AdhanVolume = _settings.Notifications.AdhanVolume,
+                SoundKey = nextSoundKey,
+                CustomSounds = customSounds,
+                PrayerOverrides = updatedOverrides,
+                VibrationStrength = _settings.Notifications.VibrationStrength,
+                VibrationPattern = _settings.Notifications.VibrationPattern,
+                ReminderScope = _settings.Notifications.ReminderScope,
+                ReminderPrayer = _settings.Notifications.ReminderPrayer,
+                ReminderItems = _settings.Notifications.ReminderItems?.ToList() ?? new List<AdhanReminderItem>(),
+                ReminderOffsetsMinutes = _settings.Notifications.ReminderOffsetsMinutes?.ToList() ?? new List<int>(),
+                PendingDeferredReminder = _settings.Notifications.PendingDeferredReminder
+            });
+
+            if (!string.IsNullOrWhiteSpace(deletedFilePath) && File.Exists(deletedFilePath)) {
+                File.Delete(deletedFilePath);
             }
 
             BuildNotificationOptions();
             BuildAdhanOverrideOptions();
             RefreshAdhanOverridesLocalization();
-            SelectedAdhanSound = AdhanSounds.FirstOrDefault(item => item.Value == key) ?? SelectedAdhanSound;
-            StatusMessage = LocalizationManager.Translate("CustomAdhanSoundAdded");
-            ScheduleSave();
+            SelectedAdhanSound = AdhanSounds.FirstOrDefault(option => option.Value == nextSoundKey)
+                ?? AdhanSounds.FirstOrDefault();
+            SaveWithoutStatus();
         } catch (Exception ex) {
-            if (!string.IsNullOrWhiteSpace(importedFilePath) && File.Exists(importedFilePath)) {
-                try {
-                    File.Delete(importedFilePath);
-                } catch {
-                }
-            }
-            try {
-                _logger.LogEvent("CustomAdhanImportFailed", ex.GetType().Name);
-            } catch {
-            }
-            _logger.LogException(ex, "SettingsViewModel.AddCustomAdhanSoundAsync");
-            StatusMessage = LocalizationManager.Translate("CustomAdhanSoundFailed");
+            _logger.LogException(ex, "SettingsViewModel.RemoveCustomAdhanSoundAsync");
         } finally {
             _customSoundBusy = false;
-            RunOnMainThread(AddCustomAdhanSoundCommand.ChangeCanExecute);
+            UpdateCustomSoundCommandState();
         }
+    }
+
+    private void LogCustomAdhanImport(string step, string? details = null) {
+        var message = $"step={step};mainThread={MainThread.IsMainThread};busy={_customSoundBusy}";
+        if (!string.IsNullOrWhiteSpace(details)) {
+            message += $";{details}";
+        }
+
+        _logger.LogEvent("CustomAdhanImport", message);
+    }
+
+    private void UpdateCustomSoundCommandState() {
+        RunOnMainThread(() => {
+            AddCustomAdhanSoundCommand.ChangeCanExecute();
+            RemoveCustomAdhanSoundCommand.ChangeCanExecute();
+        });
+    }
+
+    private static void DeleteImportedCustomSound(string? path) {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) {
+            return;
+        }
+
+        try {
+            File.Delete(path);
+        } catch {
+        }
+    }
+
+    private List<AdhanPrayerOverride> RemoveDeletedSoundFromOverrides(string soundKey) {
+        var updated = new List<AdhanPrayerOverride>();
+        foreach (var item in _settings.Notifications.PrayerOverrides?.ToList() ?? new List<AdhanPrayerOverride>()) {
+            var overrideSound = string.Equals(item.SoundKey, soundKey, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : item.SoundKey;
+            if (overrideSound == null && item.EnableVibration == null) {
+                continue;
+            }
+
+            updated.Add(new AdhanPrayerOverride {
+                Prayer = item.Prayer,
+                SoundKey = overrideSound,
+                EnableVibration = item.EnableVibration
+            });
+        }
+
+        return updated;
+    }
+
+    private AppSettings CloneSettingsWithNotifications(NotificationSettings notifications) {
+        return new AppSettings {
+            Location = _settings.Location,
+            Method = _settings.Method,
+            Madhhab = _settings.Madhhab,
+            HighLatitudeRule = _settings.HighLatitudeRule,
+            SunAngles = _settings.SunAngles,
+            Offsets = _settings.Offsets,
+            FastingOffsets = _settings.FastingOffsets,
+            FastingReminders = _settings.FastingReminders,
+            Notifications = notifications,
+            AlarmReminders = _settings.AlarmReminders,
+            Qibla = _settings.Qibla,
+            ClockFormat = _settings.ClockFormat,
+            TextScale = _settings.TextScale,
+            Tasbih = _settings.Tasbih,
+            Language = _settings.Language,
+            LanguageSelected = _settings.LanguageSelected,
+            ThemeMode = _settings.ThemeMode,
+            ThemeVariant = _settings.ThemeVariant,
+            AccentIndex = _settings.AccentIndex
+        };
     }
 
     private static Page? GetActivePage() {
