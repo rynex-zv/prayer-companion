@@ -28,7 +28,7 @@ namespace Pray_Ad_Free {
                         }
 
                         handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
-                            Android.Graphics.Color.ParseColor("#2FB79D"));
+                            ResolveAndroidThemeColor("InputTint", "InputTintDark", "#2FB79D"));
                         ApplyAndroidInputSurface(handler.PlatformView);
                     });
 
@@ -38,8 +38,36 @@ namespace Pray_Ad_Free {
                         }
 
                         handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
-                            Android.Graphics.Color.ParseColor("#2FB79D"));
+                            ResolveAndroidThemeColor("InputTint", "InputTintDark", "#2FB79D"));
                         ApplyAndroidInputSurface(handler.PlatformView);
+                    });
+
+                    Microsoft.Maui.Handlers.DatePickerHandler.Mapper.AppendToMapping("PrayAdFree.DatePickerTint", static (handler, _) => {
+                        if (handler.PlatformView is null) {
+                            return;
+                        }
+
+                        handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
+                            ResolveAndroidThemeColor("InputTint", "InputTintDark", "#2FB79D"));
+                        ApplyAndroidInputSurface(handler.PlatformView);
+                    });
+
+                    Microsoft.Maui.Handlers.TimePickerHandler.Mapper.AppendToMapping("PrayAdFree.TimePickerTint", static (handler, _) => {
+                        if (handler.PlatformView is null) {
+                            return;
+                        }
+
+                        handler.PlatformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
+                            ResolveAndroidThemeColor("InputTint", "InputTintDark", "#2FB79D"));
+                        ApplyAndroidInputSurface(handler.PlatformView);
+                    });
+
+                    Microsoft.Maui.Handlers.SwitchHandler.Mapper.AppendToMapping("PrayAdFree.SwitchTint", static (handler, _) => {
+                        if (handler.PlatformView is not AndroidX.AppCompat.Widget.SwitchCompat switchCompat) {
+                            return;
+                        }
+
+                        ApplyAndroidSwitchSurface(switchCompat);
                     });
 #endif
                 })
@@ -220,13 +248,8 @@ namespace Pray_Ad_Free {
 
         private static Android.Graphics.Drawables.GradientDrawable BuildAndroidInputDrawable(Android.Content.Context? context) {
             var density = context?.Resources?.DisplayMetrics?.Density ?? 1f;
-            var appTheme = Application.Current?.UserAppTheme ?? AppTheme.Unspecified;
-            if (appTheme == AppTheme.Unspecified) {
-                appTheme = Application.Current?.RequestedTheme ?? AppTheme.Unspecified;
-            }
-            var isDark = appTheme != AppTheme.Light;
-            var fill = Android.Graphics.Color.ParseColor(isDark ? "#163344" : "#ECF4F0");
-            var stroke = Android.Graphics.Color.ParseColor(isDark ? "#25566A" : "#BAD4C9");
+            var fill = ResolveAndroidThemeColor("InputFill", "InputFillDark", "#ECF4F0");
+            var stroke = ResolveAndroidThemeColor("InputStroke", "InputStrokeDark", "#BAD4C9");
 
             var drawable = new Android.Graphics.Drawables.GradientDrawable();
             drawable.SetShape(Android.Graphics.Drawables.ShapeType.Rectangle);
@@ -234,6 +257,67 @@ namespace Pray_Ad_Free {
             drawable.SetCornerRadius(14f * density);
             drawable.SetStroke(Math.Max(1, (int)Math.Round(density)), stroke);
             return drawable;
+        }
+
+        private static void ApplyAndroidSwitchSurface(AndroidX.AppCompat.Widget.SwitchCompat switchCompat) {
+            var trackStates = new[] {
+                new[] { Android.Resource.Attribute.StateEnabled, Android.Resource.Attribute.StateChecked },
+                new[] { Android.Resource.Attribute.StateEnabled, -Android.Resource.Attribute.StateChecked },
+                new[] { -Android.Resource.Attribute.StateEnabled, Android.Resource.Attribute.StateChecked },
+                new[] { -Android.Resource.Attribute.StateEnabled, -Android.Resource.Attribute.StateChecked }
+            };
+            var trackColors = new[] {
+                ResolveAndroidThemeColor("SwitchTrackOn", "SwitchTrackOnDark", "#7BC9B7"),
+                ResolveAndroidThemeColor("SwitchTrackOff", "SwitchTrackOffDark", "#54606C"),
+                ResolveAndroidThemeColor("PrimaryDisabled", "PrimaryDisabledDark", "#6A5032"),
+                ResolveAndroidThemeColor("InputFillDisabled", "InputFillDisabledDark", "#18222C")
+            };
+            var thumbColors = new[] {
+                ResolveAndroidThemeColor("SwitchThumbOn", "SwitchThumbOnDark", "#FFFFFF"),
+                ResolveAndroidThemeColor("SwitchThumbOff", "SwitchThumbOffDark", "#FFFFFF"),
+                ResolveAndroidThemeColor("PrimaryDisabledForeground", "PrimaryDisabledForegroundDark", "#FFFFFF"),
+                ResolveAndroidThemeColor("InputForegroundDisabled", "InputForegroundDisabledDark", "#FFFFFF")
+            };
+            switchCompat.TrackTintList = new Android.Content.Res.ColorStateList( trackStates , Array.ConvertAll( trackColors , color => color.ToArgb() ) );
+
+            switchCompat.ThumbTintList = new Android.Content.Res.ColorStateList( trackStates , Array.ConvertAll( thumbColors , color => color.ToArgb() ) );
+            //switchCompat.TrackTintList = new Android.Content.Res.ColorStateList(trackStates, trackColors);
+            //switchCompat.ThumbTintList = new Android.Content.Res.ColorStateList(trackStates, thumbColors);
+        }
+
+        private static Android.Graphics.Color ResolveAndroidThemeColor(string lightKey, string darkKey, string fallbackHex) {
+            var resource = Application.Current?.Resources;
+            var key = IsDarkThemeActive() ? darkKey : lightKey;
+
+            if (resource != null && resource.TryGetValue(key, out var value)) {
+                if (value is Microsoft.Maui.Graphics.Color mauiColor) {
+                    return Android.Graphics.Color.Argb(
+                        (int)Math.Round(mauiColor.Alpha * 255),
+                        (int)Math.Round(mauiColor.Red * 255),
+                        (int)Math.Round(mauiColor.Green * 255),
+                        (int)Math.Round(mauiColor.Blue * 255));
+                }
+
+                if (value is SolidColorBrush brush) {
+                    var brushColor = brush.Color;
+                    return Android.Graphics.Color.Argb(
+                        (int)Math.Round(brushColor.Alpha * 255),
+                        (int)Math.Round(brushColor.Red * 255),
+                        (int)Math.Round(brushColor.Green * 255),
+                        (int)Math.Round(brushColor.Blue * 255));
+                }
+            }
+
+            return Android.Graphics.Color.ParseColor(fallbackHex);
+        }
+
+        private static bool IsDarkThemeActive() {
+            var appTheme = Application.Current?.UserAppTheme ?? AppTheme.Unspecified;
+            if (appTheme == AppTheme.Unspecified) {
+                appTheme = Application.Current?.RequestedTheme ?? AppTheme.Unspecified;
+            }
+
+            return appTheme != AppTheme.Light;
         }
 #endif
     }

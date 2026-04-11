@@ -8,14 +8,14 @@
     <ContentPage.Resources>
         <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
         <Style x:Key="ChoiceChip" TargetType="Border">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource ChipInactiveFillActive}" />
+            <Setter Property="Stroke" Value="{DynamicResource ChipInactiveStrokeActive}" />
             <Setter Property="StrokeShape" Value="RoundRectangle 12" />
             <Setter Property="StrokeThickness" Value="1" />
             <Setter Property="Padding" Value="12,8" />
         </Style>
         <Style x:Key="ChoiceChipLabel" TargetType="Label">
-            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="TextColor" Value="{DynamicResource ChipInactiveForegroundActive}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
         </Style>
     </ContentPage.Resources>
@@ -83,7 +83,7 @@
                                                             <Binding Path="." />
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource ChipActiveForegroundActive}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -95,8 +95,8 @@
                                                         <Binding Path="." />
                                                     </MultiBinding>
                                                 </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
-                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource ChipActiveFillActive}" />
+                                                <Setter Property="Stroke" Value="{DynamicResource ChipActiveStrokeActive}" />
                                             </DataTrigger>
                                         </Border.Triggers>
                                     </Border>
@@ -122,7 +122,7 @@
                                                             <Binding Path="." />
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource ChipActiveForegroundActive}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -134,8 +134,8 @@
                                                         <Binding Path="." />
                                                     </MultiBinding>
                                                 </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
-                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource ChipActiveFillActive}" />
+                                                <Setter Property="Stroke" Value="{DynamicResource ChipActiveStrokeActive}" />
                                             </DataTrigger>
                                         </Border.Triggers>
                                     </Border>
@@ -161,7 +161,7 @@
                                                             <Binding Path="." />
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
+                                                    <Setter Property="TextColor" Value="{DynamicResource ChipActiveForegroundActive}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
@@ -173,8 +173,8 @@
                                                         <Binding Path="." />
                                                     </MultiBinding>
                                                 </DataTrigger.Binding>
-                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
-                                                <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource ChipActiveFillActive}" />
+                                                <Setter Property="Stroke" Value="{DynamicResource ChipActiveStrokeActive}" />
                                             </DataTrigger>
                                         </Border.Triggers>
                                     </Border>

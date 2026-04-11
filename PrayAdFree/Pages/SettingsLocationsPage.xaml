@@ -9,30 +9,30 @@
     <ContentPage.Resources>
         <conv:SelectionMatchConverter x:Key="SelectionMatchConverter" />
         <Style x:Key="ChoiceChip" TargetType="Border">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource ChipInactiveFillActive}" />
+            <Setter Property="Stroke" Value="{DynamicResource ChipInactiveStrokeActive}" />
             <Setter Property="StrokeShape" Value="RoundRectangle 12" />
             <Setter Property="StrokeThickness" Value="1" />
             <Setter Property="Padding" Value="12,8" />
         </Style>
         <Style x:Key="ChoiceChipLabel" TargetType="Label">
-            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="TextColor" Value="{DynamicResource ChipInactiveForegroundActive}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
         </Style>
         <Style TargetType="Entry">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
             <Setter Property="Margin" Value="0,4,0,0" />
-            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-            <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
+            <Setter Property="PlaceholderColor" Value="{DynamicResource InputForegroundActive}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
             <Setter Property="MinimumHeightRequest" Value="44" />
             <Setter Property="MinimumWidthRequest" Value="44" />
         </Style>
         <Style TargetType="Picker">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
             <Setter Property="Margin" Value="0,4,0,0" />
-            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-            <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
+            <Setter Property="TitleColor" Value="{DynamicResource InputForegroundActive}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
             <Setter Property="MinimumHeightRequest" Value="44" />
             <Setter Property="MinimumWidthRequest" Value="44" />
@@ -131,3 +131,4 @@
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
+

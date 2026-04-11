@@ -10,6 +10,7 @@ using System.Globalization;
 using Android.Util;
 using AToolbar = AndroidX.AppCompat.Widget.Toolbar;
 using Google.Android.Material.BottomNavigation;
+using ASwitchCompat = AndroidX.AppCompat.Widget.SwitchCompat;
 using ATextView = Android.Widget.TextView;
 using AView = Android.Views.View;
 using AViewGroup = Android.Views.ViewGroup;
@@ -146,6 +147,108 @@ public static class ThemeManager {
         SetColor(resources, "SurfaceHighlightDark", dark.SurfaceHighlight);
         SetColor(resources, "TextMutedDark", dark.TextMuted);
 
+        var useDarkTokens = UseDarkTokens(settings.ThemeMode);
+        var accentSoft = Mix(light.SurfaceHighlight, accent, 0.12);
+        var accentSoftDark = Mix(dark.SurfaceHighlight, accent, 0.1);
+        var accentMid = Mix(light.SurfaceHighlight, accent, 0.24);
+        var accentMidDark = Mix(dark.SurfaceHighlight, accent, 0.16);
+        var inputFill = Mix(light.SurfaceHighlight, accent, 0.05);
+        var inputFillDark = Mix(dark.SurfaceHighlight, accent, 0.02);
+        var inputFillFocused = Mix(light.SurfaceHighlight, accent, 0.09);
+        var inputFillFocusedDark = Mix(dark.SurfaceHighlight, accent, 0.04);
+        var inputStroke = Mix(light.SurfaceHighlight, accent, 0.16);
+        var inputStrokeDark = Mix(dark.SurfaceHighlight, accent, 0.08);
+        var primaryDisabled = ScaleLightness(accent, 0.4);
+        var inputFillDisabled = ScaleLightness(inputFill, 0.4);
+        var inputFillDisabledDark = ScaleLightness(inputFillDark, 0.4);
+        var subtleActionFill = inputFill;
+        var subtleActionFillDark = inputFillDark;
+        var subtleActionDisabled = ScaleLightness(subtleActionFill, 0.4);
+        var subtleActionDisabledDark = ScaleLightness(subtleActionFillDark, 0.4);
+        var switchTrackOn = Mix(light.SurfaceHighlight, accent, 0.24);
+        var switchTrackOnDark = Mix(dark.SurfaceHighlight, accent, 0.14);
+        var switchTrackOff = inputFillDisabled;
+        var switchTrackOffDark = inputFillDisabledDark;
+
+        SetColor(resources, "AccentSoft", accentSoft);
+        SetColor(resources, "AccentSoftDark", accentSoftDark);
+        SetColor(resources, "AccentMid", accentMid);
+        SetColor(resources, "AccentMidDark", accentMidDark);
+        SetColor(resources, "InputFill", inputFill);
+        SetColor(resources, "InputFillDark", inputFillDark);
+        SetColor(resources, "InputFillFocused", inputFillFocused);
+        SetColor(resources, "InputFillFocusedDark", inputFillFocusedDark);
+        SetColor(resources, "InputFillDisabled", inputFillDisabled);
+        SetColor(resources, "InputFillDisabledDark", inputFillDisabledDark);
+        SetColor(resources, "InputStroke", inputStroke);
+        SetColor(resources, "InputStrokeDark", inputStrokeDark);
+        SetColor(resources, "InputTint", accent);
+        SetColor(resources, "InputTintDark", Mix(accent, "#FFFFFF", 0.16));
+        SetColor(resources, "InputForeground", ContrastText(inputFill));
+        SetColor(resources, "InputForegroundDark", ContrastText(inputFillDark));
+        SetColor(resources, "InputForegroundFocused", ContrastText(inputFillFocused));
+        SetColor(resources, "InputForegroundFocusedDark", ContrastText(inputFillFocusedDark));
+        SetColor(resources, "InputForegroundDisabled", ContrastText(inputFillDisabled));
+        SetColor(resources, "InputForegroundDisabledDark", ContrastText(inputFillDisabledDark));
+        SetColor(resources, "PrimaryForeground", ContrastText(accent));
+        SetColor(resources, "PrimaryDisabled", primaryDisabled);
+        SetColor(resources, "PrimaryDisabledDark", primaryDisabled);
+        SetColor(resources, "PrimaryDisabledForeground", ContrastText(primaryDisabled));
+        SetColor(resources, "PrimaryDisabledForegroundDark", ContrastText(primaryDisabled));
+        SetColor(resources, "SubtleActionFill", subtleActionFill);
+        SetColor(resources, "SubtleActionFillDark", subtleActionFillDark);
+        SetColor(resources, "SubtleActionForeground", ContrastText(subtleActionFill));
+        SetColor(resources, "SubtleActionForegroundDark", ContrastText(subtleActionFillDark));
+        SetColor(resources, "SubtleActionDisabled", subtleActionDisabled);
+        SetColor(resources, "SubtleActionDisabledDark", subtleActionDisabledDark);
+        SetColor(resources, "SubtleActionDisabledForeground", ContrastText(subtleActionDisabled));
+        SetColor(resources, "SubtleActionDisabledForegroundDark", ContrastText(subtleActionDisabledDark));
+        SetColor(resources, "ChipActiveFill", accentSoft);
+        SetColor(resources, "ChipActiveFillDark", accentSoftDark);
+        SetColor(resources, "ChipActiveStroke", accentMid);
+        SetColor(resources, "ChipActiveStrokeDark", accentMidDark);
+        SetColor(resources, "ChipActiveForeground", ContrastText(accentSoft));
+        SetColor(resources, "ChipActiveForegroundDark", ContrastText(accentSoftDark));
+        SetColor(resources, "ChipInactiveFill", inputFill);
+        SetColor(resources, "ChipInactiveFillDark", inputFillDark);
+        SetColor(resources, "ChipInactiveStroke", inputStroke);
+        SetColor(resources, "ChipInactiveStrokeDark", inputStrokeDark);
+        SetColor(resources, "ChipInactiveForeground", ContrastText(inputFill));
+        SetColor(resources, "ChipInactiveForegroundDark", ContrastText(inputFillDark));
+        SetColor(resources, "SwitchTrackOn", switchTrackOn);
+        SetColor(resources, "SwitchTrackOnDark", switchTrackOnDark);
+        SetColor(resources, "SwitchTrackOff", switchTrackOff);
+        SetColor(resources, "SwitchTrackOffDark", switchTrackOffDark);
+        SetColor(resources, "SwitchThumbOn", ContrastText(switchTrackOn));
+        SetColor(resources, "SwitchThumbOnDark", ContrastText(switchTrackOnDark));
+        SetColor(resources, "SwitchThumbOff", ContrastText(switchTrackOff));
+        SetColor(resources, "SwitchThumbOffDark", ContrastText(switchTrackOffDark));
+        SetColor(resources, "InputFillActive", useDarkTokens ? inputFillDark : inputFill);
+        SetColor(resources, "InputFillFocusedActive", useDarkTokens ? inputFillFocusedDark : inputFillFocused);
+        SetColor(resources, "InputFillDisabledActive", useDarkTokens ? inputFillDisabledDark : inputFillDisabled);
+        SetColor(resources, "InputStrokeActive", useDarkTokens ? inputStrokeDark : inputStroke);
+        SetColor(resources, "InputTintActive", useDarkTokens ? Mix(accent, "#FFFFFF", 0.16) : accent);
+        SetColor(resources, "InputForegroundActive", useDarkTokens ? ContrastText(inputFillDark) : ContrastText(inputFill));
+        SetColor(resources, "InputForegroundFocusedActive", useDarkTokens ? ContrastText(inputFillFocusedDark) : ContrastText(inputFillFocused));
+        SetColor(resources, "InputForegroundDisabledActive", useDarkTokens ? ContrastText(inputFillDisabledDark) : ContrastText(inputFillDisabled));
+        SetColor(resources, "PrimaryDisabledActive", primaryDisabled);
+        SetColor(resources, "PrimaryDisabledForegroundActive", ContrastText(primaryDisabled));
+        SetColor(resources, "SubtleActionFillActive", useDarkTokens ? subtleActionFillDark : subtleActionFill);
+        SetColor(resources, "SubtleActionForegroundActive", useDarkTokens ? ContrastText(subtleActionFillDark) : ContrastText(subtleActionFill));
+        SetColor(resources, "SubtleActionDisabledActive", useDarkTokens ? subtleActionDisabledDark : subtleActionDisabled);
+        SetColor(resources, "SubtleActionDisabledForegroundActive", useDarkTokens ? ContrastText(subtleActionDisabledDark) : ContrastText(subtleActionDisabled));
+        SetColor(resources, "ChipActiveFillActive", useDarkTokens ? accentSoftDark : accentSoft);
+        SetColor(resources, "ChipActiveStrokeActive", useDarkTokens ? accentMidDark : accentMid);
+        SetColor(resources, "ChipActiveForegroundActive", useDarkTokens ? ContrastText(accentSoftDark) : ContrastText(accentSoft));
+        SetColor(resources, "ChipInactiveFillActive", useDarkTokens ? inputFillDark : inputFill);
+        SetColor(resources, "ChipInactiveStrokeActive", useDarkTokens ? inputStrokeDark : inputStroke);
+        SetColor(resources, "ChipInactiveForegroundActive", useDarkTokens ? ContrastText(inputFillDark) : ContrastText(inputFill));
+        SetColor(resources, "SwitchTrackOnActive", useDarkTokens ? switchTrackOnDark : switchTrackOn);
+        SetColor(resources, "SwitchTrackOffActive", useDarkTokens ? switchTrackOffDark : switchTrackOff);
+        SetColor(resources, "SwitchThumbOnActive", useDarkTokens ? ContrastText(switchTrackOnDark) : ContrastText(switchTrackOn));
+        SetColor(resources, "SwitchThumbOffActive", useDarkTokens ? ContrastText(switchTrackOffDark) : ContrastText(switchTrackOff));
+        RefreshThemeSurfacesOnVisibleUI();
+
         var textScalePercent = NormalizeTextScalePercent(settings.TextScale);
         ApplyTextScale(resources, textScalePercent);
         _activeTextScalePercent = textScalePercent;
@@ -226,6 +329,114 @@ public static class ThemeManager {
         return $"#{Clamp(r):X2}{Clamp(g):X2}{Clamp(b):X2}";
     }
 
+    private static string Mix(string baseHex, string tintHex, double tintRatio) {
+        var baseColor = Color.FromArgb(baseHex);
+        var tintColor = Color.FromArgb(tintHex);
+        var ratio = Math.Clamp(tintRatio, 0d, 1d);
+        var baseRatio = 1d - ratio;
+
+        var r = (int)Math.Round(((baseColor.Red * baseRatio) + (tintColor.Red * ratio)) * 255d);
+        var g = (int)Math.Round(((baseColor.Green * baseRatio) + (tintColor.Green * ratio)) * 255d);
+        var b = (int)Math.Round(((baseColor.Blue * baseRatio) + (tintColor.Blue * ratio)) * 255d);
+        var a = (int)Math.Round(((baseColor.Alpha * baseRatio) + (tintColor.Alpha * ratio)) * 255d);
+        return $"#{Clamp(a):X2}{Clamp(r):X2}{Clamp(g):X2}{Clamp(b):X2}";
+    }
+
+    private static string ScaleLightness(string hex, double factor) {
+        var color = Color.FromArgb(hex);
+        var hsl = ToHsl(color);
+        var scaledLightness = Math.Clamp(hsl.Lightness * Math.Clamp(factor, 0d, 1d), 0d, 1d);
+        return FromHsl(hsl.Hue, hsl.Saturation, scaledLightness, color.Alpha);
+    }
+
+    private static string ContrastText(string backgroundHex) {
+        var color = Color.FromArgb(backgroundHex);
+        var hsl = ToHsl(color);
+        return hsl.Lightness >= 0.58d ? "#000000" : "#FFFFFF";
+    }
+
+    private static bool UseDarkTokens(ThemeMode mode) {
+        return mode switch {
+            ThemeMode.Dark => true,
+            ThemeMode.Light => false,
+            _ => (Application.Current?.RequestedTheme ?? AppTheme.Unspecified) == AppTheme.Dark
+        };
+    }
+
+    private static (double Hue, double Saturation, double Lightness) ToHsl(Color color) {
+        var r = color.Red;
+        var g = color.Green;
+        var b = color.Blue;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        var lightness = (max + min) / 2d;
+
+        if (delta <= 0d) {
+            return (0d, 0d, lightness);
+        }
+
+        var saturation = lightness > 0.5d
+            ? delta / (2d - max - min)
+            : delta / (max + min);
+
+        double hue;
+        if (Math.Abs(max - r) < double.Epsilon) {
+            hue = ((g - b) / delta) + (g < b ? 6d : 0d);
+        } else if (Math.Abs(max - g) < double.Epsilon) {
+            hue = ((b - r) / delta) + 2d;
+        } else {
+            hue = ((r - g) / delta) + 4d;
+        }
+
+        hue /= 6d;
+        return (hue, saturation, lightness);
+    }
+
+    private static string FromHsl(double hue, double saturation, double lightness, double alpha) {
+        double r;
+        double g;
+        double b;
+
+        if (saturation <= 0d) {
+            r = g = b = lightness;
+        } else {
+            var q = lightness < 0.5d
+                ? lightness * (1d + saturation)
+                : lightness + saturation - (lightness * saturation);
+            var p = (2d * lightness) - q;
+            r = HueToRgb(p, q, hue + (1d / 3d));
+            g = HueToRgb(p, q, hue);
+            b = HueToRgb(p, q, hue - (1d / 3d));
+        }
+
+        return $"#{Clamp((int)Math.Round(alpha * 255d)):X2}{Clamp((int)Math.Round(r * 255d)):X2}{Clamp((int)Math.Round(g * 255d)):X2}{Clamp((int)Math.Round(b * 255d)):X2}";
+    }
+
+    private static double HueToRgb(double p, double q, double t) {
+        if (t < 0d) {
+            t += 1d;
+        }
+
+        if (t > 1d) {
+            t -= 1d;
+        }
+
+        if (t < (1d / 6d)) {
+            return p + ((q - p) * 6d * t);
+        }
+
+        if (t < 0.5d) {
+            return q;
+        }
+
+        if (t < (2d / 3d)) {
+            return p + ((q - p) * ((2d / 3d) - t) * 6d);
+        }
+
+        return p;
+    }
+
     private static int Clamp(int value) => Math.Clamp(value, 0, 255);
 
     public static int NormalizeTextScalePercent(int storedValue) {
@@ -285,6 +496,50 @@ public static class ThemeManager {
             ApplyRuntimeTextScaleNode(root, textFactor, iconFactor, visited);
             ApplyNativeShellTextScale(window, textFactor);
         }
+    }
+
+    private static void RefreshThemeSurfacesOnVisibleUI() {
+#if ANDROID
+        if (MainThread.IsMainThread) {
+            RefreshThemeSurfacesCore(Application.Current);
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => RefreshThemeSurfacesCore(Application.Current));
+#endif
+    }
+
+    private static void RefreshThemeSurfacesCore(Application? app) {
+#if ANDROID
+        if (app == null) {
+            return;
+        }
+
+        foreach (var window in app.Windows) {
+            if (window?.Page is not IVisualTreeElement root) {
+                continue;
+            }
+
+            var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
+            RefreshThemeSurfaceNode(root, visited);
+        }
+#endif
+    }
+
+    private static void RefreshThemeSurfaceNode(IVisualTreeElement node, HashSet<object> visited) {
+#if ANDROID
+        if (!visited.Add(node)) {
+            return;
+        }
+
+        if (node is BindableObject bindable) {
+            ApplyRuntimeThemeSurface(bindable);
+        }
+
+        foreach (var child in node.GetVisualChildren()) {
+            RefreshThemeSurfaceNode(child, visited);
+        }
+#endif
     }
 
     private static void ApplyRuntimeTextScaleNode(
@@ -636,6 +891,111 @@ public static class ThemeManager {
 
             ApplyTextSizeRecursive(child, textSp);
         }
+    }
+
+    private static void ApplyRuntimeThemeSurface(BindableObject target) {
+        if (target is not (Entry or Picker or DatePicker or TimePicker or Switch)) {
+            return;
+        }
+
+        if (target is not Element element) {
+            return;
+        }
+
+        if (element.Handler?.PlatformView is not AView platformView) {
+            return;
+        }
+
+        if (target is Switch && platformView is ASwitchCompat switchCompat) {
+            ApplyAndroidSwitchSurface(switchCompat);
+            return;
+        }
+
+        platformView.BackgroundTintList = Android.Content.Res.ColorStateList.ValueOf(
+            ResolveAndroidThemeColor("InputTint", "InputTintDark", "#2FB79D"));
+        ApplyAndroidInputSurface(platformView);
+    }
+
+    private static void ApplyAndroidInputSurface(AView view) {
+        view.Background = BuildAndroidInputDrawable(view.Context);
+        var density = view.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        var horizontal = (int)(12 * density);
+        var vertical = (int)(10 * density);
+        view.SetPadding(horizontal, vertical, horizontal, vertical);
+    }
+
+    private static Android.Graphics.Drawables.GradientDrawable BuildAndroidInputDrawable(Android.Content.Context? context) {
+        var density = context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        var fill = ResolveAndroidThemeColor("InputFill", "InputFillDark", "#ECF4F0");
+        var stroke = ResolveAndroidThemeColor("InputStroke", "InputStrokeDark", "#BAD4C9");
+
+        var drawable = new Android.Graphics.Drawables.GradientDrawable();
+        drawable.SetShape(Android.Graphics.Drawables.ShapeType.Rectangle);
+        drawable.SetColor(fill);
+        drawable.SetCornerRadius(14f * density);
+        drawable.SetStroke(Math.Max(1, (int)Math.Round(density)), stroke);
+        return drawable;
+    }
+
+    private static void ApplyAndroidSwitchSurface(ASwitchCompat switchCompat) {
+        var trackStates = new[] {
+            new[] { Android.Resource.Attribute.StateEnabled, Android.Resource.Attribute.StateChecked },
+            new[] { Android.Resource.Attribute.StateEnabled, -Android.Resource.Attribute.StateChecked },
+            new[] { -Android.Resource.Attribute.StateEnabled, Android.Resource.Attribute.StateChecked },
+            new[] { -Android.Resource.Attribute.StateEnabled, -Android.Resource.Attribute.StateChecked }
+        };
+        var trackColors = new[] {
+            ResolveAndroidThemeColor("SwitchTrackOn", "SwitchTrackOnDark", "#7BC9B7"),
+            ResolveAndroidThemeColor("SwitchTrackOff", "SwitchTrackOffDark", "#54606C"),
+            ResolveAndroidThemeColor("PrimaryDisabled", "PrimaryDisabledDark", "#6A5032"),
+            ResolveAndroidThemeColor("InputFillDisabled", "InputFillDisabledDark", "#18222C")
+        };
+        var thumbColors = new[] {
+            ResolveAndroidThemeColor("SwitchThumbOn", "SwitchThumbOnDark", "#FFFFFF"),
+            ResolveAndroidThemeColor("SwitchThumbOff", "SwitchThumbOffDark", "#FFFFFF"),
+            ResolveAndroidThemeColor("PrimaryDisabledForeground", "PrimaryDisabledForegroundDark", "#FFFFFF"),
+            ResolveAndroidThemeColor("InputForegroundDisabled", "InputForegroundDisabledDark", "#FFFFFF")
+        };
+        switchCompat.TrackTintList = new Android.Content.Res.ColorStateList( trackStates , Array.ConvertAll( trackColors , color => color.ToArgb() ) );
+
+        switchCompat.ThumbTintList = new Android.Content.Res.ColorStateList( trackStates , Array.ConvertAll( thumbColors , color => color.ToArgb() ) );
+        // switchCompat.TrackTintList = new Android.Content.Res.ColorStateList(trackStates, trackColors);
+        //  switchCompat.ThumbTintList = new Android.Content.Res.ColorStateList(trackStates, thumbColors);
+    }
+
+    private static Android.Graphics.Color ResolveAndroidThemeColor(string lightKey, string darkKey, string fallbackHex) {
+        var resource = Application.Current?.Resources;
+        var key = IsDarkThemeActive() ? darkKey : lightKey;
+
+        if (resource != null && resource.TryGetValue(key, out var value)) {
+            if (value is Color mauiColor) {
+                return Android.Graphics.Color.Argb(
+                    (int)Math.Round(mauiColor.Alpha * 255),
+                    (int)Math.Round(mauiColor.Red * 255),
+                    (int)Math.Round(mauiColor.Green * 255),
+                    (int)Math.Round(mauiColor.Blue * 255));
+            }
+
+            if (value is SolidColorBrush brush) {
+                var brushColor = brush.Color;
+                return Android.Graphics.Color.Argb(
+                    (int)Math.Round(brushColor.Alpha * 255),
+                    (int)Math.Round(brushColor.Red * 255),
+                    (int)Math.Round(brushColor.Green * 255),
+                    (int)Math.Round(brushColor.Blue * 255));
+            }
+        }
+
+        return Android.Graphics.Color.ParseColor(fallbackHex);
+    }
+
+    private static bool IsDarkThemeActive() {
+        var appTheme = Application.Current?.UserAppTheme ?? AppTheme.Unspecified;
+        if (appTheme == AppTheme.Unspecified) {
+            appTheme = Application.Current?.RequestedTheme ?? AppTheme.Unspecified;
+        }
+
+        return appTheme != AppTheme.Light;
     }
 #else
     private static void ApplyNativeShellTextScale(Microsoft.Maui.Controls.Window window, double textFactor) {

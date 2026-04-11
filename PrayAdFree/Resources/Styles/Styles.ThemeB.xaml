@@ -57,8 +57,8 @@
 
     <!-- Button -->
     <Style TargetType="Button">
-        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource DarkSkyTop}}" />
-        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
+        <Setter Property="TextColor" Value="{DynamicResource PrimaryForeground}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
         <Setter Property="FontFamily" Value="OpenSansSemiBold" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeSM}" />
         <Setter Property="CornerRadius" Value="14" />
@@ -71,8 +71,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource DarkSandBase}}" />
-                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource PrimaryDisabledActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource PrimaryDisabledForegroundActive}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
@@ -96,9 +96,9 @@
 
     <!-- Entry -->
     <Style TargetType="Entry">
-        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
-        <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource White}}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
+        <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource InputForegroundActive}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBase}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
@@ -108,13 +108,14 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Focused">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SandMid}, Dark={StaticResource DarkSandBase}}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillFocusedActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundFocusedActive}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource DarkSandMid}}" />
-                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillDisabledActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundDisabledActive}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -124,18 +125,63 @@
 
     <!-- Picker -->
     <Style TargetType="Picker">
-        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
-        <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource White}}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
+        <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
+        <Setter Property="TitleColor" Value="{DynamicResource InputForegroundActive}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBase}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillFocusedActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundFocusedActive}" />
+                            <Setter Property="TitleColor" Value="{DynamicResource InputForegroundFocusedActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillDisabledActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundDisabledActive}" />
+                            <Setter Property="TitleColor" Value="{DynamicResource InputForegroundDisabledActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <!-- Switch -->
     <Style TargetType="Switch">
-        <Setter Property="OnColor" Value="{StaticResource Teal}" />
-        <Setter Property="ThumbColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource White}}" />
+        <Setter Property="OnColor" Value="{DynamicResource SwitchTrackOnActive}" />
+        <Setter Property="ThumbColor" Value="{DynamicResource SwitchThumbOnActive}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="OnColor" Value="{DynamicResource SwitchTrackOffActive}" />
+                            <Setter Property="ThumbColor" Value="{DynamicResource InputForegroundDisabledActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="On">
+                        <VisualState.Setters>
+                            <Setter Property="OnColor" Value="{DynamicResource SwitchTrackOnActive}" />
+                            <Setter Property="ThumbColor" Value="{DynamicResource SwitchThumbOnActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Off">
+                        <VisualState.Setters>
+                            <Setter Property="ThumbColor" Value="{DynamicResource SwitchThumbOffActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <!-- CheckBox -->
@@ -147,20 +193,58 @@
 
     <!-- DatePicker -->
     <Style TargetType="DatePicker">
-        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
+        <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBase}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillFocusedActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundFocusedActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillDisabledActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundDisabledActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <!-- TimePicker -->
     <Style TargetType="TimePicker">
-        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
-        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource InputFillActive}" />
+        <Setter Property="TextColor" Value="{DynamicResource InputForegroundActive}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBase}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillFocusedActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundFocusedActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource InputFillDisabledActive}" />
+                            <Setter Property="TextColor" Value="{DynamicResource InputForegroundDisabledActive}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <!-- Slider -->

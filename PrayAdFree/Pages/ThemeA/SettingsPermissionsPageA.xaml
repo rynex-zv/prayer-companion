@@ -4,15 +4,9 @@
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
              x:Class="Pray_Ad_Free.Pages.ThemeA.SettingsPermissionsPageA"
              Title="{loc:Loc PermissionsTitle}">
-    <ContentPage.Resources>
-        <Style TargetType="Button">
-            <Setter Property="MinimumHeightRequest" Value="44" />
-            <Setter Property="MinimumWidthRequest" Value="44" />
-        </Style>
-    </ContentPage.Resources>
     <ScrollView>
         <VerticalStackLayout Spacing="18" Padding="24,32">
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 18"
                     Padding="16">
@@ -50,7 +44,7 @@
                                                     Padding="8,3"
                                                     StrokeThickness="0"
                                                     StrokeShape="RoundRectangle 999"
-                                                    BackgroundColor="{AppThemeBinding Light=#EAF4F1, Dark=#193B33}">
+                                                    BackgroundColor="{DynamicResource ChipInactiveFillActive}">
                                                 <Label Text="{Binding RoleText}" FontSize="11" />
                                             </Border>
                                         </Grid>

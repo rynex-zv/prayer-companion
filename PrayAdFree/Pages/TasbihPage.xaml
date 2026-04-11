@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="Pray_Ad_Free.Pages.TasbihPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -9,106 +9,116 @@
     <Grid>
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                <GradientStop Offset="0"   Color="{AppThemeBinding Light={StaticResource SkyTop},  Dark={StaticResource DarkSkyTop}}" />
-                <GradientStop Offset="0.6" Color="{AppThemeBinding Light={StaticResource SkyMid},  Dark={StaticResource DarkSkyMid}}" />
-                <GradientStop Offset="1"   Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
+                <GradientStop Offset="0" Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" />
+                <GradientStop Offset="0.6" Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" />
+                <GradientStop Offset="1" Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
             </LinearGradientBrush>
         </Grid.Background>
 
         <ScrollView>
             <VerticalStackLayout Padding="20,20,20,32" Spacing="14">
 
-                <!-- Counter card -->
+                <!--  Counter card  -->
                 <Border
                     Padding="24,20"
-                    StrokeShape="RoundRectangle 24"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
-                    <VerticalStackLayout Spacing="16" HorizontalOptions="Center">
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
+                                                      Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeShape="RoundRectangle 24">
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="16">
 
-                        <!-- Phrase -->
+                        <!--  Phrase  -->
                         <Label
-                            Text="{Binding CurrentPhrase}"
-                            FontSize="26"
                             FontAttributes="Bold"
+                            FontSize="26"
                             HorizontalTextAlignment="Center"
-                            TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
+                            Text="{Binding CurrentPhrase}"
+                            TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
+                                                        Dark={StaticResource Accent}}" />
 
-                        <!-- Ring counter -->
+                        <!--  Ring counter  -->
                         <Border
-                            WidthRequest="160"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft},
+                                                              Dark={StaticResource AccentSoftDark}}"
                             HeightRequest="160"
+                            HorizontalOptions="Center"
+                            Stroke="{AppThemeBinding Light={StaticResource AccentMid},
+                                                     Dark={StaticResource AccentMidDark}}"
                             StrokeShape="Ellipse"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft}, Dark={StaticResource AccentSoft}}"
-                            Stroke="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}"
                             StrokeThickness="2"
-                            HorizontalOptions="Center">
+                            WidthRequest="160">
                             <VerticalStackLayout
                                 HorizontalOptions="Center"
-                                VerticalOptions="Center"
-                                Spacing="2">
+                                Spacing="2"
+                                VerticalOptions="Center">
                                 <Label
-                                    Text="{Binding Count}"
-                                    FontSize="54"
                                     FontAttributes="Bold"
-                                    HorizontalTextAlignment="Center" />
+                                    FontSize="54"
+                                    HorizontalTextAlignment="Center"
+                                    Text="{Binding Count}" />
                                 <Label
-                                    Text="{Binding ProgressText}"
                                     FontSize="13"
                                     HorizontalTextAlignment="Center"
-                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                    Text="{Binding ProgressText}"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                                Dark={StaticResource TextMutedDark}}" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Buttons -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" HorizontalOptions="Fill">
+                        <!--  Buttons  -->
+                        <Grid
+                            ColumnDefinitions="*,Auto"
+                            ColumnSpacing="12"
+                            HorizontalOptions="Fill">
                             <Button
-                                Text="{loc:Loc TasbihIncrement}"
                                 Command="{Binding IncrementCommand}"
                                 CornerRadius="22"
-                                HeightRequest="52"
-                                BackgroundColor="{StaticResource Teal}"
-                                TextColor="{AppThemeBinding Light={StaticResource DarkSkyTop}, Dark={StaticResource DarkSkyTop}}"
                                 FontAttributes="Bold"
-                                FontSize="15" />
+                                FontSize="15"
+                                HeightRequest="52"
+                                Text="{loc:Loc TasbihIncrement}" />
                             <Button
                                 Grid.Column="1"
-                                Text="{loc:Loc TasbihReset}"
+                                BackgroundColor="{DynamicResource SubtleActionFillActive}"
                                 Command="{Binding ResetCommand}"
                                 CornerRadius="22"
+                                FontSize="14"
                                 HeightRequest="52"
-                                WidthRequest="90"
-                                BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
-                                TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
-                                FontSize="14" />
+                                Text="{loc:Loc TasbihReset}"
+                                TextColor="{DynamicResource SubtleActionForegroundActive}"
+                                WidthRequest="90" />
                         </Grid>
 
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- Presets card -->
+                <!--  Presets card  -->
                 <Border
                     Padding="0"
-                    StrokeShape="RoundRectangle 20"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
-                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
+                                                      Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout>
                         <Grid Padding="18,14,18,10" ColumnDefinitions="*,Auto">
                             <Label
-                                Text="{loc:Loc TasbihPresets}"
-                                FontSize="11"
-                                TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
                                 CharacterSpacing="0.8"
+                                FontSize="11"
+                                Text="{loc:Loc TasbihPresets}"
+                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                            Dark={StaticResource TextMutedDark}}"
                                 VerticalOptions="Center" />
                             <Picker
-                                Grid.Column="1"
                                 Title="{loc:Loc TasbihPresets}"
+                                Grid.Column="1"
+                                FontSize="13"
+                                HorizontalOptions="End"
                                 IsEnabled="{Binding IsPresetSelectionEnabled}"
                                 ItemDisplayBinding="{Binding Name}"
                                 ItemsSource="{Binding Presets}"
                                 SelectedItem="{Binding SelectedPreset}"
-                                FontSize="13"
-                                HorizontalOptions="End"
                                 WidthRequest="160" />
                         </Grid>
 
@@ -120,17 +130,18 @@
                                         ColumnDefinitions="Auto,*"
                                         ColumnSpacing="14">
                                         <Label
-                                            Text="{Binding TargetCount, StringFormat='×{0}'}"
                                             FontSize="13"
+                                            Text="{Binding TargetCount, StringFormat='x{0}'}"
+                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                                        Dark={StaticResource TextMutedDark}}"
                                             VerticalOptions="Center"
-                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
                                             WidthRequest="36" />
                                         <Label
                                             Grid.Column="1"
-                                            Text="{Binding Text}"
-                                            FontSize="20"
                                             FontAttributes="Bold"
+                                            FontSize="20"
                                             HorizontalTextAlignment="End"
+                                            Text="{Binding Text}"
                                             VerticalOptions="Center" />
                                     </Grid>
                                 </DataTemplate>
@@ -144,3 +155,5 @@
         </ScrollView>
     </Grid>
 </ContentPage>
+
+

@@ -1,4 +1,4 @@
-ï»¿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="Pray_Ad_Free.Pages.CalendarPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -34,7 +34,7 @@
                         <!-- Month nav -->
                         <Grid ColumnDefinitions="44,*,44" ColumnSpacing="10">
                             <Button
-                                Text="â€¹"
+                                Text="‹"
                                 WidthRequest="44" HeightRequest="44"
                                 CornerRadius="14"
                                 Command="{Binding PreviousMonthCommand}" />
@@ -45,7 +45,7 @@
                                 HorizontalOptions="Fill" />
                             <Button
                                 Grid.Column="2"
-                                Text="â€º"
+                                Text="›"
                                 WidthRequest="44" HeightRequest="44"
                                 CornerRadius="14"
                                 Command="{Binding NextMonthCommand}" />
@@ -86,8 +86,8 @@
                                 <!-- Date header -->
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                                     <Border
-                                        BackgroundColor="{StaticResource AccentSoft}"
-                                        Stroke="{StaticResource AccentMid}"
+                                        BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft}, Dark={StaticResource AccentSoftDark}}"
+                                        Stroke="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMidDark}}"
                                         StrokeThickness="1"
                                         Padding="10,5"
                                         StrokeShape="RoundRectangle 12">
@@ -105,7 +105,7 @@
                                         LineBreakMode="NoWrap" />
                                 </Grid>
 
-                                <!-- Prayer grid 3Ã—2 -->
+                                <!-- Prayer grid 3×2 -->
                                 <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6" RowDefinitions="Auto,Auto" RowSpacing="6">
                                     <Border Padding="8" MinimumHeightRequest="68"
                                         BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
@@ -171,3 +171,4 @@
         </Grid>
     </Grid>
 </ContentPage>
+

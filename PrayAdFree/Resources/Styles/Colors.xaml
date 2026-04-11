@@ -33,8 +33,91 @@
 
     <!-- ACCENT — Gold (primary accent) -->
     <Color x:Key="Accent">#C9A84C</Color>
-    <Color x:Key="AccentSoft">#C9A84C26</Color>
-    <Color x:Key="AccentMid">#C9A84C59</Color>
+    <Color x:Key="AccentSoft">#EADFC9</Color>
+    <Color x:Key="AccentSoftDark">#4C3C21</Color>
+    <Color x:Key="AccentMid">#DDCB9E</Color>
+    <Color x:Key="AccentMidDark">#7C6538</Color>
+
+    <!-- INPUTS — derived from surface + primary -->
+    <Color x:Key="InputFill">#F2ECDF</Color>
+    <Color x:Key="InputFillDark">#263645</Color>
+    <Color x:Key="InputFillFocused">#ECE3D0</Color>
+    <Color x:Key="InputFillFocusedDark">#314355</Color>
+    <Color x:Key="InputFillDisabled">#A89F90</Color>
+    <Color x:Key="InputFillDisabledDark">#18222C</Color>
+    <Color x:Key="InputStroke">#D6C19A</Color>
+    <Color x:Key="InputStrokeDark">#7E6844</Color>
+    <Color x:Key="InputTint">#C9A84C</Color>
+    <Color x:Key="InputTintDark">#DABD6F</Color>
+    <Color x:Key="InputForeground">#000000</Color>
+    <Color x:Key="InputForegroundDark">#FFFFFF</Color>
+    <Color x:Key="InputForegroundFocused">#000000</Color>
+    <Color x:Key="InputForegroundFocusedDark">#FFFFFF</Color>
+    <Color x:Key="InputForegroundDisabled">#FFFFFF</Color>
+    <Color x:Key="InputForegroundDisabledDark">#FFFFFF</Color>
+    <Color x:Key="InputFillActive">#F2ECDF</Color>
+    <Color x:Key="InputFillFocusedActive">#ECE3D0</Color>
+    <Color x:Key="InputFillDisabledActive">#A89F90</Color>
+    <Color x:Key="InputStrokeActive">#D6C19A</Color>
+    <Color x:Key="InputTintActive">#C9A84C</Color>
+    <Color x:Key="InputForegroundActive">#000000</Color>
+    <Color x:Key="InputForegroundFocusedActive">#000000</Color>
+    <Color x:Key="InputForegroundDisabledActive">#FFFFFF</Color>
+
+    <!-- ACTIONS — primary / subtle / disabled -->
+    <Color x:Key="PrimaryForeground">#FFFFFF</Color>
+    <Color x:Key="PrimaryDisabled">#6A5032</Color>
+    <Color x:Key="PrimaryDisabledDark">#6A5032</Color>
+    <Color x:Key="PrimaryDisabledForeground">#FFFFFF</Color>
+    <Color x:Key="PrimaryDisabledForegroundDark">#FFFFFF</Color>
+    <Color x:Key="PrimaryDisabledActive">#6A5032</Color>
+    <Color x:Key="PrimaryDisabledForegroundActive">#FFFFFF</Color>
+    <Color x:Key="SubtleActionFill">#F2ECDF</Color>
+    <Color x:Key="SubtleActionFillDark">#263645</Color>
+    <Color x:Key="SubtleActionForeground">#000000</Color>
+    <Color x:Key="SubtleActionForegroundDark">#FFFFFF</Color>
+    <Color x:Key="SubtleActionDisabled">#A89F90</Color>
+    <Color x:Key="SubtleActionDisabledDark">#18222C</Color>
+    <Color x:Key="SubtleActionDisabledForeground">#FFFFFF</Color>
+    <Color x:Key="SubtleActionDisabledForegroundDark">#FFFFFF</Color>
+    <Color x:Key="SubtleActionFillActive">#F2ECDF</Color>
+    <Color x:Key="SubtleActionForegroundActive">#000000</Color>
+    <Color x:Key="SubtleActionDisabledActive">#A89F90</Color>
+    <Color x:Key="SubtleActionDisabledForegroundActive">#FFFFFF</Color>
+
+    <!-- CHIPS -->
+    <Color x:Key="ChipActiveFill">#EADFC9</Color>
+    <Color x:Key="ChipActiveFillDark">#4C3C21</Color>
+    <Color x:Key="ChipActiveStroke">#DDCB9E</Color>
+    <Color x:Key="ChipActiveStrokeDark">#7C6538</Color>
+    <Color x:Key="ChipActiveForeground">#000000</Color>
+    <Color x:Key="ChipActiveForegroundDark">#FFFFFF</Color>
+    <Color x:Key="ChipInactiveFill">#F2ECDF</Color>
+    <Color x:Key="ChipInactiveFillDark">#263645</Color>
+    <Color x:Key="ChipInactiveStroke">#D6C19A</Color>
+    <Color x:Key="ChipInactiveStrokeDark">#7E6844</Color>
+    <Color x:Key="ChipInactiveForeground">#000000</Color>
+    <Color x:Key="ChipInactiveForegroundDark">#FFFFFF</Color>
+    <Color x:Key="ChipActiveFillActive">#EADFC9</Color>
+    <Color x:Key="ChipActiveStrokeActive">#DDCB9E</Color>
+    <Color x:Key="ChipActiveForegroundActive">#000000</Color>
+    <Color x:Key="ChipInactiveFillActive">#F2ECDF</Color>
+    <Color x:Key="ChipInactiveStrokeActive">#D6C19A</Color>
+    <Color x:Key="ChipInactiveForegroundActive">#000000</Color>
+
+    <!-- SWITCH -->
+    <Color x:Key="SwitchTrackOn">#DCC89B</Color>
+    <Color x:Key="SwitchTrackOnDark">#5C4A2E</Color>
+    <Color x:Key="SwitchTrackOff">#A89F90</Color>
+    <Color x:Key="SwitchTrackOffDark">#18222C</Color>
+    <Color x:Key="SwitchThumbOn">#000000</Color>
+    <Color x:Key="SwitchThumbOnDark">#FFFFFF</Color>
+    <Color x:Key="SwitchThumbOff">#FFFFFF</Color>
+    <Color x:Key="SwitchThumbOffDark">#FFFFFF</Color>
+    <Color x:Key="SwitchTrackOnActive">#DCC89B</Color>
+    <Color x:Key="SwitchTrackOffActive">#A89F90</Color>
+    <Color x:Key="SwitchThumbOnActive">#000000</Color>
+    <Color x:Key="SwitchThumbOffActive">#FFFFFF</Color>
 
     <!-- ACCENT — Teal (secondary / active states) -->
     <Color x:Key="Teal">#3FBFA0</Color>

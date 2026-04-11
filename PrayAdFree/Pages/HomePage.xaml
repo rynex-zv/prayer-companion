@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
     x:Class="Pray_Ad_Free.Pages.HomePage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -99,8 +99,8 @@
                                 <Border
                                     Padding="12,8"
                                     StrokeShape="RoundRectangle 22"
-                                    BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft}, Dark={StaticResource AccentSoft}}"
-                                    Stroke="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}">
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft}, Dark={StaticResource AccentSoftDark}}"
+                                    Stroke="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMidDark}}">
                                     <Label
                                         Text="{Binding Countdown}"
                                         FontSize="20"
@@ -187,8 +187,8 @@
                                 <Border Padding="14,12" StrokeShape="RoundRectangle 14" StrokeThickness="1">
                                     <Border.Triggers>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsIftarNext}" Value="True">
-                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoft}}" />
-                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}" />
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoftDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMidDark}}" />
                                         </DataTrigger>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsIftarNext}" Value="False">
                                             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
@@ -218,8 +218,8 @@
                                 <Border Grid.Column="1" Padding="14,12" StrokeShape="RoundRectangle 14" StrokeThickness="1">
                                     <Border.Triggers>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsImsakNext}" Value="True">
-                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoft}}" />
-                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}" />
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoftDark}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMidDark}}" />
                                         </DataTrigger>
                                         <DataTrigger TargetType="Border" Binding="{Binding IsImsakNext}" Value="False">
                                             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
@@ -261,3 +261,4 @@
         </RefreshView>
     </Grid>
 </ContentPage>
+
