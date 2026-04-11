@@ -32,8 +32,6 @@ public partial class AppShellA : Shell {
         _logger.LogEvent("AppShellATabs", $"count={tabTitles.Count};tabs={string.Join(",", tabTitles)}");
 
         RegisterRoutes();
-        _ = InitializeLocalizationAsync(preferredLanguage);
-
         Navigated += (_, _) => {
             ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
             var route = Shell.Current?.CurrentState?.Location.ToString() ?? "Unknown";
@@ -62,21 +60,4 @@ public partial class AppShellA : Shell {
         _routesRegistered = true;
     }
 
-    private async Task InitializeLocalizationAsync(string preferredLanguage) {
-        try {
-            _logger.LogEvent("AppShellALocalization", "syncStart");
-            WindowsStartupSafety.Trace("ShellA.Localization:syncStart");
-            await Task.Run(() => new LocalizationFileSync().SyncIfNeeded()).ConfigureAwait(false);
-            _logger.LogEvent("AppShellALocalization", "syncDone");
-            WindowsStartupSafety.Trace("ShellA.Localization:syncDone");
-            await MainThread.InvokeOnMainThreadAsync(
-                () => LocalizationManager.InitializeAsync(preferredLanguage)
-            ).ConfigureAwait(false);
-            _logger.LogEvent("AppShellALocalization", "initDone");
-            WindowsStartupSafety.Trace("ShellA.Localization:initDone");
-        } catch (Exception ex) {
-            _logger.LogException(ex, "AppShellA.InitializeLocalizationAsync");
-            WindowsStartupSafety.Trace($"ShellA.Localization:exception {ex.GetType().Name}:{ex.Message}");
-        }
-    }
 }

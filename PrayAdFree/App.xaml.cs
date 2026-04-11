@@ -12,6 +12,7 @@ namespace Pray_Ad_Free {
         public static IServiceProvider? Services { get; private set; }
         private readonly IServiceProvider _services;
         private readonly IAppLogger _logger;
+        private readonly IStartupNavigationService _startupNavigationService;
         private ThemeVariant _activeThemeVariant = ThemeVariant.B;
         private Window? _mainWindow;
         private bool _startupNotificationBootstrapQueued;
@@ -21,6 +22,7 @@ namespace Pray_Ad_Free {
             _services = services;
             Services = services;
             _logger = logger;
+            _startupNavigationService = services.GetRequiredService<IStartupNavigationService>();
             _logger.LogEvent("AppCtor", "start");
             RegisterExceptionHandlers();
 
@@ -52,9 +54,9 @@ namespace Pray_Ad_Free {
 
         protected override Window CreateWindow( IActivationState? activationState ) {
             try {
-                _logger.LogEvent("CreateWindow", "beforeResolveShell");
-                var shell = CreateShellForVariant(_activeThemeVariant);
-                _mainWindow = new Window(shell);
+                _logger.LogEvent("CreateWindow", "beforeResolveRoot");
+                var rootPage = _startupNavigationService.CreateStartupPage();
+                _mainWindow = new Window(rootPage);
                 QueueStartupNotificationBootstrap("CreateWindow");
                 TryProcessPendingAlarmUi("CreateWindow");
 #if ANDROID
@@ -130,9 +132,15 @@ namespace Pray_Ad_Free {
 
         private void TryScheduleNotifications(string reason) {
             try {
+                var settings = LoadSettingsSafe();
+                if (!settings.OnboardingCompleted) {
+                    _logger.LogEvent("TryScheduleNotifications", $"skip_onboarding:{reason}");
+                    return;
+                }
+
                 _logger.LogEvent("TryScheduleNotifications", $"start:{reason}");
                 var bootstrapper = _services.GetRequiredService<NotificationBootstrapper>();
-                _ = bootstrapper.EnsureScheduledAsync(reason, requestPermissions: true);
+                _ = bootstrapper.EnsureScheduledAsync(reason, requestPermissions: false);
                 _logger.LogEvent("TryScheduleNotifications", $"queued:{reason}");
             } catch (Exception ex) {
                 _logger.LogException(ex, "App.TryScheduleNotifications");

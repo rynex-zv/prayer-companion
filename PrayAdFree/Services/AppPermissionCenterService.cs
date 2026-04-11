@@ -20,19 +20,20 @@ public readonly record struct AppPermissionSnapshot(
     AppPermissionKind Kind,
     bool IsGranted,
     bool UsesSettingsFlow,
-    bool IsCritical);
+    bool IsCritical,
+    bool IsSupported);
 
-public sealed class AppPermissionCenterService {
+public sealed class AppPermissionCenterService : IAppPermissionCenterService {
     public async Task<IReadOnlyList<AppPermissionSnapshot>> GetSnapshotsAsync() {
         var items = new List<AppPermissionSnapshot> {
-            new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: true),
-            new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false),
-            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false),
-            new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: true),
-            new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: false)
+            new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: true, IsSupported: IsNotificationsSupported()),
+            new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsFullScreenIntentsSupported()),
+            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsDisplayOverAppsSupported()),
+            new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: true, IsSupported: IsExactAlarmsSupported()),
+            new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: false, IsSupported: IsLocationSupported())
         };
 
-        return items;
+        return items.Where(item => item.IsSupported).ToList();
     }
 
     public async Task<AlarmPermissionState> GetAlarmPermissionStateAsync() {
@@ -73,10 +74,20 @@ public sealed class AppPermissionCenterService {
         return true;
     }
 
+    private static bool IsNotificationsSupported() {
+#if ANDROID
+        return OperatingSystem.IsAndroidVersionAtLeast(33);
+#else
+        return !OperatingSystem.IsWindows();
+#endif
+    }
+
     private static async Task<bool> IsLocationGrantedAsync() {
         var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>().ConfigureAwait(false);
         return status == PermissionStatus.Granted;
     }
+
+    private static bool IsLocationSupported() => true;
 
     private static Task<bool> IsExactAlarmsGrantedAsync() {
 #if ANDROID
@@ -87,6 +98,14 @@ public sealed class AppPermissionCenterService {
         }
 #endif
         return Task.FromResult(true);
+    }
+
+    private static bool IsExactAlarmsSupported() {
+#if ANDROID
+        return OperatingSystem.IsAndroidVersionAtLeast(31);
+#else
+        return false;
+#endif
     }
 
     private static Task<bool> IsFullScreenIntentsGrantedAsync() {
@@ -104,6 +123,14 @@ public sealed class AppPermissionCenterService {
         return Task.FromResult(true);
     }
 
+    private static bool IsFullScreenIntentsSupported() {
+#if ANDROID
+        return OperatingSystem.IsAndroidVersionAtLeast(34);
+#else
+        return false;
+#endif
+    }
+
     private static Task<bool> IsDisplayOverAppsGrantedAsync() {
 #if ANDROID
         if (OperatingSystem.IsAndroidVersionAtLeast(23)) {
@@ -114,6 +141,14 @@ public sealed class AppPermissionCenterService {
         return Task.FromResult(true);
     }
 
+    private static bool IsDisplayOverAppsSupported() {
+#if ANDROID
+        return OperatingSystem.IsAndroidVersionAtLeast(23);
+#else
+        return false;
+#endif
+    }
+
     private static async Task ResolveNotificationsAsync() {
 #if ANDROID
         if (OperatingSystem.IsAndroidVersionAtLeast(33)) {
@@ -122,17 +157,13 @@ public sealed class AppPermissionCenterService {
             if (status == PermissionStatus.Granted) {
                 return;
             }
-        } else {
-            await MainThread.InvokeOnMainThreadAsync(() => LocalNotificationCenter.Current.RequestNotificationPermission())
-                .ConfigureAwait(false);
+
+            await OpenAppSettingsAsync().ConfigureAwait(false);
             return;
         }
-#else
+#endif
         await MainThread.InvokeOnMainThreadAsync(() => LocalNotificationCenter.Current.RequestNotificationPermission())
             .ConfigureAwait(false);
-        return;
-#endif
-        await OpenAppSettingsAsync().ConfigureAwait(false);
     }
 
     private static async Task ResolveLocationAsync() {

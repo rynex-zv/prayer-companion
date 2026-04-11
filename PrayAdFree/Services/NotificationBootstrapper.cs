@@ -15,7 +15,7 @@ using PrayAdFree.Core.Services;
 
 namespace Pray_Ad_Free.Services;
 
-public sealed class NotificationBootstrapper {
+public sealed class NotificationBootstrapper : INotificationBootstrapper {
     private readonly SettingsService _settingsService;
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
@@ -24,7 +24,9 @@ public sealed class NotificationBootstrapper {
     private DateTime _lastRunUtc = DateTime.MinValue;
     private bool _permissionRequestedThisSession;
     private bool _locationPermissionRequestedThisSession;
+#if ANDROID
     private bool _exactAlarmPermissionRequestedThisSession;
+#endif
 
     public NotificationBootstrapper(SettingsService settingsService, PrayerDataService dataService, IAppLogger logger) {
         _settingsService = settingsService;

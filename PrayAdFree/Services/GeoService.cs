@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Pray_Ad_Free.Services;
 
-public sealed class GeoService {
+public sealed class GeoService : IGeoLookupService {
     private const double DefaultRadiusKm = 20;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(30);
     private static readonly TimeSpan MinRequestInterval = TimeSpan.FromSeconds(1);

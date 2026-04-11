@@ -124,7 +124,8 @@ public sealed class TasbihViewModel : ViewModelBase {
                 LanguageSelected = _settings.LanguageSelected,
                 ThemeMode = _settings.ThemeMode,
                 ThemeVariant = _settings.ThemeVariant,
-                AccentIndex = _settings.AccentIndex
+                AccentIndex = _settings.AccentIndex,
+                OnboardingCompleted = _settings.OnboardingCompleted
             };
             _dataService.SaveSettings(_settings);
         }
@@ -205,7 +206,8 @@ public sealed class TasbihViewModel : ViewModelBase {
             LanguageSelected = _settings.LanguageSelected,
             ThemeMode = _settings.ThemeMode,
             ThemeVariant = _settings.ThemeVariant,
-            AccentIndex = _settings.AccentIndex
+            AccentIndex = _settings.AccentIndex,
+            OnboardingCompleted = _settings.OnboardingCompleted
         };
 
         _suppressReload = true;

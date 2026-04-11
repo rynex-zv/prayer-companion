@@ -20,4 +20,5 @@ public sealed class AppSettings {
     public ThemeMode ThemeMode { get; init; } = ThemeMode.Auto;
     public ThemeVariant ThemeVariant { get; init; } = ThemeVariant.B;
     public int AccentIndex { get; init; }
+    public bool OnboardingCompleted { get; init; }
 }

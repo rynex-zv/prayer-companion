@@ -61,7 +61,8 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             LanguageSelected = true,
             ThemeMode = settings.ThemeMode,
             ThemeVariant = settings.ThemeVariant,
-            AccentIndex = settings.AccentIndex
+            AccentIndex = settings.AccentIndex,
+            OnboardingCompleted = settings.OnboardingCompleted
         };
         _settingsService.Save(settings);
         LocalizationManager.SetLanguage(language);

@@ -12,6 +12,7 @@ public class SettingsServiceTests {
             Method = CalculationMethod.Egypt,
             Madhhab = Madhhab.Hanafi,
             Location = new LocationSettings { City = "Cairo", Country = "Egypt" },
+            OnboardingCompleted = true,
             Notifications = new NotificationSettings {
                 MobilePrimaryAdhanType = MobilePrimaryAdhanType.Alarm,
                 AdhanVolume = 0.35,
@@ -59,5 +60,6 @@ public class SettingsServiceTests {
         Assert.Equal(127.5, loaded.Qibla.ManualHeading, 3);
         Assert.Equal(QiblaReadingMode.Fast, loaded.Qibla.ReadingMode);
         Assert.Equal(QiblaFilterMode.Strict, loaded.Qibla.FilterMode);
+        Assert.True(loaded.OnboardingCompleted);
     }
 }

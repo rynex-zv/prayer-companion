@@ -20,16 +20,10 @@ namespace Pray_Ad_Free.ViewModels;
 
 public sealed class SettingsViewModel : ViewModelBase {
     private readonly PrayerDataService _dataService;
-    private readonly GeoService _geoService;
     private readonly IAppLogger _logger;
     private readonly IWindowsBackgroundModeService _windowsBackgroundModeService;
     private readonly IAdhanPlaybackService _adhanPlaybackService;
     private AppSettings _settings = new();
-    private bool _useGps;
-    private string _city = "";
-    private string _country = "";
-    private string _latitude = "";
-    private string _longitude = "";
     private OptionItem<CalculationMethod>? _selectedMethod;
     private OptionItem<Madhhab>? _selectedMadhhab;
     private OptionItem<HighLatitudeRule>? _selectedHighLatitude;
@@ -64,12 +58,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _statusMessage = "";
     private bool _suspendSave;
     private int _saveVersion;
-    private int _geoVersion;
-    private PlaceOption? _selectedCountry;
-    private PlaceOption? _selectedCity;
-    private bool _gpsBusy;
-    private CancellationTokenSource? _gpsLoopCts;
-    private bool _suspendPlaceSelection;
     private OptionItem<int>? _selectedImsakReminderUnit;
     private OptionItem<int>? _selectedImsakReminderDirection;
     private OptionItem<int>? _selectedIftarReminderUnit;
@@ -106,14 +94,15 @@ public sealed class SettingsViewModel : ViewModelBase {
     public SettingsViewModel(
         PrayerDataService dataService,
         GeoService geoService,
+        ILocationProvider locationProvider,
         IAppLogger logger,
         IWindowsBackgroundModeService windowsBackgroundModeService,
         IAdhanPlaybackService adhanPlaybackService) {
         _dataService = dataService;
-        _geoService = geoService;
         _logger = logger;
         _windowsBackgroundModeService = windowsBackgroundModeService;
         _adhanPlaybackService = adhanPlaybackService;
+        LocationSetup = new LocationSetupViewModel(geoService, locationProvider, logger);
         Methods = new ObservableCollection<OptionItem<CalculationMethod>>();
         Madhhabs = new ObservableCollection<OptionItem<Madhhab>>();
         HighLatitudeRules = new ObservableCollection<OptionItem<HighLatitudeRule>>();
@@ -122,8 +111,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         ThemeVariants = new ObservableCollection<OptionItem<ThemeVariant>>();
         AccentOptions = new ObservableCollection<AccentOption>(ThemeManager.GetAccentOptions(ThemeVariant.B));
         Languages = new ObservableCollection<OptionItem<string>>();
-        CountryOptions = new ObservableCollection<PlaceOption>();
-        CityOptions = new ObservableCollection<PlaceOption>();
         ReminderUnits = new ObservableCollection<OptionItem<int>>();
         ReminderDirections = new ObservableCollection<OptionItem<int>>();
         ImsakReminders = new ObservableCollection<ReminderOffsetItem>();
@@ -152,7 +139,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         BuildNotificationOptions();
         BuildAdhanOverrideOptions();
         BuildTasbihRepeatModes();
-        RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
+        RefreshGpsCommand = LocationSetup.RefreshGpsCommand;
         AddImsakReminderCommand = new Command(AddImsakReminder);
         AddIftarReminderCommand = new Command(AddIftarReminder);
         RemoveImsakReminderCommand = new Command<ReminderOffsetItem>(RemoveImsakReminder);
@@ -206,10 +193,11 @@ public sealed class SettingsViewModel : ViewModelBase {
         });
 
         Load();
+        LocationSetup.PropertyChanged += OnLocationSetupPropertyChanged;
         PropertyChanged += OnSettingsPropertyChanged;
         LocalizationManager.LanguageChanged += (_, _) => {
             BuildLocalizedPickers();
-            BuildPlaceOptions();
+            LocationSetup.RefreshLocalizedPlaceOptions();
             BuildReminderOptions();
             RebuildReminderLabels();
             BuildClockFormats();
@@ -229,8 +217,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<ThemeVariant>> ThemeVariants { get; }
     public ObservableCollection<AccentOption> AccentOptions { get; }
     public ObservableCollection<OptionItem<string>> Languages { get; }
-    public ObservableCollection<PlaceOption> CountryOptions { get; }
-    public ObservableCollection<PlaceOption> CityOptions { get; }
     public ObservableCollection<OptionItem<int>> ReminderUnits { get; }
     public ObservableCollection<OptionItem<int>> ReminderDirections { get; }
     public ObservableCollection<ReminderOffsetItem> ImsakReminders { get; }
@@ -252,6 +238,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<AdhanPrayerOverrideViewModel> AdhanPrayerOverrides => _adhanPrayerOverrides;
     public ObservableCollection<TasbihPresetEditorViewModel> TasbihPresets { get; }
     public ObservableCollection<OptionItem<TasbihRepeatMode>> TasbihRepeatModes { get; }
+    public LocationSetupViewModel LocationSetup { get; }
     public Command RefreshGpsCommand { get; }
     public Command AddImsakReminderCommand { get; }
     public Command AddIftarReminderCommand { get; }
@@ -297,90 +284,45 @@ public sealed class SettingsViewModel : ViewModelBase {
         private set => _selectQiblaFilterModeCommand = value;
     }
     public bool UseGps {
-        get => _useGps;
-        set {
-            if (SetProperty(ref _useGps, value)) {
-                OnPropertyChanged(nameof(IsManualLocationEnabled));
-                if (_suspendSave) {
-                    return;
-                }
-
-                ScheduleSave();
-                if (value) {
-                    StartGpsLoop();
-                } else {
-                    StopGpsLoop();
-                }
-            }
-        }
+        get => LocationSetup.UseGps;
+        set => LocationSetup.UseGps = value;
     }
 
-    public bool IsManualLocationEnabled => !UseGps;
+    public bool IsManualLocationEnabled => LocationSetup.IsManualLocationEnabled;
 
-    public bool GpsBusy => _gpsBusy;
+    public bool GpsBusy => LocationSetup.GpsBusy;
     public string City {
-        get => _city;
-        set {
-            if (SetProperty(ref _city, value) && !_suspendSave && UseGps) {
-                UseGps = false;
-            }
-        }
+        get => LocationSetup.City;
+        set => LocationSetup.City = value;
     }
 
     public string Country {
-        get => _country;
-        set {
-            if (SetProperty(ref _country, value) && !_suspendSave && UseGps) {
-                UseGps = false;
-            }
-        }
+        get => LocationSetup.Country;
+        set => LocationSetup.Country = value;
     }
 
     public string Latitude {
-        get => _latitude;
-        set {
-            if (SetProperty(ref _latitude, value) && !_suspendSave) {
-                if (UseGps) {
-                    UseGps = false;
-                }
-                ScheduleReverseLookup();
-            }
-        }
+        get => LocationSetup.Latitude;
+        set => LocationSetup.Latitude = value;
     }
 
     public string Longitude {
-        get => _longitude;
-        set {
-            if (SetProperty(ref _longitude, value) && !_suspendSave) {
-                if (UseGps) {
-                    UseGps = false;
-                }
-                ScheduleReverseLookup();
-            }
-        }
+        get => LocationSetup.Longitude;
+        set => LocationSetup.Longitude = value;
     }
 
     public PlaceOption? SelectedCountry {
-        get => _selectedCountry;
-        set {
-            if (SetProperty(ref _selectedCountry, value)) {
-                if (!_suspendPlaceSelection) {
-                    _ = ApplyCountrySelectionAsync(value);
-                }
-            }
-        }
+        get => LocationSetup.SelectedCountry;
+        set => LocationSetup.SelectedCountry = value;
     }
 
     public PlaceOption? SelectedCity {
-        get => _selectedCity;
-        set {
-            if (SetProperty(ref _selectedCity, value)) {
-                if (!_suspendPlaceSelection) {
-                    ApplyCitySelection(value);
-                }
-            }
-        }
+        get => LocationSetup.SelectedCity;
+        set => LocationSetup.SelectedCity = value;
     }
+
+    public ObservableCollection<PlaceOption> CountryOptions => LocationSetup.CountryOptions;
+    public ObservableCollection<PlaceOption> CityOptions => LocationSetup.CityOptions;
 
     public OptionItem<CalculationMethod>? SelectedMethod {
         get => _selectedMethod;
@@ -731,7 +673,8 @@ public sealed class SettingsViewModel : ViewModelBase {
                 ThemeVariant = SelectedThemeVariant?.Value ?? _settings.ThemeVariant,
                 AccentIndex = SelectedAccent?.Index ?? _settings.AccentIndex,
                 TextScale = TextScale,
-                SunAngles = _settings.SunAngles
+                SunAngles = _settings.SunAngles,
+                OnboardingCompleted = _settings.OnboardingCompleted
             });
         } catch (Exception ex) {
             _logger.LogException(ex, "SettingsViewModel.ApplyThemePreview");
@@ -746,11 +689,7 @@ public sealed class SettingsViewModel : ViewModelBase {
     private void Load() {
         _suspendSave = true;
         _settings = _dataService.LoadSettings();
-        UseGps = _settings.Location.Mode == LocationMode.Gps;
-        City = _settings.Location.City;
-        Country = _settings.Location.Country;
-        Latitude = _settings.Location.Latitude == 0 ? "" : _settings.Location.Latitude.ToString("F4");
-        Longitude = _settings.Location.Longitude == 0 ? "" : _settings.Location.Longitude.ToString("F4");
+        LocationSetup.Load(_settings.Location, startGpsTracking: false);
         SelectedMethod = Methods.FirstOrDefault(item => item.Value == _settings.Method);
         SelectedMadhhab = Madhhabs.FirstOrDefault(item => item.Value == _settings.Madhhab);
         SelectedHighLatitude = HighLatitudeRules.FirstOrDefault(item => item.Value == _settings.HighLatitudeRule);
@@ -810,10 +749,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         BuildAdhanOverrideOptions();
         LoadAdhanOverrides();
         UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.B, _settings.AccentIndex);
-        BuildPlaceOptions();
         _suspendSave = false;
         if (UseGps) {
-            _ = RefreshGpsAsync();
+            _ = LocationSetup.RefreshGpsAsync();
         }
     }
 
@@ -827,17 +765,7 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private void SaveCore(bool updateStatusMessage) {
         var previousThemeVariant = _settings.ThemeVariant;
-        var mode = UseGps ? LocationMode.Gps : LocationMode.Manual;
-        var location = new LocationSettings {
-            Mode = mode,
-            City = NormalizeName(City?.Trim()),
-            Country = NormalizeName(Country?.Trim()),
-            Latitude = ParseDouble(Latitude, _settings.Location.Latitude),
-            Longitude = ParseDouble(Longitude, _settings.Location.Longitude),
-            CountryCode = _settings.Location.CountryCode,
-            TimeZoneId = _settings.Location.TimeZoneId,
-            LastUpdatedUtc = _settings.Location.LastUpdatedUtc
-        };
+        var location = LocationSetup.BuildLocationSettings(_settings.Location);
 
         var offsets = new PrayerOffsets {
             Fajr = ParseInt(FajrOffset, _settings.Offsets.Fajr),
@@ -933,7 +861,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             LanguageSelected = true,
             ThemeMode = SelectedThemeMode?.Value ?? ThemeMode.Auto,
             ThemeVariant = SelectedThemeVariant?.Value ?? ThemeVariant.B,
-            AccentIndex = SelectedAccent?.Index ?? 0
+            AccentIndex = SelectedAccent?.Index ?? 0,
+            OnboardingCompleted = _settings.OnboardingCompleted
         };
 
         _dataService.SaveSettings(_settings);
@@ -980,7 +909,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             SunAngles = new SunAngleSettings {
                 Fajr = ParseDouble(_customFajrAngle, _settings.SunAngles.Fajr),
                 Isha = ParseDouble(_customIshaAngle, _settings.SunAngles.Isha)
-            }
+            },
+            OnboardingCompleted = _settings.OnboardingCompleted
         });
     }
 
@@ -994,150 +924,12 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? AccentOptions.FirstOrDefault();
     }
 
-    private void BuildPlaceOptions() {
-        var known = _geoService.GetKnownPlaces()
-            .Where(item => !string.IsNullOrWhiteSpace(item.Country))
-            .ToList();
-
-        var current = _settings.Location;
-        if (!string.IsNullOrWhiteSpace(current.Country)) {
-            known.Insert(0, new GeoLocationResult {
-                Country = current.Country,
-                City = current.City,
-                CountryCode = current.CountryCode,
-                Latitude = current.Latitude,
-                Longitude = current.Longitude
-            });
-        }
-
-        var countries = known
-            .GroupBy(item => NormalizeName(item.Country))
-            .Select(group => group.First())
-            .Select(country => new PlaceOption(
-                NormalizeName(country.Country),
-                NormalizeName(country.City),
-                country.Latitude,
-                country.Longitude,
-                true))
-            .ToList();
-
-        if (countries.Count == 0) {
-            countries.Add(new PlaceOption(LocalizationManager.Translate("UnknownCountry"), "", 0, 0, true));
-        }
-
-        RunOnMainThread(() => {
-            CountryOptions.Clear();
-            foreach (var option in countries) {
-                CountryOptions.Add(option);
-            }
-
-            _suspendPlaceSelection = true;
-            SelectedCountry = CountryOptions.FirstOrDefault(option => option.Country == current.Country)
-                ?? CountryOptions.FirstOrDefault();
-            _suspendPlaceSelection = false;
-
-            UpdateCityOptions(current.Country);
-        });
-    }
-
-    private void UpdateCityOptions(string? country) {
-        var known = _geoService.GetKnownPlaces()
-            .Where(item => string.Equals(NormalizeName(item.Country), NormalizeName(country ?? ""), StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var cities = known
-            .Select(city => new PlaceOption(
-                NormalizeName(city.Country),
-                NormalizeName(city.City),
-                city.Latitude,
-                city.Longitude,
-                false))
-            .Where(option => !string.IsNullOrWhiteSpace(option.City))
-            .Where(option => !string.Equals(option.City, option.Country, StringComparison.OrdinalIgnoreCase))
-            .GroupBy(option => option.City, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToList();
-
-        if (cities.Count == 0 && !string.IsNullOrWhiteSpace(country)) {
-            cities.Add(new PlaceOption(country, LocalizationManager.Translate("UnknownCity"), 0, 0, false));
-        }
-
-        RunOnMainThread(() => {
-            CityOptions.Clear();
-            foreach (var city in cities) {
-                CityOptions.Add(city);
-            }
-
-            _suspendPlaceSelection = true;
-            SelectedCity = CityOptions.FirstOrDefault(option => option.City == _settings.Location.City)
-                ?? CityOptions.FirstOrDefault();
-            _suspendPlaceSelection = false;
-        });
-    }
-
-    private async Task ApplyCountrySelectionAsync(PlaceOption? option) {
-        if (_suspendSave || option == null) {
-            return;
-        }
-
-        var country = option.Country;
-        if (string.IsNullOrWhiteSpace(country)) {
-            return;
-        }
-
-        var result = await _geoService.ForwardAsync(country, CancellationToken.None).ConfigureAwait(false);
-        RunOnMainThread(() => {
-            _suspendSave = true;
-            UseGps = false;
-            Country = NormalizeName(country);
-            if (result != null) {
-                City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
-                Latitude = result.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-                Longitude = result.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-            } else {
-                City = LocalizationManager.Translate("UnknownCity");
-                Latitude = "0";
-                Longitude = "0";
-            }
-
-            UpdateCityOptions(country);
-            _suspendSave = false;
-            ScheduleSave();
-        });
-    }
-
     private static void RunOnMainThread(Action action) {
         if (MainThread.IsMainThread) {
             action();
         } else {
             MainThread.BeginInvokeOnMainThread(action);
         }
-    }
-
-    private void ApplyCitySelection(PlaceOption? option) {
-        if (_suspendSave || option == null) {
-            return;
-        }
-
-        _suspendSave = true;
-        var matchesGps = UseGps
-            && string.Equals(option.City, _settings.Location.City, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(option.Country, _settings.Location.Country, StringComparison.OrdinalIgnoreCase);
-        if (matchesGps) {
-            City = _settings.Location.City;
-            Country = _settings.Location.Country;
-            Latitude = _settings.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-            Longitude = _settings.Location.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-            UseGps = true;
-        } else {
-            UseGps = false;
-            City = NormalizeName(option.City);
-            Country = NormalizeName(option.Country);
-            Latitude = option.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-            Longitude = option.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-        }
-        _suspendSave = false;
-        ScheduleSave();
     }
 
     private void BuildLocalizedPickers() {
@@ -2233,7 +2025,8 @@ public sealed class SettingsViewModel : ViewModelBase {
             LanguageSelected = _settings.LanguageSelected,
             ThemeMode = _settings.ThemeMode,
             ThemeVariant = _settings.ThemeVariant,
-            AccentIndex = _settings.AccentIndex
+            AccentIndex = _settings.AccentIndex,
+            OnboardingCompleted = _settings.OnboardingCompleted
         };
     }
 
@@ -2247,6 +2040,25 @@ public sealed class SettingsViewModel : ViewModelBase {
 
     private void UpdateTextScaleLabel() {
         TextScaleLabel = $"{TextScale}%";
+    }
+
+    private void OnLocationSetupPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
+        var mappedProperty = e.PropertyName switch {
+            nameof(LocationSetupViewModel.UseGps) => nameof(UseGps),
+            nameof(LocationSetupViewModel.IsManualLocationEnabled) => nameof(IsManualLocationEnabled),
+            nameof(LocationSetupViewModel.GpsBusy) => nameof(GpsBusy),
+            nameof(LocationSetupViewModel.City) => nameof(City),
+            nameof(LocationSetupViewModel.Country) => nameof(Country),
+            nameof(LocationSetupViewModel.Latitude) => nameof(Latitude),
+            nameof(LocationSetupViewModel.Longitude) => nameof(Longitude),
+            nameof(LocationSetupViewModel.SelectedCountry) => nameof(SelectedCountry),
+            nameof(LocationSetupViewModel.SelectedCity) => nameof(SelectedCity),
+            _ => null
+        };
+
+        if (mappedProperty != null) {
+            OnPropertyChanged(mappedProperty);
+        }
     }
 
     private void OnSettingsPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
@@ -2410,137 +2222,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         MainThread.BeginInvokeOnMainThread(Save);
     }
 
-    private void ScheduleReverseLookup() {
-        _geoVersion++;
-        var version = _geoVersion;
-        _ = DebounceReverseAsync(version);
-    }
-
-    private async Task DebounceReverseAsync(int version) {
-        await Task.Delay(700).ConfigureAwait(false);
-        if (version != _geoVersion) {
-            return;
-        }
-
-        if (!double.TryParse(Latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)) {
-            return;
-        }
-        if (!double.TryParse(Longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lon)) {
-            return;
-        }
-
-        var result = await _geoService.ReverseAsync(lat, lon, CancellationToken.None).ConfigureAwait(false);
-        MainThread.BeginInvokeOnMainThread(() => {
-            _suspendSave = true;
-            UseGps = false;
-            if (result != null) {
-                City = string.IsNullOrWhiteSpace(result.City) ? LocalizationManager.Translate("UnknownCity") : NormalizeName(result.City);
-                Country = string.IsNullOrWhiteSpace(result.Country) ? LocalizationManager.Translate("UnknownCountry") : NormalizeName(result.Country);
-            } else {
-                City = LocalizationManager.Translate("UnknownCity");
-                Country = LocalizationManager.Translate("UnknownCountry");
-            }
-            _suspendSave = false;
-            BuildPlaceOptions();
-        });
-    }
-
-    private async Task RefreshGpsAsync() {
-        if (_suspendSave || GpsBusy) {
-            return;
-        }
-
-        try {
-            SetGpsBusy(true);
-            var settings = _dataService.LoadSettings();
-            settings = new AppSettings {
-                Location = new LocationSettings {
-                    Mode = LocationMode.Gps,
-                    City = settings.Location.City,
-                    Country = settings.Location.Country,
-                    CountryCode = settings.Location.CountryCode,
-                    Latitude = settings.Location.Latitude,
-                    Longitude = settings.Location.Longitude,
-                    TimeZoneId = settings.Location.TimeZoneId,
-                    LastUpdatedUtc = settings.Location.LastUpdatedUtc
-                },
-                Method = settings.Method,
-                Madhhab = settings.Madhhab,
-                HighLatitudeRule = settings.HighLatitudeRule,
-                SunAngles = settings.SunAngles,
-                Offsets = settings.Offsets,
-                FastingOffsets = settings.FastingOffsets,
-                FastingReminders = settings.FastingReminders,
-                Notifications = settings.Notifications,
-                AlarmReminders = settings.AlarmReminders,
-                Qibla = settings.Qibla,
-                ClockFormat = settings.ClockFormat,
-                TextScale = settings.TextScale,
-                Tasbih = settings.Tasbih,
-                Language = settings.Language,
-                LanguageSelected = settings.LanguageSelected,
-                ThemeMode = settings.ThemeMode,
-                ThemeVariant = settings.ThemeVariant,
-                AccentIndex = settings.AccentIndex
-            };
-
-            var updated = await _dataService.UpdateLocationAsync(settings, CancellationToken.None, forceRefresh: true).ConfigureAwait(false);
-            MainThread.BeginInvokeOnMainThread(() => {
-                _suspendSave = true;
-                _settings = updated;
-                City = NormalizeName(updated.Location.City);
-                Country = NormalizeName(updated.Location.Country);
-                Latitude = updated.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-                Longitude = updated.Location.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture);
-                _suspendSave = false;
-                BuildPlaceOptions();
-                ScheduleSave();
-            });
-        } catch (Exception ex) {
-            _logger.LogException(ex, "SettingsViewModel.RefreshGpsAsync");
-        } finally {
-            SetGpsBusy(false);
-        }
-    }
-
-    private void StartGpsLoop() {
-        StopGpsLoop();
-        _gpsLoopCts = new CancellationTokenSource();
-        _ = GpsLoopAsync(_gpsLoopCts.Token);
-    }
-
-    private void StopGpsLoop() {
-        _gpsLoopCts?.Cancel();
-        _gpsLoopCts?.Dispose();
-        _gpsLoopCts = null;
-    }
-
-    private async Task GpsLoopAsync(CancellationToken token) {
-        while (!token.IsCancellationRequested) {
-            try {
-                await RefreshGpsAsync().ConfigureAwait(false);
-            } catch (Exception ex) {
-                _logger.LogException(ex, "SettingsViewModel.GpsLoopAsync");
-            }
-            try {
-                await Task.Delay(TimeSpan.FromMinutes(15), token).ConfigureAwait(false);
-            } catch (TaskCanceledException) {
-                break;
-            }
-        }
-    }
-
-    private void SetGpsBusy(bool value) {
-        if (_gpsBusy == value) {
-            return;
-        }
-
-        _gpsBusy = value;
-        RunOnMainThread(() => {
-            OnPropertyChanged(nameof(GpsBusy));
-            RefreshGpsCommand.ChangeCanExecute();
-        });
-    }
 
     private static string NormalizeName(string? value) {
         if (string.IsNullOrWhiteSpace(value)) {

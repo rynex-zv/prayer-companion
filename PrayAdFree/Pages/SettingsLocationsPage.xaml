@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
              xmlns:conv="clr-namespace:Pray_Ad_Free.Converters"
+             xmlns:controls="clr-namespace:Pray_Ad_Free.Controls"
              x:Class="Pray_Ad_Free.Pages.SettingsLocationsPage"
              Title="{loc:Loc Locations}">
     <ContentPage.Resources>
@@ -45,21 +46,7 @@
                     Padding="16">
                 <VerticalStackLayout Spacing="10">
                     <Label Text="{loc:Loc Locations}" FontSize="16" />
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" VerticalOptions="Center">
-                        <Label Text="{loc:Loc UseGps}" FontSize="14" VerticalOptions="Center" />
-                        <Switch Grid.Column="1" IsToggled="{Binding UseGps}" VerticalOptions="Center" HorizontalOptions="Center" />
-                        <Button Grid.Column="2" Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" VerticalOptions="Center" />
-                    </Grid>
-                    <Label Text="{loc:Loc Country}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc Country}" ItemsSource="{Binding CountryOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCountry}" IsEnabled="{Binding IsManualLocationEnabled}" />
-                    <Label Text="{loc:Loc City}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <Picker Title="{loc:Loc City}" ItemsSource="{Binding CityOptions}" ItemDisplayBinding="{Binding Label}" SelectedItem="{Binding SelectedCity}" IsEnabled="{Binding IsManualLocationEnabled}" />
-                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                        <Label Text="{loc:Loc Latitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                        <Label Text="{loc:Loc Longitude}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" Grid.Column="1" />
-                        <Entry Placeholder="{loc:Loc Latitude}" Text="{Binding Latitude}" Grid.Row="1" IsEnabled="{Binding IsManualLocationEnabled}" />
-                        <Entry Placeholder="{loc:Loc Longitude}" Text="{Binding Longitude}" Grid.Row="1" Grid.Column="1" IsEnabled="{Binding IsManualLocationEnabled}" />
-                    </Grid>
+                    <controls:LocationSetupView BindingContext="{Binding LocationSetup}" />
 
                     <Label Text="{loc:Loc QiblaPreferences}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <Label Text="{loc:Loc CompassReadingMode}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

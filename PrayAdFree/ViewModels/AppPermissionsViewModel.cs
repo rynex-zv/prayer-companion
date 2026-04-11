@@ -6,7 +6,7 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.ViewModels;
 
 public sealed class AppPermissionsViewModel : ViewModelBase {
-    private readonly AppPermissionCenterService _permissionCenterService;
+    private readonly IAppPermissionCenterService _permissionCenterService;
     private readonly AndroidAlarmCapabilityService _alarmCapabilityService;
     private readonly IAppLogger _logger;
     private bool _isBusy;
@@ -15,19 +15,13 @@ public sealed class AppPermissionsViewModel : ViewModelBase {
     private string _alarmModeDescription = string.Empty;
 
     public AppPermissionsViewModel(
-        AppPermissionCenterService permissionCenterService,
+        IAppPermissionCenterService permissionCenterService,
         AndroidAlarmCapabilityService alarmCapabilityService,
         IAppLogger logger) {
         _permissionCenterService = permissionCenterService;
         _alarmCapabilityService = alarmCapabilityService;
         _logger = logger;
-        Items = new ObservableCollection<AppPermissionItemViewModel> {
-            new(AppPermissionKind.Notifications),
-            new(AppPermissionKind.FullScreenIntents),
-            new(AppPermissionKind.DisplayOverApps),
-            new(AppPermissionKind.ExactAlarms),
-            new(AppPermissionKind.Location)
-        };
+        Items = new ObservableCollection<AppPermissionItemViewModel>();
         ResolvePermissionCommand = new Command<AppPermissionItemViewModel>(async item => await ResolvePermissionAsync(item));
         RefreshCommand = new Command(async () => await RefreshAsync());
 
@@ -71,6 +65,20 @@ public sealed class AppPermissionsViewModel : ViewModelBase {
             var alarmDecision = await _alarmCapabilityService.GetCurrentDecisionAsync().ConfigureAwait(false);
             var lookup = snapshots.ToDictionary(item => item.Kind);
             RunOnMainThread(() => {
+                var supportedKinds = snapshots
+                    .Where(item => item.IsSupported)
+                    .Select(item => item.Kind)
+                    .ToHashSet();
+                var missingKinds = Items.Where(item => !supportedKinds.Contains(item.Kind)).ToList();
+                foreach (var item in missingKinds) {
+                    Items.Remove(item);
+                }
+                foreach (var snapshot in snapshots.Where(item => item.IsSupported)) {
+                    if (Items.All(item => item.Kind != snapshot.Kind)) {
+                        Items.Add(new AppPermissionItemViewModel(snapshot.Kind));
+                    }
+                }
+
                 AlarmModeTitle = LocalizationManager.Translate("PermissionsAlarmModeTitle");
                 AlarmModeStatus = GetAlarmModeStatus(alarmDecision.SupportStatus);
                 AlarmModeDescription = GetAlarmModeDescription(alarmDecision.SupportStatus);

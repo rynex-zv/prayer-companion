@@ -204,7 +204,8 @@ public sealed class AlarmRemindersViewModel : ViewModelBase {
             LanguageSelected = current.LanguageSelected,
             ThemeMode = current.ThemeMode,
             ThemeVariant = current.ThemeVariant,
-            AccentIndex = current.AccentIndex
+            AccentIndex = current.AccentIndex,
+            OnboardingCompleted = current.OnboardingCompleted
         };
     }
 

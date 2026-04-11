@@ -160,7 +160,7 @@ public sealed class HomeViewModel : ViewModelBase {
             ApplySnapshots(DateTime.Now);
             if (ShouldScheduleNotifications(_settings)) {
                 try {
-                    await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None);
+                    await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None, requestPermissions: false);
                 } catch (Exception ex) {
                     _logger.LogException(ex, "HomeViewModel.ScheduleNotifications");
                     StatusMessage = "Notifications update failed.";

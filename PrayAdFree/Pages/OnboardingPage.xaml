@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+             xmlns:controls="clr-namespace:Pray_Ad_Free.Controls"
+             x:Class="Pray_Ad_Free.Pages.OnboardingPage"
+             Title="{loc:Loc AppTitle}">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0" />
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.55" />
+                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <VerticalStackLayout Grid.Row="0" Padding="24,32,24,12" Spacing="8">
+            <Label Text="{loc:Loc AppTitle}" FontSize="28" FontAttributes="Bold" />
+            <Label Text="{Binding StepCounterText}"
+                   FontSize="13"
+                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="24,0,24,24" Spacing="16">
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="18">
+                    <VerticalStackLayout Spacing="14">
+                        <Label Text="{Binding CurrentStepTitle}" FontSize="24" FontAttributes="Bold" />
+                        <Label Text="{Binding CurrentStepSubtitle}"
+                               FontSize="13"
+                               TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+
+                        <VerticalStackLayout IsVisible="{Binding IsOnLanguageStep}" Spacing="12">
+                            <CollectionView ItemsSource="{Binding Languages}"
+                                            SelectedItem="{Binding SelectedLanguage}"
+                                            SelectionMode="Single">
+                                <CollectionView.ItemsLayout>
+                                    <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+                                </CollectionView.ItemsLayout>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="14"
+                                                BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                                                Stroke="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                                                StrokeThickness="1"
+                                                StrokeShape="RoundRectangle 14">
+                                            <Label Text="{Binding Label}" FontSize="16" HorizontalTextAlignment="Center" />
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout IsVisible="{Binding IsOnPermissionStep}" Spacing="12">
+                            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                                    StrokeThickness="1"
+                                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="10">
+                                    <Label Text="{Binding CurrentPermission.Description}" FontSize="13" />
+                                    <Label Text="{Binding CurrentPermission.FallbackText}"
+                                           FontSize="12"
+                                           TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                        <Label Text="{Binding CurrentPermission.StatusText}" VerticalOptions="Center">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding CurrentPermission.IsGranted}" Value="True">
+                                                    <Setter Property="TextColor" Value="#2FB79D" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label" Binding="{Binding CurrentPermission.IsGranted}" Value="False">
+                                                    <Setter Property="TextColor" Value="#E67E22" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                        <Button Grid.Column="1"
+                                                Text="{Binding CurrentPermission.ActionText}"
+                                                Command="{Binding RequestCurrentPermissionCommand}" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout IsVisible="{Binding IsOnLocationStep}" Spacing="12">
+                            <Border BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                                    StrokeThickness="1"
+                                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="10">
+                                    <Label Text="{loc:Loc PermissionsLocationDescription}" FontSize="13" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                        <Label Text="{Binding CurrentStepSubtitle}" VerticalOptions="Center" />
+                                        <Button Grid.Column="1"
+                                                Text="{loc:Loc PermissionAction_Request}"
+                                                Command="{Binding RequestLocationPermissionCommand}" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </Border>
+
+                            <Label IsVisible="{Binding ShowManualLocationSetup}"
+                                   Text="{loc:Loc OnboardingManualLocationHint}"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+
+                            <Border IsVisible="{Binding ShowManualLocationSetup}"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 16"
+                                    Padding="14">
+                                <controls:LocationSetupView BindingContext="{Binding LocationSetup}" />
+                            </Border>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid Grid.Row="2" Padding="24,8,24,24" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Button Grid.Column="0"
+                    Text="{loc:Loc OnboardingBack}"
+                    Command="{Binding BackCommand}"
+                    IsVisible="{Binding CanGoBack}" />
+            <Button Grid.Column="2"
+                    Text="{Binding PrimaryButtonText}"
+                    Command="{Binding AdvanceCommand}" />
+        </Grid>
+    </Grid>
+</ContentPage>

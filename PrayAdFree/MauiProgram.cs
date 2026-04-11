@@ -119,13 +119,14 @@ namespace Pray_Ad_Free {
                 client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("PrayAdFree/1.0 (contact: support@example.com)");
             });
-            builder.Services.AddSingleton(sp => new GeoService(
+            builder.Services.AddSingleton<GeoService>(sp => new GeoService(
                 new IGeoProvider[] {
                     sp.GetRequiredService<PhotonGeoProvider>(),
                     sp.GetRequiredService<NominatimGeoProvider>()
                 },
                 Path.Combine(FileSystem.AppDataDirectory, "geo_cache.json")
             ));
+            builder.Services.AddSingleton<IGeoLookupService>(sp => sp.GetRequiredService<GeoService>());
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
@@ -145,6 +146,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<PrayerTimesService>();
             builder.Services.AddSingleton<PrayerDataService>();
             builder.Services.AddSingleton<NotificationBootstrapper>();
+            builder.Services.AddSingleton<INotificationBootstrapper>(sp => sp.GetRequiredService<NotificationBootstrapper>());
 
             builder.Services.AddTransient<HomeViewModel>();
             builder.Services.AddTransient<CalendarViewModel>();
@@ -155,6 +157,8 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<LanguageSelectionViewModel>();
             builder.Services.AddTransient<AlarmRemindersViewModel>();
             builder.Services.AddTransient<AppPermissionsViewModel>();
+            builder.Services.AddTransient<LocationSetupViewModel>();
+            builder.Services.AddTransient<OnboardingViewModel>();
 
             builder.Services.AddTransient<HomePage>();
             builder.Services.AddTransient<CalendarPage>();
@@ -170,6 +174,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<SettingsTasbihPage>();
             builder.Services.AddTransient<AboutPage>();
             builder.Services.AddTransient<LanguageSelectionPage>();
+            builder.Services.AddTransient<OnboardingPage>();
             builder.Services.AddTransient<AppShell>();
             builder.Services.AddTransient<HomePageA>();
             builder.Services.AddTransient<CalendarPageA>();
@@ -186,6 +191,8 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<AppShellA>();
 
             builder.Services.AddSingleton<AppPermissionCenterService>();
+            builder.Services.AddSingleton<IAppPermissionCenterService>(sp => sp.GetRequiredService<AppPermissionCenterService>());
+            builder.Services.AddSingleton<IStartupNavigationService, StartupNavigationService>();
 
             return builder.Build();
         }

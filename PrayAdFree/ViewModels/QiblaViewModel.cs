@@ -262,7 +262,8 @@ public sealed class QiblaViewModel : ViewModelBase {
             LanguageSelected = settings.LanguageSelected,
             ThemeMode = settings.ThemeMode,
             ThemeVariant = settings.ThemeVariant,
-            AccentIndex = settings.AccentIndex
+            AccentIndex = settings.AccentIndex,
+            OnboardingCompleted = settings.OnboardingCompleted
         };
         _dataService.SaveSettings(settings);
     }

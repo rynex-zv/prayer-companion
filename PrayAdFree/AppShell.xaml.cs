@@ -29,7 +29,6 @@ namespace Pray_Ad_Free {
                 .ToList();
             _logger.LogEvent("AppShellTabs", $"count={tabTitles.Count};tabs={string.Join(",", tabTitles)}");
 
-            _ = InitializeLocalizationAsync(preferredLanguage);
             RegisterRoutes();
             Navigated += (_, _) => {
                 ThemeManager.RefreshTextScaleOnVisibleUIWithDeferredPasses();
@@ -58,22 +57,5 @@ namespace Pray_Ad_Free {
             _routesRegistered = true;
         }
 
-        private async Task InitializeLocalizationAsync(string preferredLanguage) {
-            try {
-                _logger.LogEvent("AppShellLocalization", "syncStart");
-                WindowsStartupSafety.Trace("Shell.Localization:syncStart");
-                await Task.Run(() => new LocalizationFileSync().SyncIfNeeded()).ConfigureAwait(false);
-                _logger.LogEvent("AppShellLocalization", "syncDone");
-                WindowsStartupSafety.Trace("Shell.Localization:syncDone");
-                await MainThread.InvokeOnMainThreadAsync(
-                    () => LocalizationManager.InitializeAsync(preferredLanguage)
-                ).ConfigureAwait(false);
-                _logger.LogEvent("AppShellLocalization", "initDone");
-                WindowsStartupSafety.Trace("Shell.Localization:initDone");
-            } catch (Exception ex) {
-                _logger.LogException(ex, "AppShell.InitializeLocalizationAsync");
-                WindowsStartupSafety.Trace($"Shell.Localization:exception {ex.GetType().Name}:{ex.Message}");
-            }
-        }
     }
 }
