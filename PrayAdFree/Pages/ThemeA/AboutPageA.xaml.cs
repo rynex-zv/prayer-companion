@@ -1,11 +1,16 @@
-﻿using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.ApplicationModel.Communication;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 
 namespace Pray_Ad_Free.Pages.ThemeA;
 
 public partial class AboutPageA : ContentPage {
-    public AboutPageA() : this( ServiceHelper.GetService<AboutViewModel>() ) {
+    private const string SupportEmail = "rynex@rynex.nl";
+    private const string SupportPhone = "+31610331734";
+    private const string WebsiteUrl = "https://rynex.nl/cv";
+
+    public AboutPageA() : this(ServiceHelper.GetService<AboutViewModel>()) {
     }
 
     public AboutPageA(AboutViewModel viewModel) {
@@ -14,9 +19,26 @@ public partial class AboutPageA : ContentPage {
     }
 
     private async void OnReportClicked(object? sender, EventArgs e) {
-        var subject = Uri.EscapeDataString(LocalizationManager.Translate("IssueMailSubject"));
-        var body = Uri.EscapeDataString(LocalizationManager.Translate("IssueMailBodyTemplate"));
-        var uri = new Uri($"mailto:support@example.com?subject={subject}&body={body}");
-        await Launcher.Default.OpenAsync(uri);
+        var message = new EmailMessage {
+            Subject = LocalizationManager.Translate("IssueMailSubject"),
+            Body = LocalizationManager.Translate("IssueMailBodyTemplate"),
+            To = new List<string> { SupportEmail }
+        };
+        await Email.Default.ComposeAsync(message);
+    }
+
+    private async void OnEmailClicked(object? sender, EventArgs e) {
+        var message = new EmailMessage {
+            To = new List<string> { SupportEmail }
+        };
+        await Email.Default.ComposeAsync(message);
+    }
+
+    private void OnPhoneClicked(object? sender, EventArgs e) {
+        PhoneDialer.Default.Open(SupportPhone);
+    }
+
+    private async void OnWebsiteClicked(object? sender, EventArgs e) {
+        await Browser.Default.OpenAsync(WebsiteUrl, BrowserLaunchMode.External);
     }
 }

@@ -19,7 +19,7 @@ public sealed class StartupNavigationService : IStartupNavigationService {
     }
 
     public StartupTarget ResolveTarget(AppSettings settings) {
-        return settings.OnboardingCompleted
+        return HasCompletedSetup(settings)
             ? StartupTarget.Shell
             : StartupTarget.Onboarding;
     }
@@ -107,5 +107,19 @@ public sealed class StartupNavigationService : IStartupNavigationService {
 
     private static string BuildShellKey(AppSettings settings) {
         return $"{settings.ThemeVariant}:{settings.Language}";
+    }
+
+    private static bool HasCompletedSetup(AppSettings settings) {
+        return settings.OnboardingCompleted
+            || (settings.LanguageSelected && HasUsableLocation(settings.Location));
+    }
+
+    private static bool HasUsableLocation(LocationSettings location) {
+        if (!string.IsNullOrWhiteSpace(location.City) || !string.IsNullOrWhiteSpace(location.Country)) {
+            return true;
+        }
+
+        return Math.Abs(location.Latitude) > double.Epsilon
+            || Math.Abs(location.Longitude) > double.Epsilon;
     }
 }

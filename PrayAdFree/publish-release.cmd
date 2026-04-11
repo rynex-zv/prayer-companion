@@ -8,4 +8,4 @@ dotnet publish "PrayAdFree.csproj" -c Release -f net10.0-android ^
 v1Dke9RI3oZ6vA2
 ZYPNi,o3T/!r%\9O=E*u:GHz5A#)7D
 
-dotnet build "PrayAdFree/PrayAdFree.csproj" -t:Install -c Release -f net10.0-android -p:AndroidDebuggable=true
+dotnet build "PrayAdFree/PrayAdFree.csproj" -t:Install -c Release -f net10.0-android -p:AndroidDebuggable=truehttp://192.168.174.150:16572/

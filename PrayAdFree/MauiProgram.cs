@@ -117,7 +117,7 @@ namespace Pray_Ad_Free {
             });
             builder.Services.AddHttpClient<NominatimGeoProvider>(client => {
                 client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("PrayAdFree/1.0 (contact: support@example.com)");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("PrayAdFree/1.0 (contact: rynex@rynex.nl)");
             });
             builder.Services.AddSingleton<GeoService>(sp => new GeoService(
                 new IGeoProvider[] {
