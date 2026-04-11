@@ -37,12 +37,47 @@ def resize_contain(base: Image.Image, size: tuple[int, int]) -> Image.Image:
     return canvas
 
 
+def resize_cover(base: Image.Image, size: tuple[int, int]) -> Image.Image:
+    src = base.convert("RGBA")
+    dst_w, dst_h = size
+    scale = max(dst_w / src.width, dst_h / src.height)
+    new_w = max(1, int(round(src.width * scale)))
+    new_h = max(1, int(round(src.height * scale)))
+    resized = src.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    left = max(0, (new_w - dst_w) // 2)
+    top = max(0, (new_h - dst_h) // 2)
+    return resized.crop((left, top, left + dst_w, top + dst_h))
+
+
+def trim_transparency(base: Image.Image) -> Image.Image:
+    src = base.convert("RGBA")
+    alpha = src.getchannel("A")
+    bbox = alpha.getbbox()
+    if not bbox:
+        return src
+    return src.crop(bbox)
+
+
 def save_icon(base: Image.Image, path: Path, size: tuple[int, int]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     resize_contain(base, size).save(path, format="PNG", optimize=True)
 
 
+def save_icon_cover(base: Image.Image, path: Path, size: tuple[int, int]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    resize_cover(base, size).save(path, format="PNG", optimize=True)
+
+
+def flatten_opaque(base: Image.Image, color: tuple[int, int, int] = (12, 22, 24)) -> Image.Image:
+    src = base.convert("RGBA")
+    bg = Image.new("RGBA", src.size, (*color, 255))
+    bg.alpha_composite(src)
+    return bg
+
+
 def generate_android(base: Image.Image) -> None:
+    # Trim transparent margins so launcher icons do not look zoomed out.
+    android_base = trim_transparency(base)
     sizes = {
         "mipmap-mdpi": 48,
         "mipmap-hdpi": 72,
@@ -51,9 +86,14 @@ def generate_android(base: Image.Image) -> None:
         "mipmap-xxxhdpi": 192,
     }
     for folder, px in sizes.items():
-        save_icon(base, ANDROID_RES / folder / "appicon.png", (px, px))
-        save_icon(base, ANDROID_RES / folder / "appicon_round.png", (px, px))
-    save_icon(base, PLAY_STORE / "appicon-512.png", (512, 512))
+        icon = resize_cover(android_base, (px, px))
+        icon_opaque = flatten_opaque(icon)
+        (ANDROID_RES / folder).mkdir(parents=True, exist_ok=True)
+        icon_opaque.save(ANDROID_RES / folder / "appicon.png", format="PNG", optimize=True)
+        icon_opaque.save(ANDROID_RES / folder / "appicon_round.png", format="PNG", optimize=True)
+    play = flatten_opaque(resize_cover(android_base, (512, 512)))
+    PLAY_STORE.mkdir(parents=True, exist_ok=True)
+    play.save(PLAY_STORE / "appicon-512.png", format="PNG", optimize=True)
 
 
 def generate_ios(base: Image.Image) -> None:

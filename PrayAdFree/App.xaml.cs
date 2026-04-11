@@ -10,6 +10,7 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free {
     public partial class App : Application {
         public static IServiceProvider? Services { get; private set; }
+        public static event EventHandler? AppResumed;
         private readonly IServiceProvider _services;
         private readonly IAppLogger _logger;
         private readonly IStartupNavigationService _startupNavigationService;
@@ -125,6 +126,7 @@ namespace Pray_Ad_Free {
             base.OnResume();
             TryScheduleNotifications("OnResume");
             TryProcessPendingAlarmUi("OnResume");
+            AppResumed?.Invoke(this, EventArgs.Empty);
 #if ANDROID
             WidgetUpdateCoordinator.RequestImmediateRefresh("OnResume");
 #endif

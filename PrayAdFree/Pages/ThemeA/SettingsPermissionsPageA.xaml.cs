@@ -17,6 +17,16 @@ public partial class SettingsPermissionsPageA : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
+        App.AppResumed += OnAppResumed;
+        await _viewModel.RefreshAsync();
+    }
+
+    protected override void OnDisappearing() {
+        App.AppResumed -= OnAppResumed;
+        base.OnDisappearing();
+    }
+
+    private async void OnAppResumed(object? sender, EventArgs e) {
         await _viewModel.RefreshAsync();
     }
 }

@@ -96,6 +96,11 @@ public sealed class OnboardingViewModel : ViewModelBase {
     public bool IsBusy {
         get => _isBusy;
         private set {
+            if (!MainThread.IsMainThread) {
+                MainThread.BeginInvokeOnMainThread(() => IsBusy = value);
+                return;
+            }
+
             if (SetProperty(ref _isBusy, value)) {
                 RefreshCommandStates();
             }
@@ -410,13 +415,15 @@ public sealed class OnboardingViewModel : ViewModelBase {
     }
 
     private void RefreshCommandStates() {
-        AdvanceCommand.ChangeCanExecute();
-        BackCommand.ChangeCanExecute();
-        RequestCurrentPermissionCommand.ChangeCanExecute();
-        RequestLocationPermissionCommand.ChangeCanExecute();
-        OnPropertyChanged(nameof(CanAdvance));
-        OnPropertyChanged(nameof(CanGoBack));
-        OnPropertyChanged(nameof(CanCompleteOnboarding));
+        RunOnMainThread(() => {
+            AdvanceCommand.ChangeCanExecute();
+            BackCommand.ChangeCanExecute();
+            RequestCurrentPermissionCommand.ChangeCanExecute();
+            RequestLocationPermissionCommand.ChangeCanExecute();
+            OnPropertyChanged(nameof(CanAdvance));
+            OnPropertyChanged(nameof(CanGoBack));
+            OnPropertyChanged(nameof(CanCompleteOnboarding));
+        });
     }
 
     private static AppPermissionItemViewModel BuildPermissionItem(AppPermissionSnapshot snapshot) {
