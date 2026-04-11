@@ -6,70 +6,71 @@
     xmlns:controls="clr-namespace:Pray_Ad_Free.Controls"
     xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
     Title="{loc:Loc Qibla}">
+
     <ContentPage.Resources>
-        <Style x:Key="ChoiceChip" TargetType="Border">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark=#16283A}" />
-            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray300}, Dark=#234258}" />
-            <Setter Property="StrokeShape" Value="RoundRectangle 18" />
+        <!--  Active chip style  -->
+        <Style x:Key="ChipActive" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource TealSoft}, Dark={StaticResource TealSoft}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Teal}, Dark={StaticResource Teal}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 20" />
             <Setter Property="StrokeThickness" Value="1" />
-            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Padding" Value="14,7" />
         </Style>
-        <Style x:Key="ChoiceChipLabel" TargetType="Label">
-            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
-            <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
+        <!--  Inactive chip style  -->
+        <Style x:Key="ChipInactive" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource SurfaceHighlightDark}}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 20" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Padding" Value="14,7" />
+        </Style>
+        <Style x:Key="ChipLabel" TargetType="Label">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="HorizontalTextAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ChipLabelActive" TargetType="Label">
+            <Setter Property="TextColor" Value="{StaticResource Teal}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontAttributes" Value="Bold" />
             <Setter Property="HorizontalTextAlignment" Value="Center" />
         </Style>
     </ContentPage.Resources>
 
     <Grid>
         <Grid.Background>
-            <RadialGradientBrush Center="0.5,0.28" Radius="0.96">
-                <GradientStop Offset="0" Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource NightTop}}" />
-                <GradientStop Offset="1" Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource NightBase}}" />
-            </RadialGradientBrush>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Offset="0" Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" />
+                <GradientStop Offset="0.5" Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" />
+                <GradientStop Offset="1" Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
+            </LinearGradientBrush>
         </Grid.Background>
 
         <ScrollView>
-            <ScrollView.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Offset="0" Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" />
-                    <GradientStop Offset="0.6" Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" />
-                    <GradientStop Offset="1" Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
-                </LinearGradientBrush>
-            </ScrollView.Background>
             <VerticalStackLayout
-                Padding="24,20,24,30"
+                Padding="20,20,20,32"
                 HorizontalOptions="Center"
                 Spacing="14"
-                WidthRequest="{OnPlatform WinUI=720,
-                                          MacCatalyst=720,
+                WidthRequest="{OnPlatform WinUI=680,
+                                          MacCatalyst=680,
                                           Default=-1}">
-                <Label
-                    FontAttributes="Bold"
-                    FontSize="34"
-                    HorizontalTextAlignment="Center"
-                    Text="{loc:Loc Qibla}" />
 
+                <!--  Degree hero + direction  -->
                 <Border
-                    Padding="16"
+                    Padding="20,18"
                     BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
-                                                      Dark=#111C2E}"
-                    Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
-                                             Dark=#20344A}"
-                    StrokeShape="RoundRectangle 20">
+                                                      Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeShape="RoundRectangle 22">
                     <VerticalStackLayout Spacing="4">
-                        <HorizontalStackLayout HorizontalOptions="Center" Spacing="6">
-                            <Label
-                                FontAttributes="Bold"
-                                FontSize="20"
-                                HorizontalTextAlignment="Center"
-                                Text="{loc:Loc QiblaDirection}" />
-                            <Label
-                                FontSize="16"
-                                Text="◉"
-                                TextColor="#2FB79D"
-                                VerticalOptions="Center" />
-                        </HorizontalStackLayout>
+                        <Label
+                            CharacterSpacing="1.2"
+                            FontSize="11"
+                            HorizontalTextAlignment="Center"
+                            Text="{loc:Loc QiblaDirection}"
+                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                        Dark={StaticResource Teal}}" />
                         <Label
                             FontAttributes="Bold"
                             FontSize="56"
@@ -82,124 +83,141 @@
                             HorizontalTextAlignment="Center"
                             Text="{Binding DirectionLabel}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
+                                                        Dark={StaticResource TextMutedDark}}" />
                         <Label
                             FontSize="12"
                             HorizontalTextAlignment="Center"
                             Text="{Binding StatusMessage}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
+                                                        Dark={StaticResource TextMutedDark}}" />
                     </VerticalStackLayout>
                 </Border>
 
+                <!--  Display options  -->
                 <Border
-                    Padding="16"
+                    Padding="16,14"
                     BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
-                                                      Dark=#111C2E}"
-                    Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
-                                             Dark=#20344A}"
+                                                      Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
                     StrokeShape="RoundRectangle 20">
                     <VerticalStackLayout Spacing="12">
-                        <Label
-                            FontSize="12"
-                            HorizontalTextAlignment="End"
-                            Text="{loc:Loc QiblaDisplayMode}"
-                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
-                        <Label
-                            FontSize="12"
-                            HorizontalTextAlignment="End"
-                            Text="{loc:Loc QiblaHeadingMode}"
-                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
-                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
-                            <Border x:Name="HeadingAutoChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnHeadingAutoTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="HeadingAutoLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaHeadingMode_Auto}" />
-                            </Border>
-                            <Border x:Name="HeadingManualChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnHeadingManualTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="HeadingManualLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaHeadingMode_Manual}" />
-                            </Border>
-                        </HorizontalStackLayout>
 
-                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
-                            <Border x:Name="ModeCompassChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnModeCompassTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="ModeCompassLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaModeCompass}" />
-                            </Border>
-                            <Border x:Name="ModeMapChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnModeMapTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="ModeMapLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaModeMap}" />
-                            </Border>
-                        </HorizontalStackLayout>
+                        <!--  Heading mode row  -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Label
+                                FontSize="13"
+                                Text="{loc:Loc QiblaHeadingMode}"
+                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                            Dark={StaticResource TextMutedDark}}"
+                                VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <Border x:Name="HeadingAutoChip" Style="{StaticResource ChipActive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnHeadingAutoTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="HeadingAutoLabel"
+                                        Style="{StaticResource ChipLabelActive}"
+                                        Text="{loc:Loc QiblaHeadingMode_Auto}" />
+                                </Border>
+                                <Border x:Name="HeadingManualChip" Style="{StaticResource ChipInactive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnHeadingManualTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="HeadingManualLabel"
+                                        Style="{StaticResource ChipLabel}"
+                                        Text="{loc:Loc QiblaHeadingMode_Manual}" />
+                                </Border>
+                            </HorizontalStackLayout>
+                        </Grid>
 
-                        <Label
-                            FontSize="12"
-                            HorizontalTextAlignment="End"
-                            Text="{loc:Loc QiblaVisualFilter}"
-                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
-                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
-                            <Border x:Name="FilterNoneChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnFilterNoneTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="FilterNoneLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaVisualFilter_None}" />
-                            </Border>
-                            <Border x:Name="FilterNightChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnFilterNightTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="FilterNightLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaVisualFilter_Night}" />
-                            </Border>
-                            <Border x:Name="FilterContrastChip" Style="{StaticResource ChoiceChip}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnFilterContrastTapped" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    x:Name="FilterContrastLabel"
-                                    Style="{StaticResource ChoiceChipLabel}"
-                                    Text="{loc:Loc QiblaVisualFilter_Contrast}" />
-                            </Border>
-                        </HorizontalStackLayout>
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}" />
+
+                        <!--  Display mode row  -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Label
+                                FontSize="13"
+                                Text="{loc:Loc QiblaDisplayMode}"
+                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                            Dark={StaticResource TextMutedDark}}"
+                                VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <Border x:Name="ModeCompassChip" Style="{StaticResource ChipActive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnModeCompassTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="ModeCompassLabel"
+                                        Style="{StaticResource ChipLabelActive}"
+                                        Text="{loc:Loc QiblaModeCompass}" />
+                                </Border>
+                                <Border x:Name="ModeMapChip" Style="{StaticResource ChipInactive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnModeMapTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="ModeMapLabel"
+                                        Style="{StaticResource ChipLabel}"
+                                        Text="{loc:Loc QiblaModeMap}" />
+                                </Border>
+                            </HorizontalStackLayout>
+                        </Grid>
+
+                        <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}" />
+
+                        <!--  Visual filter row  -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Label
+                                FontSize="13"
+                                Text="{loc:Loc QiblaVisualFilter}"
+                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
+                                                            Dark={StaticResource TextMutedDark}}"
+                                VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                                <Border x:Name="FilterNoneChip" Style="{StaticResource ChipActive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnFilterNoneTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="FilterNoneLabel"
+                                        Style="{StaticResource ChipLabelActive}"
+                                        Text="{loc:Loc QiblaVisualFilter_None}" />
+                                </Border>
+                                <Border x:Name="FilterNightChip" Style="{StaticResource ChipInactive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnFilterNightTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="FilterNightLabel"
+                                        Style="{StaticResource ChipLabel}"
+                                        Text="{loc:Loc QiblaVisualFilter_Night}" />
+                                </Border>
+                                <Border x:Name="FilterContrastChip" Style="{StaticResource ChipInactive}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnFilterContrastTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Label
+                                        x:Name="FilterContrastLabel"
+                                        Style="{StaticResource ChipLabel}"
+                                        Text="{loc:Loc QiblaVisualFilter_Contrast}" />
+                                </Border>
+                            </HorizontalStackLayout>
+                        </Grid>
+
                     </VerticalStackLayout>
                 </Border>
-                <Label />
+
+                <!--  Compass  -->
                 <Border
                     x:Name="CompassCard"
                     Padding="16"
                     BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
-                                                      Dark=#111C2E}"
-                    Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
-                                             Dark=#20344A}"
-                    StrokeShape="RoundRectangle 20">
+                                                      Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeShape="RoundRectangle 22">
                     <Border.GestureRecognizers>
                         <PanGestureRecognizer PanUpdated="OnManualPanUpdated" />
                     </Border.GestureRecognizers>
@@ -219,22 +237,23 @@
                                                   iOS=300}" />
                 </Border>
 
+                <!--  Map  -->
                 <Border
                     x:Name="MapContainer"
-                    Padding="12"
+                    Padding="14"
                     BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
-                                                      Dark=#111C2E}"
+                                                      Dark={StaticResource SurfaceGlassDark}}"
                     IsVisible="False"
-                    Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
-                                             Dark=#20344A}"
-                    StrokeShape="RoundRectangle 20">
-                    <VerticalStackLayout Spacing="8">
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200},
+                                             Dark={StaticResource SurfaceHighlightDark}}"
+                    StrokeShape="RoundRectangle 22">
+                    <VerticalStackLayout Spacing="10">
                         <Label
-                            FontSize="12"
-                            HorizontalTextAlignment="End"
+                            CharacterSpacing="0.8"
+                            FontSize="11"
                             Text="{loc:Loc Location}"
                             TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                        Dark=#8CA0B6}" />
+                                                        Dark={StaticResource TextMutedDark}}" />
                         <Grid>
                             <ContentView
                                 x:Name="MapHost"
@@ -259,6 +278,7 @@
                         </Grid>
                     </VerticalStackLayout>
                 </Border>
+
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

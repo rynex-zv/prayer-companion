@@ -5,148 +5,162 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
     Title="{loc:Loc Today}">
+
     <Grid>
         <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Offset="0" Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" />
-                <GradientStop Offset="0.6" Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" />
-                <GradientStop Offset="1" Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Offset="0"   Color="{AppThemeBinding Light={StaticResource SkyTop},  Dark={StaticResource DarkSkyTop}}" />
+                <GradientStop Offset="0.5" Color="{AppThemeBinding Light={StaticResource SkyMid},  Dark={StaticResource DarkSkyMid}}" />
+                <GradientStop Offset="1"   Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
             </LinearGradientBrush>
         </Grid.Background>
 
         <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsBusy}">
             <ScrollView>
-                <VerticalStackLayout Padding="24,20,24,28" Spacing="16">
-                    <Label
-                        FontAttributes="Bold"
-                        FontSize="34"
-                        HorizontalTextAlignment="Center"
-                        Text="{loc:Loc Basmala}" />
-                    <Label
-                        FontSize="14"
-                        HorizontalTextAlignment="Center"
-                        Text="{loc:Loc PrayTable}"
-                        TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                    Dark={StaticResource TextMutedDark}}" />
+                <VerticalStackLayout Padding="20,20,20,32" Spacing="12">
 
-                    <Border Padding="16" StrokeShape="RoundRectangle 20">
-                        <VerticalStackLayout Spacing="8">
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                                <Label
-                                    Grid.Column="2"
-                                    FontSize="30"
-                                    HorizontalTextAlignment="Start"
-                                    Text="⌖"
-                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
-                                                                Dark={StaticResource Accent}}"
-                                    VerticalTextAlignment="Start" />
-                                <Label
-                                    Grid.Column="1"
-                                    FontAttributes="Bold"
-                                    FontSize="24"
-                                    HorizontalTextAlignment="End"
-                                    Text="{Binding LocationTitle}" />
-                            </Grid>
+                    <!-- Basmala -->
+                    <Label
+                        Text="{loc:Loc Basmala}"
+                        FontSize="18"
+                        HorizontalTextAlignment="Center"
+                        TextColor="{AppThemeBinding Light={StaticResource Accent}, Dark={StaticResource Accent}}"
+                        Margin="0,4,0,0" />
+
+                    <!-- Location + Date -->
+                    <Border
+                        Padding="16,12"
+                        StrokeShape="RoundRectangle 16"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <BoxView
+                                WidthRequest="7" HeightRequest="7"
+                                CornerRadius="4"
+                                Color="{StaticResource Teal}"
+                                VerticalOptions="Center" />
                             <Label
-                                FontSize="13"
-                                HorizontalTextAlignment="End"
-                                Text="{Binding GregorianDate}"
-                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                            Dark={StaticResource TextMutedDark}}" />
-                        </VerticalStackLayout>
+                                Grid.Column="1"
+                                Text="{Binding LocationTitle}"
+                                FontSize="15"
+                                FontAttributes="Bold"
+                                VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
+                                <Label
+                                    Text="{Binding GregorianDate}"
+                                    FontSize="11"
+                                    HorizontalTextAlignment="End"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                <Label
+                                    Text="{Binding HijriDate}"
+                                    FontSize="11"
+                                    HorizontalTextAlignment="End"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                            </VerticalStackLayout>
+                        </Grid>
                     </Border>
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                        <Border
-                            Padding="14"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource Secondary},
-                                                              Dark={StaticResource DarkSandMid}}"
-                            Stroke="{AppThemeBinding Light={StaticResource Primary},
-                                                     Dark={StaticResource SurfaceHighlightDark}}"
-                            StrokeShape="RoundRectangle 18">
+                    <!-- Hero: Next Prayer -->
+                    <Border
+                        Padding="20,18"
+                        StrokeShape="RoundRectangle 22"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource Secondary}, Dark=#1A2B1E}"
+                        Stroke="{AppThemeBinding Light={StaticResource Primary}, Dark=#2A4A30}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <VerticalStackLayout Spacing="4">
                                 <Label
-                                    FontSize="12"
-                                    HorizontalTextAlignment="End"
-                                    Text="{loc:Loc TimeLeft}"
-                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                Dark={StaticResource TextMutedDark}}" />
-                                <Label
-                                    FontAttributes="Bold"
-                                    FontSize="30"
-                                    HorizontalTextAlignment="End"
-                                    Text="{Binding Countdown}"
-                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
-                                                                Dark={StaticResource Accent}}" />
-                                <Label
-                                    FontSize="12"
-                                    HorizontalTextAlignment="End"
-                                    Text="{Binding NextPrayerDayLabel}"
-                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
-                                                                Dark={StaticResource Accent}}" />
-                            </VerticalStackLayout>
-                        </Border>
-                        <Border
-                            Grid.Column="1"
-                            Padding="14"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass},
-                                                              Dark={StaticResource SurfaceGlassDark}}"
-                            Stroke="{AppThemeBinding Light={StaticResource SurfaceHighlight},
-                                                     Dark={StaticResource SurfaceHighlightDark}}"
-                            StrokeShape="RoundRectangle 18">
-                            <VerticalStackLayout Spacing="4">
-                                <Label
-                                    FontSize="12"
-                                    HorizontalTextAlignment="End"
                                     Text="{loc:Loc NextPrayer}"
-                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                Dark={StaticResource TextMutedDark}}" />
+                                    FontSize="11"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource Teal}}"
+                                    CharacterSpacing="1.2" />
                                 <Label
-                                    FontAttributes="Bold"
+                                    Text="{Binding NextPrayerName}"
                                     FontSize="30"
-                                    HorizontalTextAlignment="End"
-                                    Text="{Binding NextPrayerName}" />
+                                    FontAttributes="Bold" />
                                 <Label
-                                    FontSize="16"
-                                    HorizontalTextAlignment="End"
                                     Text="{Binding NextPrayerClock}"
-                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
-                                                                Dark={StaticResource Accent}}" />
+                                    FontSize="20"
+                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
+                                <Label
+                                    Text="{Binding NextPrayerBaseClock}"
+                                    IsVisible="{Binding ShowNextPrayerBaseClock}"
+                                    FontSize="11"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                             </VerticalStackLayout>
-                        </Border>
-                    </Grid>
 
-                    <Border Padding="14" StrokeShape="RoundRectangle 20">
-                        <VerticalStackLayout Spacing="8">
+                            <!-- Countdown pill -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" HorizontalOptions="End">
+                                <Label
+                                    Text="{loc:Loc TimeLeft}"
+                                    FontSize="10"
+                                    HorizontalTextAlignment="End"
+                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+                                    CharacterSpacing="0.8" />
+                                <Border
+                                    Padding="12,8"
+                                    StrokeShape="RoundRectangle 22"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource AccentSoft}, Dark={StaticResource AccentSoft}}"
+                                    Stroke="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}">
+                                    <Label
+                                        Text="{Binding Countdown}"
+                                        FontSize="20"
+                                        FontAttributes="Bold"
+                                        HorizontalTextAlignment="Center"
+                                        TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
+                                </Border>
+                                <Label
+                                    Text="{Binding NextPrayerDayLabel}"
+                                    FontSize="11"
+                                    HorizontalTextAlignment="End"
+                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+
+                    <!-- Today Prayer Times -->
+                    <Border
+                        Padding="0"
+                        StrokeShape="RoundRectangle 20"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                        <VerticalStackLayout>
                             <Label
-                                FontAttributes="Bold"
-                                FontSize="16"
-                                HorizontalTextAlignment="End"
                                 Text="{loc:Loc TodayPrayTimesLabel}"
-                                TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                            Dark={StaticResource TextMutedDark}}" />
-
-                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding TodayTimings}" Spacing="2">
+                                FontSize="11"
+                                Margin="18,14,18,0"
+                                TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+                                CharacterSpacing="0.8" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding TodayTimings}" Spacing="0" Margin="0,8,0,8">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate>
                                         <Grid
-                                            Padding="8,10"
-                                            ColumnDefinitions="Auto,*"
-                                            ColumnSpacing="14">
-                                            <Label
-                                                FontSize="20"
-                                                HorizontalTextAlignment="Start"
-                                                Text="{Binding Time}"
-                                                TextColor="{AppThemeBinding Light={StaticResource Gray900},
-                                                                            Dark={StaticResource White}}"
-                                                VerticalTextAlignment="Center" />
+                                            Padding="18,11"
+                                            ColumnDefinitions="10,*,Auto"
+                                            ColumnSpacing="12">
+                                            <BoxView
+                                                WidthRequest="5" HeightRequest="5"
+                                                CornerRadius="3"
+                                                Color="{StaticResource Teal}"
+                                                VerticalOptions="Center"
+                                                IsVisible="{Binding IsNext}" />
                                             <Label
                                                 Grid.Column="1"
-                                                FontSize="22"
-                                                HorizontalTextAlignment="End"
-                                                LineBreakMode="NoWrap"
                                                 Text="{Binding Name}"
-                                                VerticalTextAlignment="Center" />
+                                                FontSize="15"
+                                                VerticalOptions="Center" />
+                                            <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
+                                                <Label
+                                                    Text="{Binding Time}"
+                                                    FontSize="15"
+                                                    HorizontalTextAlignment="End"
+                                                    TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
+                                                <Label
+                                                    Text="{Binding BaseTime}"
+                                                    IsVisible="{Binding ShowBaseTime}"
+                                                    FontSize="11"
+                                                    HorizontalTextAlignment="End"
+                                                    TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                            </VerticalStackLayout>
                                         </Grid>
                                     </DataTemplate>
                                 </BindableLayout.ItemTemplate>
@@ -154,124 +168,94 @@
                         </VerticalStackLayout>
                     </Border>
 
-                    <Border Padding="16" StrokeShape="RoundRectangle 20">
-                        <VerticalStackLayout Spacing="8">
+                    <!-- Fasting: Imsak & Iftar -->
+                    <Border
+                        Padding="16,14"
+                        StrokeShape="RoundRectangle 20"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                        Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                        <VerticalStackLayout Spacing="10">
                             <Label
-                                FontAttributes="Bold"
-                                FontSize="16"
-                                HorizontalTextAlignment="End"
                                 Text="{loc:Loc ImsakAndIftarTitle}"
-                                TextColor="{AppThemeBinding Light={StaticResource PrimaryDark},
-                                                            Dark={StaticResource Accent}}" />
-                            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-                                <Border Padding="10" StrokeThickness="0">
+                                FontSize="11"
+                                TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}"
+                                CharacterSpacing="0.8"
+                                FontAttributes="Bold" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+
+                                <!-- Iftar -->
+                                <Border Padding="14,12" StrokeShape="RoundRectangle 14" StrokeThickness="1">
                                     <Border.Triggers>
-                                        <DataTrigger
-                                            Binding="{Binding IsIftarNext}"
-                                            TargetType="Border"
-                                            Value="True">
-                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource DarkSandMid}}" />
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsIftarNext}" Value="True">
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoft}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}" />
                                         </DataTrigger>
-                                        <DataTrigger
-                                            Binding="{Binding IsIftarNext}"
-                                            TargetType="Border"
-                                            Value="False">
-                                            <Setter Property="BackgroundColor" Value="Transparent" />
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsIftarNext}" Value="False">
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+                                            <Setter Property="Stroke" Value="Transparent" />
                                         </DataTrigger>
                                     </Border.Triggers>
-                                    <VerticalStackLayout Spacing="2">
-                                        <Label
-                                            FontSize="13"
-                                            HorizontalTextAlignment="Center"
-                                            Text="{loc:Loc Iftar}"
-                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                        Dark={StaticResource TextMutedDark}}" />
-                                        <Label
-                                            FontAttributes="Bold"
-                                            FontSize="28"
-                                            HorizontalTextAlignment="Center"
-                                            Text="{Binding IftarTime}">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="{loc:Loc Iftar}" FontSize="11" HorizontalTextAlignment="Center"
+                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                        <Label Text="{Binding IftarTime}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="Center">
                                             <Label.Triggers>
-                                                <DataTrigger
-                                                    Binding="{Binding IsIftarNext}"
-                                                    TargetType="Label"
-                                                    Value="True">
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsIftarNext}" Value="True">
                                                     <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
                                                 </DataTrigger>
-                                                <DataTrigger
-                                                    Binding="{Binding IsIftarNext}"
-                                                    TargetType="Label"
-                                                    Value="False">
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsIftarNext}" Value="False">
                                                     <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
-                                        <Label
-                                            FontSize="12"
-                                            HorizontalTextAlignment="Center"
+                                        <Label Text="{Binding NextFastingCountdown}" FontSize="11" HorizontalTextAlignment="Center"
                                             IsVisible="{Binding IsIftarNext}"
-                                            Text="{Binding NextFastingCountdown}"
-                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                        Dark={StaticResource TextMutedDark}}" />
+                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                     </VerticalStackLayout>
                                 </Border>
-                                <Border
-                                    Grid.Column="1"
-                                    Padding="10"
-                                    StrokeThickness="0">
+
+                                <!-- Imsak -->
+                                <Border Grid.Column="1" Padding="14,12" StrokeShape="RoundRectangle 14" StrokeThickness="1">
                                     <Border.Triggers>
-                                        <DataTrigger
-                                            Binding="{Binding IsImsakNext}"
-                                            TargetType="Border"
-                                            Value="True">
-                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource DarkSandMid}}" />
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsImsakNext}" Value="True">
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource AccentSoft}}" />
+                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource AccentMid}, Dark={StaticResource AccentMid}}" />
                                         </DataTrigger>
-                                        <DataTrigger
-                                            Binding="{Binding IsImsakNext}"
-                                            TargetType="Border"
-                                            Value="False">
-                                            <Setter Property="BackgroundColor" Value="Transparent" />
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsImsakNext}" Value="False">
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
+                                            <Setter Property="Stroke" Value="Transparent" />
                                         </DataTrigger>
                                     </Border.Triggers>
-                                    <VerticalStackLayout Spacing="2">
-                                        <Label
-                                            FontSize="13"
-                                            HorizontalTextAlignment="Center"
-                                            Text="{loc:Loc Imsak}"
-                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                        Dark={StaticResource TextMutedDark}}" />
-                                        <Label
-                                            FontAttributes="Bold"
-                                            FontSize="28"
-                                            HorizontalTextAlignment="Center"
-                                            Text="{Binding ImsakTime}">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="{loc:Loc Imsak}" FontSize="11" HorizontalTextAlignment="Center"
+                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                                        <Label Text="{Binding ImsakTime}" FontSize="24" FontAttributes="Bold" HorizontalTextAlignment="Center">
                                             <Label.Triggers>
-                                                <DataTrigger
-                                                    Binding="{Binding IsImsakNext}"
-                                                    TargetType="Label"
-                                                    Value="True">
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsImsakNext}" Value="True">
                                                     <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}" />
                                                 </DataTrigger>
-                                                <DataTrigger
-                                                    Binding="{Binding IsImsakNext}"
-                                                    TargetType="Label"
-                                                    Value="False">
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsImsakNext}" Value="False">
                                                     <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
                                                 </DataTrigger>
                                             </Label.Triggers>
                                         </Label>
-                                        <Label
-                                            FontSize="12"
-                                            HorizontalTextAlignment="Center"
+                                        <Label Text="{Binding NextFastingCountdown}" FontSize="11" HorizontalTextAlignment="Center"
                                             IsVisible="{Binding IsImsakNext}"
-                                            Text="{Binding NextFastingCountdown}"
-                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted},
-                                                                        Dark={StaticResource TextMutedDark}}" />
+                                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                                     </VerticalStackLayout>
                                 </Border>
+
                             </Grid>
                         </VerticalStackLayout>
                     </Border>
+
+                    <!-- Status message -->
+                    <Label
+                        Text="{Binding StatusMessage}"
+                        FontSize="11"
+                        HorizontalTextAlignment="Center"
+                        TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+
                 </VerticalStackLayout>
             </ScrollView>
         </RefreshView>

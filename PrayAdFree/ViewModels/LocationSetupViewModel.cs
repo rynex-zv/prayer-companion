@@ -65,6 +65,11 @@ public sealed class LocationSetupViewModel : ViewModelBase {
     public bool GpsBusy {
         get => _gpsBusy;
         private set {
+            if (!MainThread.IsMainThread) {
+                MainThread.BeginInvokeOnMainThread(() => GpsBusy = value);
+                return;
+            }
+
             if (SetProperty(ref _gpsBusy, value)) {
                 RefreshGpsCommand.ChangeCanExecute();
             }

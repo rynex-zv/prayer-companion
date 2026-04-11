@@ -5,13 +5,23 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:pages="clr-namespace:Pray_Ad_Free.Pages"
     xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
-    Title="{loc:Loc AppTitle}">
+    Title="{loc:Loc AppTitle}"
+    Shell.NavBarHasShadow="False"
+    Shell.BackgroundColor="{AppThemeBinding Light={StaticResource SandTop}, Dark={StaticResource DarkSkyTop}}"
+    Shell.ForegroundColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}"
+    Shell.TitleColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}"
+    Shell.DisabledColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+    Shell.UnselectedColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}"
+    Shell.TabBarBackgroundColor="{AppThemeBinding Light={StaticResource SandTop}, Dark=#0D1117}"
+    Shell.TabBarForegroundColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}"
+    Shell.TabBarTitleColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}"
+    Shell.TabBarUnselectedColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}">
 
     <TabBar>
-        <ShellContent Route="today" Title="{loc:Loc Today}" Icon="tab_sun.svg" ContentTemplate="{DataTemplate pages:HomePage}" />
-        <ShellContent Route="calendar" Title="{loc:Loc Calendar}" Icon="tab_calendar.svg" ContentTemplate="{DataTemplate pages:CalendarPage}" />
-        <ShellContent Route="qibla" Title="{loc:Loc Qibla}" Icon="tab_compass.svg" ContentTemplate="{DataTemplate pages:QiblaPage}" />
-        <ShellContent Route="tasbih" Title="{loc:Loc Tasbih}" Icon="tab_circle_dot.svg" ContentTemplate="{DataTemplate pages:TasbihPage}" />
-        <ShellContent Route="settings" Title="{loc:Loc Settings}" Icon="tab_settings.svg" ContentTemplate="{DataTemplate pages:SettingsPage}" />
+        <ShellContent Route="today"    Title="{loc:Loc Today}"    Icon="tab_sun.svg"        ContentTemplate="{DataTemplate pages:HomePage}" />
+        <ShellContent Route="calendar" Title="{loc:Loc Calendar}" Icon="tab_calendar.svg"   ContentTemplate="{DataTemplate pages:CalendarPage}" />
+        <ShellContent Route="qibla"    Title="{loc:Loc Qibla}"    Icon="tab_compass.svg"    ContentTemplate="{DataTemplate pages:QiblaPage}" />
+        <ShellContent Route="tasbih"   Title="{loc:Loc Tasbih}"   Icon="tab_circle_dot.svg" ContentTemplate="{DataTemplate pages:TasbihPage}" />
+        <ShellContent Route="settings" Title="{loc:Loc Settings}" Icon="tab_settings.svg"   ContentTemplate="{DataTemplate pages:SettingsPage}" />
     </TabBar>
 </Shell>

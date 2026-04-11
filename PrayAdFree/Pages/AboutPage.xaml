@@ -1,57 +1,93 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
-             x:Class="Pray_Ad_Free.Pages.AboutPage"
-             Title="{loc:Loc About}">
+<ContentPage
+    x:Class="Pray_Ad_Free.Pages.AboutPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:loc="clr-namespace:Pray_Ad_Free.Services"
+    Title="{loc:Loc About}">
+
     <Grid>
         <Grid.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyTop}, Dark={StaticResource DarkSkyTop}}" Offset="0"/>
-                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyMid}, Dark={StaticResource DarkSkyMid}}" Offset="0.6"/>
-                <GradientStop Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" Offset="1"/>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Offset="0"   Color="{AppThemeBinding Light={StaticResource SkyTop},  Dark={StaticResource DarkSkyTop}}" />
+                <GradientStop Offset="0.5" Color="{AppThemeBinding Light={StaticResource SkyMid},  Dark={StaticResource DarkSkyMid}}" />
+                <GradientStop Offset="1"   Color="{AppThemeBinding Light={StaticResource SkyBase}, Dark={StaticResource DarkSkyBase}}" />
             </LinearGradientBrush>
         </Grid.Background>
 
         <ScrollView>
-            <VerticalStackLayout Spacing="14" Padding="24,24,24,32">
-                <Label Text="{loc:Loc About}" FontSize="34" HorizontalTextAlignment="Center" FontAttributes="Bold" />
+            <VerticalStackLayout Padding="20,20,20,36" Spacing="14">
 
-                <Border Padding="24" StrokeShape="RoundRectangle 22">
-                    <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
-                        <Border WidthRequest="94"
-                                HeightRequest="94"
-                                StrokeThickness="0"
-                                StrokeShape="Ellipse"
-                                BackgroundColor="#D1AD3A"
-                                HorizontalOptions="Center"
-                                VerticalOptions="Center">
-                            <Label Text="☆" FontSize="42" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                <Label
+                    Text="{loc:Loc About}"
+                    FontSize="30"
+                    FontAttributes="Bold"
+                    HorizontalTextAlignment="Center" />
+
+                <!-- App identity -->
+                <Border
+                    Padding="24,20"
+                    StrokeShape="RoundRectangle 22"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                    <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
+                        <Border
+                            WidthRequest="80" HeightRequest="80"
+                            StrokeThickness="0"
+                            StrokeShape="Ellipse"
+                            BackgroundColor="{StaticResource AccentSoft}"
+                            HorizontalOptions="Center">
+                            <Label
+                                Text="☆"
+                                FontSize="36"
+                                HorizontalTextAlignment="Center"
+                                VerticalTextAlignment="Center"
+                                TextColor="{StaticResource Accent}" />
                         </Border>
-                        <Label Text="{Binding AppName}" FontSize="30" HorizontalTextAlignment="Center" FontAttributes="Bold" />
-                        <Label Text="{Binding Tagline}" FontSize="14" HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
+                        <Label Text="{Binding AppName}" FontSize="26" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                        <Label Text="{Binding Tagline}" FontSize="13" HorizontalTextAlignment="Center"
+                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Padding="18" StrokeShape="RoundRectangle 20">
-                    <VerticalStackLayout Spacing="10">
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <Label Text="♡" FontSize="24" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark=#EAB308}" />
+                <!-- Info -->
+                <Border
+                    Padding="0"
+                    StrokeShape="RoundRectangle 20"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                    <VerticalStackLayout>
+                        <Grid Padding="18,16" ColumnDefinitions="32,*" ColumnSpacing="14">
+                            <Label Text="♡" FontSize="20" TextColor="{StaticResource Accent}" VerticalOptions="Start" />
                             <Label Grid.Column="1" Text="{Binding Privacy}" FontSize="13" />
                         </Grid>
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <Label Text="◍" FontSize="24" TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark=#EAB308}" />
+                        <BoxView HeightRequest="1" Margin="18,0" />
+                        <Grid Padding="18,16" ColumnDefinitions="32,*" ColumnSpacing="14">
+                            <Label Text="◍" FontSize="20" TextColor="{StaticResource Teal}" VerticalOptions="Start" />
                             <Label Grid.Column="1" Text="{Binding Source}" FontSize="13" />
                         </Grid>
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Padding="16" StrokeShape="RoundRectangle 20">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="{Binding Contact}" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark=#8CA0B6}" />
-                        <Button Text="{loc:Loc ReportIssue}" Clicked="OnReportClicked" />
+                <!-- Contact -->
+                <Border
+                    Padding="18,16"
+                    StrokeShape="RoundRectangle 20"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceGlass}, Dark={StaticResource SurfaceGlassDark}}"
+                    Stroke="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource SurfaceHighlightDark}}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label
+                            Text="{Binding Contact}"
+                            FontSize="13"
+                            TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+                        <Button
+                            Text="{loc:Loc ReportIssue}"
+                            Clicked="OnReportClicked"
+                            CornerRadius="14"
+                            HeightRequest="46" />
                     </VerticalStackLayout>
                 </Border>
+
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

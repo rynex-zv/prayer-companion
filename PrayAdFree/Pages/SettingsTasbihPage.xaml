@@ -9,7 +9,7 @@
             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-            <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="PlaceholderColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource White}}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
             <Setter Property="MinimumHeightRequest" Value="44" />
             <Setter Property="MinimumWidthRequest" Value="44" />
@@ -18,7 +18,7 @@
             <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceHighlight}, Dark={StaticResource SurfaceHighlightDark}}" />
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-            <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
+            <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource White}}" />
             <Setter Property="FontSize" Value="{DynamicResource FontSizeBase}" />
             <Setter Property="MinimumHeightRequest" Value="44" />
             <Setter Property="MinimumWidthRequest" Value="44" />

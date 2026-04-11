@@ -49,14 +49,14 @@ public partial class AppShellA : Shell {
             return;
         }
 
-        Routing.RegisterRoute("settingsA/locations", typeof(SettingsLocationsPageA));
-        Routing.RegisterRoute("settingsA/diagnostics", typeof(SettingsDiagnosticsPage));
-        Routing.RegisterRoute("settingsA/adhan", typeof(SettingsAdhanPageA));
-        Routing.RegisterRoute("settingsA/notifications", typeof(SettingsNotificationsPageA));
-        Routing.RegisterRoute("settingsA/permissions", typeof(SettingsPermissionsPageA));
-        Routing.RegisterRoute("settingsA/alarm-reminders", typeof(SettingsAlarmRemindersPageA));
-        Routing.RegisterRoute("settingsA/tasbih", typeof(SettingsTasbihPage));
-        Routing.RegisterRoute("settingsA/about", typeof(AboutPageA));
+        Routing.RegisterRoute("settingsA_locations_page", typeof(SettingsLocationsPageA));
+        Routing.RegisterRoute("settingsA_diagnostics_page", typeof(SettingsDiagnosticsPage));
+        Routing.RegisterRoute("settingsA_adhan_page", typeof(SettingsAdhanPageA));
+        Routing.RegisterRoute("settingsA_notifications_page", typeof(SettingsNotificationsPageA));
+        Routing.RegisterRoute("settingsA_permissions_page", typeof(SettingsPermissionsPageA));
+        Routing.RegisterRoute("settingsA_alarm_reminders_page", typeof(SettingsAlarmRemindersPageA));
+        Routing.RegisterRoute("settingsA_tasbih_page", typeof(SettingsTasbihPage));
+        Routing.RegisterRoute("settingsA_about_page", typeof(AboutPageA));
         _routesRegistered = true;
     }
 

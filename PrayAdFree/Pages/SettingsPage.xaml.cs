@@ -17,43 +17,43 @@ public partial class SettingsPage : ContentPage {
 
     private async void OnLocationsClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Locations");
-        await Shell.Current.GoToAsync("///settings/locations");
+        await Shell.Current.GoToAsync("settings_locations_page");
     }
 
     private async void OnDiagnosticsClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Diagnostics");
-        await Shell.Current.GoToAsync("///settings/diagnostics");
+        await Shell.Current.GoToAsync("settings_diagnostics_page");
     }
 
     private async void OnAdhanClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Adhan");
         WindowsStartupSafety.Trace("SettingsPage.Click:Adhan:start");
-        await Shell.Current.GoToAsync("///settings/adhan");
+        await Shell.Current.GoToAsync("settings_adhan_page");
         WindowsStartupSafety.Trace("SettingsPage.Click:Adhan:end");
     }
 
     private async void OnNotificationsClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Notifications");
-        await Shell.Current.GoToAsync("///settings/notifications");
+        await Shell.Current.GoToAsync("settings_notifications_page");
     }
 
     private async void OnPermissionsClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Permissions");
-        await Shell.Current.GoToAsync("///settings/permissions");
+        await Shell.Current.GoToAsync("settings_permissions_page");
     }
 
     private async void OnAlarmRemindersClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "AlarmReminders");
-        await Shell.Current.GoToAsync("///settings/alarm-reminders");
+        await Shell.Current.GoToAsync("settings_alarm_reminders_page");
     }
 
     private async void OnTasbihClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "Tasbih");
-        await Shell.Current.GoToAsync("///settings/tasbih");
+        await Shell.Current.GoToAsync("settings_tasbih_page");
     }
 
     private async void OnAboutClicked(object? sender, EventArgs e) {
         Logger.LogEvent("SettingsGroupClick", "About");
-        await Shell.Current.GoToAsync("///settings/about");
+        await Shell.Current.GoToAsync("settings_about_page");
     }
 }

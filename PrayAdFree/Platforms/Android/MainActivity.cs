@@ -2,7 +2,10 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Android.Util;
 using Android.Views;
+using AndroidX.Activity;
+using Microsoft.Maui.Controls;
 using Plugin.LocalNotification;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -13,12 +16,15 @@ namespace Pray_Ad_Free;
 
 [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity {
+    private const string BackLogTag = "PrayAdFree.Back";
     private static readonly object AlarmIntentLock = new();
     private static string? _lastAlarmPayload;
     private static DateTime _lastAlarmPayloadUtc;
+    private bool _handlingBack;
 
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        OnBackPressedDispatcher.AddCallback(this, new ShellBackPressedCallback(this));
         NotifyNotificationIntent(Intent);
         HandleAlarmPresentationIntent(Intent);
         HandleAdhanControlIntent(Intent);
@@ -32,6 +38,27 @@ public class MainActivity : MauiAppCompatActivity {
         NotifyNotificationIntent(intent);
         HandleAlarmPresentationIntent(intent);
         HandleAdhanControlIntent(intent);
+    }
+
+    private async Task HandleBackPressedAsync() {
+        if (_handlingBack) {
+            Log.Debug(BackLogTag, "Ignoring re-entrant back press.");
+            return;
+        }
+
+        _handlingBack = true;
+        try {
+            var handled = await TryHandleShellBackAsync().ConfigureAwait(true);
+            Log.Debug(BackLogTag, $"TryHandleShellBackAsync handled={handled}");
+            if (!handled) {
+                MoveTaskToBack(true);
+            }
+        } catch (Exception ex) {
+            Log.Warn(BackLogTag, $"Back handling failed: {ex}");
+            MoveTaskToBack(true);
+        } finally {
+            _handlingBack = false;
+        }
     }
 
     private static void NotifyNotificationIntent(Intent? intent) {
@@ -236,5 +263,57 @@ public class MainActivity : MauiAppCompatActivity {
             } catch {
             }
         });
+    }
+
+    private static async Task<bool> TryHandleShellBackAsync() {
+        var shell = Shell.Current;
+        if (shell == null) {
+            Log.Debug(BackLogTag, "Shell.Current is null.");
+            return false;
+        }
+
+        var currentSection = shell.CurrentItem?.CurrentItem;
+        var sectionContentRoute = currentSection?.CurrentItem?.Route ?? string.Empty;
+        var sectionStackCount = currentSection?.Navigation?.NavigationStack.Count ?? 0;
+        var modalStackCount = currentSection?.Navigation?.ModalStack.Count ?? shell.Navigation.ModalStack.Count;
+        var currentLocation = shell.CurrentState?.Location?.OriginalString ?? string.Empty;
+
+        Log.Debug(
+            BackLogTag,
+            $"route={sectionContentRoute};location={currentLocation};sectionStack={sectionStackCount};modals={modalStackCount}");
+
+        if (modalStackCount > 0) {
+            Log.Debug(BackLogTag, "Popping modal page.");
+            await shell.Navigation.PopModalAsync(true);
+            return true;
+        }
+
+        if (sectionStackCount > 1) {
+            Log.Debug(BackLogTag, "Popping section navigation page.");
+            await currentSection!.Navigation.PopAsync(true);
+            return true;
+        }
+
+        var activeTabRoute = sectionContentRoute;
+        if (!string.Equals(activeTabRoute, "today", StringComparison.OrdinalIgnoreCase)) {
+            Log.Debug(BackLogTag, $"Switching tab to today from {activeTabRoute}.");
+            await shell.GoToAsync("//today");
+            return true;
+        }
+
+        Log.Debug(BackLogTag, "No shell back action available.");
+        return false;
+    }
+
+    private sealed class ShellBackPressedCallback : OnBackPressedCallback {
+        private readonly MainActivity _activity;
+
+        public ShellBackPressedCallback(MainActivity activity) : base(true) {
+            _activity = activity;
+        }
+
+        public override void HandleOnBackPressed() {
+            _ = _activity.HandleBackPressedAsync();
+        }
     }
 }

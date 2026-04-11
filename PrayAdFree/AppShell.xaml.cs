@@ -46,14 +46,14 @@ namespace Pray_Ad_Free {
                 return;
             }
 
-            Routing.RegisterRoute("settings/locations", typeof(Pages.SettingsLocationsPage));
-            Routing.RegisterRoute("settings/diagnostics", typeof(Pages.SettingsDiagnosticsPage));
-            Routing.RegisterRoute("settings/adhan", typeof(Pages.SettingsAdhanPage));
-            Routing.RegisterRoute("settings/notifications", typeof(Pages.SettingsNotificationsPage));
-            Routing.RegisterRoute("settings/permissions", typeof(Pages.SettingsPermissionsPage));
-            Routing.RegisterRoute("settings/alarm-reminders", typeof(Pages.SettingsAlarmRemindersPage));
-            Routing.RegisterRoute("settings/tasbih", typeof(Pages.SettingsTasbihPage));
-            Routing.RegisterRoute("settings/about", typeof(Pages.AboutPage));
+            Routing.RegisterRoute("settings_locations_page", typeof(Pages.SettingsLocationsPage));
+            Routing.RegisterRoute("settings_diagnostics_page", typeof(Pages.SettingsDiagnosticsPage));
+            Routing.RegisterRoute("settings_adhan_page", typeof(Pages.SettingsAdhanPage));
+            Routing.RegisterRoute("settings_notifications_page", typeof(Pages.SettingsNotificationsPage));
+            Routing.RegisterRoute("settings_permissions_page", typeof(Pages.SettingsPermissionsPage));
+            Routing.RegisterRoute("settings_alarm_reminders_page", typeof(Pages.SettingsAlarmRemindersPage));
+            Routing.RegisterRoute("settings_tasbih_page", typeof(Pages.SettingsTasbihPage));
+            Routing.RegisterRoute("settings_about_page", typeof(Pages.AboutPage));
             _routesRegistered = true;
         }
 
