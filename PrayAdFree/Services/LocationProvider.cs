@@ -21,7 +21,7 @@ public sealed class LocationProvider : ILocationProvider {
 
     private async Task<LocationSettings> GetFromGpsAsync(LocationSettings current, CancellationToken cancellationToken) {
         try {
-            var status = await RequestLocationPermissionAsync().ConfigureAwait(false);
+            var status = await CheckLocationPermissionAsync().ConfigureAwait(false);
             if (status != PermissionStatus.Granted) {
                 return current;
             }
@@ -86,11 +86,11 @@ public sealed class LocationProvider : ILocationProvider {
         }
     }
 
-    private static Task<PermissionStatus> RequestLocationPermissionAsync() {
+    private static Task<PermissionStatus> CheckLocationPermissionAsync() {
         if (MainThread.IsMainThread) {
-            return Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            return Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         }
 
-        return MainThread.InvokeOnMainThreadAsync(() => Permissions.RequestAsync<Permissions.LocationWhenInUse>());
+        return MainThread.InvokeOnMainThreadAsync(() => Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>());
     }
 }

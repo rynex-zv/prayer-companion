@@ -30,7 +30,7 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
             try {
                 await HandleAsync(context, payload).ConfigureAwait(false);
             } finally {
-                pendingResult.Finish();
+                pendingResult?.Finish();
             }
         });
     }
@@ -102,9 +102,7 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
             return App.Services;
         }
 
-        return context.ApplicationContext is MainApplication mainApplication
-            ? mainApplication.Services
-            : null;
+        return Microsoft.Maui.IPlatformApplication.Current?.Services;
     }
 }
 #endif

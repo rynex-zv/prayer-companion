@@ -133,7 +133,9 @@ public sealed class NotificationBootstrapper : INotificationBootstrapper {
 
         await MainThread.InvokeOnMainThreadAsync(() => {
             try {
+#pragma warning disable CA1416
                 var intent = new Intent(Settings.ActionRequestScheduleExactAlarm);
+#pragma warning restore CA1416
                 intent.SetData(Android.Net.Uri.Parse($"package:{context.PackageName}"));
                 intent.AddFlags(ActivityFlags.NewTask);
                 context.StartActivity(intent);

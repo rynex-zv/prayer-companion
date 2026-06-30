@@ -9,6 +9,7 @@ namespace Pray_Ad_Free.ViewModels;
 public sealed class LocationSetupViewModel : ViewModelBase {
     private readonly IGeoLookupService _geoLookupService;
     private readonly ILocationProvider _locationProvider;
+    private readonly IAppPermissionCenterService _permissionCenterService;
     private readonly IAppLogger _logger;
     private bool _useGps;
     private string _city = string.Empty;
@@ -18,8 +19,10 @@ public sealed class LocationSetupViewModel : ViewModelBase {
     private PlaceOption? _selectedCountry;
     private PlaceOption? _selectedCity;
     private bool _gpsBusy;
+    private bool _canUseGps;
     private bool _suspendUpdates;
     private bool _suspendPlaceSelection;
+    private bool _hasUserEditedLocation;
     private int _geoVersion;
     private CancellationTokenSource? _gpsLoopCts;
     private LocationSettings _loadedLocation = new();
@@ -27,13 +30,15 @@ public sealed class LocationSetupViewModel : ViewModelBase {
     public LocationSetupViewModel(
         IGeoLookupService geoLookupService,
         ILocationProvider locationProvider,
+        IAppPermissionCenterService permissionCenterService,
         IAppLogger logger) {
         _geoLookupService = geoLookupService;
         _locationProvider = locationProvider;
+        _permissionCenterService = permissionCenterService;
         _logger = logger;
         CountryOptions = new ObservableCollection<PlaceOption>();
         CityOptions = new ObservableCollection<PlaceOption>();
-        RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy);
+        RefreshGpsCommand = new Command(async () => await RefreshGpsAsync(), () => !GpsBusy && CanUseGps);
     }
 
     public ObservableCollection<PlaceOption> CountryOptions { get; }
@@ -53,7 +58,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
             }
 
             if (value) {
-                StartGpsLoop();
+                _ = EnableGpsIfPermittedAsync();
             } else {
                 StopGpsLoop();
             }
@@ -76,11 +81,28 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         }
     }
 
+    public bool CanUseGps {
+        get => _canUseGps;
+        private set {
+            if (SetProperty(ref _canUseGps, value)) {
+                RefreshGpsCommand.ChangeCanExecute();
+            }
+        }
+    }
+
+    public bool HasUserEditedLocation {
+        get => _hasUserEditedLocation;
+        private set => SetProperty(ref _hasUserEditedLocation, value);
+    }
+
     public string City {
         get => _city;
         set {
-            if (SetProperty(ref _city, value) && !_suspendUpdates && UseGps) {
-                UseGps = false;
+            if (SetProperty(ref _city, value) && !_suspendUpdates) {
+                HasUserEditedLocation = true;
+                if (UseGps) {
+                    UseGps = false;
+                }
             }
         }
     }
@@ -88,8 +110,11 @@ public sealed class LocationSetupViewModel : ViewModelBase {
     public string Country {
         get => _country;
         set {
-            if (SetProperty(ref _country, value) && !_suspendUpdates && UseGps) {
-                UseGps = false;
+            if (SetProperty(ref _country, value) && !_suspendUpdates) {
+                HasUserEditedLocation = true;
+                if (UseGps) {
+                    UseGps = false;
+                }
             }
         }
     }
@@ -98,6 +123,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         get => _latitude;
         set {
             if (SetProperty(ref _latitude, value) && !_suspendUpdates) {
+                HasUserEditedLocation = true;
                 if (UseGps) {
                     UseGps = false;
                 }
@@ -111,6 +137,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         get => _longitude;
         set {
             if (SetProperty(ref _longitude, value) && !_suspendUpdates) {
+                HasUserEditedLocation = true;
                 if (UseGps) {
                     UseGps = false;
                 }
@@ -124,6 +151,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         get => _selectedCountry;
         set {
             if (SetProperty(ref _selectedCountry, value) && !_suspendPlaceSelection) {
+                HasUserEditedLocation = true;
                 _ = ApplyCountrySelectionAsync(value);
             }
         }
@@ -133,6 +161,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         get => _selectedCity;
         set {
             if (SetProperty(ref _selectedCity, value) && !_suspendPlaceSelection) {
+                HasUserEditedLocation = true;
                 ApplyCitySelection(value);
             }
         }
@@ -159,11 +188,13 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         Country = NormalizeName(_loadedLocation.Country);
         Latitude = FormatCoordinate(_loadedLocation.Latitude);
         Longitude = FormatCoordinate(_loadedLocation.Longitude);
+        HasUserEditedLocation = false;
         _suspendUpdates = false;
         BuildPlaceOptions();
+        _ = RefreshGpsPermissionStateAsync();
 
         if (startGpsTracking && UseGps) {
-            StartGpsLoop();
+            _ = EnableGpsIfPermittedAsync();
         }
 
         OnPropertyChanged(nameof(HasUsableLocation));
@@ -188,6 +219,35 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         OnPropertyChanged(nameof(HasUsableLocation));
     }
 
+    public void ApplyAutofillLocation(GeoLocationResult location) {
+        if (HasUserEditedLocation || HasUsableLocation) {
+            return;
+        }
+
+        _loadedLocation = new LocationSettings {
+            Mode = LocationMode.Manual,
+            City = NormalizeName(location.City),
+            Country = NormalizeName(location.Country),
+            CountryCode = location.CountryCode,
+            Latitude = location.Latitude,
+            Longitude = location.Longitude,
+            TimeZoneId = TimeZoneInfo.Local.Id,
+            LastUpdatedUtc = DateTime.UtcNow
+        };
+
+        _suspendUpdates = true;
+        UseGps = false;
+        City = _loadedLocation.City;
+        Country = _loadedLocation.Country;
+        Latitude = FormatCoordinate(_loadedLocation.Latitude);
+        Longitude = FormatCoordinate(_loadedLocation.Longitude);
+        HasUserEditedLocation = false;
+        _suspendUpdates = false;
+
+        BuildPlaceOptions();
+        OnPropertyChanged(nameof(HasUsableLocation));
+    }
+
     public async Task RefreshGpsAsync() {
         if (_suspendUpdates || GpsBusy) {
             return;
@@ -195,6 +255,16 @@ public sealed class LocationSetupViewModel : ViewModelBase {
 
         try {
             GpsBusy = true;
+            if (!await HasLocationPermissionAsync().ConfigureAwait(false)) {
+                RunOnMainThread(() => {
+                    _suspendUpdates = true;
+                    UseGps = false;
+                    _suspendUpdates = false;
+                });
+                StopGpsLoop();
+                return;
+            }
+
             var current = BuildLocationSettings(_loadedLocation);
             current = new LocationSettings {
                 Mode = LocationMode.Gps,
@@ -216,6 +286,7 @@ public sealed class LocationSetupViewModel : ViewModelBase {
                 Country = NormalizeName(updated.Country);
                 Latitude = FormatCoordinate(updated.Latitude);
                 Longitude = FormatCoordinate(updated.Longitude);
+                HasUserEditedLocation = false;
                 _suspendUpdates = false;
                 BuildPlaceOptions();
                 OnPropertyChanged(nameof(HasUsableLocation));
@@ -225,6 +296,39 @@ public sealed class LocationSetupViewModel : ViewModelBase {
         } finally {
             GpsBusy = false;
         }
+    }
+
+    private async Task EnableGpsIfPermittedAsync() {
+        if (!await HasLocationPermissionAsync().ConfigureAwait(false)) {
+            RunOnMainThread(() => {
+                _suspendUpdates = true;
+                UseGps = false;
+                _suspendUpdates = false;
+            });
+            StopGpsLoop();
+            return;
+        }
+
+        StartGpsLoop();
+    }
+
+    private async Task<bool> HasLocationPermissionAsync() {
+        var snapshots = await _permissionCenterService.GetSnapshotsAsync().ConfigureAwait(false);
+        var snapshot = snapshots.FirstOrDefault(item => item.Kind == AppPermissionKind.Location);
+        var granted = snapshot.IsSupported && snapshot.IsGranted;
+        RunOnMainThread(() => {
+            CanUseGps = granted;
+            if (!granted && UseGps) {
+                _suspendUpdates = true;
+                UseGps = false;
+                _suspendUpdates = false;
+            }
+        });
+        return granted;
+    }
+
+    private async Task RefreshGpsPermissionStateAsync() {
+        await HasLocationPermissionAsync().ConfigureAwait(false);
     }
 
     public async Task ResolveCoordinatesAsync() {

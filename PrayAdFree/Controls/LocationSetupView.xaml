@@ -27,8 +27,8 @@
     <VerticalStackLayout Spacing="10">
         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" VerticalOptions="Center">
             <Label Text="{loc:Loc UseGps}" FontSize="14" VerticalOptions="Center" />
-            <Switch Grid.Column="1" IsToggled="{Binding UseGps}" VerticalOptions="Center" HorizontalOptions="Center" />
-            <Button Grid.Column="2" Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" VerticalOptions="Center" />
+            <Switch Grid.Column="1" IsToggled="{Binding UseGps}" IsEnabled="{Binding CanUseGps}" VerticalOptions="Center" HorizontalOptions="Center" />
+            <Button Grid.Column="2" Text="{loc:Loc UpdateGps}" Command="{Binding RefreshGpsCommand}" IsEnabled="{Binding CanUseGps}" VerticalOptions="Center" />
         </Grid>
 
         <Label Text="{loc:Loc Country}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />

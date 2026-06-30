@@ -40,13 +40,17 @@ internal static class AndroidAlarmFullscreenNotifier {
             .SetContentTitle(ResolveTitle())
             .SetContentText(ResolveBody())
             .SetCategory(Notification.CategoryAlarm)
-            .SetPriority((int)NotificationPriority.Max)
             .SetVisibility(NotificationVisibility.Public)
             .SetAutoCancel(true)
             .SetOngoing(true)
             .SetShowWhen(true)
-            .SetVibrate(new long[] { 0, 180, 120, 180 })
             .SetContentIntent(launchPendingIntent);
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
+#pragma warning disable CA1422
+            builder!.SetPriority((int)NotificationPriority.Max);
+            builder.SetVibrate(new long[] { 0, 180, 120, 180 });
+#pragma warning restore CA1422
+        }
 
         var canUseFullScreenIntent = CanUseFullScreenIntent(context);
         Log.Info(LogTag, $"Notifier.Show screenOnUnlocked={IsScreenOnAndUnlocked(context)} canUseFullScreenIntent={canUseFullScreenIntent}");

@@ -807,16 +807,20 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             .SetSmallIcon(context.ApplicationInfo?.Icon ?? Android.Resource.Drawable.IcDialogInfo)
             .SetContentTitle(title)
             .SetContentText(body)
-            .SetPriority((int)NotificationPriority.Max)
             .SetVisibility(NotificationVisibility.Public)
             .SetCategory(Notification.CategoryAlarm)
             .SetOngoing(true)
             .SetAutoCancel(false)
             .SetOnlyAlertOnce(false)
             .SetShowWhen(true)
-            .SetVibrate(new long[] { 0, 80, 70, 80 })
             .SetContentIntent(BuildAndroidNoOpPendingIntent(context))
             .SetDeleteIntent(BuildAndroidControlActionPendingIntent(context, AndroidDismissControlActionId));
+        if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
+#pragma warning disable CA1422
+            builder!.SetPriority((int)NotificationPriority.Max);
+            builder.SetVibrate(new long[] { 0, 80, 70, 80 });
+#pragma warning restore CA1422
+        }
 
         var compactActionIndexes = new List<int>();
         if (includeSnoozeActions) {
@@ -875,7 +879,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private static Notification.Action BuildAndroidNativeAction(int iconId, string title, PendingIntent pendingIntent) {
+#pragma warning disable CA1422
         return new Notification.Action.Builder(iconId, title, pendingIntent).Build();
+#pragma warning restore CA1422
     }
 
     private static PendingIntent BuildAndroidControlActionPendingIntent(Context context, int actionId) {
@@ -1314,7 +1320,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             Language = settings.Language,
             LanguageSelected = settings.LanguageSelected,
             ThemeMode = settings.ThemeMode,
-            ThemeVariant = settings.ThemeVariant,
             AccentIndex = settings.AccentIndex,
             OnboardingCompleted = settings.OnboardingCompleted
         };

@@ -64,14 +64,20 @@ public sealed class AlarmOverlayService : Service {
         Log.Info(LogTag, "OverlayService.OnDestroy");
         RemoveOverlay();
         try {
-            StopForeground(StopForegroundFlags.Remove);
+            if (OperatingSystem.IsAndroidVersionAtLeast(24)) {
+                StopForeground(StopForegroundFlags.Remove);
+            } else {
+#pragma warning disable CS0618
+                StopForeground(true);
+#pragma warning restore CS0618
+            }
         } catch {
         }
     }
 
     public static bool ShouldShowOverlay(Context context) {
         var visibleUnlocked = AndroidAlarmFullscreenNotifier.ShouldOpenAppDirectly(context);
-        var canDraw = Settings.CanDrawOverlays(context);
+        var canDraw = !OperatingSystem.IsAndroidVersionAtLeast(23) || Settings.CanDrawOverlays(context);
         var result = visibleUnlocked && canDraw;
         Log.Info(LogTag, $"OverlayService.ShouldShowOverlay visibleUnlocked={visibleUnlocked} canDrawOverlays={canDraw} result={result}");
         return result;
@@ -114,7 +120,9 @@ public sealed class AlarmOverlayService : Service {
         EnsureChannel();
         var notification = BuildForegroundNotification();
         if (OperatingSystem.IsAndroidVersionAtLeast(29)) {
+#pragma warning disable CA1416
             StartForeground(OverlayNotificationId, notification, global::Android.Content.PM.ForegroundService.TypeSystemExempted);
+#pragma warning restore CA1416
             return;
         }
 
@@ -475,11 +483,7 @@ public sealed class AlarmOverlayService : Service {
             return App.Services;
         }
 
-        if (global::Android.App.Application.Context is MainApplication mainApplication) {
-            return mainApplication.Services;
-        }
-
-        return null;
+        return Microsoft.Maui.IPlatformApplication.Current?.Services;
     }
 
     private static string ResolveDelayOffsetText(AdhanAlarmPayload payload) {

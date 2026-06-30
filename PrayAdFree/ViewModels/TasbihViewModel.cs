@@ -123,7 +123,6 @@ public sealed class TasbihViewModel : ViewModelBase {
                 Language = _settings.Language,
                 LanguageSelected = _settings.LanguageSelected,
                 ThemeMode = _settings.ThemeMode,
-                ThemeVariant = _settings.ThemeVariant,
                 AccentIndex = _settings.AccentIndex,
                 OnboardingCompleted = _settings.OnboardingCompleted
             };
@@ -205,7 +204,6 @@ public sealed class TasbihViewModel : ViewModelBase {
             Language = _settings.Language,
             LanguageSelected = _settings.LanguageSelected,
             ThemeMode = _settings.ThemeMode,
-            ThemeVariant = _settings.ThemeVariant,
             AccentIndex = _settings.AccentIndex,
             OnboardingCompleted = _settings.OnboardingCompleted
         };

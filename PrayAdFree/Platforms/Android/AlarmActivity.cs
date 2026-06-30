@@ -82,7 +82,9 @@ public sealed class AlarmActivity : AppCompatActivity {
             Window?.AddFlags(WindowManagerFlags.KeepScreenOn | WindowManagerFlags.DismissKeyguard);
 
             if (OperatingSystem.IsAndroidVersionAtLeast(30)) {
+#pragma warning disable CA1422
                 Window?.SetDecorFitsSystemWindows(false);
+#pragma warning restore CA1422
                 if (Window?.InsetsController != null) {
                     Window.InsetsController.Hide(WindowInsets.Type.StatusBars() | WindowInsets.Type.NavigationBars());
                     Window.InsetsController.SystemBarsBehavior = (int)WindowInsetsControllerBehavior.ShowTransientBarsBySwipe;
@@ -358,11 +360,7 @@ public sealed class AlarmActivity : AppCompatActivity {
             return App.Services;
         }
 
-        if (global::Android.App.Application.Context is MainApplication mainApplication) {
-            return mainApplication.Services;
-        }
-
-        return null;
+        return Microsoft.Maui.IPlatformApplication.Current?.Services;
     }
 
     private static string ResolveDelayOffsetText(AdhanAlarmPayload payload) {

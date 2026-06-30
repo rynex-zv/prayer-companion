@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using Microsoft.Maui.Networking;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Models;
@@ -20,12 +21,15 @@ public sealed class OnboardingViewModel : ViewModelBase {
     private readonly IAppPermissionCenterService _permissionCenterService;
     private readonly IStartupNavigationService _startupNavigationService;
     private readonly INotificationBootstrapper _notificationBootstrapper;
+    private readonly IIpLocationService _ipLocationService;
+    private readonly INetworkPrivacyService _networkPrivacyService;
     private readonly IAppLogger _logger;
     private readonly ObservableCollection<AppPermissionItemViewModel> _permissionSlides = new();
     private OptionItem<string>? _selectedLanguage;
     private int _currentStepIndex;
     private bool _isBusy;
     private bool _locationPermissionGranted;
+    private bool _showVpnWarning;
     private int _languageVersion;
 
     public OnboardingViewModel(
@@ -34,12 +38,16 @@ public sealed class OnboardingViewModel : ViewModelBase {
         IAppPermissionCenterService permissionCenterService,
         IStartupNavigationService startupNavigationService,
         INotificationBootstrapper notificationBootstrapper,
+        IIpLocationService ipLocationService,
+        INetworkPrivacyService networkPrivacyService,
         IAppLogger logger) {
         _settingsService = settingsService;
         LocationSetup = locationSetup;
         _permissionCenterService = permissionCenterService;
         _startupNavigationService = startupNavigationService;
         _notificationBootstrapper = notificationBootstrapper;
+        _ipLocationService = ipLocationService;
+        _networkPrivacyService = networkPrivacyService;
         _logger = logger;
         Languages = new ObservableCollection<OptionItem<string>>();
         PermissionSlides = new ReadOnlyObservableCollection<AppPermissionItemViewModel>(_permissionSlides);
@@ -123,6 +131,13 @@ public sealed class OnboardingViewModel : ViewModelBase {
     }
 
     public bool ShowManualLocationSetup => IsOnLocationStep;
+
+    public bool ShowVpnWarning {
+        get => _showVpnWarning;
+        private set => SetProperty(ref _showVpnWarning, value);
+    }
+
+    public string VpnWarningText => LocalizationManager.Translate("OnboardingVpnWarning");
 
     public string CurrentStepTitle {
         get {
@@ -208,6 +223,11 @@ public sealed class OnboardingViewModel : ViewModelBase {
         LocationSetup.Load(settings.Location, startGpsTracking: false);
         await RefreshPermissionSlidesAsync().ConfigureAwait(false);
         await RefreshLocationStepAsync().ConfigureAwait(false);
+        if (LocationPermissionGranted) {
+            await LocationSetup.RefreshGpsAsync().ConfigureAwait(false);
+        } else {
+            await TryAutofillLocationFromNetworkAsync().ConfigureAwait(false);
+        }
         await _startupNavigationService.PrepareShellAsync(settings).ConfigureAwait(false);
         CurrentStepIndex = Math.Min(CurrentStepIndex, TotalSteps - 1);
         RefreshCommandStates();
@@ -252,7 +272,6 @@ public sealed class OnboardingViewModel : ViewModelBase {
                 Language = SelectedLanguage?.Value ?? current.Language,
                 LanguageSelected = true,
                 ThemeMode = current.ThemeMode,
-                ThemeVariant = current.ThemeVariant,
                 AccentIndex = current.AccentIndex,
                 OnboardingCompleted = true
             };
@@ -292,6 +311,11 @@ public sealed class OnboardingViewModel : ViewModelBase {
             IsBusy = true;
             await _permissionCenterService.ResolveAsync(AppPermissionKind.Location).ConfigureAwait(false);
             await RefreshLocationStepAsync().ConfigureAwait(false);
+            if (LocationPermissionGranted) {
+                await LocationSetup.RefreshGpsAsync().ConfigureAwait(false);
+            } else {
+                await TryAutofillLocationFromNetworkAsync().ConfigureAwait(false);
+            }
         } catch (Exception ex) {
             _logger.LogException(ex, "OnboardingViewModel.RequestLocationPermissionAsync");
         } finally {
@@ -329,17 +353,58 @@ public sealed class OnboardingViewModel : ViewModelBase {
         var snapshot = (await _permissionCenterService.GetSnapshotsAsync().ConfigureAwait(false))
             .FirstOrDefault(item => item.Kind == AppPermissionKind.Location);
         LocationPermissionGranted = snapshot.IsSupported && snapshot.IsGranted;
-        if (LocationPermissionGranted) {
-            await LocationSetup.RefreshGpsAsync().ConfigureAwait(false);
-        } else if (LocationSetup.UseGps) {
+        if (!LocationPermissionGranted && LocationSetup.UseGps) {
             RunOnMainThread(() => {
                 LocationSetup.UseGps = false;
             });
         }
+        UpdateVpnWarning();
         OnPropertyChanged(nameof(CanCompleteOnboarding));
         OnPropertyChanged(nameof(CurrentStepSubtitle));
         OnPropertyChanged(nameof(ShowManualLocationSetup));
         RefreshCommandStates();
+    }
+
+    private async Task TryAutofillLocationFromNetworkAsync() {
+        if (LocationPermissionGranted ||
+            LocationSetup.HasUsableLocation ||
+            LocationSetup.HasUserEditedLocation ||
+            Connectivity.Current.NetworkAccess != NetworkAccess.Internet) {
+            UpdateVpnWarning();
+            return;
+        }
+
+        try {
+            var location = await _ipLocationService.GetCurrentLocationAsync(CancellationToken.None).ConfigureAwait(false);
+            if (location == null ||
+                LocationSetup.HasUsableLocation ||
+                LocationSetup.HasUserEditedLocation ||
+                LocationPermissionGranted) {
+                UpdateVpnWarning();
+                return;
+            }
+
+            RunOnMainThread(() => {
+                LocationSetup.ApplyAutofillLocation(location);
+                OnPropertyChanged(nameof(CanCompleteOnboarding));
+                RefreshCommandStates();
+                UpdateVpnWarning();
+            });
+        } catch (Exception ex) {
+            _logger.LogException(ex, "OnboardingViewModel.TryAutofillLocationFromNetworkAsync");
+            UpdateVpnWarning();
+        }
+    }
+
+    private void UpdateVpnWarning() {
+        var show = !LocationPermissionGranted &&
+            !LocationSetup.HasUserEditedLocation &&
+            _networkPrivacyService.IsVpnActive();
+
+        RunOnMainThread(() => {
+            ShowVpnWarning = show;
+            OnPropertyChanged(nameof(VpnWarningText));
+        });
     }
 
     private async Task ApplyLanguageSelectionAsync(string language) {
@@ -364,7 +429,6 @@ public sealed class OnboardingViewModel : ViewModelBase {
                 Language = language,
                 LanguageSelected = true,
                 ThemeMode = current.ThemeMode,
-                ThemeVariant = current.ThemeVariant,
                 AccentIndex = current.AccentIndex,
                 OnboardingCompleted = current.OnboardingCompleted
             };
@@ -407,9 +471,11 @@ public sealed class OnboardingViewModel : ViewModelBase {
             or nameof(LocationSetupViewModel.Country)
             or nameof(LocationSetupViewModel.Latitude)
             or nameof(LocationSetupViewModel.Longitude)
-            or nameof(LocationSetupViewModel.UseGps)) {
+            or nameof(LocationSetupViewModel.UseGps)
+            or nameof(LocationSetupViewModel.HasUserEditedLocation)) {
             OnPropertyChanged(nameof(CanCompleteOnboarding));
             OnPropertyChanged(nameof(ShowManualLocationSetup));
+            UpdateVpnWarning();
             RefreshCommandStates();
         }
     }

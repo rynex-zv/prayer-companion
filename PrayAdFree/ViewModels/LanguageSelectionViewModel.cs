@@ -60,7 +60,6 @@ public sealed class LanguageSelectionViewModel : ViewModelBase {
             Language = language,
             LanguageSelected = true,
             ThemeMode = settings.ThemeMode,
-            ThemeVariant = settings.ThemeVariant,
             AccentIndex = settings.AccentIndex,
             OnboardingCompleted = settings.OnboardingCompleted
         };

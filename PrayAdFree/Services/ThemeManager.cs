@@ -45,29 +45,6 @@ public static class ThemeManager {
         typeof(ThemeManager),
         0d);
 
-    private static readonly IReadOnlyList<AccentOption> ThemeAAccents = new List<AccentOption> {
-        new AccentOption(0, "Teal", "#0E6B61"),
-        new AccentOption(1, "Lagoon", "#1E7C6E"),
-        new AccentOption(2, "Palm", "#3A8D6B"),
-        new AccentOption(3, "Olive", "#5B955B"),
-        new AccentOption(4, "Herb", "#7E9A4C"),
-        new AccentOption(5, "Moss", "#A3A54B"),
-        new AccentOption(6, "Gold", "#C7A646"),
-        new AccentOption(7, "Amber", "#E09F3E"),
-        new AccentOption(8, "Copper", "#D9843B"),
-        new AccentOption(9, "Terracotta", "#C66B37"),
-        new AccentOption(10, "Clay", "#B05233"),
-        new AccentOption(11, "Brick", "#9A4031"),
-        new AccentOption(12, "Oxide", "#7F2F2E"),
-        new AccentOption(13, "Mulberry", "#6A3F4B"),
-        new AccentOption(14, "Plum", "#6A5266"),
-        new AccentOption(15, "Slate", "#5B5E7A"),
-        new AccentOption(16, "Harbor", "#4B6E8A"),
-        new AccentOption(17, "Depth", "#3C7A8D"),
-        new AccentOption(18, "Breeze", "#2F7F86"),
-        new AccentOption(19, "Reef", "#1D7A74")
-    };
-
     private static readonly IReadOnlyList<AccentOption> ThemeBAccents = new List<AccentOption> {
         new AccentOption(0, "Amber", "#D1AD3A"),
         new AccentOption(1, "Orange", "#F97316"),
@@ -91,8 +68,8 @@ public static class ThemeManager {
         new AccentOption(19, "Slate", "#94A3B8")
     };
 
-    public static IReadOnlyList<AccentOption> GetAccentOptions(ThemeVariant variant) {
-        return variant == ThemeVariant.B ? ThemeBAccents : ThemeAAccents;
+    public static IReadOnlyList<AccentOption> GetAccentOptions() {
+        return ThemeBAccents;
     }
 
     public static void ApplyTheme(AppSettings settings) {
@@ -101,7 +78,7 @@ public static class ThemeManager {
             return;
         }
 
-        ApplyThemeStyles(resources, settings.ThemeVariant);
+        ApplyThemeStyles(resources);
 
         Application.Current!.UserAppTheme = settings.ThemeMode switch {
             ThemeMode.Light => AppTheme.Light,
@@ -109,11 +86,11 @@ public static class ThemeManager {
             _ => AppTheme.Unspecified
         };
 
-        var accentOptions = GetAccentOptions(settings.ThemeVariant);
+        var accentOptions = GetAccentOptions();
         var accent = accentOptions[Math.Clamp(settings.AccentIndex, 0, AccentCount - 1)].Hex;
 
-        var light = settings.ThemeVariant == ThemeVariant.B ? ThemeBLight : ThemeALight;
-        var dark = settings.ThemeVariant == ThemeVariant.B ? ThemeBDark : ThemeADark;
+        var light = ThemeBLight;
+        var dark = ThemeBDark;
 
         SetColor(resources, "Primary", accent);
         SetColor(resources, "PrimaryDark", Darken(accent, 0.75));
@@ -292,23 +269,16 @@ public static class ThemeManager {
         });
     }
 
-    private static void ApplyThemeStyles(ResourceDictionary resources, ThemeVariant variant) {
+    private static void ApplyThemeStyles(ResourceDictionary resources) {
         var merged = resources.MergedDictionaries;
         var existingThemeB = merged.Where(dictionary => dictionary is ThemeBStyles).ToList();
 
-        if (variant == ThemeVariant.B) {
-            _themeBStyles ??= new ThemeBStyles();
-            if (!merged.Contains(_themeBStyles)) {
-                merged.Add(_themeBStyles);
-            }
-
-            foreach (var dictionary in existingThemeB.Where(dictionary => !ReferenceEquals(dictionary, _themeBStyles))) {
-                merged.Remove(dictionary);
-            }
-            return;
+        _themeBStyles ??= new ThemeBStyles();
+        if (!merged.Contains(_themeBStyles)) {
+            merged.Add(_themeBStyles);
         }
 
-        foreach (var dictionary in existingThemeB) {
+        foreach (var dictionary in existingThemeB.Where(dictionary => !ReferenceEquals(dictionary, _themeBStyles))) {
             merged.Remove(dictionary);
         }
     }
@@ -1017,38 +987,6 @@ public static class ThemeManager {
         string NightTop,
         string NightBase,
         string Secondary);
-
-    private static readonly ThemeColors ThemeALight = new(
-        SkyTop: "#E8F1FF",
-        SkyMid: "#DCE9F4",
-        SkyBase: "#F6E2C4",
-        SandTop: "#F7F1E6",
-        SandMid: "#EBDCC6",
-        SandBase: "#D8C2A2",
-        SurfaceGlass: "#FFFDF7",
-        SurfaceSolid: "#FFFFFF",
-        SurfaceHighlight: "#FFEED6",
-        TextMuted: "#6F6356",
-        TextSubtle: "#8C7F70",
-        NightTop: "#1C2630",
-        NightBase: "#0C1218",
-        Secondary: "#F2E9D8");
-
-    private static readonly ThemeColors ThemeADark = new(
-        SkyTop: "#0E141C",
-        SkyMid: "#141C26",
-        SkyBase: "#1B242F",
-        SandTop: "#12161E",
-        SandMid: "#1A212B",
-        SandBase: "#202A35",
-        SurfaceGlass: "#1B232D",
-        SurfaceSolid: "#0E141C",
-        SurfaceHighlight: "#24303B",
-        TextMuted: "#B6B0A6",
-        TextSubtle: "#C2BAB0",
-        NightTop: "#141B24",
-        NightBase: "#0B1116",
-        Secondary: "#28313B");
 
     private static readonly ThemeColors ThemeBLight = new(
         SkyTop: "#EEF7F3",

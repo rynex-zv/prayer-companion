@@ -45,7 +45,7 @@ public sealed class StartupNavigationService : IStartupNavigationService {
                     return;
                 }
 
-                _preparedShell = CreateShell(settings.ThemeVariant);
+                _preparedShell = CreateShell();
                 _preparedKey = shellKey;
                 _logger.LogEvent("StartupNavigation", $"prepared_shell:{shellKey}");
             }
@@ -79,7 +79,7 @@ public sealed class StartupNavigationService : IStartupNavigationService {
             return shell!;
         }
 
-        shell = CreateShell(settings.ThemeVariant);
+        shell = CreateShell();
         lock (_sync) {
             _preparedShell = null;
             _preparedKey = string.Empty;
@@ -99,27 +99,15 @@ public sealed class StartupNavigationService : IStartupNavigationService {
         return false;
     }
 
-    private Shell CreateShell(ThemeVariant variant) {
-        return variant == ThemeVariant.A
-            ? _services.GetRequiredService<AppShellA>()
-            : _services.GetRequiredService<AppShell>();
+    private Shell CreateShell() {
+        return _services.GetRequiredService<AppShell>();
     }
 
     private static string BuildShellKey(AppSettings settings) {
-        return $"{settings.ThemeVariant}:{settings.Language}";
+        return settings.Language;
     }
 
     private static bool HasCompletedSetup(AppSettings settings) {
-        return settings.OnboardingCompleted
-            || (settings.LanguageSelected && HasUsableLocation(settings.Location));
-    }
-
-    private static bool HasUsableLocation(LocationSettings location) {
-        if (!string.IsNullOrWhiteSpace(location.City) || !string.IsNullOrWhiteSpace(location.Country)) {
-            return true;
-        }
-
-        return Math.Abs(location.Latitude) > double.Epsilon
-            || Math.Abs(location.Longitude) > double.Epsilon;
+        return settings.OnboardingCompleted;
     }
 }

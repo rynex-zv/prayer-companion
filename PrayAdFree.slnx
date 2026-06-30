@@ -9,10 +9,12 @@
   <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
   <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
   <Project Path="PrayAdFree/PrayAdFree.csproj">
+    <Platform Solution="*|Any CPU" Project="AnyCPU" />
     <Platform Solution="*|ARM32" Project="ARM32" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />
     <Deploy Solution="Debug|Any CPU" />
+    <Deploy Solution="Release|Any CPU" />
   </Project>
 </Solution>

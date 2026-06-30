@@ -1,0 +1,13 @@
+root = true
+
+[*.cs]
+# The Visual Studio Spell Checker extension is throwing AD0001 when one of its
+# local assemblies is missing. Keep that user-machine analyzer out of this repo.
+dotnet_diagnostic.VSSpell001.severity = none
+dotnet_diagnostic.AD0001.severity = none
+
+# These are code-style preferences from the local Visual Studio profile, not
+# project correctness rules. The existing codebase intentionally uses PascalCase
+# constants and expression-bodied members where they read cleanly.
+dotnet_diagnostic.IDE1006.severity = none
+dotnet_diagnostic.IDE0046.severity = none

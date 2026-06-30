@@ -14,7 +14,6 @@ namespace Pray_Ad_Free {
         private readonly IServiceProvider _services;
         private readonly IAppLogger _logger;
         private readonly IStartupNavigationService _startupNavigationService;
-        private ThemeVariant _activeThemeVariant = ThemeVariant.B;
         private Window? _mainWindow;
         private bool _startupNotificationBootstrapQueued;
 
@@ -29,8 +28,7 @@ namespace Pray_Ad_Free {
 
             var startupSettings = LoadSettingsSafe();
             LocalizationBootstrapper.EnsureInitialized(startupSettings.Language);
-            _activeThemeVariant = startupSettings.ThemeVariant;
-            _logger.LogEvent("AppCtor", $"Theme.Apply.start:{_activeThemeVariant}");
+            _logger.LogEvent("AppCtor", "Theme.Apply.start");
             try {
                 ThemeManager.ApplyTheme(startupSettings);
                 _logger.LogEvent("AppCtor", "Theme.Apply.ok");
@@ -103,14 +101,6 @@ namespace Pray_Ad_Free {
                 TryScheduleNotifications(reason);
                 return Task.CompletedTask;
             });
-        }
-
-        public static Task ReloadShellForThemeVariantAsync(ThemeVariant variant) {
-            if (Current is not App app) {
-                return Task.CompletedTask;
-            }
-
-            return app.ReloadShellInternalAsync(variant);
         }
 
         protected override void OnStart() {
@@ -192,30 +182,5 @@ namespace Pray_Ad_Free {
             }
         }
 
-        private Shell CreateShellForVariant(ThemeVariant variant) {
-            _logger.LogEvent("CreateShell", $"variant:{variant}");
-            return variant == ThemeVariant.A
-                ? _services.GetRequiredService<AppShellA>()
-                : _services.GetRequiredService<AppShell>();
-        }
-
-        private async Task ReloadShellInternalAsync(ThemeVariant variant) {
-            await MainThread.InvokeOnMainThreadAsync(() => {
-                try {
-                    var currentWindow = _mainWindow ?? Current?.Windows.FirstOrDefault();
-                    if (currentWindow == null) {
-                        _logger.LogEvent("ReloadShell", "skip:noWindow");
-                        return;
-                    }
-
-                    _activeThemeVariant = variant;
-                    currentWindow.Page = CreateShellForVariant(variant);
-                    _mainWindow = currentWindow;
-                    _logger.LogEvent("ReloadShell", $"applied:{variant}");
-                } catch (Exception ex) {
-                    _logger.LogException(ex, "App.ReloadShellInternalAsync");
-                }
-            }).ConfigureAwait(false);
-        }
     }
 }

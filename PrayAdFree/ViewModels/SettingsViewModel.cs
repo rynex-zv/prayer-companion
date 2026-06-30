@@ -52,7 +52,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     private string _adhanVolumeLabel = "100%";
     private OptionItem<string>? _selectedLanguage;
     private OptionItem<ThemeMode>? _selectedThemeMode;
-    private OptionItem<ThemeVariant>? _selectedThemeVariant;
     private AccentOption? _selectedAccent;
     private Color _accentPreviewColor = Colors.Transparent;
     private string _statusMessage = "";
@@ -85,7 +84,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     private OptionItem<TasbihRepeatMode>? _selectedTasbihRepeatMode;
     private string _newTasbihPresetName = "";
     private Command<OptionItem<ThemeMode>>? _selectThemeModeCommand;
-    private Command<OptionItem<ThemeVariant>>? _selectThemeVariantCommand;
     private Command<AccentOption>? _selectAccentCommand;
     private Command<OptionItem<string>>? _selectLanguageCommand;
     private Command<OptionItem<QiblaReadingMode>>? _selectQiblaReadingModeCommand;
@@ -96,20 +94,20 @@ public sealed class SettingsViewModel : ViewModelBase {
         GeoService geoService,
         ILocationProvider locationProvider,
         IAppLogger logger,
+        IAppPermissionCenterService permissionCenterService,
         IWindowsBackgroundModeService windowsBackgroundModeService,
         IAdhanPlaybackService adhanPlaybackService) {
         _dataService = dataService;
         _logger = logger;
         _windowsBackgroundModeService = windowsBackgroundModeService;
         _adhanPlaybackService = adhanPlaybackService;
-        LocationSetup = new LocationSetupViewModel(geoService, locationProvider, logger);
+        LocationSetup = new LocationSetupViewModel(geoService, locationProvider, permissionCenterService, logger);
         Methods = new ObservableCollection<OptionItem<CalculationMethod>>();
         Madhhabs = new ObservableCollection<OptionItem<Madhhab>>();
         HighLatitudeRules = new ObservableCollection<OptionItem<HighLatitudeRule>>();
 
         ThemeModes = new ObservableCollection<OptionItem<ThemeMode>>();
-        ThemeVariants = new ObservableCollection<OptionItem<ThemeVariant>>();
-        AccentOptions = new ObservableCollection<AccentOption>(ThemeManager.GetAccentOptions(ThemeVariant.B));
+        AccentOptions = new ObservableCollection<AccentOption>(ThemeManager.GetAccentOptions());
         Languages = new ObservableCollection<OptionItem<string>>();
         ReminderUnits = new ObservableCollection<OptionItem<int>>();
         ReminderDirections = new ObservableCollection<OptionItem<int>>();
@@ -166,11 +164,6 @@ public sealed class SettingsViewModel : ViewModelBase {
                 SelectedThemeMode = item;
             }
         });
-        SelectThemeVariantCommand = new Command<OptionItem<ThemeVariant>>(item => {
-            if (item != null) {
-                SelectedThemeVariant = item;
-            }
-        });
         SelectAccentCommand = new Command<AccentOption>(item => {
             if (item != null) {
                 SelectedAccent = item;
@@ -214,7 +207,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     public ObservableCollection<OptionItem<Madhhab>> Madhhabs { get; }
     public ObservableCollection<OptionItem<HighLatitudeRule>> HighLatitudeRules { get; }
     public ObservableCollection<OptionItem<ThemeMode>> ThemeModes { get; }
-    public ObservableCollection<OptionItem<ThemeVariant>> ThemeVariants { get; }
     public ObservableCollection<AccentOption> AccentOptions { get; }
     public ObservableCollection<OptionItem<string>> Languages { get; }
     public ObservableCollection<OptionItem<int>> ReminderUnits { get; }
@@ -262,10 +254,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     public Command<OptionItem<ThemeMode>> SelectThemeModeCommand {
         get => _selectThemeModeCommand!;
         private set => _selectThemeModeCommand = value;
-    }
-    public Command<OptionItem<ThemeVariant>> SelectThemeVariantCommand {
-        get => _selectThemeVariantCommand!;
-        private set => _selectThemeVariantCommand = value;
     }
     public Command<AccentOption> SelectAccentCommand {
         get => _selectAccentCommand!;
@@ -641,16 +629,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         }
     }
 
-    public OptionItem<ThemeVariant>? SelectedThemeVariant {
-        get => _selectedThemeVariant;
-        set {
-            if (SetProperty(ref _selectedThemeVariant, value)) {
-                UpdateAccentOptions(value?.Value ?? ThemeVariant.B, _selectedAccent?.Index ?? 0);
-                ApplyThemePreview();
-            }
-        }
-    }
-
     public AccentOption? SelectedAccent {
         get => _selectedAccent;
         set {
@@ -670,7 +648,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         try {
             ThemeManager.ApplyTheme(new AppSettings {
                 ThemeMode = SelectedThemeMode?.Value ?? _settings.ThemeMode,
-                ThemeVariant = SelectedThemeVariant?.Value ?? _settings.ThemeVariant,
                 AccentIndex = SelectedAccent?.Index ?? _settings.AccentIndex,
                 TextScale = TextScale,
                 SunAngles = _settings.SunAngles,
@@ -735,8 +712,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             ?? Languages.FirstOrDefault();
         SelectedThemeMode = ThemeModes.FirstOrDefault(item => item.Value == _settings.ThemeMode)
             ?? ThemeModes.FirstOrDefault();
-        SelectedThemeVariant = ThemeVariants.FirstOrDefault(item => item.Value == _settings.ThemeVariant)
-            ?? ThemeVariants.FirstOrDefault();
         SelectedClockFormat = ClockFormats.FirstOrDefault(item => item.Value == _settings.ClockFormat)
             ?? ClockFormats.FirstOrDefault();
         SelectedQiblaReadingMode = QiblaReadingModes.FirstOrDefault(item => item.Value == _settings.Qibla.ReadingMode)
@@ -748,7 +723,7 @@ public sealed class SettingsViewModel : ViewModelBase {
         LoadTasbihPresets();
         BuildAdhanOverrideOptions();
         LoadAdhanOverrides();
-        UpdateAccentOptions(SelectedThemeVariant?.Value ?? ThemeVariant.B, _settings.AccentIndex);
+        UpdateAccentOptions(_settings.AccentIndex);
         _suspendSave = false;
         if (UseGps) {
             _ = LocationSetup.RefreshGpsAsync();
@@ -764,7 +739,6 @@ public sealed class SettingsViewModel : ViewModelBase {
     }
 
     private void SaveCore(bool updateStatusMessage) {
-        var previousThemeVariant = _settings.ThemeVariant;
         var location = LocationSetup.BuildLocationSettings(_settings.Location);
 
         var offsets = new PrayerOffsets {
@@ -860,7 +834,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             Language = SelectedLanguage?.Value ?? _settings.Language ?? "auto",
             LanguageSelected = true,
             ThemeMode = SelectedThemeMode?.Value ?? ThemeMode.Auto,
-            ThemeVariant = SelectedThemeVariant?.Value ?? ThemeVariant.B,
             AccentIndex = SelectedAccent?.Index ?? 0,
             OnboardingCompleted = _settings.OnboardingCompleted
         };
@@ -873,9 +846,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         try {
             ThemeManager.ApplyTheme(_settings);
         } catch {
-        }
-        if (previousThemeVariant != _settings.ThemeVariant) {
-            _ = App.ReloadShellForThemeVariantAsync(_settings.ThemeVariant);
         }
         if (updateStatusMessage) {
             StatusMessage = "Settings saved";
@@ -914,9 +884,9 @@ public sealed class SettingsViewModel : ViewModelBase {
         });
     }
 
-    private void UpdateAccentOptions(ThemeVariant variant, int selectedIndex) {
+    private void UpdateAccentOptions(int selectedIndex) {
         AccentOptions.Clear();
-        foreach (var option in ThemeManager.GetAccentOptions(variant)) {
+        foreach (var option in ThemeManager.GetAccentOptions()) {
             AccentOptions.Add(option);
         }
 
@@ -937,7 +907,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         _suspendSave = true;
         var previousLanguage = SelectedLanguage?.Value;
         var previousThemeMode = SelectedThemeMode?.Value;
-        var previousThemeVariant = SelectedThemeVariant?.Value;
         var previousMethod = SelectedMethod?.Value;
         var previousMadhhab = SelectedMadhhab?.Value;
         var previousHighLatitude = SelectedHighLatitude?.Value;
@@ -985,10 +954,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         ThemeModes.Add(new OptionItem<ThemeMode>(ThemeMode.Light, LocalizationManager.Translate("ThemeLight")));
         ThemeModes.Add(new OptionItem<ThemeMode>(ThemeMode.Dark, LocalizationManager.Translate("ThemeDark")));
 
-        ThemeVariants.Clear();
-        ThemeVariants.Add(new OptionItem<ThemeVariant>(ThemeVariant.A, LocalizationManager.Translate("ThemeVariantA")));
-        ThemeVariants.Add(new OptionItem<ThemeVariant>(ThemeVariant.B, LocalizationManager.Translate("ThemeVariantB")));
-
         Languages.Clear();
         Languages.Add(new OptionItem<string>("auto", LocalizationManager.Translate("Auto")));
         foreach (var option in LocalizationManager.GetAvailableLanguages()) {
@@ -1017,9 +982,6 @@ public sealed class SettingsViewModel : ViewModelBase {
         SelectedThemeMode = ThemeModes.FirstOrDefault(item => item.Value == previousThemeMode)
             ?? SelectedThemeMode
             ?? ThemeModes.FirstOrDefault();
-        SelectedThemeVariant = ThemeVariants.FirstOrDefault(item => item.Value == previousThemeVariant)
-            ?? SelectedThemeVariant
-            ?? ThemeVariants.FirstOrDefault();
         _suspendSave = restoreSuspend;
     }
 
@@ -1593,7 +1555,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             Language = _settings.Language,
             LanguageSelected = _settings.LanguageSelected,
             ThemeMode = _settings.ThemeMode,
-            ThemeVariant = _settings.ThemeVariant,
             AccentIndex = _settings.AccentIndex
         };
 
@@ -2024,7 +1985,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             Language = _settings.Language,
             LanguageSelected = _settings.LanguageSelected,
             ThemeMode = _settings.ThemeMode,
-            ThemeVariant = _settings.ThemeVariant,
             AccentIndex = _settings.AccentIndex,
             OnboardingCompleted = _settings.OnboardingCompleted
         };
@@ -2201,7 +2161,6 @@ public sealed class SettingsViewModel : ViewModelBase {
             or nameof(SelectedTasbihRepeatMode)
             or nameof(SelectedLanguage)
             or nameof(SelectedThemeMode)
-            or nameof(SelectedThemeVariant)
             or nameof(SelectedAccent)
             or nameof(SelectedCountry)
             or nameof(SelectedCity);

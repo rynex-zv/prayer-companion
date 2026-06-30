@@ -193,7 +193,9 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
                     return Task.CompletedTask;
                 }
 
+#pragma warning disable CA1416
                 var intent = new Intent(Settings.ActionRequestScheduleExactAlarm);
+#pragma warning restore CA1416
                 intent.SetData(global::Android.Net.Uri.Parse($"package:{context.PackageName}"));
                 intent.AddFlags(ActivityFlags.NewTask);
                 context.StartActivity(intent);
@@ -215,7 +217,9 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
                 }
 
                 try {
+#pragma warning disable CA1416
                     var intent = new Intent(Settings.ActionManageAppUseFullScreenIntent);
+#pragma warning restore CA1416
                     intent.SetData(global::Android.Net.Uri.Parse($"package:{context.PackageName}"));
                     intent.AddFlags(ActivityFlags.NewTask);
                     context.StartActivity(intent);
@@ -241,7 +245,9 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
                 }
 
                 try {
+#pragma warning disable CA1416
                     var intent = new Intent(Settings.ActionManageOverlayPermission);
+#pragma warning restore CA1416
                     intent.SetData(global::Android.Net.Uri.Parse($"package:{context.PackageName}"));
                     intent.AddFlags(ActivityFlags.NewTask);
                     context.StartActivity(intent);

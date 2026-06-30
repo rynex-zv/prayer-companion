@@ -90,44 +90,6 @@
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </FlexLayout>
-                    <Label Text="{loc:Loc ThemeVariant}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
-                    <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding ThemeVariants}">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource ChoiceChip}" Margin="0,0,8,8">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding BindingContext.SelectThemeVariantCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
-                                                              CommandParameter="{Binding .}" />
-                                    </Border.GestureRecognizers>
-                                    <Label Text="{Binding Label}" Style="{StaticResource ChoiceChipLabel}">
-                                        <Label.Triggers>
-                                            <DataTrigger TargetType="Label" Value="True">
-                                                <DataTrigger.Binding>
-                                                    <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                        <Binding Path="BindingContext.SelectedThemeVariant" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                        <Binding Path="." />
-                                                    </MultiBinding>
-                                                </DataTrigger.Binding>
-                                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource White}}" />
-                                            </DataTrigger>
-                                        </Label.Triggers>
-                                    </Label>
-                                    <Border.Triggers>
-                                        <DataTrigger TargetType="Border" Value="True">
-                                            <DataTrigger.Binding>
-                                                <MultiBinding Converter="{StaticResource SelectionMatchConverter}">
-                                                    <Binding Path="BindingContext.SelectedThemeVariant" Source="{RelativeSource AncestorType={x:Type ContentPage}}" />
-                                                    <Binding Path="." />
-                                                </MultiBinding>
-                                            </DataTrigger.Binding>
-                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource PrimaryDark}}" />
-                                            <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Accent}}" />
-                                        </DataTrigger>
-                                    </Border.Triggers>
-                                </Border>
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </FlexLayout>
                     <Label Text="{loc:Loc ThemeColor}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}" />
                     <FlexLayout Wrap="Wrap" Direction="Row" BindableLayout.ItemsSource="{Binding AccentOptions}">
                         <BindableLayout.ItemTemplate>

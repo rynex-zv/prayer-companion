@@ -198,7 +198,9 @@ public class MainActivity : MauiAppCompatActivity {
                 WindowManagerFlags.DismissKeyguard);
 
             if (OperatingSystem.IsAndroidVersionAtLeast(30)) {
+#pragma warning disable CA1422
                 Window?.SetDecorFitsSystemWindows(false);
+#pragma warning restore CA1422
                 var insetsController = Window?.InsetsController;
                 if (insetsController != null) {
                     insetsController.Hide(WindowInsets.Type.StatusBars() | WindowInsets.Type.NavigationBars());

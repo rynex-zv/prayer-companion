@@ -8,7 +8,6 @@ using Plugin.LocalNotification.AndroidOption;
 using Plugin.LocalNotification.iOSOption;
 using Plugin.LocalNotification.WindowsOption;
 using Pray_Ad_Free.Pages;
-using Pray_Ad_Free.Pages.ThemeA;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
 
@@ -156,6 +155,11 @@ namespace Pray_Ad_Free {
             ));
             builder.Services.AddSingleton<IGeoLookupService>(sp => sp.GetRequiredService<GeoService>());
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
+            builder.Services.AddHttpClient<IIpLocationService, IpLocationService>(client => {
+                client.BaseAddress = new Uri("https://ipapi.co/");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("PrayAdFree/1.0 (contact: rynex@rynex.nl)");
+            });
+            builder.Services.AddSingleton<INetworkPrivacyService, NetworkPrivacyService>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
             builder.Services.AddSingleton<AlarmReminderCatalogService>();
@@ -204,19 +208,6 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<LanguageSelectionPage>();
             builder.Services.AddTransient<OnboardingPage>();
             builder.Services.AddTransient<AppShell>();
-            builder.Services.AddTransient<HomePageA>();
-            builder.Services.AddTransient<CalendarPageA>();
-            builder.Services.AddTransient<QiblaPageA>();
-            builder.Services.AddTransient<TasbihPageA>();
-            builder.Services.AddTransient<SettingsPageA>();
-            builder.Services.AddTransient<SettingsLocationsPageA>();
-            builder.Services.AddTransient<SettingsAdhanPageA>();
-            builder.Services.AddTransient<SettingsNotificationsPageA>();
-            builder.Services.AddTransient<SettingsPermissionsPageA>();
-            builder.Services.AddTransient<SettingsAlarmRemindersPageA>();
-            builder.Services.AddTransient<AboutPageA>();
-            builder.Services.AddTransient<LanguageSelectionPageA>();
-            builder.Services.AddTransient<AppShellA>();
 
             builder.Services.AddSingleton<AppPermissionCenterService>();
             builder.Services.AddSingleton<IAppPermissionCenterService>(sp => sp.GetRequiredService<AppPermissionCenterService>());
