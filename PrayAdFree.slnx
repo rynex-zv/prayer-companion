@@ -6,6 +6,7 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="MauiWebber/MauiWebber.csproj" />
   <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
   <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
   <Project Path="PrayAdFree/PrayAdFree.csproj">

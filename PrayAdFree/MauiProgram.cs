@@ -10,6 +10,7 @@ using Plugin.LocalNotification.WindowsOption;
 using Pray_Ad_Free.Pages;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
+using MauiWebber;
 
 namespace Pray_Ad_Free {
     public static class MauiProgram {
@@ -162,6 +163,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<INetworkPrivacyService, NetworkPrivacyService>();
             builder.Services.AddSingleton<IWindowsBackgroundModeService, WindowsBackgroundModeService>();
             builder.Services.AddSingleton<IAppLogger, AppLogger>();
+            builder.Services.AddSingleton<IMauiWebberLogger, MauiWebberAppLogger>();
             builder.Services.AddSingleton<AlarmReminderCatalogService>();
             builder.Services.AddSingleton<AdhanPlaybackService>();
             builder.Services.AddSingleton<IAdhanPlaybackService>(sp => sp.GetRequiredService<AdhanPlaybackService>());
@@ -179,6 +181,22 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<PrayerDataService>();
             builder.Services.AddSingleton<NotificationBootstrapper>();
             builder.Services.AddSingleton<INotificationBootstrapper>(sp => sp.GetRequiredService<NotificationBootstrapper>());
+            builder.Services.AddSingleton(new MauiWebberOptions {
+                AppId = "prayadfree-today",
+                EmbeddedRoot = "web",
+                RemoteBaseUrl = new Uri("https://pray.rynex.nl/"),
+                ManifestUrl = new Uri("https://pray.rynex.nl/webber-manifest.json"),
+                StorageFolderName = "MauiWebber",
+                StartupFile = "index.html",
+                UpdatePolicy = MauiWebberUpdatePolicy.LocalFirst,
+                RollbackEnabled = true,
+                IntegrityMode = MauiWebberIntegrityMode.OptionalHash
+            });
+            builder.Services.AddSingleton(sp => new MauiWebberUpdater(
+                sp.GetRequiredService<MauiWebberOptions>(),
+                CreateMauiWebberHttpClient(),
+                sp.GetRequiredService<IMauiWebberLogger>()));
+            builder.Services.AddTransient<TodayWebRpcHandler>();
 
             builder.Services.AddTransient<HomeViewModel>();
             builder.Services.AddTransient<CalendarViewModel>();
@@ -193,6 +211,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddTransient<OnboardingViewModel>();
 
             builder.Services.AddTransient<HomePage>();
+            builder.Services.AddTransient<TodayWebPage>();
             builder.Services.AddTransient<CalendarPage>();
             builder.Services.AddTransient<QiblaPage>();
             builder.Services.AddTransient<TasbihPage>();
@@ -214,6 +233,16 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<IStartupNavigationService, StartupNavigationService>();
 
             return builder.Build();
+        }
+
+        private static HttpClient CreateMauiWebberHttpClient() {
+#if DEBUG
+            return new HttpClient(new HttpClientHandler {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            });
+#else
+            return new HttpClient();
+#endif
         }
 
         private static string ResolveStopActionTitle() {

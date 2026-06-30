@@ -1,0 +1,15 @@
+{
+  "version": "embedded-20260630-0003",
+  "entry": "index.html",
+  "files": [
+    {
+      "path": "assets/app.css"
+    },
+    {
+      "path": "assets/app.js"
+    },
+    {
+      "path": "index.html"
+    }
+  ]
+}
