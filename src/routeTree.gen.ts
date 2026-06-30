@@ -9,38 +9,238 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasbihRouteImport } from './routes/tasbih'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as QiblaRouteImport } from './routes/qibla'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsThemeRouteImport } from './routes/settings.theme'
+import { Route as SettingsTasbihRouteImport } from './routes/settings.tasbih'
+import { Route as SettingsPermissionsRouteImport } from './routes/settings.permissions'
+import { Route as SettingsNotificationsRouteImport } from './routes/settings.notifications'
+import { Route as SettingsLocationsRouteImport } from './routes/settings.locations'
+import { Route as SettingsAlarmsRouteImport } from './routes/settings.alarms'
+import { Route as SettingsAdhanRouteImport } from './routes/settings.adhan'
+import { Route as SettingsAboutRouteImport } from './routes/settings.about'
 
+const TasbihRoute = TasbihRouteImport.update({
+  id: '/tasbih',
+  path: '/tasbih',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QiblaRoute = QiblaRouteImport.update({
+  id: '/qibla',
+  path: '/qibla',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsThemeRoute = SettingsThemeRouteImport.update({
+  id: '/theme',
+  path: '/theme',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsTasbihRoute = SettingsTasbihRouteImport.update({
+  id: '/tasbih',
+  path: '/tasbih',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsPermissionsRoute = SettingsPermissionsRouteImport.update({
+  id: '/permissions',
+  path: '/permissions',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsNotificationsRoute = SettingsNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsLocationsRoute = SettingsLocationsRouteImport.update({
+  id: '/locations',
+  path: '/locations',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAlarmsRoute = SettingsAlarmsRouteImport.update({
+  id: '/alarms',
+  path: '/alarms',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAdhanRoute = SettingsAdhanRouteImport.update({
+  id: '/adhan',
+  path: '/adhan',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsAboutRoute = SettingsAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
+  '/onboarding': typeof OnboardingRoute
+  '/qibla': typeof QiblaRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/tasbih': typeof TasbihRoute
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/adhan': typeof SettingsAdhanRoute
+  '/settings/alarms': typeof SettingsAlarmsRoute
+  '/settings/locations': typeof SettingsLocationsRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/settings/tasbih': typeof SettingsTasbihRoute
+  '/settings/theme': typeof SettingsThemeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
+  '/onboarding': typeof OnboardingRoute
+  '/qibla': typeof QiblaRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/tasbih': typeof TasbihRoute
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/adhan': typeof SettingsAdhanRoute
+  '/settings/alarms': typeof SettingsAlarmsRoute
+  '/settings/locations': typeof SettingsLocationsRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/settings/tasbih': typeof SettingsTasbihRoute
+  '/settings/theme': typeof SettingsThemeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
+  '/onboarding': typeof OnboardingRoute
+  '/qibla': typeof QiblaRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/tasbih': typeof TasbihRoute
+  '/settings/about': typeof SettingsAboutRoute
+  '/settings/adhan': typeof SettingsAdhanRoute
+  '/settings/alarms': typeof SettingsAlarmsRoute
+  '/settings/locations': typeof SettingsLocationsRoute
+  '/settings/notifications': typeof SettingsNotificationsRoute
+  '/settings/permissions': typeof SettingsPermissionsRoute
+  '/settings/tasbih': typeof SettingsTasbihRoute
+  '/settings/theme': typeof SettingsThemeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/calendar'
+    | '/onboarding'
+    | '/qibla'
+    | '/settings'
+    | '/tasbih'
+    | '/settings/about'
+    | '/settings/adhan'
+    | '/settings/alarms'
+    | '/settings/locations'
+    | '/settings/notifications'
+    | '/settings/permissions'
+    | '/settings/tasbih'
+    | '/settings/theme'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/calendar'
+    | '/onboarding'
+    | '/qibla'
+    | '/settings'
+    | '/tasbih'
+    | '/settings/about'
+    | '/settings/adhan'
+    | '/settings/alarms'
+    | '/settings/locations'
+    | '/settings/notifications'
+    | '/settings/permissions'
+    | '/settings/tasbih'
+    | '/settings/theme'
+  id:
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/onboarding'
+    | '/qibla'
+    | '/settings'
+    | '/tasbih'
+    | '/settings/about'
+    | '/settings/adhan'
+    | '/settings/alarms'
+    | '/settings/locations'
+    | '/settings/notifications'
+    | '/settings/permissions'
+    | '/settings/tasbih'
+    | '/settings/theme'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalendarRoute: typeof CalendarRoute
+  OnboardingRoute: typeof OnboardingRoute
+  QiblaRoute: typeof QiblaRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
+  TasbihRoute: typeof TasbihRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasbih': {
+      id: '/tasbih'
+      path: '/tasbih'
+      fullPath: '/tasbih'
+      preLoaderRoute: typeof TasbihRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qibla': {
+      id: '/qibla'
+      path: '/qibla'
+      fullPath: '/qibla'
+      preLoaderRoute: typeof QiblaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +248,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/theme': {
+      id: '/settings/theme'
+      path: '/theme'
+      fullPath: '/settings/theme'
+      preLoaderRoute: typeof SettingsThemeRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/tasbih': {
+      id: '/settings/tasbih'
+      path: '/tasbih'
+      fullPath: '/settings/tasbih'
+      preLoaderRoute: typeof SettingsTasbihRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/permissions': {
+      id: '/settings/permissions'
+      path: '/permissions'
+      fullPath: '/settings/permissions'
+      preLoaderRoute: typeof SettingsPermissionsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/notifications': {
+      id: '/settings/notifications'
+      path: '/notifications'
+      fullPath: '/settings/notifications'
+      preLoaderRoute: typeof SettingsNotificationsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/locations': {
+      id: '/settings/locations'
+      path: '/locations'
+      fullPath: '/settings/locations'
+      preLoaderRoute: typeof SettingsLocationsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/alarms': {
+      id: '/settings/alarms'
+      path: '/alarms'
+      fullPath: '/settings/alarms'
+      preLoaderRoute: typeof SettingsAlarmsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/adhan': {
+      id: '/settings/adhan'
+      path: '/adhan'
+      fullPath: '/settings/adhan'
+      preLoaderRoute: typeof SettingsAdhanRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/about': {
+      id: '/settings/about'
+      path: '/about'
+      fullPath: '/settings/about'
+      preLoaderRoute: typeof SettingsAboutRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
+interface SettingsRouteChildren {
+  SettingsAboutRoute: typeof SettingsAboutRoute
+  SettingsAdhanRoute: typeof SettingsAdhanRoute
+  SettingsAlarmsRoute: typeof SettingsAlarmsRoute
+  SettingsLocationsRoute: typeof SettingsLocationsRoute
+  SettingsNotificationsRoute: typeof SettingsNotificationsRoute
+  SettingsPermissionsRoute: typeof SettingsPermissionsRoute
+  SettingsTasbihRoute: typeof SettingsTasbihRoute
+  SettingsThemeRoute: typeof SettingsThemeRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAboutRoute: SettingsAboutRoute,
+  SettingsAdhanRoute: SettingsAdhanRoute,
+  SettingsAlarmsRoute: SettingsAlarmsRoute,
+  SettingsLocationsRoute: SettingsLocationsRoute,
+  SettingsNotificationsRoute: SettingsNotificationsRoute,
+  SettingsPermissionsRoute: SettingsPermissionsRoute,
+  SettingsTasbihRoute: SettingsTasbihRoute,
+  SettingsThemeRoute: SettingsThemeRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalendarRoute: CalendarRoute,
+  OnboardingRoute: OnboardingRoute,
+  QiblaRoute: QiblaRoute,
+  SettingsRoute: SettingsRouteWithChildren,
+  TasbihRoute: TasbihRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
