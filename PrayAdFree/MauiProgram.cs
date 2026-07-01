@@ -182,7 +182,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<NotificationBootstrapper>();
             builder.Services.AddSingleton<INotificationBootstrapper>(sp => sp.GetRequiredService<NotificationBootstrapper>());
             builder.Services.AddSingleton(new MauiWebberOptions {
-                AppId = "prayadfree-today",
+                AppId = "prayadfree-app",
                 EmbeddedRoot = "web",
                 RemoteBaseUrl = new Uri("https://pray.rynex.nl/"),
                 ManifestUrl = new Uri("https://pray.rynex.nl/webber-manifest.json"),
@@ -197,6 +197,7 @@ namespace Pray_Ad_Free {
                 CreateMauiWebberHttpClient(),
                 sp.GetRequiredService<IMauiWebberLogger>()));
             builder.Services.AddTransient<TodayWebRpcHandler>();
+            builder.Services.AddTransient<WebAppRpcHandler>();
 
             builder.Services.AddTransient<HomeViewModel>();
             builder.Services.AddTransient<CalendarViewModel>();

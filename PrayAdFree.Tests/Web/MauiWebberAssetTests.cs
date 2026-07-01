@@ -27,16 +27,17 @@ public sealed class MauiWebberAssetTests {
     public void EmbeddedTodayWebUi_UsesNativeLabelsAndPerformanceTrace() {
         var webRoot = Path.Combine(GetRepoRoot(), "PrayAdFree", "Resources", "Raw", "web");
         var html = File.ReadAllText(Path.Combine(webRoot, "index.html"));
-        var js = File.ReadAllText(Path.Combine(webRoot, "assets", "app.js"));
+        var js = string.Join(Environment.NewLine, GetManifestFiles(webRoot, ".js").Select(File.ReadAllText));
+        var sourceRoot = Path.Combine(GetRepoRoot(), "Pray.web", "src");
+        var nativeClientSource = File.ReadAllText(Path.Combine(sourceRoot, "native", "mauiWebberClient.ts"));
+        var todaySource = File.ReadAllText(Path.Combine(sourceRoot, "routes", "index.tsx"));
 
-        Assert.Contains("id=\"nextPrayerLabel\"", html, StringComparison.Ordinal);
-        Assert.Contains("id=\"timeLeftLabel\"", html, StringComparison.Ordinal);
-        Assert.Contains("id=\"todayPrayerTimesLabel\"", html, StringComparison.Ordinal);
-        Assert.Contains("labels.nextPrayer", js, StringComparison.Ordinal);
-        Assert.Contains("labels.timeLeft", js, StringComparison.Ordinal);
-        Assert.Contains("labels.todayPrayerTimes", js, StringComparison.Ordinal);
-        Assert.Contains("mauiWebber.trace", js, StringComparison.Ordinal);
-        Assert.Contains("renderComplete", js, StringComparison.Ordinal);
+        Assert.Contains("id=\"app\"", html, StringComparison.Ordinal);
+        Assert.Contains("today.getSnapshot", js, StringComparison.Ordinal);
+        Assert.Contains("today.refresh", js, StringComparison.Ordinal);
+        Assert.Contains("app.getShellSnapshot", js, StringComparison.Ordinal);
+        Assert.Contains("mauiWebber.trace", nativeClientSource, StringComparison.Ordinal);
+        Assert.Contains("renderComplete", todaySource, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -64,7 +65,30 @@ public sealed class MauiWebberAssetTests {
         Assert.Contains("<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>", project, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MauiBuild_RunsPhoneFrontendBuildByDefault() {
+        var project = File.ReadAllText(Path.Combine(GetRepoRoot(), "PrayAdFree", "PrayAdFree.csproj"));
+
+        Assert.Contains("Name=\"BuildPhoneFrontend\"", project, StringComparison.Ordinal);
+        Assert.Contains("BeforeTargets=\"PrepareForBuild\"", project, StringComparison.Ordinal);
+        Assert.Contains("$(SkipFrontendBuild)' != 'true'", project, StringComparison.Ordinal);
+        Assert.Contains("run build -- $(FrontendBuildArgs)", project, StringComparison.Ordinal);
+        Assert.Contains("<FrontendBuildArgs Condition=\"'$(FrontendBuildArgs)' == ''\">--phone</FrontendBuildArgs>", project, StringComparison.Ordinal);
+    }
+
     private static string GetRepoRoot() {
         return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+    }
+
+    private static IEnumerable<string> GetManifestFiles(string webRoot, string extension) {
+        var manifestPath = Path.Combine(webRoot, "webber-manifest.json");
+        using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+
+        return manifest.RootElement.GetProperty("files")
+            .EnumerateArray()
+            .Select(file => file.GetProperty("path").GetString())
+            .Where(path => path != null && path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+            .Select(path => Path.Combine(webRoot, path!.Replace('/', Path.DirectorySeparatorChar)))
+            .ToList();
     }
 }

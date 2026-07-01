@@ -56,12 +56,6 @@
 		<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 	</PropertyGroup>
 
-	<PropertyGroup>
-		<BuildFrontend Condition="'$(BuildFrontend)' == ''">true</BuildFrontend>
-		<FrontendBuildArgs Condition="'$(FrontendBuildArgs)' == ''">--phone</FrontendBuildArgs>
-		<FrontendProjectDir>$(MSBuildProjectDirectory)\..\Pray.web</FrontendProjectDir>
-	</PropertyGroup>
-
 	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0-android'">
 		<!-- App Icon (non-Android targets) -->
 		<MauiIcon Include="Resources\AppIcon\appicon.png" />
@@ -121,20 +115,33 @@
 	  <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />
 	</ItemGroup>
 
-	<Target Name="BuildPhoneFrontend"
-	        BeforeTargets="AssignTargetPaths"
-	        Condition="'$(BuildFrontend)' == 'true' and '$(SkipFrontendBuild)' != 'true' and '$(DesignTimeBuild)' != 'true' and Exists('$(FrontendProjectDir)\package.json')">
-		<Message Importance="high" Text="Building Pray.web frontend for MAUI with args: $(FrontendBuildArgs)" />
-		<Warning Text="Skipping Pray.web frontend build because node_modules is missing. Run 'npm install' in $(FrontendProjectDir), or build with -p:SkipFrontendBuild=true to use the existing embedded web assets."
-		         Condition="!Exists('$(FrontendProjectDir)\node_modules')" />
-		<Exec WorkingDirectory="$(FrontendProjectDir)"
-		      Command="npm run build -- $(FrontendBuildArgs)"
-		      Condition="Exists('$(FrontendProjectDir)\node_modules')" />
-		<ItemGroup>
-			<MauiAsset Remove="Resources\Raw\web\**" />
-			<MauiAsset Include="Resources\Raw\web\**"
-			           LogicalName="web\%(RecursiveDir)%(Filename)%(Extension)" />
-		</ItemGroup>
-	</Target>
+	<PropertyGroup>
+		<BuildFrontend Condition="'$(BuildFrontend)' == ''">true</BuildFrontend>
+		<FrontendBuildArgs Condition="'$(FrontendBuildArgs)' == ''">--phone</FrontendBuildArgs>
+		<FrontendProjectDir>$(MSBuildProjectDirectory)\..\Pray.web</FrontendProjectDir>
+		<FrontendBuildOutput>$(MSBuildProjectDirectory)\Resources\Raw\web\webber-manifest.json</FrontendBuildOutput>
 
+		<NpmExecutable Condition="$([MSBuild]::IsOSPlatform('windows'))">npm</NpmExecutable>
+		<NpmExecutable Condition="'$(NpmExecutable)' == ''">npm</NpmExecutable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrontendBuildInput Include="$(FrontendProjectDir)\package.json" />
+		<FrontendBuildInput Include="$(FrontendProjectDir)\package-lock.json" />
+		<FrontendBuildInput Include="$(FrontendProjectDir)\vite.config.js" />
+		<FrontendBuildInput Include="$(FrontendProjectDir)\scripts\**\*" />
+		<FrontendBuildInput Include="$(FrontendProjectDir)\src\**\*" />
+	</ItemGroup>
+
+	<Target Name="BuildPhoneFrontend"
+	        BeforeTargets="PrepareForBuild"
+	        Inputs="@(FrontendBuildInput)"
+	        Outputs="$(FrontendBuildOutput)"
+	        Condition="'$(BuildFrontend)' == 'true' and '$(SkipFrontendBuild)' != 'true' and Exists('$(FrontendProjectDir)\package.json')">
+		<Warning Condition="!Exists('$(FrontendProjectDir)\node_modules')"
+		         Text="Skipping Pray.web frontend build because node_modules is missing. Run npm install in $(FrontendProjectDir)." />
+		<Exec Condition="Exists('$(FrontendProjectDir)\node_modules')"
+		      Command="$(NpmExecutable) run build -- $(FrontendBuildArgs)"
+		      WorkingDirectory="$(FrontendProjectDir)" />
+	</Target>
 </Project>

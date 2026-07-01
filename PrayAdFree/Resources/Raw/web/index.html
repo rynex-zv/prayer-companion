@@ -3,52 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Prayer times, Qibla, and tasbih - ad free." />
+    <meta name="theme-color" content="#0d9488" />
     <title>Pray Ad Free</title>
-    <link rel="stylesheet" href="./assets/app.css" />
+    <script type="module" crossorigin src="./assets/index-DnT-Vxrd.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DeQVCbed.css">
   </head>
   <body>
-    <main class="app-shell">
-      <section class="basmala">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</section>
-      <section class="location-card">
-        <div class="dot"></div>
-        <strong id="locationTitle">Loading...</strong>
-        <div class="date-stack">
-          <span id="gregorianDate"></span>
-          <span id="hijriDate"></span>
-        </div>
-      </section>
-      <section class="hero-card">
-        <div>
-          <div class="eyebrow" id="nextPrayerLabel">NEXT PRAYER</div>
-          <h1 id="nextPrayerName">--</h1>
-          <div class="clock" id="nextPrayerClock">--:--</div>
-          <span class="muted small" id="nextPrayerBaseClock"></span>
-        </div>
-        <div class="countdown">
-          <span id="timeLeftLabel">TIME LEFT</span>
-          <strong id="countdown">--:--</strong>
-          <em id="nextPrayerDayLabel"></em>
-        </div>
-      </section>
-      <section class="panel">
-        <header id="todayPrayerTimesLabel">TODAY PRAYER TIMES</header>
-        <div class="timings" id="todayTimings"></div>
-      </section>
-      <section class="fasting-grid">
-        <div class="fasting-card" id="iftarCard">
-          <span id="iftarLabel">Iftar</span>
-          <strong id="iftarTime">--:--</strong>
-          <em id="iftarCountdown"></em>
-        </div>
-        <div class="fasting-card" id="imsakCard">
-          <span id="imsakLabel">Imsak</span>
-          <strong id="imsakTime">--:--</strong>
-          <em id="imsakCountdown"></em>
-        </div>
-      </section>
-      <button class="refresh" type="button" id="refreshButton">Refresh</button>
-      <p class="status" id="statusMessage">Connecting to app...</p>
-    </main>
-    <script src="./assets/app.js"></script>
+    <div id="app"></div>
   </body>
 </html>
