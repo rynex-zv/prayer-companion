@@ -3,12 +3,14 @@ import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { Mail, Phone, Globe, Bug } from "lucide-react";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/about")({
   component: AboutPage,
 });
 
 function AboutPage() {
+  usePageLog("settings.about");
   const info = {
     name: "Pray Ad Free",
     tagline: "Prayer times, Qibla, and tasbih — ad free.",

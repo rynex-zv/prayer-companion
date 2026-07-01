@@ -5,6 +5,8 @@ import { Card } from "@/components/Card";
 import { Picker } from "@/components/Picker";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/tasbih")({
   head: () => ({
@@ -23,11 +25,15 @@ type Snapshot = {
 };
 
 function TasbihPage() {
+  usePageLog("tasbih");
   const { data, refresh } = useSnapshot<Snapshot>("tasbih.getSnapshot");
   if (!data) return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-end">
+        <PageLog page="tasbih" />
+      </div>
       <Card className="text-center">
         <div className="text-lg font-semibold text-primary">{data.currentPhrase}</div>
         <div className="text-xs text-muted-foreground">{data.progressText}</div>

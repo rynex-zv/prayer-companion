@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall, mauiTrace } from "@/native/mauiWebberClient";
 import { Card, CardTitle } from "@/components/Card";
 import { RefreshCw, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -33,14 +36,30 @@ function Time({ children }: { children: string }) {
 }
 
 function TodayPage() {
+  usePageLog("today");
   const { data, refresh, loading } = useSnapshot<Today>("today.getSnapshot");
+  const renderTraceSent = useRef(false);
+
+  useEffect(() => {
+    if (!data || renderTraceSent.current) {
+      return;
+    }
+
+    renderTraceSent.current = true;
+    requestAnimationFrame(() => {
+      mauiTrace("renderComplete", { route: "today", timingCount: data.todayTimings.length });
+    });
+  }, [data]);
 
   if (!data) return <SkeletonToday />;
   const L = data.labels;
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L.basmala}</p>
+      <div className="flex items-center justify-center gap-2">
+        <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L.basmala}</p>
+        <PageLog page="today" />
+      </div>
 
       <Card className="flex items-center justify-between">
         <div className="flex items-start gap-2">

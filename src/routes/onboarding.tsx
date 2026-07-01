@@ -6,6 +6,8 @@ import { Card } from "@/components/Card";
 import { Picker } from "@/components/Picker";
 import { Field } from "@/components/Field";
 import { AlertTriangle, ChevronRight } from "lucide-react";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -24,6 +26,7 @@ type Snapshot = {
 };
 
 function OnboardingPage() {
+  usePageLog("onboarding");
   const { data, refresh } = useSnapshot<Snapshot>("onboarding.getSnapshot");
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
@@ -42,7 +45,10 @@ function OnboardingPage() {
 
       <Card className="flex-1 space-y-4">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">Step {step + 1} of {steps.length}</div>
-        <h1 className="text-2xl font-bold">{cur}</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">{cur}</h1>
+          <PageLog page="onboarding" />
+        </div>
 
         {step === 0 && (
           <Field label="Choose your language">

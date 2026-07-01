@@ -6,6 +6,7 @@ import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
 import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/notifications")({
   component: NotificationsPage,
@@ -19,6 +20,7 @@ type N = {
 };
 
 function NotificationsPage() {
+  usePageLog("settings.notifications");
   const { data, refresh } = useSnapshot<N>("settings.getSnapshot", { section: "notifications" });
   if (!data) return null;
   const patch = (p: Partial<N>) => mauiCall("settings.patch", { notifications: { ...data, ...p } }).then(refresh);

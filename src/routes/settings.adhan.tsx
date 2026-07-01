@@ -7,6 +7,7 @@ import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { Play, Square, X, Plus } from "lucide-react";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/adhan")({
   component: AdhanPage,
@@ -26,6 +27,7 @@ type Adhan = {
 };
 
 function AdhanPage() {
+  usePageLog("settings.adhan");
   const { data, refresh } = useSnapshot<Adhan>("settings.getSnapshot", { section: "adhan" });
   const [playing, setPlaying] = useState<string | null>(null);
   if (!data) return null;

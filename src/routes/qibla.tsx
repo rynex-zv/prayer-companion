@@ -6,6 +6,8 @@ import { SegmentedControl } from "@/components/SegmentedControl";
 import { QiblaCompass } from "@/components/QiblaCompass";
 import { cn } from "@/lib/utils";
 import { MapPin } from "lucide-react";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/qibla")({
   head: () => ({
@@ -31,6 +33,7 @@ type Snapshot = {
 };
 
 function QiblaPage() {
+  usePageLog("qibla");
   const { data, refresh } = useSnapshot<Snapshot>("qibla.getSnapshot");
   if (!data) return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
   const L = data.labels;
@@ -39,6 +42,9 @@ function QiblaPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-end">
+        <PageLog page="qibla" />
+      </div>
       <Card>
         <CardTitle>{L.qiblaDirection}</CardTitle>
         <div className="mt-1 flex items-baseline justify-between">

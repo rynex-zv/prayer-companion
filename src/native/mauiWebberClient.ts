@@ -33,6 +33,18 @@ export function isBridgeReady(): boolean {
   return typeof window !== "undefined" && !!window.mauiWebber;
 }
 
+export function mauiTrace(name: string, detail: Record<string, unknown> = {}): void {
+  if (!isBridgeReady()) {
+    return;
+  }
+
+  void mauiCall("mauiWebber.trace", {
+    name,
+    at: typeof performance !== "undefined" ? performance.now() : undefined,
+    ...detail,
+  });
+}
+
 export const BRIDGE_MODE: "maui" | "mock" =
   typeof window !== "undefined" && window.mauiWebber ? "maui" : "mock";
 

@@ -4,6 +4,8 @@ import { mauiCall } from "@/native/mauiWebberClient";
 import { Card, CardTitle } from "@/components/Card";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
@@ -19,12 +21,16 @@ type Day = { date: string; hijri: string; fajr: string; sunrise: string; dhuhr: 
 type Snapshot = { selectedMonth: string; statusMessage: string; days: Day[] };
 
 function CalendarPage() {
+  usePageLog("calendar");
   const { data, refresh } = useSnapshot<Snapshot>("calendar.getSnapshot");
   if (!data) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="text-xl font-bold">Calendar</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">Calendar</h1>
+        <PageLog page="calendar" />
+      </div>
       <Card className="flex items-center justify-between">
         <button onClick={() => mauiCall("calendar.previousMonth").then(refresh)} className="rounded-full p-2 hover:bg-muted" aria-label="Previous month">
           <ChevronLeft className="h-5 w-5" />

@@ -1,6 +1,8 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Card } from "@/components/Card";
 import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
+import { PageLog } from "@/components/PageLog";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -31,9 +33,13 @@ const items = [
 ] as const;
 
 function SettingsIndex() {
+  usePageLog("settings");
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="text-xl font-bold">Settings</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">Settings</h1>
+        <PageLog page="settings" />
+      </div>
       <Card className="divide-y divide-border p-0">
         {items.map((it) => {
           const Icon = it.icon;

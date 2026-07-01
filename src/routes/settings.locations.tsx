@@ -7,6 +7,7 @@ import { Picker } from "@/components/Picker";
 import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { AlertTriangle } from "lucide-react";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/locations")({
   component: LocationsPage,
@@ -19,6 +20,7 @@ type Loc = {
 };
 
 function LocationsPage() {
+  usePageLog("settings.locations");
   const { data, refresh } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
   if (!data) return null;
   const cities = data.countries.find((c) => c.code === data.country)?.cities ?? [];

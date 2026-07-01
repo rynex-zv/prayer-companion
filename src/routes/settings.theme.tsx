@@ -8,6 +8,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/theme")({
   component: ThemePage,
@@ -25,6 +26,7 @@ const ACCENT_HEX: Record<string, string> = {
 };
 
 function ThemePage() {
+  usePageLog("settings.theme-diagnostics");
   const { data, refresh } = useSnapshot<Theme>("settings.getSnapshot", { section: "theme" });
   if (!data) return null;
   const patch = (p: Partial<Theme>) => mauiCall("settings.patch", { theme: { ...data, ...p } }).then(refresh);

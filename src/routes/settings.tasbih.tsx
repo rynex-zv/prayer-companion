@@ -7,6 +7,7 @@ import { Picker } from "@/components/Picker";
 import { Field } from "@/components/Field";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { Plus, X, ArrowUp, ArrowDown } from "lucide-react";
+import { usePageLog } from "@/hooks/usePageLog";
 
 export const Route = createFileRoute("/settings/tasbih")({
   component: TasbihSettingsPage,
@@ -16,6 +17,7 @@ type Preset = { id: string; name: string; repeatMode: string; items: { text: str
 type Snapshot = { presets: Preset[]; selectedPresetId: string };
 
 function TasbihSettingsPage() {
+  usePageLog("settings.tasbih-presets");
   const { data, refresh } = useSnapshot<Snapshot>("tasbih.getSnapshot");
   const [newName, setNewName] = useState("");
   const [itemText, setItemText] = useState("");
