@@ -285,6 +285,9 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# Frontend is a separate Git repository.
+/Pray.web/
+
 # Visual Studio 6 build log
 *.plg
 
