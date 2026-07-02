@@ -1,5 +1,5 @@
 {
-  "version": "20260701124413463",
+  "version": "20260702122758744",
   "target": "phone",
   "entry": "index.html",
   "files": [
@@ -52,12 +52,12 @@
       "sha256": "76c24b51eeca53bf23a101c0467d4496e1d12eee1f12a077c32b09248a8bb84d"
     },
     {
-      "path": "assets/index-CP7uzSys.js",
-      "sha256": "73c256589ff9af1deaf62e793c65a037f368112ee04573bc809295ab758c41ab"
+      "path": "assets/index-B4tf1lh5.css",
+      "sha256": "cf5e0c7d9f6ca8463dd845c5774e919c944a412bf2598edfadf8a79cab115cdb"
     },
     {
-      "path": "assets/index-DD-MhZ-3.css",
-      "sha256": "c4d85e16e724c7f0e445fecf52d17613fa31556ffabd3421a9295c9f3b1c280e"
+      "path": "assets/index-DGkcxLxI.js",
+      "sha256": "e7a00f08912b7ebfead757d530595c7c504baef2653f8fd83710d215bb8bdad3"
     },
     {
       "path": "assets/inter-cyrillic-400-normal-HOLc17fK.woff",
@@ -284,12 +284,12 @@
       "sha256": "5fafa3829a16d9ea5ac3a67c51e54186353122790b604a3e361f96cab188da8b"
     },
     {
-      "path": "assets/styles-Dd7mH6g5.css",
-      "sha256": "43ea71354eb5c86595c4c6208d19849162c768c5c4e718c9ee6edf97d870343f"
+      "path": "assets/styles-CA_4LjdG.css",
+      "sha256": "ce4ca5bbfd270ace514fe2c8fdb222470c4c8a5f0cc7c9c0cf95023fbb5b4764"
     },
     {
       "path": "index.html",
-      "sha256": "044a4d59fa3113ecd4eb8047111b72fe31f507d6f97b49082bfe84f8c9bd6df9"
+      "sha256": "cc3a9e6e9b7395f0122243269551791d1db4633ef17a52bad9d9b53814f35a38"
     }
   ]
 }

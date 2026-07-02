@@ -45,6 +45,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     public async Task<object?> HandleAsync(string method, JsonElement payload, CancellationToken cancellationToken) {
         return method switch {
             "today.getSnapshot" or "today.refresh" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
+            "mauiWebber.trace" => new { ok = true },
             "app.getShellSnapshot" => BuildShellSnapshot(),
             "app.getLocalization" => BuildLabels(),
             "app.setLanguage" => SetLanguage(payload),
