@@ -29,6 +29,14 @@ public class MauiWebberPage : ContentPage {
         _webView.Navigated += OnNavigated;
     }
 
+    public Task<bool> TryHandleBackNavigationAsync() {
+        return DispatchNavigationCommandAsync("back");
+    }
+
+    public Task<bool> TryHandleForwardNavigationAsync() {
+        return DispatchNavigationCommandAsync("forward");
+    }
+
     private void OnWebViewHandlerChanged(object? sender, EventArgs e) {
 #if ANDROID
         if (_webView.Handler?.PlatformView is AndroidWebView androidWebView) {
@@ -159,7 +167,8 @@ public class MauiWebberPage : ContentPage {
                   if (!callback) return;
                   delete callbacks[id];
                   callback(response);
-                }
+                },
+                navigation: null
               };
               window.dispatchEvent(new CustomEvent('mauiwebber:ready'));
               setTimeout(function(){
@@ -168,6 +177,45 @@ public class MauiWebberPage : ContentPage {
             })();
             """;
         return _webView.EvaluateJavaScriptAsync(script);
+    }
+
+    private async Task<bool> DispatchNavigationCommandAsync(string direction) {
+        if (!_loaded) {
+            return false;
+        }
+
+        try {
+            var command = JsonSerializer.Serialize(direction);
+            var script = $$"""
+                (function(){
+                  var nav = window.mauiWebber && window.mauiWebber.navigation;
+                  var direction = {{command}};
+                  var handler = nav && nav[direction];
+                  if (typeof handler !== 'function') {
+                    window.dispatchEvent(new CustomEvent('mauiwebber:navigation', { detail: { direction: direction } }));
+                    return 'false';
+                  }
+                  return handler() === true ? 'true' : 'false';
+                })();
+                """;
+
+            var result = await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+            var handled = IsJavaScriptTrue(result);
+            _logger.Log("NavigationCommand", $"direction={direction};handled={handled};result={result}");
+            return handled;
+        } catch (Exception ex) {
+            _logger.LogException(ex, $"MauiWebber.Navigation.{direction}");
+            return false;
+        }
+    }
+
+    private static bool IsJavaScriptTrue(string? value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return false;
+        }
+
+        var normalized = value.Trim().Trim('"');
+        return string.Equals(normalized, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private Task ResolveAsync(string id, MauiWebberRpcResponse response) {

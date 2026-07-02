@@ -5,6 +5,7 @@ using Android.OS;
 using Android.Util;
 using Android.Views;
 using AndroidX.Activity;
+using MauiWebber;
 using Microsoft.Maui.Controls;
 using Plugin.LocalNotification;
 using PrayAdFree.Core.Models;
@@ -284,6 +285,12 @@ public class MainActivity : MauiAppCompatActivity {
             BackLogTag,
             $"route={sectionContentRoute};location={currentLocation};sectionStack={sectionStackCount};modals={modalStackCount}");
 
+        if (TryGetCurrentMauiWebberPage(shell, currentSection) is { } webPage &&
+            await webPage.TryHandleBackNavigationAsync().ConfigureAwait(true)) {
+            Log.Debug(BackLogTag, "Handled by MauiWebber navigation.");
+            return true;
+        }
+
         if (modalStackCount > 0) {
             Log.Debug(BackLogTag, "Popping modal page.");
             await shell.Navigation.PopModalAsync(true);
@@ -305,6 +312,20 @@ public class MainActivity : MauiAppCompatActivity {
 
         Log.Debug(BackLogTag, "No shell back action available.");
         return false;
+    }
+
+    private static MauiWebberPage? TryGetCurrentMauiWebberPage(Shell shell, ShellSection? currentSection) {
+        var sectionStack = currentSection?.Navigation?.NavigationStack;
+        if (sectionStack?.Count > 0 && sectionStack[^1] is MauiWebberPage sectionWebPage) {
+            return sectionWebPage;
+        }
+
+        var shellStack = shell.Navigation?.NavigationStack;
+        if (shellStack?.Count > 0 && shellStack[^1] is MauiWebberPage shellWebPage) {
+            return shellWebPage;
+        }
+
+        return shell.CurrentPage as MauiWebberPage;
     }
 
     private sealed class ShellBackPressedCallback : OnBackPressedCallback {

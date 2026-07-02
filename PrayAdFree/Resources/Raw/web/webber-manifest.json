@@ -1,5 +1,5 @@
 {
-  "version": "20260702122758744",
+  "version": "20260702124130309",
   "target": "phone",
   "entry": "index.html",
   "files": [
@@ -56,8 +56,8 @@
       "sha256": "cf5e0c7d9f6ca8463dd845c5774e919c944a412bf2598edfadf8a79cab115cdb"
     },
     {
-      "path": "assets/index-DGkcxLxI.js",
-      "sha256": "e7a00f08912b7ebfead757d530595c7c504baef2653f8fd83710d215bb8bdad3"
+      "path": "assets/index-CRbDKgMS.js",
+      "sha256": "cc659fc9eb568a6948ae9b71dd4c994e14b78e7d7d7b4332a01ae07dcfcebc58"
     },
     {
       "path": "assets/inter-cyrillic-400-normal-HOLc17fK.woff",
@@ -289,7 +289,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "cc3a9e6e9b7395f0122243269551791d1db4633ef17a52bad9d9b53814f35a38"
+      "sha256": "8f5b3250d0b16b41d6484a3821bae4792d9781624f30b3d8c0074fc99fa7aef5"
     }
   ]
 }
