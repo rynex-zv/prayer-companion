@@ -14,7 +14,7 @@ Per-check status values: `WORKING GOOD`, `BROKEN`, `STATUS SAVED BROKEN`, `VALUE
 | Qibla | `/qibla` | NOT VERIFIED | Not checked in current pass. | Not checked. |
 | Tasbih | `/tasbih` | NOT VERIFIED | Not checked in current pass. | Not checked. |
 | Settings index | `/settings` | PARTIAL | Code fix applied for raw labels and hover URLs; runtime screenshot/console check still required before marking working. | `npm run typecheck` passed after replacing internal anchors with buttons and adding console route API. |
-| Settings locations | `/settings/locations` | PARTIAL | Needs runtime input and saved-state verification. | GPS blank-page guard added earlier; current pass still needs verification. |
+| Settings locations | `/settings/locations` | PARTIAL | Value-change and saved-state verification still blocked by synthetic click delivery to controls. | Windows runtime reached `settings.locations`; `settings.getSnapshot` returned and `snapshot.setData`/`snapshot.setLoadingFalse` fired; screenshot `agents/mds/screenshots/settings-locations-verified-working.png` shows rendered controls. |
 | Settings theme | `/settings/theme` | NOT VERIFIED | Not checked in current pass. | Not checked. |
 | Settings adhan | `/settings/adhan` | NOT VERIFIED | Not checked in current pass. | Not checked. |
 | Settings notifications | `/settings/notifications` | NOT VERIFIED | Not checked in current pass. | Not checked. |
@@ -89,11 +89,11 @@ Use these in the WebView console after the latest frontend bundle is running:
 
 | Check | Selector/API | Expected | Status | Evidence |
 |---|---|---|---|---|
-| Page opens | `window.prayerCompanion.navigate("/settings/locations")` | Location settings render, never blank. | NOT-CHECKED | Needs current runtime screenshot after latest bundle. |
-| Language | Visible labels | No mixed raw English/Arabic keys. | NOT-CHECKED | Not checked. |
-| Buttons | GPS toggle, refresh GPS, back | Buttons work and no hover file URL. | NOT-CHECKED | Not checked. |
-| Inputs | Country, city, latitude, longitude | Values change in UI. | NOT-CHECKED | Not checked. |
-| Status saved | `settings.patch.locations` | Values persist after leaving and returning. | NOT-CHECKED | Not checked. |
+| Page opens | `window.prayerCompanion.navigate("/settings/locations")` | Location settings render, never blank. | WORKING GOOD | Windows log: `page.render settings.locations`, `settings.getSnapshot`, `snapshot.setData`, `snapshot.setLoadingFalse`; screenshot `agents/mds/screenshots/settings-locations-verified-working.png`. |
+| Language | Visible labels | No mixed raw English/Arabic keys. | WORKING GOOD | Screenshot shows Arabic labels and `تحديث الموقع (GPS)` instead of raw `RefreshGps`. |
+| Buttons | GPS toggle, refresh GPS, back | Buttons work and no hover file URL. | NOT-CHECKED | Page buttons render; synthetic click delivery to controls did not trigger `settings.patch` or `settings.invoke`, so not marked working yet. |
+| Inputs | Country, city, latitude, longitude | Values change in UI. | NOT-CHECKED | Controls render with values, but value-change event not verified yet. |
+| Status saved | `settings.patch.locations` | Values persist after leaving and returning. | NOT-CHECKED | No `settings.patch` event captured yet. |
 
 ## Settings Theme `/settings/theme`
 

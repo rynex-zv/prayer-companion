@@ -167,6 +167,7 @@ namespace Pray_Ad_Free.WinUI {
             AddNavigationAccelerator(root, VirtualKey.Left, VirtualKeyModifiers.Menu, "back");
             AddNavigationAccelerator(root, VirtualKey.GoForward, VirtualKeyModifiers.None, "forward");
             AddNavigationAccelerator(root, VirtualKey.Right, VirtualKeyModifiers.Menu, "forward");
+            root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
             _windowsNavigationAcceleratorsInstalled = true;
             Trace("WinUI.NavigationAccelerators:installed");
         }
