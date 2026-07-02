@@ -8,6 +8,8 @@ namespace MauiWebber;
 
 public class MauiWebberPage : ContentPage {
     private const string RpcScheme = "mauiwebber";
+    private const string RpcHost = "rpc";
+    private const string RpcSentinelHost = "mauiwebber.local";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly WebView _webView = new();
@@ -18,6 +20,10 @@ public class MauiWebberPage : ContentPage {
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
     private bool _navigationFallbackTried;
+#if WINDOWS
+    private IDispatcherTimer? _windowsRpcPollTimer;
+    private bool _windowsRpcPollInFlight;
+#endif
 
     public MauiWebberPage(MauiWebberUpdater updater, IMauiWebberRpcHandler rpcHandler, IMauiWebberLogger? logger = null) {
         _updater = updater;
@@ -35,6 +41,11 @@ public class MauiWebberPage : ContentPage {
 
     public Task<bool> TryHandleForwardNavigationAsync() {
         return DispatchNavigationCommandAsync("forward");
+    }
+
+    protected override bool OnBackButtonPressed() {
+        _ = TryHandleBackNavigationAsync();
+        return true;
     }
 
     private void OnWebViewHandlerChanged(object? sender, EventArgs e) {
@@ -73,7 +84,29 @@ public class MauiWebberPage : ContentPage {
     private async void OnNavigated(object? sender, WebNavigatedEventArgs e) {
         _logger.Log("WebView.Navigated", $"ms={_stopwatch.ElapsedMilliseconds};result={e.Result};url={e.Url}");
         if (e.Result == WebNavigationResult.Success) {
-            await InjectBridgeAsync().ConfigureAwait(false);
+            try {
+                _logger.Log("Bridge.Inject.Start", $"ms={_stopwatch.ElapsedMilliseconds}");
+                await InjectBridgeAsync().ConfigureAwait(false);
+                _logger.Log("Bridge.Inject.End", $"ms={_stopwatch.ElapsedMilliseconds}");
+                var diagnostics = await MainThread.InvokeOnMainThreadAsync(() =>
+                    _webView.EvaluateJavaScriptAsync("""
+                        (function(){
+                          var app = document.getElementById('app');
+                          return JSON.stringify({
+                            title: document.title,
+                            bodyTextLength: (document.body && document.body.innerText || '').length,
+                            appHtmlLength: (app && app.innerHTML || '').length,
+                            scripts: document.scripts.length
+                          });
+                        })();
+                        """)).ConfigureAwait(false);
+                _logger.Log("Bridge.PageDiagnostics", $"ms={_stopwatch.ElapsedMilliseconds};result={diagnostics}");
+#if WINDOWS
+                StartWindowsRpcPolling();
+#endif
+            } catch (Exception ex) {
+                _logger.LogException(ex, "MauiWebber.Bridge.Inject");
+            }
             return;
         }
 
@@ -100,9 +133,7 @@ public class MauiWebberPage : ContentPage {
             _logger.Log("WebView.Navigating", $"ms={_stopwatch.ElapsedMilliseconds};url={e.Url}");
         }
 
-        if (!Uri.TryCreate(e.Url, UriKind.Absolute, out var uri) ||
-            !string.Equals(uri.Scheme, RpcScheme, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(uri.Host, "rpc", StringComparison.OrdinalIgnoreCase)) {
+        if (!Uri.TryCreate(e.Url, UriKind.Absolute, out var uri) || !IsRpcUri(uri)) {
             return;
         }
 
@@ -110,36 +141,111 @@ public class MauiWebberPage : ContentPage {
         await HandleRpcAsync(uri).ConfigureAwait(false);
     }
 
+    private static bool IsRpcUri(Uri uri) {
+        if (string.Equals(uri.Scheme, RpcScheme, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(uri.Host, RpcHost, StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
+
+        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(uri.Host, RpcSentinelHost, StringComparison.OrdinalIgnoreCase) &&
+               uri.AbsolutePath.StartsWith("/rpc/", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task HandleRpcAsync(Uri uri) {
+        try {
+            var path = uri.AbsolutePath;
+            var encoded = string.Equals(uri.Host, RpcSentinelHost, StringComparison.OrdinalIgnoreCase)
+                ? path["/rpc/".Length..]
+                : path.TrimStart('/');
+            var json = Uri.UnescapeDataString(encoded);
+            await HandleRpcJsonAsync(json).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Rpc.Uri");
+        }
+    }
+
+#if WINDOWS
+    private void StartWindowsRpcPolling() {
+        if (_windowsRpcPollTimer != null) {
+            return;
+        }
+
+        var dispatcher = Dispatcher;
+        if (dispatcher == null) {
+            _logger.Log("WebView2.Polling.Skip", "dispatcher_missing");
+            return;
+        }
+
+        _windowsRpcPollTimer = dispatcher.CreateTimer();
+        _windowsRpcPollTimer.Interval = TimeSpan.FromMilliseconds(75);
+        _windowsRpcPollTimer.Tick += OnWindowsRpcPollTick;
+        _windowsRpcPollTimer.Start();
+        _logger.Log("WebView2.Polling.Start", $"ms={_stopwatch.ElapsedMilliseconds}");
+    }
+
+    private async void OnWindowsRpcPollTick(object? sender, EventArgs e) {
+        if (_windowsRpcPollInFlight || !_loaded) {
+            return;
+        }
+
+        _windowsRpcPollInFlight = true;
+        try {
+            const string script = """
+                (function(){
+                  if (!window.mauiWebber || typeof window.mauiWebber.__drain !== 'function') return '[]';
+                  return window.mauiWebber.__drain();
+                })();
+                """;
+            var raw = await _webView.EvaluateJavaScriptAsync(script).ConfigureAwait(false);
+            var json = UnwrapJavaScriptString(raw);
+            if (string.IsNullOrWhiteSpace(json) || json == "[]") {
+                return;
+            }
+
+            var requests = JsonSerializer.Deserialize<MauiWebberRpcRequest[]>(json, JsonOptions);
+            if (requests == null || requests.Length == 0) {
+                return;
+            }
+
+            _logger.Log("WebView2.Polling.Drain", $"count={requests.Length};ms={_stopwatch.ElapsedMilliseconds}");
+            foreach (var request in requests) {
+                await HandleRpcRequestAsync(request).ConfigureAwait(false);
+            }
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.WebView2.Polling");
+        } finally {
+            _windowsRpcPollInFlight = false;
+        }
+    }
+
+    private static string? UnwrapJavaScriptString(string? value) {
+        if (string.IsNullOrWhiteSpace(value)) {
+            return value;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[^1] == '"') {
+            try {
+                return JsonSerializer.Deserialize<string>(trimmed, JsonOptions);
+            } catch {
+                return trimmed.Trim('"');
+            }
+        }
+
+        return trimmed;
+    }
+#endif
+
+    private async Task HandleRpcJsonAsync(string json) {
         MauiWebberRpcRequest? request = null;
         try {
-            var json = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/'));
             request = JsonSerializer.Deserialize<MauiWebberRpcRequest>(json, JsonOptions);
             if (request == null || string.IsNullOrWhiteSpace(request.Id) || string.IsNullOrWhiteSpace(request.Method)) {
                 return;
             }
 
-            if (string.Equals(request.Method, "mauiWebber.trace", StringComparison.Ordinal)) {
-                _logger.Log("JsTrace", $"ms={_stopwatch.ElapsedMilliseconds};payload={request.Payload}");
-                await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = new { accepted = true } }).ConfigureAwait(false);
-                return;
-            }
-
-            var rpcStarted = _stopwatch.ElapsedMilliseconds;
-            var isFirstTodaySnapshot = false;
-            if (string.Equals(request.Method, "today.getSnapshot", StringComparison.Ordinal) && !_firstTodaySnapshotLogged) {
-                _firstTodaySnapshotLogged = true;
-                isFirstTodaySnapshot = true;
-                _logger.Log("Today.GetSnapshot.First.Start", $"ms={rpcStarted}");
-            }
-
-            var data = await _rpcHandler.HandleAsync(request.Method, request.Payload, CancellationToken.None).ConfigureAwait(false);
-            var rpcElapsed = _stopwatch.ElapsedMilliseconds - rpcStarted;
-            _logger.Log("Rpc.Handled", $"method={request.Method};ms={rpcElapsed}");
-            if (isFirstTodaySnapshot) {
-                _logger.Log("Today.GetSnapshot.First.End", $"ms={_stopwatch.ElapsedMilliseconds};elapsed={rpcElapsed}");
-            }
-            await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = data }).ConfigureAwait(false);
+            await HandleRpcRequestAsync(request).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger.LogException(ex, $"MauiWebber.Rpc.{request?.Method ?? "unknown"}");
             if (request?.Id != null) {
@@ -148,18 +254,85 @@ public class MauiWebberPage : ContentPage {
         }
     }
 
+    private async Task HandleRpcRequestAsync(MauiWebberRpcRequest request) {
+        if (string.Equals(request.Method, "mauiWebber.trace", StringComparison.Ordinal)) {
+            _logger.Log("JsTrace", $"ms={_stopwatch.ElapsedMilliseconds};payload={request.Payload}");
+            await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = new { accepted = true } }).ConfigureAwait(false);
+            return;
+        }
+
+        var rpcStarted = _stopwatch.ElapsedMilliseconds;
+        var isFirstTodaySnapshot = false;
+        if (string.Equals(request.Method, "today.getSnapshot", StringComparison.Ordinal) && !_firstTodaySnapshotLogged) {
+            _firstTodaySnapshotLogged = true;
+            isFirstTodaySnapshot = true;
+            _logger.Log("Today.GetSnapshot.First.Start", $"ms={rpcStarted}");
+        }
+
+        var data = await _rpcHandler.HandleAsync(request.Method, request.Payload, CancellationToken.None).ConfigureAwait(false);
+        var rpcElapsed = _stopwatch.ElapsedMilliseconds - rpcStarted;
+        _logger.Log("Rpc.Handled", $"method={request.Method};ms={rpcElapsed}");
+        if (isFirstTodaySnapshot) {
+            _logger.Log("Today.GetSnapshot.First.End", $"ms={_stopwatch.ElapsedMilliseconds};elapsed={rpcElapsed}");
+        }
+        await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = data }).ConfigureAwait(false);
+    }
+
     private Task InjectBridgeAsync() {
         const string script = """
             (function(){
-              if (window.mauiWebber) return;
+              function dispatchNavigation(direction) {
+                var event = new CustomEvent('mauiwebber:navigation', {
+                  cancelable: true,
+                  detail: { direction: direction, handled: false }
+                });
+                window.dispatchEvent(event);
+                return event.defaultPrevented || event.detail.handled === true;
+              }
+
+              function browserCanGo(direction) {
+                if (direction === 'back') return window.history.length > 1;
+                return false;
+              }
+
+              function browserGo(direction) {
+                if (direction === 'back' && browserCanGo(direction)) {
+                  window.history.back();
+                  return true;
+                }
+                if (direction === 'forward') {
+                  window.history.forward();
+                  return true;
+                }
+                return false;
+              }
+
+              function runNavigation(direction) {
+                var nav = window.mauiWebber && window.mauiWebber.navigation;
+                var handler = nav && nav[direction];
+                if (typeof handler === 'function' && handler() === true) return true;
+                if (dispatchNavigation(direction)) return true;
+                return browserGo(direction);
+              }
+
+              if (window.mauiWebber) {
+                window.mauiWebber.__navigate = runNavigation;
+                return;
+              }
               const callbacks = {};
+              const outbox = [];
               window.mauiWebber = {
                 call: function(method, payload) {
                   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+                  const message = { id, method, payload: payload || {} };
                   const request = encodeURIComponent(JSON.stringify({ id, method, payload: payload || {} }));
                   return new Promise(function(resolve) {
                     callbacks[id] = resolve;
-                    window.location.href = 'mauiwebber://rpc/' + request;
+                    if (window.chrome && window.chrome.webview) {
+                      outbox.push(message);
+                      return;
+                    }
+                    window.location.href = 'https://mauiwebber.local/rpc/' + request;
                   });
                 },
                 __resolve: function(id, response) {
@@ -168,6 +341,11 @@ public class MauiWebberPage : ContentPage {
                   delete callbacks[id];
                   callback(response);
                 },
+                __drain: function() {
+                  const items = outbox.splice(0, outbox.length);
+                  return JSON.stringify(items);
+                },
+                __navigate: runNavigation,
                 navigation: null
               };
               window.dispatchEvent(new CustomEvent('mauiwebber:ready'));
@@ -188,14 +366,12 @@ public class MauiWebberPage : ContentPage {
             var command = JsonSerializer.Serialize(direction);
             var script = $$"""
                 (function(){
-                  var nav = window.mauiWebber && window.mauiWebber.navigation;
                   var direction = {{command}};
-                  var handler = nav && nav[direction];
-                  if (typeof handler !== 'function') {
-                    window.dispatchEvent(new CustomEvent('mauiwebber:navigation', { detail: { direction: direction } }));
+                  if (!window.mauiWebber || typeof window.mauiWebber.__navigate !== 'function') {
                     return 'false';
                   }
-                  return handler() === true ? 'true' : 'false';
+
+                  return window.mauiWebber.__navigate(direction) === true ? 'true' : 'false';
                 })();
                 """;
 

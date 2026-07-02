@@ -312,5 +312,20 @@
     "PermissionsFullScreenIntentFallback":  "Kapaliysa kilit ekrani alarmi 3 dugmeli alarm bildirimine doner.",
     "PermissionsOverlayFallback":  "Kapaliysa telefon acikken alarm tam ekrana veya 3 dugmeli alarm bildirimine doner.",
     "PermissionsExactAlarmFallback":  "Kapaliysa namaz alarmi yaklasik bildirime doner.",
-    "PermissionsLocationFallback":  "Kapaliysa sehri veya koordinatlari elle secmeniz gerekir."
+    "PermissionsLocationFallback":  "Kapaliysa sehri veya koordinatlari elle secmeniz gerekir.",
+    "PrayerTimesTagline": "Namaz vakitleri, kible ve tesbih reklamsiz.",
+    "PrivacySummary": "Kisisel veri toplamiyoruz. Her sey cihazinizda kalir.",
+    "OpenSourceSummary": "GitHub'da acik kaynak.",
+    "MaintainedBy": "Sorumlu",
+    "SupportAndFeedback": "Destek ve geri bildirim",
+    "WebsiteNote": "Guncellemeler ve web surumu icin siteyi ziyaret edin.",
+    "Email": "E-posta",
+    "Call": "Ara",
+    "Website": "Web sitesi",
+    "Step": "Adim",
+    "Of": "/",
+    "PreviousMonth": "Onceki ay",
+    "NextMonth": "Sonraki ay",
+    "ResetToChangePreset": "Preseti degistirmek icin sifirlayin.",
+    "WindowsBackgroundServiceEnable": "Arka plan servisini calistir"
 }

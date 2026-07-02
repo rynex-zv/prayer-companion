@@ -322,5 +322,20 @@
   "PermissionsFullScreenIntentFallback": "إذا كانت غير مفعلة فسيرجع منبه شاشة القفل إلى إشعار المنبه ذي الأزرار الثلاثة.",
   "PermissionsOverlayFallback": "إذا كانت غير مفعلة فسيرجع المنبه عند فتح الجهاز إلى ملء الشاشة أو إشعار المنبه ذي الأزرار الثلاثة.",
   "PermissionsExactAlarmFallback": "إذا كانت غير مفعلة فسيرجع منبه الصلاة إلى إشعار تقريبي.",
-  "PermissionsLocationFallback": "إذا كانت غير مفعلة فستحتاج إلى تحديد المدينة أو الإحداثيات يدوياً."
+  "PermissionsLocationFallback": "إذا كانت غير مفعلة فستحتاج إلى تحديد المدينة أو الإحداثيات يدوياً.",
+  "PrayerTimesTagline": "مواقيت الصلاة والقبلة والتسبيح بلا إعلانات.",
+  "PrivacySummary": "لا نجمع بياناتك الشخصية. كل شيء يبقى على جهازك.",
+  "OpenSourceSummary": "المشروع مفتوح المصدر على GitHub.",
+  "MaintainedBy": "يُشرف عليه",
+  "SupportAndFeedback": "الدعم والملاحظات",
+  "WebsiteNote": "زر الموقع للحصول على التحديثات ونسخة الويب.",
+  "Email": "بريد إلكتروني",
+  "Call": "اتصال",
+  "Website": "الموقع",
+  "Step": "الخطوة",
+  "Of": "من",
+  "PreviousMonth": "الشهر السابق",
+  "NextMonth": "الشهر التالي",
+  "ResetToChangePreset": "صفّر العداد لتغيير المجموعة.",
+  "WindowsBackgroundServiceEnable": "تشغيل خدمة الخلفية"
 }

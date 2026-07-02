@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using MauiWebber;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.Windows.AppNotifications;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 using Pray_Ad_Free.ViewModels;
+using Windows.System;
 using WinRT.Interop;
 using WinForms = System.Windows.Forms;
 using Drawing = System.Drawing;
@@ -27,6 +30,7 @@ namespace Pray_Ad_Free.WinUI {
         private bool _isExitRequested;
         private bool _safeStartupMode;
         private bool _startupStabilityMarked;
+        private bool _windowsNavigationAcceleratorsInstalled;
 
         public App() {
             Trace("WinUI.App.ctor:start");
@@ -139,6 +143,10 @@ namespace Pray_Ad_Free.WinUI {
             _appWindow.Closing -= OnAppWindowClosing;
             _appWindow.Closing += OnAppWindowClosing;
 
+            if (nativeWindow.Content is UIElement root) {
+                InstallWindowsNavigationAccelerators(root);
+            }
+
             InitializeTrayIcon();
 
             if (_hideOnLaunch) {
@@ -147,6 +155,62 @@ namespace Pray_Ad_Free.WinUI {
             }
 
             Trace("WinUI.HookBackgroundBehavior:end");
+        }
+
+        private void InstallWindowsNavigationAccelerators(UIElement root) {
+            if (_windowsNavigationAcceleratorsInstalled) {
+                Trace("WinUI.NavigationAccelerators:alreadyInstalled");
+                return;
+            }
+
+            AddNavigationAccelerator(root, VirtualKey.GoBack, VirtualKeyModifiers.None, "back");
+            AddNavigationAccelerator(root, VirtualKey.Left, VirtualKeyModifiers.Menu, "back");
+            AddNavigationAccelerator(root, VirtualKey.GoForward, VirtualKeyModifiers.None, "forward");
+            AddNavigationAccelerator(root, VirtualKey.Right, VirtualKeyModifiers.Menu, "forward");
+            _windowsNavigationAcceleratorsInstalled = true;
+            Trace("WinUI.NavigationAccelerators:installed");
+        }
+
+        private void AddNavigationAccelerator(UIElement root, VirtualKey key, VirtualKeyModifiers modifiers, string direction) {
+            var accelerator = new Microsoft.UI.Xaml.Input.KeyboardAccelerator {
+                Key = key,
+                Modifiers = modifiers
+            };
+            accelerator.Invoked += async (_, args) => {
+                args.Handled = await TryDispatchMauiWebberNavigationAsync(direction).ConfigureAwait(true);
+                Trace($"WinUI.NavigationAccelerator:{direction}:handled={args.Handled}");
+            };
+            root.KeyboardAccelerators.Add(accelerator);
+        }
+
+        private static async Task<bool> TryDispatchMauiWebberNavigationAsync(string direction) {
+            if (TryGetCurrentMauiWebberPage() is not { } webPage) {
+                return false;
+            }
+
+            return string.Equals(direction, "forward", StringComparison.OrdinalIgnoreCase)
+                ? await webPage.TryHandleForwardNavigationAsync().ConfigureAwait(true)
+                : await webPage.TryHandleBackNavigationAsync().ConfigureAwait(true);
+        }
+
+        private static MauiWebberPage? TryGetCurrentMauiWebberPage() {
+            var shell = Shell.Current;
+            if (shell == null) {
+                return null;
+            }
+
+            var currentSection = shell.CurrentItem?.CurrentItem;
+            var sectionStack = currentSection?.Navigation?.NavigationStack;
+            if (sectionStack?.Count > 0 && sectionStack[^1] is MauiWebberPage sectionWebPage) {
+                return sectionWebPage;
+            }
+
+            var shellStack = shell.Navigation?.NavigationStack;
+            if (shellStack?.Count > 0 && shellStack[^1] is MauiWebberPage shellWebPage) {
+                return shellWebPage;
+            }
+
+            return shell.CurrentPage as MauiWebberPage;
         }
 
         private void InitializeTrayIcon() {

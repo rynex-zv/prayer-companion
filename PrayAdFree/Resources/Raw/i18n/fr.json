@@ -312,5 +312,20 @@
     "PermissionsFullScreenIntentFallback":  "Si c'est desactive, l'alarme d'ecran verrouille revient a la notification d'alarme a 3 boutons.",
     "PermissionsOverlayFallback":  "Si c'est desactive, l'alarme deverrouillee revient au plein ecran ou a la notification d'alarme a 3 boutons.",
     "PermissionsExactAlarmFallback":  "Si c'est desactive, l'alarme de priere revient a une notification approximative.",
-    "PermissionsLocationFallback":  "Si c'est desactive, vous devrez choisir la ville ou les coordonnees manuellement."
+    "PermissionsLocationFallback":  "Si c'est desactive, vous devrez choisir la ville ou les coordonnees manuellement.",
+    "PrayerTimesTagline": "Heures de priere, Qibla et tasbih sans publicite.",
+    "PrivacySummary": "Nous ne collectons pas de donnees personnelles. Tout reste sur votre appareil.",
+    "OpenSourceSummary": "Projet open source sur GitHub.",
+    "MaintainedBy": "Maintenu par",
+    "SupportAndFeedback": "Support et retours",
+    "WebsiteNote": "Consultez le site pour les mises a jour et la version web.",
+    "Email": "E-mail",
+    "Call": "Appeler",
+    "Website": "Site web",
+    "Step": "Etape",
+    "Of": "sur",
+    "PreviousMonth": "Mois precedent",
+    "NextMonth": "Mois suivant",
+    "ResetToChangePreset": "Reinitialisez pour changer de preset.",
+    "WindowsBackgroundServiceEnable": "Executer le service en arriere-plan"
 }

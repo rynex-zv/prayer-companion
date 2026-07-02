@@ -324,5 +324,20 @@
     "PermissionsFullScreenIntentFallback":  "If disabled, locked-screen alarms fall back to the 3-button alarm notification.",
     "PermissionsOverlayFallback":  "If disabled, unlocked alarms fall back to full-screen or the 3-button alarm notification.",
     "PermissionsExactAlarmFallback":  "If disabled, prayer alarms fall back to approximate notification scheduling.",
-    "PermissionsLocationFallback":  "If disabled, you will need to set your city or coordinates manually."
+    "PermissionsLocationFallback":  "If disabled, you will need to set your city or coordinates manually.",
+    "PrayerTimesTagline": "Prayer times, Qibla, and tasbih - ad free.",
+    "PrivacySummary": "We don't collect personal data. Everything stays on your device.",
+    "OpenSourceSummary": "Open source on GitHub.",
+    "MaintainedBy": "Maintained by",
+    "SupportAndFeedback": "Support and feedback",
+    "WebsiteNote": "Visit for updates and web version.",
+    "Email": "Email",
+    "Call": "Call",
+    "Website": "Website",
+    "Step": "Step",
+    "Of": "of",
+    "PreviousMonth": "Previous month",
+    "NextMonth": "Next month",
+    "ResetToChangePreset": "Reset to change preset.",
+    "WindowsBackgroundServiceEnable": "Run background service"
 }

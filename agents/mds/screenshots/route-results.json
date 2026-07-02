@@ -1,0 +1,163 @@
+{
+  "results": [
+    {
+      "name": "today",
+      "route": "/",
+      "screenshot": "F:\\coding\\local\\PrayAdFree\\PrayAdFree\\agents\\mds\\screenshots\\today.png",
+      "ok": true,
+      "title": "Today — Pray Ad Free",
+      "path": "/",
+      "dir": "ltr",
+      "lang": "en",
+      "bodyText": "In the name of Allah, the Most Gracious, the Most Merciful\n\nLOG:TODAY\nAmsterdam, NL\nTuesday, 30 June 2026\n15 Rabi' al-Awwal 1447\nNEXT PRAYER · TODAY\nAsr\n4:05 PM\n4:00 PM\n02:14:33\nTODAY\nFajr\n5:12 AM\nSunrise\n6:47 AM\nDhuhr\n1:28 PM\nAsr\n4:05 PM\nMaghrib\n7:52 PM\nIsha\n9:18 PM\nIMSAK\n5:02 AM\nIFTAR\n7:52 PM\nToday\nCalendar\nQibla\nTasbih\nSettings",
+      "buttonCount": 1,
+      "inputCount": 0,
+      "linkCount": 5,
+      "h1": ""
+    },
+    {
+      "name": "calendar",
+      "route": "/calendar",
+      "screenshot": "F:\\coding\\local\\PrayAdFree\\PrayAdFree\\agents\\mds\\screenshots\\calendar.png",
+      "ok": true,
+      "title": "Calendar — Pray Ad Free",
+      "path": "/calendar",
+      "dir": "ltr",
+      "lang": "en",
+      "bodyText": "Calendar\nLOG:CALENDAR\nJune 2026\nToday\n01 Jun 2026\n15 Rabi' al-Awwal 1447\nFAJR\n05:12\nSUNRISE\n06:47\nDHUHR\n13:28\nASR\n16:05\nMAGHRIB\n19:52\nISHA\n21:18\n02 Jun 2026\n16 Rabi' al-Awwal 1447\nFAJR\n05:12\nSUNRISE\n06:47\nDHUHR\n13:28\nASR\n16:05\nMAGHRIB\n19:52\nISHA\n21:18\n03 Jun 2026\n17 Rabi' al-Awwal 1447\nFAJR\n05:12\nSUNRISE\n06:47\nDHUHR\n13:28\nASR\n16:05\nMAGHRIB\n19:52\nISHA\n21:18\n04 Jun 2026\n18 Rabi' al-Awwal 1447\nFAJR\n05:12\nSUNRISE\n06:47\nDHUHR\n13:28\nASR\n16:05\nMAGHRIB\n19:52\nISHA\n21:18\n05 Jun 2026\n19 Rabi' al-Awwal 1447",
+      "buttonCount": 3,
+      "inputCount": 0,
+      "linkCount": 5,
+      "h1": "Calendar"
+    },
+    {
+      "name": "qibla",
+      "route": "/qibla",
+      "screenshot": "F:\\coding\\local\\PrayAdFree\\PrayAdFree\\agents\\mds\\screenshots\\qibla.png",
+      "ok": true,
+      "title": "Qibla — Pray Ad Free",
+      "path": "/qibla",
+      "dir": "ltr",
+      "lang": "en",
+      "bodyText": "LOG:QIBLA\nQIBLA DIRECTION\n119°\nESE\nAmsterdam, NL\nAligned with Qibla\nAuto\nManual\nCompass\nMap\nNone\nNight\nContrast\nN\nE\nS\nW\n🕋\n119°\nToday\nCalendar\nQibla\nTasbih\nSettings",
+      "buttonCount": 7,
+      "inputCount": 0,
+      "linkCount": 5,
+      "h1": ""
+    },
+    {
+      "name": "tasbih",
+      "route": "/tasbih",
+      "screenshot": "F:\\coding\\local\\PrayAdFree\\PrayAdFree\\agents\\mds\\screenshots\\tasbih.png",
+      "ok": true,
+      "title": "Tasbih — Pray Ad Free",
+      "path": "/tasbih",
+      "dir": "ltr",
+      "lang": "en",
+      "bodyText": "LOG:TASBIH\nSubhanAllah\n0 / 100\n0\nReset\nPresets\nAfter Prayer\nIstighfar\nSalawat\nSubhanAllah\n×33\nAlhamdulillah\n×33\nAllahu Akbar\n×34\nToday\nCalendar\nQibla\nTasbih\nSettings",
+      "buttonCount": 2,
+      "inputCount": 1,
+      "linkCount": 5,
+      "h1": ""
+    },
+    {
+      "name": "settings",
+      "route": "/settings",
+      "screenshot": "F:\\coding\\local\\PrayAdFree\\PrayAdFree\\agents\\mds\\screenshots\\settings.png",
+      "ok": true,
+      "title": "Settings — Pray Ad Free",
+      "path": "/settings",
+      "dir": "ltr",
+      "lang": "en",
+      "bodyText": "Settings\nLOG:SETTINGS\nLocations\nLocation and GPS\nTheme & Diagnostics\nTheme, language, accent\nAdhan Customizations\nSound and calculation\nNotifications\nReminders and vibration\nPermissions\nSystem permissions\nAlarm Reminders\nAlarm-screen reminders\nTasbih\nTasbih presets\nAbout\nApp and contact info\nToday\nCalendar\nQibla\nTasbih\nSettings",
+      "buttonCount": 0,
+      "inputCount": 0,
+      "linkCount": 13,
+      "h1": "Settings"
+    },
+    {
+      "name": "settings-locations",
+      "route": "/settings/locations",
+      "ok": false,
+      "error": "page.screenshot: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n"
+    },
+    {
+      "name": "settings-theme",
+      "route": "/settings/theme",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/theme\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-adhan",
+      "route": "/settings/adhan",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/adhan\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-notifications",
+      "route": "/settings/notifications",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/notifications\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-permissions",
+      "route": "/settings/permissions",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/permissions\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-alarms",
+      "route": "/settings/alarms",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/alarms\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-tasbih",
+      "route": "/settings/tasbih",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/tasbih\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "settings-about",
+      "route": "/settings/about",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/settings/about\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    },
+    {
+      "name": "onboarding",
+      "route": "/onboarding",
+      "ok": false,
+      "error": "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5174/onboarding\", waiting until \"domcontentloaded\"\u001b[22m\n"
+    }
+  ],
+  "errors": [
+    {
+      "type": "console",
+      "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    },
+    {
+      "type": "console",
+      "message": "In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s <html> div  "
+    }
+  ]
+}

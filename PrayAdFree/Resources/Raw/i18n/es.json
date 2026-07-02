@@ -315,5 +315,20 @@
     "PermissionsFullScreenIntentFallback":  "Si esta desactivado, la alarma de pantalla bloqueada volvera a la notificacion de alarma de 3 botones.",
     "PermissionsOverlayFallback":  "Si esta desactivado, la alarma con el telefono desbloqueado volvera a pantalla completa o a la notificacion de alarma de 3 botones.",
     "PermissionsExactAlarmFallback":  "Si esta desactivado, la alarma de oracion volvera a una notificacion aproximada.",
-    "PermissionsLocationFallback":  "Si esta desactivada, tendras que elegir tu ciudad o coordenadas manualmente."
+    "PermissionsLocationFallback":  "Si esta desactivada, tendras que elegir tu ciudad o coordenadas manualmente.",
+    "PrayerTimesTagline": "Horarios de oracion, Qibla y tasbih sin anuncios.",
+    "PrivacySummary": "No recopilamos datos personales. Todo permanece en tu dispositivo.",
+    "OpenSourceSummary": "Proyecto de codigo abierto en GitHub.",
+    "MaintainedBy": "Mantenido por",
+    "SupportAndFeedback": "Soporte y comentarios",
+    "WebsiteNote": "Visita el sitio para actualizaciones y la version web.",
+    "Email": "Correo",
+    "Call": "Llamar",
+    "Website": "Sitio web",
+    "Step": "Paso",
+    "Of": "de",
+    "PreviousMonth": "Mes anterior",
+    "NextMonth": "Mes siguiente",
+    "ResetToChangePreset": "Reinicia para cambiar el preset.",
+    "WindowsBackgroundServiceEnable": "Ejecutar servicio en segundo plano"
 }

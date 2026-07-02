@@ -31,24 +31,31 @@ public sealed class MauiWebberUpdater {
         _logger.Log("ResolveStartupFile.Start", _options.AppId);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
+            var embeddedManifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
+#if DEBUG
+            var debugEmbedded = await ResolveEmbeddedStartupUrlAsync(embeddedManifest, cancellationToken).ConfigureAwait(false);
+            LogResolve("embedded-debug", debugEmbedded, started);
+            return debugEmbedded;
+#else
             var active = SlotPath(ActiveSlot);
-            if (IsHealthy(active)) {
+            if (IsHealthy(active) && IsSlotAtLeastVersion(active, embeddedManifest.Version)) {
                 var entry = EntryPath(active);
                 LogResolve("active", entry, started);
                 return entry;
             }
 
             var previous = SlotPath(PreviousSlot);
-            if (_options.RollbackEnabled && IsHealthy(previous)) {
+            if (_options.RollbackEnabled && IsHealthy(previous) && IsSlotAtLeastVersion(previous, embeddedManifest.Version)) {
                 ReplaceDirectory(active, previous);
                 var entry = EntryPath(active);
                 LogResolve("previous", entry, started);
                 return entry;
             }
 
-            var embedded = await ResolveEmbeddedStartupUrlAsync(cancellationToken).ConfigureAwait(false);
+            var embedded = await ResolveEmbeddedStartupUrlAsync(embeddedManifest, cancellationToken).ConfigureAwait(false);
             LogResolve("embedded", embedded, started);
             return embedded;
+#endif
         } catch (Exception ex) {
             _logger.LogException(ex, "MauiWebber.ResolveStartupFile");
             throw;
@@ -168,26 +175,34 @@ public sealed class MauiWebberUpdater {
 
     private async Task<string> ResolveEmbeddedStartupUrlAsync(CancellationToken cancellationToken) {
         var manifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
+        return await ResolveEmbeddedStartupUrlAsync(manifest, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> ResolveEmbeddedStartupUrlAsync(MauiWebberManifest manifest, CancellationToken cancellationToken) {
         var entry = string.IsNullOrWhiteSpace(manifest.Entry) ? _options.StartupFile : manifest.Entry;
         var relativePath = $"{_options.EmbeddedRoot.TrimEnd('/', '\\')}/{entry.TrimStart('/', '\\')}".Replace('\\', '/');
 #if ANDROID
         return $"file:///android_asset/{relativePath}";
 #else
-        await EnsureEmbeddedAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureEmbeddedAsync(manifest, cancellationToken).ConfigureAwait(false);
         return EntryPath(SlotPath(EmbeddedSlot));
 #endif
     }
 
     private async Task EnsureEmbeddedAsync(CancellationToken cancellationToken) {
+        var manifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureEmbeddedAsync(manifest, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnsureEmbeddedAsync(MauiWebberManifest manifest, CancellationToken cancellationToken) {
         var embedded = SlotPath(EmbeddedSlot);
-        if (IsHealthy(embedded)) {
+        if (IsHealthy(embedded) && IsSlotSameVersion(embedded, manifest.Version)) {
             return;
         }
 
         DeleteDirectory(embedded);
         Directory.CreateDirectory(embedded);
 
-        var manifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
         await WriteManifestAsync(embedded, manifest, cancellationToken).ConfigureAwait(false);
 
         foreach (var file in manifest.Files.Where(item => !string.IsNullOrWhiteSpace(item.Path))) {
@@ -238,6 +253,25 @@ public sealed class MauiWebberUpdater {
         }
 
         return File.Exists(Path.Combine(slotPath, NormalizeRelativePath(entry)));
+    }
+
+    private bool IsSlotSameVersion(string slotPath, string? expectedVersion) {
+        var manifest = LoadManifest(slotPath);
+        return !string.IsNullOrWhiteSpace(manifest?.Version) &&
+               string.Equals(manifest.Version, expectedVersion, StringComparison.Ordinal);
+    }
+
+    private bool IsSlotAtLeastVersion(string slotPath, string? minimumVersion) {
+        if (string.IsNullOrWhiteSpace(minimumVersion)) {
+            return true;
+        }
+
+        var version = LoadManifest(slotPath)?.Version;
+        if (string.IsNullOrWhiteSpace(version)) {
+            return false;
+        }
+
+        return string.CompareOrdinal(version, minimumVersion) >= 0;
     }
 
     private string EntryPath(string slotPath) {
