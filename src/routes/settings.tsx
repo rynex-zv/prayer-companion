@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Card } from "@/components/Card";
 import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
@@ -37,21 +37,26 @@ const items = [
 function SettingsIndex() {
   usePageLog("settings");
   const t = useAppLabels();
+  const navigate = useNavigate();
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" data-selector-name="settings:index">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">{t("settings", "Settings")}</h1>
+        <h1 className="text-xl font-bold" data-selector-name="settings:index-title">{t("settings", "Settings")}</h1>
         <PageLog page="settings" />
       </div>
       <Card className="divide-y divide-border p-0">
         {items.map((it) => {
           const Icon = it.icon;
           return (
-            <Link
+            <button
               key={it.to}
-              to={it.to}
-              onClick={() => { void mauiCall("app.navigate", { route: it.to }); }}
-              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
+              type="button"
+              onClick={() => {
+                void navigate({ to: it.to });
+                void mauiCall("app.navigate", { route: it.to });
+              }}
+              data-selector-name={`settings:row:${it.titleKey}`}
+              className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/60"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
                 <Icon className="h-4 w-4" />
@@ -61,7 +66,7 @@ function SettingsIndex() {
                 <div className="text-xs text-muted-foreground">{t(it.subtitleKey, it.subtitle)}</div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </Link>
+            </button>
           );
         })}
       </Card>

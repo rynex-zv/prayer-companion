@@ -2,13 +2,14 @@ import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function Picker({ value, onChange, children, className }: { value: string; onChange: (v: string) => void; children: ReactNode; className?: string }) {
+export function Picker({ value, onChange, children, className, selectorName }: { value: string; onChange: (v: string) => void; children: ReactNode; className?: string; selectorName?: string }) {
   return (
     <div className={cn("relative", className)}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-lg border border-input bg-card px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        data-selector-name={selectorName}
+        className="w-full appearance-none rounded-lg border border-input bg-card px-3 py-2 pr-8 text-sm text-card-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
         {children}
       </select>

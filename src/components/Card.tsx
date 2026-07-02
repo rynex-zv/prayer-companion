@@ -3,7 +3,7 @@ import type { ReactNode, HTMLAttributes } from "react";
 
 export function Card({ className, children, ...props }: { className?: string; children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("glass-card p-4", className)} {...props}>
+    <div className={cn("glass-card p-4 text-card-foreground", className)} {...props}>
       {children}
     </div>
   );

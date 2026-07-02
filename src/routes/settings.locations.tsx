@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall, mauiTrace } from "@/native/mauiWebberClient";
 import { Card } from "@/components/Card";
 import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
@@ -9,6 +9,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/settings/locations")({
   component: LocationsPage,
@@ -48,6 +49,16 @@ function LocationsPage() {
   usePageLog("settings.locations");
   const t = useAppLabels();
   const { data, error, loading, refresh, setData } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
+  useEffect(() => {
+    mauiTrace("locations.branch", {
+      hasData: data != null,
+      loading,
+      hasError: error != null,
+      textLength: document.body.innerText.length,
+      country: data?.country,
+      city: data?.city,
+    });
+  }, [data, error, loading]);
   if (!data) {
     return (
       <div>
@@ -98,7 +109,12 @@ function LocationsPage() {
         )}
 
         <Card>
-          <Toggle checked={location.useGps} onChange={(v) => patch({ useGps: v })} label={t("useGps", "Use GPS")} />
+          <Toggle
+            checked={location.useGps}
+            onChange={(v) => patch({ useGps: v })}
+            label={t("useGps", "Use GPS")}
+            selectorName="locations:gps-toggle"
+          />
           <button
             onClick={async () => {
               await mauiCall("settings.invoke", { action: "refreshGps" });
@@ -106,7 +122,8 @@ function LocationsPage() {
               if (res.ok) setData(normalizeLocation(res.data));
             }}
             disabled={loading}
-            className="mt-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
+            data-selector-name="locations:refresh-gps"
+            className="mt-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground hover:bg-muted"
           >
             {t("refreshGps", "Refresh GPS")}
           </button>
@@ -114,12 +131,12 @@ function LocationsPage() {
 
         <Card className="space-y-3">
           <Field label={t("country", "Country")}>
-            <Picker value={location.country} onChange={(v) => patch({ country: v, city: location.countries.find((c) => c.code === v)?.cities[0] ?? "" })}>
+            <Picker value={location.country} selectorName="locations:country" onChange={(v) => patch({ country: v, city: location.countries.find((c) => c.code === v)?.cities[0] ?? "" })}>
               {location.countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
             </Picker>
           </Field>
           <Field label={t("city", "City")}>
-            <Picker value={location.city} onChange={(v) => patch({ city: v })}>
+            <Picker value={location.city} selectorName="locations:city" onChange={(v) => patch({ city: v })}>
               {cities.map((c) => <option key={c} value={c}>{c}</option>)}
             </Picker>
           </Field>
@@ -127,12 +144,14 @@ function LocationsPage() {
             <Field label={t("latitude", "Latitude")}>
               <input type="number" defaultValue={location.latitude} step="0.0001"
                 onBlur={(e) => patch({ latitude: Number(e.target.value) })}
-                className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
+                data-selector-name="locations:latitude"
+                className="rounded-lg border border-input bg-card px-3 py-2 text-sm text-card-foreground" />
             </Field>
             <Field label={t("longitude", "Longitude")}>
               <input type="number" defaultValue={location.longitude} step="0.0001"
                 onBlur={(e) => patch({ longitude: Number(e.target.value) })}
-                className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
+                data-selector-name="locations:longitude"
+                className="rounded-lg border border-input bg-card px-3 py-2 text-sm text-card-foreground" />
             </Field>
           </div>
         </Card>

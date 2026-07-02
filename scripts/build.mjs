@@ -9,15 +9,21 @@ const phoneBridgeBootstrap = `<script>
 (function(){
   if (window.mauiWebber) return;
   var callbacks = {};
-  var queue = [];
-  var sending = false;
 
-  function sendNext() {
-    if (sending || queue.length === 0) return;
-    sending = true;
-    var message = queue[0];
+  function sendMessage(message) {
     var request = encodeURIComponent(JSON.stringify(message));
-    window.location.href = 'mauiwebber://rpc/' + request;
+    if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+      window.chrome.webview.postMessage(JSON.stringify(message));
+      return;
+    }
+
+    var frame = document.createElement('iframe');
+    frame.style.display = 'none';
+    frame.src = 'https://mauiwebber.local/rpc/' + request;
+    document.documentElement.appendChild(frame);
+    setTimeout(function() {
+      if (frame.parentNode) frame.parentNode.removeChild(frame);
+    }, 1000);
   }
 
   window.mauiWebber = {
@@ -26,8 +32,7 @@ const phoneBridgeBootstrap = `<script>
       var message = { id: id, method: method, payload: payload || {} };
       return new Promise(function(resolve) {
         callbacks[id] = resolve;
-        queue.push(message);
-        sendNext();
+        sendMessage(message);
       });
     },
     __resolve: function(id, response) {
@@ -36,13 +41,6 @@ const phoneBridgeBootstrap = `<script>
         delete callbacks[id];
         callback(response);
       }
-      if (queue.length && queue[0].id === id) {
-        queue.shift();
-      } else {
-        queue = queue.filter(function(item) { return item.id !== id; });
-      }
-      sending = false;
-      setTimeout(sendNext, 0);
     },
     __drain: function() {
       return '[]';

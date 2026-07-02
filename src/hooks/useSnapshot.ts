@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { flushSync } from "react-dom";
+import { mauiCall, mauiTrace } from "@/native/mauiWebberClient";
 
 export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -9,9 +10,25 @@ export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[
   const refresh = useCallback(async () => {
     setLoading(true);
     const res = await mauiCall<T>(method, payload);
-    if (res.ok) { setData(res.data); setError(null); }
-    else { setError(res.error); }
-    setLoading(false);
+    mauiTrace("snapshot.result", {
+      method,
+      ok: res.ok,
+      hasData: res.ok ? res.data != null : false,
+    });
+    if (res.ok) {
+      flushSync(() => {
+        setData(res.data);
+        setError(null);
+        setLoading(false);
+      });
+      mauiTrace("snapshot.setData", { method, hasData: res.data != null });
+    } else {
+      flushSync(() => {
+        setError(res.error);
+        setLoading(false);
+      });
+    }
+    mauiTrace("snapshot.setLoadingFalse", { method });
   }, [method, JSON.stringify(payload)]);
 
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [method, JSON.stringify(payload), ...deps]);

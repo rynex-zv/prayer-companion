@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mauiCall } from "@/native/mauiWebberClient";
@@ -13,25 +13,30 @@ const tabs = [
 
 export function BottomTabs({ labels }: { labels: Record<string, string> }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
   return (
-    <nav className="safe-bottom sticky bottom-0 z-30 mt-auto border-t border-border bg-card/90 backdrop-blur-md">
+    <nav className="safe-bottom sticky bottom-0 z-30 mt-auto border-t border-border bg-card/90 backdrop-blur-md" data-selector-name="bottom-tabs">
       <ul className="mx-auto flex max-w-md items-stretch justify-between px-2 pt-1.5">
         {tabs.map((t) => {
           const active = t.to === "/" ? pathname === "/" : pathname.startsWith(t.to);
           const Icon = t.icon;
           return (
             <li key={t.key} className="flex-1">
-              <Link
-                to={t.to}
-                onClick={() => { void mauiCall("app.navigate", { route: t.to }); }}
+              <button
+                type="button"
+                onClick={() => {
+                  void navigate({ to: t.to });
+                  void mauiCall("app.navigate", { route: t.to });
+                }}
+                data-selector-name={`tab:${t.key}`}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                  "flex w-full flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
                 <span>{labels[t.key] ?? t.key}</span>
-              </Link>
+              </button>
             </li>
           );
         })}
