@@ -1,5 +1,5 @@
 {
-  "version": "20260701105845543",
+  "version": "20260701123628061",
   "target": "phone",
   "entry": "index.html",
   "files": [
@@ -52,12 +52,12 @@
       "sha256": "76c24b51eeca53bf23a101c0467d4496e1d12eee1f12a077c32b09248a8bb84d"
     },
     {
-      "path": "assets/index-DeQVCbed.css",
-      "sha256": "44edefa1541c9d0b2bbd461000c6ac53703ec577a35d44338a6f077d59f769c9"
+      "path": "assets/index-B9ZE13rS.js",
+      "sha256": "b53d4ee78ca8b048ee981de7c5f753d3dce3558679901cfc86d375c9e468ddc0"
     },
     {
-      "path": "assets/index-DnT-Vxrd.js",
-      "sha256": "e0d61f4a71cbabf023d451aa2f1500abea9774b4a3c17f46c3ec2506b912d2be"
+      "path": "assets/index-DeQVCbed.css",
+      "sha256": "44edefa1541c9d0b2bbd461000c6ac53703ec577a35d44338a6f077d59f769c9"
     },
     {
       "path": "assets/inter-cyrillic-400-normal-HOLc17fK.woff",
@@ -289,7 +289,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "1711cb1e5e345fcc2c6d127de5f35bdc2997823c0995b57921e48d4708b103d9"
+      "sha256": "ece3cbec629589c35436dc7e995062b500ecb1478ba7a6b310c8a03eb31383ea"
     }
   ]
 }

@@ -17,6 +17,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
+    private string _qiblaDisplayMode = "compass";
+    private string _qiblaVisualFilter = "none";
 
     public WebAppRpcHandler(
         TodayWebRpcHandler today,
@@ -55,10 +57,11 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "calendar.previousMonth" => await MoveCalendarAsync(-1).ConfigureAwait(false),
             "qibla.getSnapshot" => await GetQiblaAsync().ConfigureAwait(false),
             "qibla.setHeadingMode" => await SetQiblaHeadingModeAsync(payload).ConfigureAwait(false),
+            "qibla.updateHeading" => await UpdateQiblaHeadingAsync(payload).ConfigureAwait(false),
             "qibla.adjustManualHeading" => AdjustQiblaManualHeading(payload),
-            "qibla.commitManualHeading" => await GetQiblaAsync().ConfigureAwait(false),
-            "qibla.setDisplayMode" => await GetQiblaAsync().ConfigureAwait(false),
-            "qibla.setVisualFilter" => await GetQiblaAsync().ConfigureAwait(false),
+            "qibla.commitManualHeading" => await CommitQiblaManualHeadingAsync().ConfigureAwait(false),
+            "qibla.setDisplayMode" => await SetQiblaDisplayModeAsync(payload).ConfigureAwait(false),
+            "qibla.setVisualFilter" => await SetQiblaVisualFilterAsync(payload).ConfigureAwait(false),
             "tasbih.getSnapshot" => BuildTasbihSnapshot(),
             "tasbih.increment" => RunTasbihCommand(_tasbih.IncrementCommand),
             "tasbih.reset" => RunTasbihCommand(_tasbih.ResetCommand),
@@ -179,9 +182,11 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             _qiblaLoaded = true;
         }
 
-        var state = _qibla.IsManualHeadingMode ? "manual" : "sensor";
+        var state = string.Equals(_qiblaDisplayMode, "map", StringComparison.OrdinalIgnoreCase)
+            ? "map"
+            : _qibla.IsManualHeadingMode ? "manual" : "sensor";
         var isAligned = Math.Abs(NormalizeAngle(_qibla.NeedleRotation)) <= 5;
-        if (isAligned) {
+        if (isAligned && !string.Equals(state, "map", StringComparison.OrdinalIgnoreCase)) {
             state = "aligned";
         }
 
@@ -194,10 +199,14 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             locationTitle = _qibla.LocationTitle,
             statusMessage = _qibla.StatusMessage,
             selectedHeadingMode = _qibla.IsManualHeadingMode ? "manual" : "auto",
-            selectedReadingMode = "compass",
-            selectedFilterMode = "none",
-            displayMode = "Compass",
-            visualFilter = "None",
+            selectedReadingMode = _qiblaDisplayMode,
+            selectedFilterMode = _qiblaVisualFilter,
+            displayMode = string.Equals(_qiblaDisplayMode, "map", StringComparison.OrdinalIgnoreCase) ? "Map" : "Compass",
+            visualFilter = _qiblaVisualFilter switch {
+                "night" => "Night",
+                "contrast" => "Contrast",
+                _ => "None"
+            },
             state,
             isAligned,
             headingModes = new[] {
@@ -230,10 +239,37 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return await GetQiblaAsync().ConfigureAwait(false);
     }
 
+    private async Task<object> UpdateQiblaHeadingAsync(JsonElement payload) {
+        var heading = ReadDouble(payload, "heading");
+        _qibla.UpdateHeading(heading);
+        return await GetQiblaAsync().ConfigureAwait(false);
+    }
+
     private object AdjustQiblaManualHeading(JsonElement payload) {
         var delta = ReadDouble(payload, "delta");
         _qibla.AdjustManualHeading(delta);
         return GetQiblaAsync().GetAwaiter().GetResult();
+    }
+
+    private async Task<object> CommitQiblaManualHeadingAsync() {
+        _qibla.CommitManualHeading();
+        return await GetQiblaAsync().ConfigureAwait(false);
+    }
+
+    private async Task<object> SetQiblaDisplayModeAsync(JsonElement payload) {
+        var mode = ReadString(payload, "mode");
+        _qiblaDisplayMode = string.Equals(mode, "map", StringComparison.OrdinalIgnoreCase) ? "map" : "compass";
+        return await GetQiblaAsync().ConfigureAwait(false);
+    }
+
+    private async Task<object> SetQiblaVisualFilterAsync(JsonElement payload) {
+        var mode = ReadString(payload, "mode");
+        _qiblaVisualFilter = mode?.ToLowerInvariant() switch {
+            "night" => "night",
+            "contrast" => "contrast",
+            _ => "none"
+        };
+        return await GetQiblaAsync().ConfigureAwait(false);
     }
 
     private object RunTasbihCommand(Command command) {
