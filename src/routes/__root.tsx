@@ -18,6 +18,7 @@ import "@fontsource/amiri/700.css";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "../components/AppShell";
+import { mauiTrace } from "@/native/mauiWebberClient";
 
 function NotFoundComponent() {
   return (
@@ -78,6 +79,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      mauiTrace("window.error", {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        stack: event.error instanceof Error ? event.error.stack : undefined,
+      });
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      mauiTrace("window.unhandledrejection", {
+        message: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+      });
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <AppShell>

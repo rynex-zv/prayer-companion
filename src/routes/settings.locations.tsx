@@ -6,7 +6,7 @@ import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
 import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 
@@ -20,14 +20,68 @@ type Loc = {
   countries: { code: string; name: string; cities: string[] }[];
 };
 
+const fallbackCountries: Loc["countries"] = [
+  { code: "NL", name: "Netherlands", cities: ["Amsterdam", "Rotterdam", "Utrecht"] },
+  { code: "SA", name: "Saudi Arabia", cities: ["Makkah", "Madinah", "Riyadh"] },
+  { code: "TR", name: "Turkey", cities: ["Istanbul", "Ankara"] },
+  { code: "US", name: "United States", cities: ["New York", "Chicago", "Dearborn"] },
+];
+
+function normalizeLocation(data: Partial<Loc>): Loc {
+  const countries = Array.isArray(data.countries) && data.countries.length > 0 ? data.countries : fallbackCountries;
+  const fallbackCountry = countries[0];
+  const country = countries.some((item) => item.code === data.country) ? data.country! : fallbackCountry.code;
+  const cities = countries.find((item) => item.code === country)?.cities ?? fallbackCountry.cities;
+  const city = cities.includes(data.city ?? "") ? data.city! : cities[0] ?? "";
+  return {
+    useGps: Boolean(data.useGps),
+    latitude: Number.isFinite(data.latitude) ? data.latitude! : 0,
+    longitude: Number.isFinite(data.longitude) ? data.longitude! : 0,
+    country,
+    city,
+    vpnWarning: Boolean(data.vpnWarning),
+    countries,
+  };
+}
+
 function LocationsPage() {
   usePageLog("settings.locations");
   const t = useAppLabels();
-  const { data, setData } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
-  if (!data) return null;
-  const cities = data.countries.find((c) => c.code === data.country)?.cities ?? [];
+  const { data, error, loading, refresh, setData } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
+  if (!data) {
+    return (
+      <div>
+        <SettingsHeader title={t("locations", "Locations")} logPage="settings.locations" />
+        <Card className="min-h-32">
+          {error ? (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={refresh}
+                className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {t("refreshGps", "Refresh GPS")}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="h-5 w-32 animate-pulse rounded bg-muted" />
+              <div className="h-10 animate-pulse rounded bg-muted" />
+              <div className="h-10 animate-pulse rounded bg-muted" />
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  }
+  const location = normalizeLocation(data);
+  const cities = location.countries.find((c) => c.code === location.country)?.cities ?? [];
   const patch = (p: Partial<Loc>) => {
-    const next = { ...data, ...p };
+    const next = normalizeLocation({ ...location, ...p });
     setData(next);
     return mauiCall("settings.patch", { locations: next });
   };
@@ -36,7 +90,7 @@ function LocationsPage() {
     <div>
       <SettingsHeader title={t("locations", "Locations")} />
       <div className="flex flex-col gap-3">
-        {data.vpnWarning && (
+        {location.vpnWarning && (
           <Card className="flex items-start gap-2 border-warning/40 bg-warning/10">
             <AlertTriangle className="h-4 w-4 text-warning" />
             <p className="text-xs">{t("vpnWarning", "VPN detected - location may be inaccurate.")}</p>
@@ -44,13 +98,14 @@ function LocationsPage() {
         )}
 
         <Card>
-          <Toggle checked={data.useGps} onChange={(v) => patch({ useGps: v })} label={t("useGps", "Use GPS")} />
+          <Toggle checked={location.useGps} onChange={(v) => patch({ useGps: v })} label={t("useGps", "Use GPS")} />
           <button
             onClick={async () => {
               await mauiCall("settings.invoke", { action: "refreshGps" });
               const res = await mauiCall<Loc>("settings.getSnapshot", { section: "locations" });
-              if (res.ok) setData(res.data);
+              if (res.ok) setData(normalizeLocation(res.data));
             }}
+            disabled={loading}
             className="mt-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             {t("refreshGps", "Refresh GPS")}
@@ -59,23 +114,23 @@ function LocationsPage() {
 
         <Card className="space-y-3">
           <Field label={t("country", "Country")}>
-            <Picker value={data.country} onChange={(v) => patch({ country: v, city: data.countries.find((c) => c.code === v)?.cities[0] ?? "" })}>
-              {data.countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            <Picker value={location.country} onChange={(v) => patch({ country: v, city: location.countries.find((c) => c.code === v)?.cities[0] ?? "" })}>
+              {location.countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
             </Picker>
           </Field>
           <Field label={t("city", "City")}>
-            <Picker value={data.city} onChange={(v) => patch({ city: v })}>
+            <Picker value={location.city} onChange={(v) => patch({ city: v })}>
               {cities.map((c) => <option key={c} value={c}>{c}</option>)}
             </Picker>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("latitude", "Latitude")}>
-              <input type="number" defaultValue={data.latitude} step="0.0001"
+              <input type="number" defaultValue={location.latitude} step="0.0001"
                 onBlur={(e) => patch({ latitude: Number(e.target.value) })}
                 className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
             </Field>
             <Field label={t("longitude", "Longitude")}>
-              <input type="number" defaultValue={data.longitude} step="0.0001"
+              <input type="number" defaultValue={location.longitude} step="0.0001"
                 onBlur={(e) => patch({ longitude: Number(e.target.value) })}
                 className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
             </Field>
