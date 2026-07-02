@@ -6,6 +6,12 @@ declare global {
   interface Window {
     mauiWebber?: {
       call: (method: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown; error?: string }>;
+      navigation?: {
+        back: () => boolean;
+        forward: () => boolean;
+        canGoBack: () => boolean;
+        canGoForward: () => boolean;
+      } | null;
     };
   }
 }
