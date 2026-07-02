@@ -15,5 +15,5 @@ export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[
   }, [method, JSON.stringify(payload)]);
 
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [method, JSON.stringify(payload), ...deps]);
-  return { data, error, loading, refresh };
+  return { data, error, loading, refresh, setData };
 }

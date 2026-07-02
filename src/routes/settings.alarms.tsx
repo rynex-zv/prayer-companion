@@ -17,10 +17,14 @@ type A = { builtIn: Reminder[]; userRemindersEnabled: boolean; userReminders: Re
 
 function AlarmsPage() {
   usePageLog("settings.alarm-reminders");
-  const { data, refresh } = useSnapshot<A>("settings.getSnapshot", { section: "alarmReminders" });
+  const { data, setData } = useSnapshot<A>("settings.getSnapshot", { section: "alarmReminders" });
   const [draft, setDraft] = useState("");
   if (!data) return null;
-  const patch = (p: Partial<A>) => mauiCall("settings.patch", { alarmReminders: { ...data, ...p } }).then(refresh);
+  const patch = (p: Partial<A>) => {
+    const next = { ...data, ...p };
+    setData(next);
+    return mauiCall("settings.patch", { alarmReminders: next });
+  };
 
   return (
     <div>

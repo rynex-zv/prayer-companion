@@ -29,7 +29,7 @@ export function getQiblaMock(state: TestConfig, manualDelta = 0) {
   if (isAligned && state.qiblaState !== "searching" && state.qiblaState !== "noPermission") status = labels.aligned;
 
   return {
-    bearing, heading, needleRotation, compassRotation: -heading,
+    bearing, heading, latitude: 52.3676, longitude: 4.9041, needleRotation, compassRotation: -heading,
     directionLabel: "ESE",
     locationTitle: `${state.city}, ${state.country}`,
     statusMessage: status,

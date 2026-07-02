@@ -27,9 +27,13 @@ const ACCENT_HEX: Record<string, string> = {
 
 function ThemePage() {
   usePageLog("settings.theme-diagnostics");
-  const { data, refresh } = useSnapshot<Theme>("settings.getSnapshot", { section: "theme" });
+  const { data, setData } = useSnapshot<Theme>("settings.getSnapshot", { section: "theme" });
   if (!data) return null;
-  const patch = (p: Partial<Theme>) => mauiCall("settings.patch", { theme: { ...data, ...p } }).then(refresh);
+  const patch = (p: Partial<Theme>) => {
+    const next = { ...data, ...p };
+    setData(next);
+    return mauiCall("settings.patch", { theme: next });
+  };
 
   return (
     <div>

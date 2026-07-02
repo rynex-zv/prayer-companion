@@ -21,10 +21,14 @@ type Loc = {
 
 function LocationsPage() {
   usePageLog("settings.locations");
-  const { data, refresh } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
+  const { data, setData } = useSnapshot<Loc>("settings.getSnapshot", { section: "locations" });
   if (!data) return null;
   const cities = data.countries.find((c) => c.code === data.country)?.cities ?? [];
-  const patch = (p: Partial<Loc>) => mauiCall("settings.patch", { locations: { ...data, ...p } }).then(refresh);
+  const patch = (p: Partial<Loc>) => {
+    const next = { ...data, ...p };
+    setData(next);
+    return mauiCall("settings.patch", { locations: next });
+  };
 
   return (
     <div>
@@ -40,7 +44,11 @@ function LocationsPage() {
         <Card>
           <Toggle checked={data.useGps} onChange={(v) => patch({ useGps: v })} label="Use GPS" />
           <button
-            onClick={() => mauiCall("settings.invoke", { action: "refreshGps" }).then(refresh)}
+            onClick={async () => {
+              await mauiCall("settings.invoke", { action: "refreshGps" });
+              const res = await mauiCall<Loc>("settings.getSnapshot", { section: "locations" });
+              if (res.ok) setData(res.data);
+            }}
             className="mt-3 w-full rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             Refresh GPS

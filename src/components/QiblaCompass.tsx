@@ -15,13 +15,18 @@ type Props = {
 export function QiblaCompass({ bearing, needleRotation, compassRotation, state, visualFilter = "None", manual, onDrag, onDragEnd }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [startX, setStartX] = useState<number | null>(null);
+  const [dragDelta, setDragDelta] = useState(0);
   const muted = state === "searching" || state === "permissionMissing";
   const aligned = state === "aligned";
 
   useEffect(() => {
     if (startX === null) return;
-    const move = (e: PointerEvent) => onDrag?.((e.clientX - startX) * 0.5);
-    const up = () => { setStartX(null); onDragEnd?.(); };
+    const move = (e: PointerEvent) => {
+      const delta = (e.clientX - startX) * 0.5;
+      setDragDelta(delta);
+      onDrag?.(delta);
+    };
+    const up = () => { setStartX(null); setDragDelta(0); onDragEnd?.(); };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
@@ -44,7 +49,7 @@ export function QiblaCompass({ bearing, needleRotation, compassRotation, state, 
           "absolute inset-0 rounded-full border-[3px] transition-all duration-300",
           muted ? "border-muted" : aligned ? "border-success shadow-[0_0_40px_-8px_var(--color-success)]" : "border-border",
         )}
-        style={{ transform: `rotate(${compassRotation}deg)`, transformOrigin: "center" }}
+        style={{ transform: `rotate(${manual ? compassRotation - dragDelta : compassRotation}deg)`, transformOrigin: "center" }}
       >
         {/* Tick marks */}
         {Array.from({ length: 36 }).map((_, i) => (

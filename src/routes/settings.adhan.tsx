@@ -28,10 +28,14 @@ type Adhan = {
 
 function AdhanPage() {
   usePageLog("settings.adhan");
-  const { data, refresh } = useSnapshot<Adhan>("settings.getSnapshot", { section: "adhan" });
+  const { data, refresh, setData } = useSnapshot<Adhan>("settings.getSnapshot", { section: "adhan" });
   const [playing, setPlaying] = useState<string | null>(null);
   if (!data) return null;
-  const patch = (p: Partial<Adhan>) => mauiCall("settings.patch", { adhan: { ...data, ...p } }).then(refresh);
+  const patch = (p: Partial<Adhan>) => {
+    const next = { ...data, ...p };
+    setData(next);
+    return mauiCall("settings.patch", { adhan: next });
+  };
 
   return (
     <div>

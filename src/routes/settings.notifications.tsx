@@ -21,9 +21,13 @@ type N = {
 
 function NotificationsPage() {
   usePageLog("settings.notifications");
-  const { data, refresh } = useSnapshot<N>("settings.getSnapshot", { section: "notifications" });
+  const { data, setData } = useSnapshot<N>("settings.getSnapshot", { section: "notifications" });
   if (!data) return null;
-  const patch = (p: Partial<N>) => mauiCall("settings.patch", { notifications: { ...data, ...p } }).then(refresh);
+  const patch = (p: Partial<N>) => {
+    const next = { ...data, ...p };
+    setData(next);
+    return mauiCall("settings.patch", { notifications: next });
+  };
 
   return (
     <div>

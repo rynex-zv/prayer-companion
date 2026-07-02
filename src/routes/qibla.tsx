@@ -4,10 +4,12 @@ import { mauiCall } from "@/native/mauiWebberClient";
 import { Card, CardTitle } from "@/components/Card";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { QiblaCompass } from "@/components/QiblaCompass";
+import { QiblaMap } from "@/components/QiblaMap";
 import { cn } from "@/lib/utils";
 import { MapPin } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useCallback, useEffect, useRef } from "react";
 
 export const Route = createFileRoute("/qibla")({
   head: () => ({
@@ -21,7 +23,7 @@ export const Route = createFileRoute("/qibla")({
 
 type Option = { id: string; label: string };
 type Snapshot = {
-  bearing: number; heading: number;
+  bearing: number; heading: number; latitude: number; longitude: number;
   needleRotation: number; compassRotation: number;
   directionLabel: string; locationTitle: string; statusMessage: string;
   selectedHeadingMode: string; selectedReadingMode: string; selectedFilterMode: string;
@@ -34,7 +36,51 @@ type Snapshot = {
 
 function QiblaPage() {
   usePageLog("qibla");
-  const { data, refresh } = useSnapshot<Snapshot>("qibla.getSnapshot");
+  const { data, setData } = useSnapshot<Snapshot>("qibla.getSnapshot");
+  const lastSensorSent = useRef(0);
+  const dragSent = useRef(0);
+
+  const applyQibla = useCallback(async (method: string, payload?: unknown) => {
+    const res = await mauiCall<Snapshot>(method, payload);
+    if (res.ok) {
+      setData(res.data);
+    }
+  }, [setData]);
+
+  useEffect(() => {
+    if (!data || data.selectedHeadingMode !== "auto") {
+      return;
+    }
+
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      const now = performance.now();
+      if (now - lastSensorSent.current < 250) {
+        return;
+      }
+
+      const webkitHeading = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+      const heading = typeof webkitHeading === "number"
+        ? webkitHeading
+        : typeof event.alpha === "number"
+          ? 360 - event.alpha
+          : null;
+
+      if (heading === null || Number.isNaN(heading)) {
+        return;
+      }
+
+      lastSensorSent.current = now;
+      void applyQibla("qibla.updateHeading", { heading });
+    };
+
+    window.addEventListener("deviceorientationabsolute", onOrientation);
+    window.addEventListener("deviceorientation", onOrientation);
+    return () => {
+      window.removeEventListener("deviceorientationabsolute", onOrientation);
+      window.removeEventListener("deviceorientation", onOrientation);
+    };
+  }, [applyQibla, data]);
+
   if (!data) return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
   const L = data.labels;
 
@@ -64,17 +110,17 @@ function QiblaPage() {
       <div className="flex flex-wrap gap-2">
         <SegmentedControl
           value={data.selectedHeadingMode}
-          onChange={(id) => mauiCall("qibla.setHeadingMode", { mode: id }).then(refresh)}
+          onChange={(id) => applyQibla("qibla.setHeadingMode", { mode: id })}
           options={data.headingModes}
         />
         <SegmentedControl
           value={data.selectedReadingMode}
-          onChange={(id) => mauiCall("qibla.setDisplayMode", { mode: id }).then(refresh)}
+          onChange={(id) => applyQibla("qibla.setDisplayMode", { mode: id })}
           options={data.readingModes}
         />
         <SegmentedControl
           value={data.selectedFilterMode}
-          onChange={(id) => mauiCall("qibla.setVisualFilter", { mode: id }).then(refresh)}
+          onChange={(id) => applyQibla("qibla.setVisualFilter", { mode: id })}
           options={data.filterModes}
         />
       </div>
@@ -90,8 +136,13 @@ function QiblaPage() {
           </button>
         </Card>
       ) : data.displayMode === "Map" ? (
-        <Card className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-          Map preview (provided by native)
+        <Card className="p-2">
+          <QiblaMap
+            latitude={data.latitude}
+            longitude={data.longitude}
+            bearing={data.bearing}
+            locationTitle={data.locationTitle}
+          />
         </Card>
       ) : (
         <Card className="py-8">
@@ -102,8 +153,15 @@ function QiblaPage() {
             state={data.state}
             visualFilter={data.visualFilter}
             manual={data.state === "manual"}
-            onDrag={(delta) => mauiCall("qibla.adjustManualHeading", { delta })}
-            onDragEnd={() => mauiCall("qibla.commitManualHeading").then(refresh)}
+            onDrag={(delta) => {
+              const now = performance.now();
+              if (now - dragSent.current < 120) {
+                return;
+              }
+              dragSent.current = now;
+              void applyQibla("qibla.adjustManualHeading", { delta });
+            }}
+            onDragEnd={() => applyQibla("qibla.commitManualHeading")}
           />
         </Card>
       )}
