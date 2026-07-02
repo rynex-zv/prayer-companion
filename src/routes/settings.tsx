@@ -3,6 +3,7 @@ import { Card } from "@/components/Card";
 import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { mauiCall } from "@/native/mauiWebberClient";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -47,6 +48,7 @@ function SettingsIndex() {
             <Link
               key={it.to}
               to={it.to}
+              onClick={() => { void mauiCall("app.navigate", { route: it.to }); }}
               className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-secondary-foreground">

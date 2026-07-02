@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { mauiCall } from "@/native/mauiWebberClient";
 
 const tabs = [
   { to: "/", icon: Sun, key: "today" },
@@ -22,6 +23,7 @@ export function BottomTabs({ labels }: { labels: Record<string, string> }) {
             <li key={t.key} className="flex-1">
               <Link
                 to={t.to}
+                onClick={() => { void mauiCall("app.navigate", { route: t.to }); }}
                 className={cn(
                   "flex flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",

@@ -36,6 +36,16 @@ function AdhanPage() {
     setData(next);
     return mauiCall("settings.patch", { adhan: next });
   };
+  const patchReminder = (key: "imsakReminders" | "iftarReminders", next: Reminder[]) => {
+    return patch({ [key]: next } as Partial<Adhan>);
+  };
+  const patchOverride = (prayer: string, p: Partial<Adhan["perPrayerOverrides"][number]>) => {
+    return patch({
+      perPrayerOverrides: data.perPrayerOverrides.map((item) =>
+        item.prayer === prayer ? { ...item, ...p } : item,
+      ),
+    });
+  };
 
   return (
     <div>
@@ -117,16 +127,65 @@ function AdhanPage() {
           </div>
         </Card>
 
+        <Card className="space-y-3">
+          <div className="text-sm font-semibold">Fasting reminders</div>
+          {([
+            ["imsakReminders", "Imsak reminders"],
+            ["iftarReminders", "Iftar reminders"],
+          ] as const).map(([key, title]) => (
+            <div key={key} className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">{title}</div>
+              <button
+                onClick={() => patchReminder(key, [
+                  ...data[key],
+                  { id: String(Date.now()), value: 10, unit: "min", direction: "before" },
+                ])}
+                className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-2 text-sm"
+              >
+                <Plus className="h-4 w-4" /> Add reminder
+              </button>
+              <ul className="space-y-2">
+                {data[key].map((r) => (
+                  <li key={r.id} className="grid grid-cols-[1fr_auto] gap-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        value={r.value}
+                        onChange={(e) => patchReminder(key, data[key].map((item) => item.id === r.id ? { ...item, value: Number(e.target.value) } : item))}
+                        className="rounded-lg border border-input bg-card px-2 py-1.5 text-sm"
+                      />
+                      <Picker value={r.unit} onChange={(unit) => patchReminder(key, data[key].map((item) => item.id === r.id ? { ...item, unit } : item))}>
+                        <option value="min">min</option>
+                        <option value="hour">hour</option>
+                      </Picker>
+                      <Picker value={r.direction} onChange={(direction) => patchReminder(key, data[key].map((item) => item.id === r.id ? { ...item, direction } : item))}>
+                        <option value="before">before</option>
+                        <option value="after">after</option>
+                      </Picker>
+                    </div>
+                    <button
+                      onClick={() => patchReminder(key, data[key].filter((item) => item.id !== r.id))}
+                      className="rounded-full bg-muted p-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </Card>
+
         <Card>
           <div className="mb-2 text-sm font-semibold">Per-prayer adhan overrides</div>
           <ul className="space-y-2">
             {data.perPrayerOverrides.map((o) => (
               <li key={o.prayer} className="grid grid-cols-3 items-center gap-2 text-sm">
                 <span className="font-medium">{o.prayer}</span>
-                <Picker value={o.soundId} onChange={() => undefined}>
+                <Picker value={o.soundId} onChange={(soundId) => patchOverride(o.prayer, { soundId })}>
                   {data.sounds.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                 </Picker>
-                <Picker value={o.vibration} onChange={() => undefined}>
+                <Picker value={o.vibration} onChange={(vibration) => patchOverride(o.prayer, { vibration })}>
                   {["default","short","long","none"].map((v) => <option key={v} value={v}>{v}</option>)}
                 </Picker>
               </li>

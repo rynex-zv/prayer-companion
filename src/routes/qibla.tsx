@@ -38,7 +38,6 @@ function QiblaPage() {
   usePageLog("qibla");
   const { data, setData } = useSnapshot<Snapshot>("qibla.getSnapshot");
   const lastSensorSent = useRef(0);
-  const dragSent = useRef(0);
 
   const applyQibla = useCallback(async (method: string, payload?: unknown) => {
     const res = await mauiCall<Snapshot>(method, payload);
@@ -153,15 +152,13 @@ function QiblaPage() {
             state={data.state}
             visualFilter={data.visualFilter}
             manual={data.state === "manual"}
-            onDrag={(delta) => {
-              const now = performance.now();
-              if (now - dragSent.current < 120) {
-                return;
+            onDrag={() => undefined}
+            onDragEnd={async (delta) => {
+              if (delta !== 0) {
+                await applyQibla("qibla.adjustManualHeading", { delta });
               }
-              dragSent.current = now;
-              void applyQibla("qibla.adjustManualHeading", { delta });
+              await applyQibla("qibla.commitManualHeading");
             }}
-            onDragEnd={() => applyQibla("qibla.commitManualHeading")}
           />
         </Card>
       )}

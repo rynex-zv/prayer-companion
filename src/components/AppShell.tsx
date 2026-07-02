@@ -1,10 +1,10 @@
 import { useEffect, type ReactNode } from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { BottomTabs } from "./BottomTabs";
 
 type Shell = {
-  isRtl: boolean; themeMode: string; labels: Record<string, string>;
+  language: string; isRtl: boolean; themeMode: string; labels: Record<string, string>;
   onboardingCompleted: boolean;
 };
 
@@ -13,14 +13,23 @@ const TAB_ROUTES = ["/", "/calendar", "/qibla", "/tasbih", "/settings"];
 export function AppShell({ children }: { children: ReactNode }) {
   const { data } = useSnapshot<Shell>("app.getShellSnapshot");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!data) return;
     document.documentElement.dir = data.isRtl ? "rtl" : "ltr";
-    document.documentElement.lang = data.isRtl ? "ar" : "en";
+    document.documentElement.lang = data.language || (data.isRtl ? "ar" : "en");
     if (data.themeMode === "dark") document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [data]);
+
+  useEffect(() => {
+    if (!data || data.onboardingCompleted || pathname === "/onboarding") {
+      return;
+    }
+
+    void navigate({ to: "/onboarding", replace: true });
+  }, [data, navigate, pathname]);
 
   const labels = data?.labels ?? {};
   const showTabs = TAB_ROUTES.includes(pathname);

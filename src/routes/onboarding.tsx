@@ -20,9 +20,12 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 type Snapshot = {
-  completed: boolean; steps: string[]; language: string;
-  permissionsScenario: string; vpnWarning: boolean;
-  canUseInternet: boolean; canUseGps: boolean;
+  completed?: boolean; steps?: string[]; language: string;
+  permissionsScenario?: string; vpnWarning?: boolean;
+  canUseInternet?: boolean; canUseGps?: boolean;
+  title?: string; subtitle?: string;
+  permissions?: unknown[];
+  location?: { vpnWarning?: boolean };
 };
 
 function OnboardingPage() {
@@ -32,8 +35,9 @@ function OnboardingPage() {
   const navigate = useNavigate();
   if (!data) return null;
 
-  const steps = ["Language", "Permissions", "Location"];
+  const steps = data.steps?.length ? data.steps : ["Language", "Permissions", "Location"];
   const cur = steps[step];
+  const locationVpnWarning = data.vpnWarning ?? data.location?.vpnWarning ?? false;
 
   return (
     <div className="flex min-h-[80vh] flex-col">
@@ -65,7 +69,7 @@ function OnboardingPage() {
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">Grant location and notification access for accurate prayer times and reminders.</p>
             <div className="rounded-lg bg-muted p-3 text-sm">
-              Permission status: <span className="font-medium">{data.permissionsScenario}</span>
+              Permission status: <span className="font-medium">{data.permissionsScenario ?? `${data.permissions?.length ?? 0} permissions`}</span>
             </div>
             <button onClick={() => mauiCall("settings.invoke", { action: "requestAllPermissions" })} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Grant permissions</button>
           </div>
@@ -73,14 +77,19 @@ function OnboardingPage() {
 
         {step === 2 && (
           <div className="space-y-2 text-sm">
-            {!data.canUseInternet && !data.canUseGps ? (
+            {data.title || data.subtitle ? (
+              <>
+                {data.title && <p className="font-medium">{data.title}</p>}
+                {data.subtitle && <p className="text-muted-foreground">{data.subtitle}</p>}
+              </>
+            ) : data.canUseInternet === false && data.canUseGps === false ? (
               <p className="text-muted-foreground">No internet or GPS. Please set your location manually in Settings → Locations after onboarding.</p>
             ) : data.canUseInternet ? (
               <p className="text-muted-foreground">We'll use your network to estimate your location. You can override this anytime.</p>
             ) : (
               <p className="text-muted-foreground">GPS will be used to determine your location.</p>
             )}
-            {data.vpnWarning && (
+            {locationVpnWarning && (
               <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
                 <AlertTriangle className="h-4 w-4 text-warning" />
                 VPN detected — location may be inaccurate.

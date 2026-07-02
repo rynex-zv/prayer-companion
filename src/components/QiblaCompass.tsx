@@ -9,13 +9,14 @@ type Props = {
   visualFilter?: string;
   manual?: boolean;
   onDrag?: (delta: number) => void;
-  onDragEnd?: () => void;
+  onDragEnd?: (delta: number) => void;
 };
 
 export function QiblaCompass({ bearing, needleRotation, compassRotation, state, visualFilter = "None", manual, onDrag, onDragEnd }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [startX, setStartX] = useState<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
+  const dragDeltaRef = useRef(0);
   const muted = state === "searching" || state === "permissionMissing";
   const aligned = state === "aligned";
 
@@ -23,10 +24,17 @@ export function QiblaCompass({ bearing, needleRotation, compassRotation, state, 
     if (startX === null) return;
     const move = (e: PointerEvent) => {
       const delta = (e.clientX - startX) * 0.5;
+      dragDeltaRef.current = delta;
       setDragDelta(delta);
       onDrag?.(delta);
     };
-    const up = () => { setStartX(null); setDragDelta(0); onDragEnd?.(); };
+    const up = () => {
+      const finalDelta = dragDeltaRef.current;
+      dragDeltaRef.current = 0;
+      setStartX(null);
+      setDragDelta(0);
+      onDragEnd?.(finalDelta);
+    };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };

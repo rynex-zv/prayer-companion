@@ -27,6 +27,7 @@ function TasbihSettingsPage() {
 
   const id = selectedId || data.selectedPresetId;
   const preset = data.presets.find((p) => p.id === id);
+  const invoke = (action: string, payload?: unknown) => mauiCall("settings.invoke", { action, payload }).then(refresh);
 
   return (
     <div>
@@ -46,10 +47,14 @@ function TasbihSettingsPage() {
           {preset && (
             <>
               <Field label="Name" className="mt-3">
-                <input defaultValue={preset.name} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
+                <input
+                  defaultValue={preset.name}
+                  onBlur={(e) => invoke("updateTasbihPreset", { id: preset.id, name: e.target.value })}
+                  className="rounded-lg border border-input bg-card px-3 py-2 text-sm"
+                />
               </Field>
               <Field label="Repeat mode" className="mt-3">
-                <Picker value={preset.repeatMode} onChange={() => undefined}>
+                <Picker value={preset.repeatMode} onChange={(repeatMode) => invoke("updateTasbihPreset", { id: preset.id, repeatMode })}>
                   {["Sequence", "Loop", "Once"].map((m) => <option key={m} value={m}>{m}</option>)}
                 </Picker>
               </Field>
@@ -58,11 +63,20 @@ function TasbihSettingsPage() {
               <ul className="mt-2 space-y-2">
                 {preset.items.map((it, i) => (
                   <li key={i} className="flex items-center gap-2">
-                    <input defaultValue={it.text} className="flex-1 rounded-lg border border-input bg-card px-2 py-1.5 text-sm" />
-                    <input type="number" defaultValue={it.targetCount} className="w-20 rounded-lg border border-input bg-card px-2 py-1.5 text-sm" />
-                    <button className="rounded-full p-1 hover:bg-muted"><ArrowUp className="h-4 w-4" /></button>
-                    <button className="rounded-full p-1 hover:bg-muted"><ArrowDown className="h-4 w-4" /></button>
-                    <button className="rounded-full p-1 hover:bg-muted text-muted-foreground"><X className="h-4 w-4" /></button>
+                    <input
+                      defaultValue={it.text}
+                      onBlur={(e) => invoke("updateTasbihItem", { presetId: preset.id, index: i, text: e.target.value })}
+                      className="flex-1 rounded-lg border border-input bg-card px-2 py-1.5 text-sm"
+                    />
+                    <input
+                      type="number"
+                      defaultValue={it.targetCount}
+                      onBlur={(e) => invoke("updateTasbihItem", { presetId: preset.id, index: i, targetCount: Number(e.target.value) })}
+                      className="w-20 rounded-lg border border-input bg-card px-2 py-1.5 text-sm"
+                    />
+                    <button onClick={() => invoke("moveTasbihItem", { presetId: preset.id, index: i, direction: "up" })} className="rounded-full p-1 hover:bg-muted"><ArrowUp className="h-4 w-4" /></button>
+                    <button onClick={() => invoke("moveTasbihItem", { presetId: preset.id, index: i, direction: "down" })} className="rounded-full p-1 hover:bg-muted"><ArrowDown className="h-4 w-4" /></button>
+                    <button onClick={() => invoke("removeTasbihItem", { presetId: preset.id, index: i })} className="rounded-full p-1 hover:bg-muted text-muted-foreground"><X className="h-4 w-4" /></button>
                   </li>
                 ))}
               </ul>
@@ -70,7 +84,15 @@ function TasbihSettingsPage() {
               <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
                 <input value={itemText} onChange={(e) => setItemText(e.target.value)} placeholder="Item text" className="rounded-lg border border-input bg-card px-2 py-1.5 text-sm" />
                 <input type="number" value={itemCount} onChange={(e) => setItemCount(Number(e.target.value))} className="w-20 rounded-lg border border-input bg-card px-2 py-1.5 text-sm" />
-                <button className="rounded-md bg-primary px-3 text-primary-foreground"><Plus className="h-4 w-4" /></button>
+                <button
+                  onClick={() => {
+                    if (!itemText.trim()) return;
+                    invoke("addTasbihItem", { presetId: preset.id, text: itemText.trim(), targetCount: itemCount }).then(() => setItemText(""));
+                  }}
+                  className="rounded-md bg-primary px-3 text-primary-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
             </>
           )}
