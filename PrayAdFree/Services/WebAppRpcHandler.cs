@@ -193,6 +193,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return new {
             bearing = _qibla.Bearing,
             heading = _qibla.Heading,
+            latitude = _qibla.Location?.Latitude ?? 0,
+            longitude = _qibla.Location?.Longitude ?? 0,
             needleRotation = _qibla.NeedleRotation,
             compassRotation = _qibla.CompassRotation,
             directionLabel = _qibla.DirectionLabel,
