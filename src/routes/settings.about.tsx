@@ -4,6 +4,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { Mail, Phone, Globe, Bug } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/about")({
   component: AboutPage,
@@ -11,24 +12,25 @@ export const Route = createFileRoute("/settings/about")({
 
 function AboutPage() {
   usePageLog("settings.about");
+  const t = useAppLabels();
   const info = {
     name: "Pray Ad Free",
-    tagline: "Prayer times, Qibla, and tasbih — ad free.",
-    privacy: "We don't collect personal data. Everything stays on your device.",
-    source: "Open source on GitHub.",
+    tagline: t("tagline", "Prayer times, Qibla, and tasbih - ad free."),
+    privacy: t("privacy", "We don't collect personal data. Everything stays on your device."),
+    source: t("source", "Open source on GitHub."),
     maintainer: "Rynex",
-    contact: "Support and feedback",
+    contact: t("contact", "Support and feedback"),
     email: "support@rynex.nl",
     phone: "+31 00 000 0000",
     website: "https://pray.rynex.nl",
-    websiteNote: "Visit for updates and web version.",
+    websiteNote: t("websiteNote", "Visit for updates and web version."),
   };
 
   const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
 
   return (
     <div>
-      <SettingsHeader title="About" />
+      <SettingsHeader title={t("about", "About")} />
       <div className="flex flex-col gap-3">
         <Card className="text-center">
           <div className="text-2xl font-bold">{info.name}</div>
@@ -37,7 +39,7 @@ function AboutPage() {
         <Card className="space-y-2 text-sm">
           <p>{info.privacy}</p>
           <p>{info.source}</p>
-          <p className="text-muted-foreground">Maintained by <span className="font-medium text-foreground">{info.maintainer}</span></p>
+          <p className="text-muted-foreground">{t("maintainedBy", "Maintained by")} <span className="font-medium text-foreground">{info.maintainer}</span></p>
         </Card>
         <Card className="space-y-2">
           <div className="text-sm font-semibold">{info.contact}</div>
@@ -49,10 +51,10 @@ function AboutPage() {
           </div>
         </Card>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> Email</button>
-          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call</button>
-          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> Website</button>
-          <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> Report</button>
+          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("email", "Email")}</button>
+          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("call", "Call")}</button>
+          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("website", "Website")}</button>
+          <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report", "Report")}</button>
         </div>
       </div>
     </div>

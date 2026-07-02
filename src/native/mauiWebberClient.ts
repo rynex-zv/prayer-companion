@@ -10,8 +10,9 @@ export async function mauiCall<T = unknown>(
   payload?: unknown,
 ): Promise<BridgeResponse<T>> {
   try {
-    if (typeof window !== "undefined" && window.mauiWebber) {
-      const res = await window.mauiWebber.call(method, payload);
+    const bridge = await resolveBridge();
+    if (bridge) {
+      const res = await bridge.call(method, payload);
       if (res && typeof res === "object" && "ok" in res) {
         return res as BridgeResponse<T>;
       }
@@ -49,3 +50,39 @@ export const BRIDGE_MODE: "maui" | "mock" =
   typeof window !== "undefined" && window.mauiWebber ? "maui" : "mock";
 
 export { TEST };
+
+async function resolveBridge(): Promise<Window["mauiWebber"] | undefined> {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  if (window.mauiWebber) {
+    return window.mauiWebber;
+  }
+
+  if (!shouldWaitForBridge()) {
+    return undefined;
+  }
+
+  await new Promise<void>((resolve) => {
+    const timeout = window.setTimeout(done, 1500);
+
+    function done() {
+      window.clearTimeout(timeout);
+      window.removeEventListener("mauiwebber:ready", done);
+      resolve();
+    }
+
+    window.addEventListener("mauiwebber:ready", done, { once: true });
+  });
+
+  return window.mauiWebber;
+}
+
+function shouldWaitForBridge(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return import.meta.env.MODE === "phone" || window.location.protocol === "file:";
+}

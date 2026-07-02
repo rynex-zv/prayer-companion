@@ -4,6 +4,7 @@ import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, 
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { mauiCall } from "@/native/mauiWebberClient";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -23,22 +24,23 @@ function SettingsLayout() {
 }
 
 const items = [
-  { to: "/settings/locations", icon: MapPin, title: "Locations", subtitle: "Location and GPS" },
-  { to: "/settings/theme", icon: Palette, title: "Theme & Diagnostics", subtitle: "Theme, language, accent" },
-  { to: "/settings/adhan", icon: Volume2, title: "Adhan Customizations", subtitle: "Sound and calculation" },
-  { to: "/settings/notifications", icon: Bell, title: "Notifications", subtitle: "Reminders and vibration" },
-  { to: "/settings/permissions", icon: ShieldCheck, title: "Permissions", subtitle: "System permissions" },
-  { to: "/settings/alarms", icon: AlarmClock, title: "Alarm Reminders", subtitle: "Alarm-screen reminders" },
-  { to: "/settings/tasbih", icon: Circle, title: "Tasbih", subtitle: "Tasbih presets" },
-  { to: "/settings/about", icon: Info, title: "About", subtitle: "App and contact info" },
+  { to: "/settings/locations", icon: MapPin, titleKey: "locations", title: "Locations", subtitleKey: "locationAndGps", subtitle: "Location and GPS" },
+  { to: "/settings/theme", icon: Palette, titleKey: "themeDiagnostics", title: "Theme & Diagnostics", subtitleKey: "themeLanguageAccent", subtitle: "Theme, language, accent" },
+  { to: "/settings/adhan", icon: Volume2, titleKey: "adhan", title: "Adhan Customizations", subtitleKey: "soundAndCalculation", subtitle: "Sound and calculation" },
+  { to: "/settings/notifications", icon: Bell, titleKey: "notifications", title: "Notifications", subtitleKey: "remindersAndVibration", subtitle: "Reminders and vibration" },
+  { to: "/settings/permissions", icon: ShieldCheck, titleKey: "permissions", title: "Permissions", subtitleKey: "systemPermissions", subtitle: "System permissions" },
+  { to: "/settings/alarms", icon: AlarmClock, titleKey: "alarmReminders", title: "Alarm Reminders", subtitleKey: "alarmScreenReminders", subtitle: "Alarm-screen reminders" },
+  { to: "/settings/tasbih", icon: Circle, titleKey: "tasbihSettings", title: "Tasbih", subtitleKey: "tasbihPresets", subtitle: "Tasbih presets" },
+  { to: "/settings/about", icon: Info, titleKey: "about", title: "About", subtitleKey: "appAndContactInfo", subtitle: "App and contact info" },
 ] as const;
 
 function SettingsIndex() {
   usePageLog("settings");
+  const t = useAppLabels();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">Settings</h1>
+        <h1 className="text-xl font-bold">{t("settings", "Settings")}</h1>
         <PageLog page="settings" />
       </div>
       <Card className="divide-y divide-border p-0">
@@ -55,8 +57,8 @@ function SettingsIndex() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-semibold">{it.title}</div>
-                <div className="text-xs text-muted-foreground">{it.subtitle}</div>
+                <div className="text-sm font-semibold">{t(it.titleKey, it.title)}</div>
+                <div className="text-xs text-muted-foreground">{t(it.subtitleKey, it.subtitle)}</div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Link>

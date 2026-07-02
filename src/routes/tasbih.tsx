@@ -7,6 +7,7 @@ import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/tasbih")({
   head: () => ({
@@ -26,6 +27,7 @@ type Snapshot = {
 
 function TasbihPage() {
   usePageLog("tasbih");
+  const t = useAppLabels();
   const { data, refresh } = useSnapshot<Snapshot>("tasbih.getSnapshot");
   if (!data) return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
 
@@ -52,12 +54,12 @@ function TasbihPage() {
           onClick={() => mauiCall("tasbih.reset").then(refresh)}
           className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
         >
-          <RotateCcw className="h-4 w-4" /> Reset
+          <RotateCcw className="h-4 w-4" /> {t("reset", "Reset")}
         </button>
       </Card>
 
       <Card>
-        <div className="mb-2 text-sm font-semibold">Presets</div>
+        <div className="mb-2 text-sm font-semibold">{t("presets", "Presets")}</div>
         <Picker
           value={data.selectedPresetId}
           onChange={(id) => mauiCall("tasbih.selectPreset", { id }).then(refresh)}
@@ -69,7 +71,7 @@ function TasbihPage() {
           ))}
         </Picker>
         {!data.isPresetSelectionEnabled && (
-          <p className="mt-2 text-xs text-muted-foreground">Reset to change preset.</p>
+          <p className="mt-2 text-xs text-muted-foreground">{t("resetToChangePreset", "Reset to change preset.")}</p>
         )}
         <ul className="mt-3 space-y-1.5">
           {data.presets.find((p) => p.id === data.selectedPresetId)?.items.map((it, i) => (

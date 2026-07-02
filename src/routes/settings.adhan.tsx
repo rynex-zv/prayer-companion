@@ -8,6 +8,7 @@ import { Picker } from "@/components/Picker";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { Play, Square, X, Plus } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/adhan")({
   component: AdhanPage,
@@ -28,6 +29,7 @@ type Adhan = {
 
 function AdhanPage() {
   usePageLog("settings.adhan");
+  const t = useAppLabels();
   const { data, refresh, setData } = useSnapshot<Adhan>("settings.getSnapshot", { section: "adhan" });
   const [playing, setPlaying] = useState<string | null>(null);
   if (!data) return null;
@@ -49,10 +51,10 @@ function AdhanPage() {
 
   return (
     <div>
-      <SettingsHeader title="Adhan" />
+      <SettingsHeader title={t("adhan", "Adhan")} />
       <div className="flex flex-col gap-3">
         <Card>
-          <div className="mb-2 text-sm font-semibold">Adhan sound</div>
+          <div className="mb-2 text-sm font-semibold">{t("adhanSound", "Adhan sound")}</div>
           <ul className="space-y-1.5">
             {data.sounds.map((s) => (
               <li key={s.id} className="flex items-center gap-2">
@@ -75,39 +77,39 @@ function AdhanPage() {
             ))}
           </ul>
           <button onClick={() => mauiCall("settings.invoke", { action: "addCustomSound" }).then(refresh)} className="mt-3 flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-2 text-sm">
-            <Plus className="h-4 w-4" /> Add custom sound
+            <Plus className="h-4 w-4" /> {t("addCustomSound", "Add custom sound")}
           </button>
           <button onClick={() => mauiCall("settings.invoke", { action: "testNotification" })} className="mt-2 w-full rounded-md bg-secondary px-3 py-2 text-sm font-medium">
-            Test notification
+            {t("testNotification", "Test notification")}
           </button>
-          <Field label={`Volume (${data.volume}%)`} className="mt-3">
+          <Field label={`${t("volume", "Volume")} (${data.volume}%)`} className="mt-3">
             <input type="range" min={0} max={100} value={data.volume} onChange={(e) => patch({ volume: Number(e.target.value) })} className="w-full accent-[var(--color-primary)]" />
           </Field>
         </Card>
 
         <Card className="space-y-3">
-          <div className="text-sm font-semibold">Calculation</div>
-          <Field label="Method"><Picker value={data.calculationMethod} onChange={(v) => patch({ calculationMethod: v, isCustomMethod: v === "Custom" })}>
-            {["MuslimWorldLeague","Egyptian","Karachi","UmmAlQura","Dubai","Qatar","Kuwait","MoonsightingCommittee","NorthAmerica","Custom"].map((m) => <option key={m} value={m}>{m}</option>)}
+          <div className="text-sm font-semibold">{t("calculation", "Calculation")}</div>
+          <Field label={t("method", "Method")}><Picker value={data.calculationMethod} onChange={(v) => patch({ calculationMethod: v, isCustomMethod: v === "Custom" })}>
+            {["MuslimWorldLeague","Egyptian","Karachi","UmmAlQura","Dubai","Qatar","Kuwait","MoonsightingCommittee","NorthAmerica","Custom"].map((m) => <option key={m} value={m}>{t(`method_${m}`, m)}</option>)}
           </Picker></Field>
-          <Field label="Madhhab"><Picker value={data.madhhab} onChange={(v) => patch({ madhhab: v })}>
-            {["Shafi", "Hanafi"].map((m) => <option key={m} value={m}>{m}</option>)}
+          <Field label={t("madhhab", "Madhhab")}><Picker value={data.madhhab} onChange={(v) => patch({ madhhab: v })}>
+            {["Shafi", "Hanafi"].map((m) => <option key={m} value={m}>{t(`madhhab_${m}`, m)}</option>)}
           </Picker></Field>
-          <Field label="High latitude rule"><Picker value={data.highLatitudeRule} onChange={(v) => patch({ highLatitudeRule: v })}>
-            {["MiddleOfTheNight","SeventhOfTheNight","TwilightAngle"].map((m) => <option key={m} value={m}>{m}</option>)}
+          <Field label={t("highLatitudeRule", "High latitude rule")}><Picker value={data.highLatitudeRule} onChange={(v) => patch({ highLatitudeRule: v })}>
+            {["MiddleOfTheNight","SeventhOfTheNight","TwilightAngle"].map((m) => <option key={m} value={m}>{t(`highLatitude_${m}`, m)}</option>)}
           </Picker></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Fajr angle">
+            <Field label={t("fajrAngle", "Fajr angle")}>
               <input type="number" value={data.fajrAngle} disabled={!data.isCustomMethod} onChange={(e) => patch({ fajrAngle: Number(e.target.value) })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm disabled:opacity-50" />
             </Field>
-            <Field label="Isha angle">
+            <Field label={t("ishaAngle", "Isha angle")}>
               <input type="number" value={data.ishaAngle} disabled={!data.isCustomMethod} onChange={(e) => patch({ ishaAngle: Number(e.target.value) })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm disabled:opacity-50" />
             </Field>
           </div>
         </Card>
 
         <Card>
-          <div className="mb-2 text-sm font-semibold">Offsets (minutes)</div>
+          <div className="mb-2 text-sm font-semibold">{t("offsetsMinutes", "Offsets (minutes)")}</div>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(data.offsets).map(([k, v]) => (
               <Field key={k} label={k.charAt(0).toUpperCase() + k.slice(1)}>
@@ -118,20 +120,20 @@ function AdhanPage() {
         </Card>
 
         <Card className="space-y-3">
-          <Field label="Clock format"><Picker value={data.clockFormat} onChange={(v) => patch({ clockFormat: v })}>
-            <option value="12h">12-hour</option><option value="24h">24-hour</option>
+          <Field label={t("clockFormat", "Clock format")}><Picker value={data.clockFormat} onChange={(v) => patch({ clockFormat: v })}>
+            <option value="12h">{t("clock12h", "12-hour")}</option><option value="24h">{t("clock24h", "24-hour")}</option>
           </Picker></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Iftar delay"><input type="number" value={data.fasting.iftarDelay} onChange={(e) => patch({ fasting: { ...data.fasting, iftarDelay: Number(e.target.value) } })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" /></Field>
-            <Field label="Imsak advance"><input type="number" value={data.fasting.imsakAdvance} onChange={(e) => patch({ fasting: { ...data.fasting, imsakAdvance: Number(e.target.value) } })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" /></Field>
+            <Field label={t("iftarDelay", "Iftar delay")}><input type="number" value={data.fasting.iftarDelay} onChange={(e) => patch({ fasting: { ...data.fasting, iftarDelay: Number(e.target.value) } })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" /></Field>
+            <Field label={t("imsakAdvance", "Imsak advance")}><input type="number" value={data.fasting.imsakAdvance} onChange={(e) => patch({ fasting: { ...data.fasting, imsakAdvance: Number(e.target.value) } })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" /></Field>
           </div>
         </Card>
 
         <Card className="space-y-3">
-          <div className="text-sm font-semibold">Fasting reminders</div>
+          <div className="text-sm font-semibold">{t("fastingReminders", "Fasting reminders")}</div>
           {([
-            ["imsakReminders", "Imsak reminders"],
-            ["iftarReminders", "Iftar reminders"],
+            ["imsakReminders", t("imsakReminders", "Imsak reminders")],
+            ["iftarReminders", t("iftarReminders", "Iftar reminders")],
           ] as const).map(([key, title]) => (
             <div key={key} className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">{title}</div>
@@ -142,7 +144,7 @@ function AdhanPage() {
                 ])}
                 className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-2 text-sm"
               >
-                <Plus className="h-4 w-4" /> Add reminder
+                <Plus className="h-4 w-4" /> {t("addReminder", "Add reminder")}
               </button>
               <ul className="space-y-2">
                 {data[key].map((r) => (
@@ -155,12 +157,12 @@ function AdhanPage() {
                         className="rounded-lg border border-input bg-card px-2 py-1.5 text-sm"
                       />
                       <Picker value={r.unit} onChange={(unit) => patchReminder(key, data[key].map((item) => item.id === r.id ? { ...item, unit } : item))}>
-                        <option value="min">min</option>
-                        <option value="hour">hour</option>
+                        <option value="min">{t("minutes", "min")}</option>
+                        <option value="hour">{t("hours", "hour")}</option>
                       </Picker>
                       <Picker value={r.direction} onChange={(direction) => patchReminder(key, data[key].map((item) => item.id === r.id ? { ...item, direction } : item))}>
-                        <option value="before">before</option>
-                        <option value="after">after</option>
+                        <option value="before">{t("before", "before")}</option>
+                        <option value="after">{t("after", "after")}</option>
                       </Picker>
                     </div>
                     <button
@@ -177,7 +179,7 @@ function AdhanPage() {
         </Card>
 
         <Card>
-          <div className="mb-2 text-sm font-semibold">Per-prayer adhan overrides</div>
+          <div className="mb-2 text-sm font-semibold">{t("perPrayerAdhan", "Per-prayer adhan overrides")}</div>
           <ul className="space-y-2">
             {data.perPrayerOverrides.map((o) => (
               <li key={o.prayer} className="grid grid-cols-3 items-center gap-2 text-sm">

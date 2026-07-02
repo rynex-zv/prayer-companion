@@ -9,6 +9,7 @@ import { SegmentedControl } from "@/components/SegmentedControl";
 import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
+import { refreshShellLabels, useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/theme")({
   component: ThemePage,
@@ -27,6 +28,7 @@ const ACCENT_HEX: Record<string, string> = {
 
 function ThemePage() {
   usePageLog("settings.theme-diagnostics");
+  const t = useAppLabels();
   const { data, setData } = useSnapshot<Theme>("settings.getSnapshot", { section: "theme" });
   if (!data) return null;
   const patch = (p: Partial<Theme>) => {
@@ -37,26 +39,26 @@ function ThemePage() {
 
   return (
     <div>
-      <SettingsHeader title="Theme & Diagnostics" />
+      <SettingsHeader title={t("themeDiagnostics", "Theme & Diagnostics")} />
       <div className="flex flex-col gap-3">
         <Card className="space-y-3">
-          <Field label="Language">
-            <Picker value={data.language} onChange={(v) => { patch({ language: v }); mauiCall("app.setLanguage", { language: v }); }}>
+          <Field label={t("language", "Language")}>
+            <Picker value={data.language} onChange={(v) => { patch({ language: v }).then(refreshShellLabels); mauiCall("app.setLanguage", { language: v }).then(refreshShellLabels); }}>
               {data.languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
             </Picker>
           </Field>
-          <Field label="Theme">
+          <Field label={t("themeMode", "Theme")}>
             <SegmentedControl
               value={data.themeMode}
-              onChange={(v) => { patch({ themeMode: v }); mauiCall("app.setTheme", { theme: v }); }}
+              onChange={(v) => { patch({ themeMode: v }).then(refreshShellLabels); mauiCall("app.setTheme", { theme: v }).then(refreshShellLabels); }}
               options={[
-                { id: "system", label: "System" },
-                { id: "light", label: "Light" },
-                { id: "dark", label: "Dark" },
+                { id: "system", label: t("system", "System") },
+                { id: "light", label: t("light", "Light") },
+                { id: "dark", label: t("dark", "Dark") },
               ]}
             />
           </Field>
-          <Field label="Accent color">
+          <Field label={t("accentColor", "Accent color")}>
             <div className="flex flex-wrap gap-2">
               {data.accentColors.map((c) => (
                 <button
@@ -70,7 +72,7 @@ function ThemePage() {
               ))}
             </div>
           </Field>
-          <Field label="Text size">
+          <Field label={t("textSize", "Text size")}>
             <div className="flex items-center gap-2">
               <button onClick={() => patch({ textSize: Math.max(75, data.textSize - 5) })} className="rounded-full bg-muted p-2"><Minus className="h-4 w-4" /></button>
               <div className="flex-1 text-center text-sm font-semibold tabular-nums">{data.textSize}%</div>
@@ -80,10 +82,10 @@ function ThemePage() {
         </Card>
 
         <Card>
-          <div className="text-sm font-semibold">Diagnostics</div>
+          <div className="text-sm font-semibold">{t("diagnostics", "Diagnostics")}</div>
           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-            <div>Bridge ready: <span className="font-medium text-foreground">{String(data.diagnostics.bridgeReady)}</span></div>
-            <div>Last sync: <span className="font-medium text-foreground">{data.diagnostics.lastSync}</span></div>
+            <div>{t("bridgeReady", "Bridge ready")}: <span className="font-medium text-foreground">{String(data.diagnostics.bridgeReady)}</span></div>
+            <div>{t("lastSync", "Last sync")}: <span className="font-medium text-foreground">{data.diagnostics.lastSync}</span></div>
           </div>
         </Card>
       </div>

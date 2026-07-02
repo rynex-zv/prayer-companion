@@ -7,6 +7,7 @@ import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { Plus, X } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/alarms")({
   component: AlarmsPage,
@@ -17,6 +18,7 @@ type A = { builtIn: Reminder[]; userRemindersEnabled: boolean; userReminders: Re
 
 function AlarmsPage() {
   usePageLog("settings.alarm-reminders");
+  const t = useAppLabels();
   const { data, setData } = useSnapshot<A>("settings.getSnapshot", { section: "alarmReminders" });
   const [draft, setDraft] = useState("");
   if (!data) return null;
@@ -28,10 +30,10 @@ function AlarmsPage() {
 
   return (
     <div>
-      <SettingsHeader title="Alarm Reminders" />
+      <SettingsHeader title={t("alarmReminders", "Alarm Reminders")} />
       <div className="flex flex-col gap-3">
         <Card>
-          <div className="mb-2 text-sm font-semibold">Built-in</div>
+          <div className="mb-2 text-sm font-semibold">{t("builtIn", "Built-in")}</div>
           <ul className="space-y-2">
             {data.builtIn.map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-2">
@@ -44,11 +46,11 @@ function AlarmsPage() {
 
         <Card>
           <div className="mb-2 flex items-center justify-between text-sm font-semibold">
-            Your reminders
+            {t("yourReminders", "Your reminders")}
             <Toggle checked={data.userRemindersEnabled} onChange={(v) => patch({ userRemindersEnabled: v })} />
           </div>
           <div className="flex gap-2">
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="New reminder…" className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm" />
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("newReminder", "New reminder...")} className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm" />
             <button
               onClick={() => { if (!draft.trim()) return; patch({ userReminders: [...data.userReminders, { id: String(Date.now()), text: draft.trim(), enabled: true }] }); setDraft(""); }}
               className="rounded-md bg-primary px-3 text-primary-foreground"

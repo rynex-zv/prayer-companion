@@ -5,6 +5,7 @@ import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { cn } from "@/lib/utils";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/permissions")({
   component: PermissionsPage,
@@ -17,12 +18,13 @@ type Perm = {
 
 function PermissionsPage() {
   usePageLog("settings.permissions");
+  const t = useAppLabels();
   const { data, refresh } = useSnapshot<Perm>("settings.getSnapshot", { section: "permissions" });
   if (!data) return null;
 
   return (
     <div>
-      <SettingsHeader title="Permissions" />
+      <SettingsHeader title={t("permissions", "Permissions")} />
       <div className="flex flex-col gap-3">
         <Card>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">{data.alarmMode.title}</div>
@@ -44,7 +46,7 @@ function PermissionsPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Fallback: {p.fallback}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("fallback", "Fallback")}: {p.fallback}</p>
                 </div>
                 <div className={cn("text-xs font-semibold", granted ? "text-success" : "text-warning")}>{p.status}</div>
               </div>
