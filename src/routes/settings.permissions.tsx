@@ -4,7 +4,6 @@ import { mauiCall } from "@/native/mauiWebberClient";
 import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { cn } from "@/lib/utils";
-import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/permissions")({
@@ -17,7 +16,6 @@ type Perm = {
 };
 
 function PermissionsPage() {
-  usePageLog("settings.permissions");
   const t = useAppLabels();
   const { data, refresh } = useSnapshot<Perm>("settings.getSnapshot", { section: "permissions" });
   if (!data) return null;

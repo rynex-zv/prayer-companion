@@ -10,6 +10,21 @@ const phoneBridgeBootstrap = `<script>
   if (window.mauiWebber) return;
   var callbacks = {};
 
+  function receiveResponse(message) {
+    var data = message && message.data;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (_) { return; }
+    }
+
+    if (!data || data.__mauiWebberResponse !== true) return;
+    window.__lastNativeResponse = data;
+    window.mauiWebber.__resolve(data.id, data.response);
+  }
+
+  if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
+    window.chrome.webview.addEventListener('message', receiveResponse);
+  }
+
   function sendMessage(message) {
     var request = encodeURIComponent(JSON.stringify(message));
     if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
@@ -26,24 +41,51 @@ const phoneBridgeBootstrap = `<script>
     }, 1000);
   }
 
+  function traceBridgeResolve(id, found, pendingBefore, pendingAfter) {
+    if (typeof id === 'string' && id.indexOf('trace-') === 0) return;
+    sendMessage({
+      id: 'trace-' + Date.now().toString(36) + Math.random().toString(36).slice(2),
+      method: 'mauiWebber.trace',
+      payload: {
+        name: 'bridge.resolve',
+        id: id,
+        found: found,
+        pendingBefore: pendingBefore,
+        pendingAfter: pendingAfter,
+        at: performance.now()
+      }
+    });
+  }
+
   window.mauiWebber = {
     call: function(method, payload) {
       var id = Date.now().toString(36) + Math.random().toString(36).slice(2);
       var message = { id: id, method: method, payload: payload || {} };
+      if (method === 'mauiWebber.trace') {
+        sendMessage(message);
+        return Promise.resolve({ ok: true, data: { accepted: true } });
+      }
       return new Promise(function(resolve) {
         callbacks[id] = resolve;
         sendMessage(message);
       });
     },
     __resolve: function(id, response) {
+      var pendingBefore = Object.keys(callbacks).length;
       var callback = callbacks[id];
       if (callback) {
         delete callbacks[id];
+        traceBridgeResolve(id, true, pendingBefore, Object.keys(callbacks).length);
         callback(response);
+        return;
       }
+      traceBridgeResolve(id, false, pendingBefore, Object.keys(callbacks).length);
     },
     __drain: function() {
       return '[]';
+    },
+    __debugPending: function() {
+      return Object.keys(callbacks);
     },
     __navigate: null,
     navigation: null
@@ -86,6 +128,7 @@ if (phone) {
     const scriptPath = resolve(process.cwd(), 'dist', scriptMatch[1].replace(/^\.\//, ''));
     const script = (await readFile(scriptPath, 'utf8'))
       .replaceAll('import.meta.url', 'document.baseURI')
+      .replace(/new URL\("([^"/][^"]+)",document\.baseURI\)/g, 'new URL("assets/$1",document.baseURI)')
       .replaceAll('import.meta.env.MODE', JSON.stringify('phone'))
       .replaceAll('import.meta.env.VITE_BUILD_TARGET', JSON.stringify('phone'));
     embeddedHtml = embeddedHtml.replace(scriptMatch[0], '');

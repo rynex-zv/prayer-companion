@@ -6,7 +6,6 @@ import { Card } from "@/components/Card";
 import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { Plus, X } from "lucide-react";
-import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/alarms")({
@@ -17,7 +16,6 @@ type Reminder = { id: string; text: string; enabled: boolean };
 type A = { builtIn: Reminder[]; userRemindersEnabled: boolean; userReminders: Reminder[] };
 
 function AlarmsPage() {
-  usePageLog("settings.alarm-reminders");
   const t = useAppLabels();
   const { data, setData } = useSnapshot<A>("settings.getSnapshot", { section: "alarmReminders" });
   const [draft, setDraft] = useState("");

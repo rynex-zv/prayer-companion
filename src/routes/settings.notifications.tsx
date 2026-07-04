@@ -6,7 +6,6 @@ import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
 import { Toggle } from "@/components/Toggle";
 import { SettingsHeader } from "@/components/SettingsHeader";
-import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/notifications")({
@@ -21,7 +20,6 @@ type N = {
 };
 
 function NotificationsPage() {
-  usePageLog("settings.notifications");
   const t = useAppLabels();
   const { data, setData } = useSnapshot<N>("settings.getSnapshot", { section: "notifications" });
   if (!data) return null;

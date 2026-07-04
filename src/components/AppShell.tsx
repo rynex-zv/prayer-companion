@@ -168,8 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           return false;
         }
 
-        await navigate({ to: route });
-        void mauiCall("app.navigate", { route });
+        void navigate({ to: route });
         return true;
       },
       currentRoute: () => pathname,

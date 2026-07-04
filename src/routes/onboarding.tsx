@@ -7,7 +7,6 @@ import { Picker } from "@/components/Picker";
 import { Field } from "@/components/Field";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
-import { usePageLog } from "@/hooks/usePageLog";
 import { refreshShellLabels, useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/onboarding")({
@@ -30,7 +29,6 @@ type Snapshot = {
 };
 
 function OnboardingPage() {
-  usePageLog("onboarding");
   const t = useAppLabels();
   const { data, refresh } = useSnapshot<Snapshot>("onboarding.getSnapshot");
   const [step, setStep] = useState(0);
