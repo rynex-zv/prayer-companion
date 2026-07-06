@@ -104,7 +104,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
 
         return new TodayWebSnapshot(
             LocationTitle: _viewModel.LocationTitle,
-            HijriDate: _viewModel.HijriDate,
+            HijriDate: LocalizeHijriDate(_viewModel.HijriDate),
             GregorianDate: _viewModel.GregorianDate,
             NextPrayerName: _viewModel.NextPrayerName,
             NextPrayerClock: _viewModel.NextPrayerClock,
@@ -163,6 +163,27 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             "Update failed." => LocalizationManager.Translate("UpdateFailed"),
             _ => statusMessage
         };
+    }
+
+    private static string LocalizeHijriDate(string value) {
+        if (!string.Equals(LocalizationManager.CurrentLanguage, "ar", StringComparison.OrdinalIgnoreCase)) {
+            return value;
+        }
+
+        return value
+            .Replace("Muḥarram", "محرم", StringComparison.OrdinalIgnoreCase)
+            .Replace("Safar", "صفر", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabīʿ al-awwal", "ربيع الأول", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabi' al-Awwal", "ربيع الأول", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabīʿ al-thānī", "ربيع الآخر", StringComparison.OrdinalIgnoreCase)
+            .Replace("Jumādá al-ūlá", "جمادى الأولى", StringComparison.OrdinalIgnoreCase)
+            .Replace("Jumādá al-ākhirah", "جمادى الآخرة", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rajab", "رجب", StringComparison.OrdinalIgnoreCase)
+            .Replace("Shaʿbān", "شعبان", StringComparison.OrdinalIgnoreCase)
+            .Replace("Ramaḍān", "رمضان", StringComparison.OrdinalIgnoreCase)
+            .Replace("Shawwāl", "شوال", StringComparison.OrdinalIgnoreCase)
+            .Replace("Dhū al-Qaʿdah", "ذو القعدة", StringComparison.OrdinalIgnoreCase)
+            .Replace("Dhū al-Ḥijjah", "ذو الحجة", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string IsolateLeftToRight(string value) {

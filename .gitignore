@@ -288,7 +288,8 @@ node_modules/
 # Frontend is a separate Git repository.
 /Pray.web/
 /prayer-companion/
-
+!/Pray.web/.git/
+!/prayer-companion/.git/
 # Visual Studio 6 build log
 *.plg
 

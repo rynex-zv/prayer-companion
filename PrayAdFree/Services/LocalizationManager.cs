@@ -47,6 +47,7 @@ public static class LocalizationManager {
 
         CurrentLanguage = requested;
         EnsureLanguageLoaded(requested);
+        ApplyCulture(requested);
         LanguageChanged?.Invoke(null, EventArgs.Empty);
     }
 
@@ -85,6 +86,22 @@ public static class LocalizationManager {
             PrayerId.Imsak => Translate("Prayer_Imsak"),
             _ => prayer.ToString()
         };
+    }
+
+    private static void ApplyCulture(string language) {
+        try {
+            var culture = CultureInfo.GetCultureInfo(language);
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+        } catch (CultureNotFoundException) {
+            var culture = CultureInfo.GetCultureInfo("en");
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+        }
     }
 
     private static void EnsureReadyForTranslate() {

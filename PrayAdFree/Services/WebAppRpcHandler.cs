@@ -258,10 +258,45 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["prayer_Asr"] = T("Prayer_Asr"),
             ["prayer_Maghrib"] = T("Prayer_Maghrib"),
             ["prayer_Isha"] = T("Prayer_Isha"),
+            ["prayer_Imsak"] = T("Imsak"),
+            ["cardinalNorth"] = T("CardinalNorth"),
+            ["cardinalEast"] = T("CardinalEast"),
+            ["cardinalSouth"] = T("CardinalSouth"),
+            ["cardinalWest"] = T("CardinalWest"),
             ["previousMonth"] = L("PreviousMonth", "Previous month"),
             ["nextMonth"] = L("NextMonth", "Next month"),
             ["todayBadge"] = T("Today"),
-            ["resetToChangePreset"] = L("ResetToChangePreset", "Reset to change preset.")
+            ["resetToChangePreset"] = L("ResetToChangePreset", "Reset to change preset."),
+            ["status_ready"] = T("StatusReady"),
+            ["status_saving"] = T("StatusSaving"),
+            ["status_saved"] = T("StatusSaved"),
+            ["status_error"] = T("StatusError"),
+            ["status_refreshing"] = T("Refreshing"),
+            ["status_testNotification"] = T("TestNotification"),
+            ["status_testAlarm"] = T("TestAlarm"),
+            ["enabled"] = T("PermissionStatus_Enabled"),
+            ["disabled"] = T("PermissionStatus_Disabled"),
+            ["targetCount"] = T("TasbihCount"),
+            ["tasbihRepeat_Continue"] = T("TasbihRepeat_Continue"),
+            ["tasbihRepeat_Reset"] = T("TasbihRepeat_Reset"),
+            ["tasbihRepeat_None"] = T("TasbihRepeat_None"),
+            ["country_NL"] = T("Country_NL"),
+            ["country_SA"] = T("Country_SA"),
+            ["country_TR"] = T("Country_TR"),
+            ["country_US"] = T("Country_US"),
+            ["city_Amsterdam"] = T("City_Amsterdam"),
+            ["city_Rotterdam"] = T("City_Rotterdam"),
+            ["city_Utrecht"] = T("City_Utrecht"),
+            ["city_Makkah"] = T("City_Makkah"),
+            ["city_Madinah"] = T("City_Madinah"),
+            ["city_Riyadh"] = T("City_Riyadh"),
+            ["city_Istanbul"] = T("City_Istanbul"),
+            ["city_Ankara"] = T("City_Ankara"),
+            ["city_NewYork"] = T("City_NewYork"),
+            ["city_Chicago"] = T("City_Chicago"),
+            ["city_Dearborn"] = T("City_Dearborn"),
+            ["alarmReminderWudu"] = T("AlarmReminder_Wudu"),
+            ["alarmReminderQibla"] = T("AlarmReminder_Qibla")
         };
     }
 
@@ -324,7 +359,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             statusMessage = _calendar.StatusMessage,
             days = _calendar.Days.Select(day => new {
                 date = day.Date,
-                hijri = day.Hijri,
+                hijri = LocalizeHijriDate(day.Hijri),
                 fajr = day.Fajr,
                 sunrise = day.Sunrise,
                 dhuhr = day.Dhuhr,
@@ -338,6 +373,27 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
     private static bool IsToday(CalendarDayRow day) {
         return day.SourceDate == DateOnly.FromDateTime(DateTime.Today);
+    }
+
+    private static string LocalizeHijriDate(string value) {
+        if (!string.Equals(LocalizationManager.CurrentLanguage, "ar", StringComparison.OrdinalIgnoreCase)) {
+            return value;
+        }
+
+        return value
+            .Replace("Muḥarram", "محرم", StringComparison.OrdinalIgnoreCase)
+            .Replace("Safar", "صفر", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabīʿ al-awwal", "ربيع الأول", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabi' al-Awwal", "ربيع الأول", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rabīʿ al-thānī", "ربيع الآخر", StringComparison.OrdinalIgnoreCase)
+            .Replace("Jumādá al-ūlá", "جمادى الأولى", StringComparison.OrdinalIgnoreCase)
+            .Replace("Jumādá al-ākhirah", "جمادى الآخرة", StringComparison.OrdinalIgnoreCase)
+            .Replace("Rajab", "رجب", StringComparison.OrdinalIgnoreCase)
+            .Replace("Shaʿbān", "شعبان", StringComparison.OrdinalIgnoreCase)
+            .Replace("Ramaḍān", "رمضان", StringComparison.OrdinalIgnoreCase)
+            .Replace("Shawwāl", "شوال", StringComparison.OrdinalIgnoreCase)
+            .Replace("Dhū al-Qaʿdah", "ذو القعدة", StringComparison.OrdinalIgnoreCase)
+            .Replace("Dhū al-Ḥijjah", "ذو الحجة", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<object> GetQiblaAsync() {
@@ -942,16 +998,16 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return new {
             alarmMode = new {
                 title = T("PermissionsAlarmModeTitle"),
-                status = alarm.SupportStatus.ToString(),
+                status = T($"PermissionsAlarmMode_{alarm.SupportStatus}"),
                 description = T("PermissionsSubtitle")
             },
             items = snapshots.Where(item => item.IsSupported).Select(item => new {
                 id = item.Kind.ToString(),
-                title = item.Kind.ToString(),
+                title = T(PermissionTitleKey(item.Kind)),
                 role = item.IsCritical ? "critical" : "optional",
-                description = item.Kind.ToString(),
-                fallback = "",
-                status = item.IsGranted ? "Granted" : "Denied",
+                description = T(PermissionDescriptionKey(item.Kind)),
+                fallback = T(PermissionFallbackKey(item.Kind)),
+                status = item.IsGranted ? T("PermissionStatus_Enabled") : T("PermissionStatus_Disabled"),
                 action = item.IsGranted ? T("PermissionAction_OpenSettings") : T("PermissionAction_Request")
             }).ToList()
         };
@@ -960,10 +1016,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private static object BuildAlarmReminderSettings(AppSettings settings) {
         return new {
             builtIn = new[] {
-                new { id = "wudu", text = "Make wudu before prayer", enabled = true },
-                new { id = "qibla", text = "Face the Qibla", enabled = true }
+                new { id = "wudu", text = T("AlarmReminder_Wudu"), enabled = !settings.AlarmReminders.DisabledBuiltInIds.Contains("wudu") },
+                new { id = "qibla", text = T("AlarmReminder_Qibla"), enabled = !settings.AlarmReminders.DisabledBuiltInIds.Contains("qibla") }
             },
-            userRemindersEnabled = true,
+            userRemindersEnabled = settings.AlarmReminders.UserItems.Any(item => item.IsEnabled),
             userReminders = settings.AlarmReminders.UserItems.Select(item => new {
                 id = item.Id,
                 text = item.Text,
@@ -972,9 +1028,44 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         };
     }
 
+    private static string PermissionTitleKey(AppPermissionKind kind) {
+        return kind switch {
+            AppPermissionKind.Notifications => "PermissionsNotificationsTitle",
+            AppPermissionKind.FullScreenIntents => "PermissionsFullScreenIntentTitle",
+            AppPermissionKind.DisplayOverApps => "PermissionsOverlayTitle",
+            AppPermissionKind.ExactAlarms => "PermissionsExactAlarmTitle",
+            AppPermissionKind.Location => "PermissionsLocationTitle",
+            _ => "PermissionsTitle"
+        };
+    }
+
+    private static string PermissionDescriptionKey(AppPermissionKind kind) {
+        return kind switch {
+            AppPermissionKind.Notifications => "PermissionsNotificationsDescription",
+            AppPermissionKind.FullScreenIntents => "PermissionsFullScreenIntentDescription",
+            AppPermissionKind.DisplayOverApps => "PermissionsOverlayDescription",
+            AppPermissionKind.ExactAlarms => "PermissionsExactAlarmDescription",
+            AppPermissionKind.Location => "PermissionsLocationDescription",
+            _ => "PermissionsSubtitle"
+        };
+    }
+
+    private static string PermissionFallbackKey(AppPermissionKind kind) {
+        return kind switch {
+            AppPermissionKind.Notifications => "PermissionsNotificationsFallback",
+            AppPermissionKind.FullScreenIntents => "PermissionsFullScreenIntentFallback",
+            AppPermissionKind.DisplayOverApps => "PermissionsOverlayFallback",
+            AppPermissionKind.ExactAlarms => "PermissionsExactAlarmFallback",
+            AppPermissionKind.Location => "PermissionsLocationFallback",
+            _ => "PermissionsSubtitle"
+        };
+    }
+
     private object BuildOnboardingSnapshot() {
         return new {
             language = ResolveLanguage(_settingsService.Load().Language),
+            languages = LocalizationManager.GetAvailableLanguages().Select(item => new { code = item.Code, name = item.Name }).ToList(),
+            steps = new[] { T("Language"), T("PermissionsTitle"), T("Location") },
             step = "location",
             title = T("OnboardingLocationTitle"),
             subtitle = T("OnboardingManualLocationHint"),

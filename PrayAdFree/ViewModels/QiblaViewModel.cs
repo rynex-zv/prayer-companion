@@ -187,10 +187,16 @@ public sealed class QiblaViewModel : ViewModelBase {
     }
 
     private static string ResolveDirectionLabel(double bearing) {
-        var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-        var sectors = culture == "ar"
-            ? new[] { "شمال", "شمال شرق", "شرق", "جنوب شرق", "جنوب", "جنوب غرب", "غرب", "شمال غرب" }
-            : new[] { "North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West" };
+        var sectors = new[] {
+            LocalizationManager.Translate("QiblaDirection_North"),
+            LocalizationManager.Translate("QiblaDirection_NorthEast"),
+            LocalizationManager.Translate("QiblaDirection_East"),
+            LocalizationManager.Translate("QiblaDirection_SouthEast"),
+            LocalizationManager.Translate("QiblaDirection_South"),
+            LocalizationManager.Translate("QiblaDirection_SouthWest"),
+            LocalizationManager.Translate("QiblaDirection_West"),
+            LocalizationManager.Translate("QiblaDirection_NorthWest")
+        };
 
         var normalized = (bearing % 360 + 360) % 360;
         var index = (int)Math.Round(normalized / 45d, MidpointRounding.AwayFromZero) % 8;

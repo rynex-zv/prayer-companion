@@ -21,6 +21,7 @@ public class MauiWebberPage : ContentPage {
     private readonly IMauiWebberRpcHandler _rpcHandler;
     private readonly IMauiWebberLogger _logger;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+    private readonly SemaphoreSlim _scriptGate = new(1, 1);
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
     private bool _navigationFallbackTried;
@@ -221,7 +222,6 @@ public class MauiWebberPage : ContentPage {
     private async Task HandleRpcRequestAsync(MauiWebberRpcRequest request) {
         if (string.Equals(request.Method, "mauiWebber.trace", StringComparison.Ordinal)) {
             _logger.Log("JsTrace", $"ms={_stopwatch.ElapsedMilliseconds};payload={request.Payload}");
-            await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = new { accepted = true } }).ConfigureAwait(false);
             return;
         }
 
@@ -280,10 +280,38 @@ public class MauiWebberPage : ContentPage {
               }
 
               if (window.mauiWebber) {
+                if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function' && !window.mauiWebber.__nativeResponseListener) {
+                  window.mauiWebber.__nativeResponseListener = function(message) {
+                    var data = message && message.data;
+                    if (typeof data === 'string') {
+                      try { data = JSON.parse(data); } catch (_) { return; }
+                    }
+
+                    if (!data || data.__mauiWebberResponse !== true || !window.mauiWebber.__resolve) return;
+                    window.__lastNativeResponse = data;
+                    window.mauiWebber.__resolve(data.id, data.response);
+                  };
+                  window.chrome.webview.addEventListener('message', window.mauiWebber.__nativeResponseListener);
+                }
                 window.mauiWebber.__navigate = runNavigation;
                 return;
               }
               const callbacks = {};
+              function receiveResponse(message) {
+                var data = message && message.data;
+                if (typeof data === 'string') {
+                  try { data = JSON.parse(data); } catch (_) { return; }
+                }
+
+                if (!data || data.__mauiWebberResponse !== true) return;
+                window.__lastNativeResponse = data;
+                window.mauiWebber.__resolve(data.id, data.response);
+              }
+
+              if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
+                window.chrome.webview.addEventListener('message', receiveResponse);
+              }
+
               function sendMessage(request) {
                 if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
                   window.chrome.webview.postMessage(decodeURIComponent(request));
@@ -299,23 +327,52 @@ public class MauiWebberPage : ContentPage {
                 }, 1000);
               }
 
+              function traceBridgeResolve(id, found, pendingBefore, pendingAfter) {
+                if (typeof id === 'string' && id.indexOf('trace-') === 0) return;
+                var payload = {
+                  id: 'trace-' + Date.now().toString(36) + Math.random().toString(36).slice(2),
+                  method: 'mauiWebber.trace',
+                  payload: {
+                    name: 'bridge.resolve',
+                    id: id,
+                    found: found,
+                    pendingBefore: pendingBefore,
+                    pendingAfter: pendingAfter,
+                    at: performance.now()
+                  }
+                };
+                sendMessage(encodeURIComponent(JSON.stringify(payload)));
+              }
+
               window.mauiWebber = {
                 call: function(method, payload) {
                   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
                   const request = encodeURIComponent(JSON.stringify({ id, method, payload: payload || {} }));
+                  if (method === 'mauiWebber.trace') {
+                    sendMessage(request);
+                    return Promise.resolve({ ok: true, data: { accepted: true } });
+                  }
                   return new Promise(function(resolve) {
                     callbacks[id] = resolve;
                     sendMessage(request);
                   });
                 },
                 __resolve: function(id, response) {
+                  const pendingBefore = Object.keys(callbacks).length;
                   const callback = callbacks[id];
-                  if (!callback) return;
+                  if (!callback) {
+                    traceBridgeResolve(id, false, pendingBefore, Object.keys(callbacks).length);
+                    return;
+                  }
                   delete callbacks[id];
+                  traceBridgeResolve(id, true, pendingBefore, Object.keys(callbacks).length);
                   callback(response);
                 },
                 __drain: function() {
                   return '[]';
+                },
+                __debugPending: function() {
+                  return Object.keys(callbacks);
                 },
                 __navigate: runNavigation,
                 navigation: null
@@ -366,8 +423,43 @@ public class MauiWebberPage : ContentPage {
         return string.Equals(normalized, "true", StringComparison.OrdinalIgnoreCase);
     }
 
-    private Task ResolveAsync(string id, MauiWebberRpcResponse response) {
-        var script = $"window.mauiWebber&&window.mauiWebber.__resolve({JsonSerializer.Serialize(id)}, {JsonSerializer.Serialize(response, JsonOptions)});";
-        return MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script));
+    private async Task ResolveAsync(string id, MauiWebberRpcResponse response) {
+        var started = _stopwatch.ElapsedMilliseconds;
+        _logger.Log("Resolve.Start", $"id={id};ok={response.Ok};ms={started}");
+        await _scriptGate.WaitAsync().ConfigureAwait(false);
+        try {
+#if WINDOWS
+            await Task.Delay(50).ConfigureAwait(false);
+            var envelope = new {
+                __mauiWebberResponse = true,
+                id,
+                response
+            };
+            var json = JsonSerializer.Serialize(envelope, JsonOptions);
+            var posted = await MainThread.InvokeOnMainThreadAsync(() => {
+                if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
+                    windowsWebView.CoreWebView2.PostWebMessageAsJson(json);
+                    return true;
+                }
+
+                return false;
+            }).ConfigureAwait(false);
+            if (!posted) {
+                var script = $"window.mauiWebber&&window.mauiWebber.__resolve({JsonSerializer.Serialize(id)}, {JsonSerializer.Serialize(response, JsonOptions)});";
+                await MainThread.InvokeOnMainThreadAsync(() => {
+                    return _webView.EvaluateJavaScriptAsync(script);
+                }).ConfigureAwait(false);
+            }
+#else
+            var script = $"window.mauiWebber&&window.mauiWebber.__resolve({JsonSerializer.Serialize(id)}, {JsonSerializer.Serialize(response, JsonOptions)});";
+            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+#endif
+            _logger.Log("Resolve.End", $"id={id};elapsed={_stopwatch.ElapsedMilliseconds - started}");
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Resolve");
+            throw;
+        } finally {
+            _scriptGate.Release();
+        }
     }
 }
