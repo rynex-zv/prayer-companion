@@ -41,7 +41,7 @@ function SettingsIndex() {
   return (
     <div className="flex flex-col gap-3" data-selector-name="settings:index">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold" data-selector-name="settings:index-title">{t("settings", "Settings")}</h1>
+        <h1 className="text-xl font-bold" data-selector-name="settings:index-title">{t("settings")}</h1>
         <PageLog page="settings" />
       </div>
       <Card className="divide-y divide-border p-0">
@@ -62,8 +62,8 @@ function SettingsIndex() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-semibold">{t(it.titleKey, it.title)}</div>
-                <div className="text-xs text-muted-foreground">{t(it.subtitleKey, it.subtitle)}</div>
+                <div className="text-sm font-semibold">{t(it.titleKey)}</div>
+                <div className="text-xs text-muted-foreground">{t(it.subtitleKey)}</div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>

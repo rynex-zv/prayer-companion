@@ -5,6 +5,22 @@ type ShellLabels = {
   labels: Record<string, string>;
 };
 
+export type LabelProxy = Record<string, string>;
+
+const emptyLabels: Record<string, string> = {};
+
+export function createLabelProxy(labels: Record<string, string>): LabelProxy {
+  return new Proxy(labels, {
+    get(target, prop) {
+      if (typeof prop !== "string") {
+        return Reflect.get(target, prop);
+      }
+
+      return target[prop] ?? prop;
+    },
+  }) as LabelProxy;
+}
+
 export function useAppLabels() {
   const [version, setVersion] = useState(0);
   const { data } = useSnapshot<ShellLabels>("app.getShellSnapshot", undefined, [version]);
@@ -13,8 +29,8 @@ export function useAppLabels() {
     window.addEventListener("prayadfree:shell-refresh", refresh);
     return () => window.removeEventListener("prayadfree:shell-refresh", refresh);
   }, []);
-  const labels = data?.labels ?? {};
-  return (key: string, fallback: string) => labels[key] ?? fallback;
+  const labels = createLabelProxy(data?.labels ?? emptyLabels);
+  return (key: string) => labels[key];
 }
 
 export function refreshShellLabels() {

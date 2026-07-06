@@ -21,6 +21,7 @@ export const Route = createFileRoute("/onboarding")({
 
 type Snapshot = {
   completed?: boolean; steps?: string[]; language: string;
+  languages?: { code: string; name: string }[];
   permissionsScenario?: string; vpnWarning?: boolean;
   canUseInternet?: boolean; canUseGps?: boolean;
   title?: string; subtitle?: string;
@@ -35,7 +36,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
   if (!data) return null;
 
-  const steps = data.steps?.length ? data.steps : [t("language", "Language"), t("permissions", "Permissions"), t("locationAndGps", "Location")];
+  const steps = data.steps?.length ? data.steps : [t("language"), t("permissions"), t("locationAndGps")];
   const cur = steps[step];
   const locationVpnWarning = data.vpnWarning ?? data.location?.vpnWarning ?? false;
 
@@ -49,7 +50,7 @@ function OnboardingPage() {
 
       <Card className="flex-1 space-y-4">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">
-          {t("stepProgress", "Step")} {step + 1} {t("of", "of")} {steps.length}
+          {t("stepProgress")} {step + 1} {t("of")} {steps.length}
         </div>
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-bold">{cur}</h1>
@@ -57,23 +58,20 @@ function OnboardingPage() {
         </div>
 
         {step === 0 && (
-          <Field label={t("chooseLanguage", "Choose your language")}>
+          <Field label={t("chooseLanguage")}>
             <Picker value={data.language} onChange={(v) => mauiCall("app.setLanguage", { language: v }).then(() => { refreshShellLabels(); return refresh(); })}>
-              {[
-                { code: "en", name: "English" }, { code: "ar", name: "العربية" },
-                { code: "fr", name: "Français" }, { code: "es", name: "Español" }, { code: "tr", name: "Türkçe" },
-              ].map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+              {(data.languages ?? []).map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
             </Picker>
           </Field>
         )}
 
         {step === 1 && (
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">{t("permissionsIntro", "Grant location and notification access for accurate prayer times and reminders.")}</p>
+            <p className="text-sm text-muted-foreground">{t("permissionsIntro")}</p>
             <div className="rounded-lg bg-muted p-3 text-sm">
-              {t("permissionStatus", "Permission status")}: <span className="font-medium">{data.permissionsScenario ?? `${data.permissions?.length ?? 0} ${t("permissions", "permissions")}`}</span>
+              {t("permissionStatus")}: <span className="font-medium">{data.permissionsScenario ?? `${data.permissions?.length ?? 0} ${t("permissions")}`}</span>
             </div>
-            <button onClick={() => mauiCall("settings.invoke", { action: "requestAllPermissions" })} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t("grantPermissions", "Grant permissions")}</button>
+            <button onClick={() => mauiCall("settings.invoke", { action: "requestAllPermissions" })} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t("grantPermissions")}</button>
           </div>
         )}
 
@@ -85,16 +83,16 @@ function OnboardingPage() {
                 {data.subtitle && <p className="text-muted-foreground">{data.subtitle}</p>}
               </>
             ) : data.canUseInternet === false && data.canUseGps === false ? (
-              <p className="text-muted-foreground">{t("locationNoInternetGps", "No internet or GPS. Please set your location manually in Settings after onboarding.")}</p>
+              <p className="text-muted-foreground">{t("locationNoInternetGps")}</p>
             ) : data.canUseInternet ? (
-              <p className="text-muted-foreground">{t("locationNetwork", "We'll use your network to estimate your location. You can override this anytime.")}</p>
+              <p className="text-muted-foreground">{t("locationNetwork")}</p>
             ) : (
-              <p className="text-muted-foreground">{t("locationGps", "GPS will be used to determine your location.")}</p>
+              <p className="text-muted-foreground">{t("locationGps")}</p>
             )}
             {locationVpnWarning && (
               <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
                 <AlertTriangle className="h-4 w-4 text-warning" />
-                {t("vpnWarning", "VPN detected - location may be inaccurate.")}
+                {t("vpnWarning")}
               </div>
             )}
           </div>
@@ -102,7 +100,7 @@ function OnboardingPage() {
       </Card>
 
       <div className="mt-4 flex justify-between">
-        <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground disabled:opacity-30">{t("back", "Back")}</button>
+        <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground disabled:opacity-30">{t("back")}</button>
         <button
           onClick={() => {
             if (step === steps.length - 1) {
@@ -111,7 +109,7 @@ function OnboardingPage() {
           }}
           className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
         >
-          {step === steps.length - 1 ? t("finish", "Finish") : t("next", "Next")} <ChevronRight className="h-4 w-4" />
+          {step === steps.length - 1 ? t("finish") : t("next")} <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     </div>

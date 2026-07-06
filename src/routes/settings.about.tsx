@@ -15,22 +15,22 @@ function AboutPage() {
   const t = useAppLabels();
   const info = {
     name: "Pray Ad Free",
-    tagline: t("tagline", "Prayer times, Qibla, and tasbih - ad free."),
-    privacy: t("privacy", "We don't collect personal data. Everything stays on your device."),
-    source: t("source", "Open source on GitHub."),
+    tagline: t("tagline"),
+    privacy: t("privacy"),
+    source: t("source"),
     maintainer: "Rynex",
-    contact: t("contact", "Support and feedback"),
+    contact: t("contact"),
     email: "support@rynex.nl",
     phone: "+31 00 000 0000",
     website: "https://pray.rynex.nl",
-    websiteNote: t("websiteNote", "Visit for updates and web version."),
+    websiteNote: t("websiteNote"),
   };
 
   const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
 
   return (
     <div>
-      <SettingsHeader title={t("about", "About")} />
+      <SettingsHeader title={t("about")} />
       <div className="flex flex-col gap-3">
         <Card className="text-center">
           <div className="text-2xl font-bold">{info.name}</div>
@@ -39,7 +39,7 @@ function AboutPage() {
         <Card className="space-y-2 text-sm">
           <p>{info.privacy}</p>
           <p>{info.source}</p>
-          <p className="text-muted-foreground">{t("maintainedBy", "Maintained by")} <span className="font-medium text-foreground">{info.maintainer}</span></p>
+          <p className="text-muted-foreground">{t("maintainedBy")} <span className="font-medium text-foreground">{info.maintainer}</span></p>
         </Card>
         <Card className="space-y-2">
           <div className="text-sm font-semibold">{info.contact}</div>
@@ -51,10 +51,10 @@ function AboutPage() {
           </div>
         </Card>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("email", "Email")}</button>
-          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("call", "Call")}</button>
-          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("website", "Website")}</button>
-          <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report", "Report")}</button>
+          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("email")}</button>
+          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("call")}</button>
+          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("website")}</button>
+          <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
         </div>
       </div>
     </div>

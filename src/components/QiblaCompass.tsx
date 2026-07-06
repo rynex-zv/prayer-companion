@@ -7,12 +7,13 @@ type Props = {
   compassRotation: number;
   state: string;
   visualFilter?: string;
+  cardinalLabels: { north: string; east: string; south: string; west: string };
   manual?: boolean;
   onDrag?: (delta: number) => void;
   onDragEnd?: (delta: number) => void;
 };
 
-export function QiblaCompass({ bearing, needleRotation, compassRotation, state, visualFilter = "None", manual, onDrag, onDragEnd }: Props) {
+export function QiblaCompass({ bearing, needleRotation, compassRotation, state, visualFilter = "None", cardinalLabels, manual, onDrag, onDragEnd }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [startX, setStartX] = useState<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
@@ -69,7 +70,7 @@ export function QiblaCompass({ bearing, needleRotation, compassRotation, state, 
         ))}
         {/* Cardinals */}
         {[
-          { l: "N", a: 0 }, { l: "E", a: 90 }, { l: "S", a: 180 }, { l: "W", a: 270 },
+          { l: cardinalLabels.north, a: 0 }, { l: cardinalLabels.east, a: 90 }, { l: cardinalLabels.south, a: 180 }, { l: cardinalLabels.west, a: 270 },
         ].map((c) => (
           <span
             key={c.l}

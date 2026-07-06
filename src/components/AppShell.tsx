@@ -3,6 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { BottomTabs } from "./BottomTabs";
 import { mauiCall } from "@/native/mauiWebberClient";
+import { createLabelProxy } from "@/hooks/useAppLabels";
 
 type Shell = {
   language: string; isRtl: boolean; themeMode: string; labels: Record<string, string>;
@@ -180,7 +181,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           name: element.dataset.selectorName ?? "",
           tag: element.tagName.toLowerCase(),
           text: element.innerText?.trim().slice(0, 120) ?? "",
-          value: element instanceof HTMLInputElement || element instanceof HTMLSelectElement
+          value: element.isContentEditable
+            ? element.textContent?.trim()
+            : element instanceof HTMLInputElement || element instanceof HTMLSelectElement
             ? element.value
             : undefined,
           checked: element instanceof HTMLInputElement && element.type === "checkbox"
@@ -203,6 +206,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       },
       setValue: (selectorName: string, value: string | number | boolean) => {
         const element = document.querySelector<HTMLElement>(`[data-selector-name="${CSS.escape(selectorName)}"]`);
+        if (element?.isContentEditable) {
+          element.textContent = String(value);
+          element.dispatchEvent(new Event("input", { bubbles: true }));
+          element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+          return true;
+        }
+
         if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement)) {
           return false;
         }
@@ -223,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [navigate, pathname]);
 
-  const labels = data?.labels ?? {};
+  const labels = createLabelProxy(data?.labels ?? {});
   const showTabs = TAB_ROUTES.includes(pathname);
 
   return (

@@ -1,76 +1,83 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { SettingsHeader } from "@/components/SettingsHeader";
+import { EditableSetting, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
+import { useAppLabels } from "@/hooks/useAppLabels";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { Card } from "@/components/Card";
-import { Toggle } from "@/components/Toggle";
-import { SettingsHeader } from "@/components/SettingsHeader";
-import { Plus, X } from "lucide-react";
-import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/alarms")({
   component: AlarmsPage,
 });
 
 type Reminder = { id: string; text: string; enabled: boolean };
-type A = { builtIn: Reminder[]; userRemindersEnabled: boolean; userReminders: Reminder[] };
+type AlarmRemindersSettings = {
+  builtIn: Reminder[];
+  userRemindersEnabled: boolean;
+  userReminders: Reminder[];
+};
 
 function AlarmsPage() {
   const t = useAppLabels();
-  const { data, setData } = useSnapshot<A>("settings.getSnapshot", { section: "alarmReminders" });
-  const [draft, setDraft] = useState("");
+  const { data, setData } = useSnapshot<AlarmRemindersSettings>("settings.getSnapshot", { section: "alarmReminders" });
+  const [status, setStatus] = useState("ready");
   if (!data) return null;
-  const patch = (p: Partial<A>) => {
-    const next = { ...data, ...p };
+
+  const patch = (next: AlarmRemindersSettings) => {
     setData(next);
-    return mauiCall("settings.patch", { alarmReminders: next });
+    setStatus("saving");
+    void mauiCall("settings.patch", { alarmReminders: next }).then((res) => setStatus(res.ok ? "saved" : "error"));
   };
 
   return (
-    <div>
-      <SettingsHeader title={t("alarmReminders", "Alarm Reminders")} />
-      <div className="flex flex-col gap-3">
-        <Card>
-          <div className="mb-2 text-sm font-semibold">{t("builtIn", "Built-in")}</div>
-          <ul className="space-y-2">
-            {data.builtIn.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-2">
-                <span className="text-sm">{r.text}</span>
-                <Toggle checked={r.enabled} onChange={(v) => patch({ builtIn: data.builtIn.map((x) => x.id === r.id ? { ...x, enabled: v } : x) })} />
-              </li>
-            ))}
-          </ul>
-        </Card>
+    <div data-selector-name="alarms:page" className="flex flex-col gap-3">
+      <SettingsHeader title={t("alarmReminders")} />
+      <StatusLine selectorName="alarms:status" value={t(`status_${status}`)} />
 
-        <Card>
-          <div className="mb-2 flex items-center justify-between text-sm font-semibold">
-            {t("yourReminders", "Your reminders")}
-            <Toggle checked={data.userRemindersEnabled} onChange={(v) => patch({ userRemindersEnabled: v })} />
+      <SectionBlock title={t("builtIn")}>
+        {data.builtIn.map((item) => (
+          <ToggleSetting
+            key={item.id}
+            label={item.text}
+            checked={item.enabled}
+            onChange={(enabled) => patch({ ...data, builtIn: data.builtIn.map((entry) => entry.id === item.id ? { ...entry, enabled } : entry) })}
+            selectorName={`alarms:built-in:${item.id}`}
+            onLabel={t("enabled")}
+            offLabel={t("disabled")}
+          />
+        ))}
+      </SectionBlock>
+
+      <SectionBlock title={t("yourReminders")}>
+        <ToggleSetting label={t("yourReminders")} checked={data.userRemindersEnabled} onChange={(userRemindersEnabled) => patch({ ...data, userRemindersEnabled })} selectorName="alarms:user-enabled" onLabel={t("enabled")} offLabel={t("disabled")} />
+        {data.userReminders.map((item) => (
+          <div key={item.id} className="rounded-md border border-border bg-background p-3">
+            <ToggleSetting
+              label={item.text}
+              checked={item.enabled}
+              onChange={(enabled) => patch({ ...data, userReminders: data.userReminders.map((entry) => entry.id === item.id ? { ...entry, enabled } : entry) })}
+              selectorName={`alarms:user-toggle:${item.id}`}
+              onLabel={t("enabled")}
+              offLabel={t("disabled")}
+            />
+            <EditableSetting
+              className="mt-3"
+              label={t("newReminder")}
+              selectorName={`alarms:reminder-text:${item.id}`}
+              value={item.text}
+              onChange={(text) => patch({ ...data, userReminders: data.userReminders.map((entry) => entry.id === item.id ? { ...entry, text } : entry) })}
+            />
           </div>
-          <div className="flex gap-2">
-            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("newReminder", "New reminder...")} className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm" />
-            <button
-              onClick={() => { if (!draft.trim()) return; patch({ userReminders: [...data.userReminders, { id: String(Date.now()), text: draft.trim(), enabled: true }] }); setDraft(""); }}
-              className="rounded-md bg-primary px-3 text-primary-foreground"
-            ><Plus className="h-4 w-4" /></button>
-          </div>
-          <ul className="mt-3 space-y-2">
-            {data.userReminders.map((r) => (
-              <li key={r.id} className="flex items-center gap-2">
-                <input
-                  defaultValue={r.text}
-                  onBlur={(e) => patch({ userReminders: data.userReminders.map((x) => x.id === r.id ? { ...x, text: e.target.value } : x) })}
-                  className="flex-1 rounded-lg border border-input bg-card px-2 py-1.5 text-sm"
-                />
-                <Toggle checked={r.enabled} onChange={(v) => patch({ userReminders: data.userReminders.map((x) => x.id === r.id ? { ...x, enabled: v } : x) })} />
-                <button onClick={() => patch({ userReminders: data.userReminders.filter((x) => x.id !== r.id) })} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
-                  <X className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => patch({ ...data, userReminders: [...data.userReminders, { id: `new-${Date.now()}`, text: t("newReminder"), enabled: true }] })}
+          data-selector-name="alarms:add-reminder"
+          className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground"
+        >
+          {t("addReminder")}
+        </button>
+      </SectionBlock>
     </div>
   );
 }

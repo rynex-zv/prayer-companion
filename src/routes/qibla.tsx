@@ -151,6 +151,12 @@ function QiblaPage() {
             compassRotation={data.compassRotation}
             state={data.state}
             visualFilter={data.visualFilter}
+            cardinalLabels={{
+              north: L.cardinalNorth,
+              east: L.cardinalEast,
+              south: L.cardinalSouth,
+              west: L.cardinalWest,
+            }}
             manual={data.state === "manual"}
             onDrag={() => undefined}
             onDragEnd={async (delta) => {

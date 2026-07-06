@@ -39,26 +39,26 @@ function ThemePage() {
 
   return (
     <div>
-      <SettingsHeader title={t("themeDiagnostics", "Theme & Diagnostics")} />
+      <SettingsHeader title={t("themeDiagnostics")} />
       <div className="flex flex-col gap-3">
         <Card className="space-y-3">
-          <Field label={t("language", "Language")}>
+          <Field label={t("language")}>
             <Picker value={data.language} onChange={(v) => { patch({ language: v }).then(refreshShellLabels); mauiCall("app.setLanguage", { language: v }).then(refreshShellLabels); }}>
               {data.languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
             </Picker>
           </Field>
-          <Field label={t("themeMode", "Theme")}>
+          <Field label={t("themeMode")}>
             <SegmentedControl
               value={data.themeMode}
               onChange={(v) => { patch({ themeMode: v }).then(refreshShellLabels); mauiCall("app.setTheme", { theme: v }).then(refreshShellLabels); }}
               options={[
-                { id: "system", label: t("system", "System") },
-                { id: "light", label: t("light", "Light") },
-                { id: "dark", label: t("dark", "Dark") },
+                { id: "system", label: t("system") },
+                { id: "light", label: t("light") },
+                { id: "dark", label: t("dark") },
               ]}
             />
           </Field>
-          <Field label={t("accentColor", "Accent color")}>
+          <Field label={t("accentColor")}>
             <div className="flex flex-wrap gap-2">
               {data.accentColors.map((c) => (
                 <button
@@ -72,7 +72,7 @@ function ThemePage() {
               ))}
             </div>
           </Field>
-          <Field label={t("textSize", "Text size")}>
+          <Field label={t("textSize")}>
             <div className="flex items-center gap-2">
               <button onClick={() => patch({ textSize: Math.max(75, data.textSize - 5) })} className="rounded-full bg-muted p-2"><Minus className="h-4 w-4" /></button>
               <div className="flex-1 text-center text-sm font-semibold tabular-nums">{data.textSize}%</div>
@@ -82,10 +82,10 @@ function ThemePage() {
         </Card>
 
         <Card>
-          <div className="text-sm font-semibold">{t("diagnostics", "Diagnostics")}</div>
+          <div className="text-sm font-semibold">{t("diagnostics")}</div>
           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-            <div>{t("bridgeReady", "Bridge ready")}: <span className="font-medium text-foreground">{String(data.diagnostics.bridgeReady)}</span></div>
-            <div>{t("lastSync", "Last sync")}: <span className="font-medium text-foreground">{data.diagnostics.lastSync}</span></div>
+            <div>{t("bridgeReady")}: <span className="font-medium text-foreground">{String(data.diagnostics.bridgeReady)}</span></div>
+            <div>{t("lastSync")}: <span className="font-medium text-foreground">{data.diagnostics.lastSync}</span></div>
           </div>
         </Card>
       </div>

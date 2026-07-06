@@ -1,63 +1,62 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SettingsHeader } from "@/components/SettingsHeader";
+import { SectionBlock } from "@/components/SettingsFormControls";
+import { useAppLabels } from "@/hooks/useAppLabels";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { Card } from "@/components/Card";
-import { SettingsHeader } from "@/components/SettingsHeader";
-import { cn } from "@/lib/utils";
-import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/permissions")({
   component: PermissionsPage,
 });
 
-type Perm = {
+type PermissionsSnapshot = {
   alarmMode: { title: string; status: string; description: string };
   items: { id: string; title: string; role: string; description: string; fallback: string; status: string; action: string }[];
 };
 
 function PermissionsPage() {
   const t = useAppLabels();
-  const { data, refresh } = useSnapshot<Perm>("settings.getSnapshot", { section: "permissions" });
+  const { data, refresh } = useSnapshot<PermissionsSnapshot>("settings.getSnapshot", { section: "permissions" });
   if (!data) return null;
 
-  return (
-    <div>
-      <SettingsHeader title={t("permissions", "Permissions")} />
-      <div className="flex flex-col gap-3">
-        <Card>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">{data.alarmMode.title}</div>
-          <div className="mt-1 text-sm font-semibold">{data.alarmMode.status}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{data.alarmMode.description}</div>
-        </Card>
+  const request = (id: string) => {
+    void mauiCall("settings.invoke", { action: "requestPermission", payload: { id } }).then(() => refresh());
+  };
 
-        {data.items.map((p) => {
-          const granted = p.status === "Granted";
-          return (
-            <Card key={p.id}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-semibold">{p.title}</div>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      p.role === "critical" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground")}>
-                      {p.role}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{p.description}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{t("fallback", "Fallback")}: {p.fallback}</p>
+  return (
+    <div data-selector-name="permissions:page" className="flex flex-col gap-3">
+      <SettingsHeader title={t("permissions")} />
+      <SectionBlock title={data.alarmMode.title}>
+        <div data-selector-name="permissions:alarm-mode" className="text-sm text-card-foreground">
+          <div className="font-semibold">{data.alarmMode.status}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{data.alarmMode.description}</div>
+        </div>
+      </SectionBlock>
+
+      <SectionBlock title={t("systemPermissions")}>
+        {data.items.map((permission) => (
+          <div key={permission.id} className="rounded-md border border-border bg-background p-3 text-sm text-card-foreground">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold">{permission.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{permission.description}</div>
+                {permission.fallback ? <div className="mt-1 text-xs text-muted-foreground">{permission.fallback}</div> : null}
+                <div data-selector-name={`permissions:status:${permission.id}`} className="mt-2 text-xs font-medium text-primary">
+                  {permission.status}
                 </div>
-                <div className={cn("text-xs font-semibold", granted ? "text-success" : "text-warning")}>{p.status}</div>
               </div>
-              {!granted && (
-                <button onClick={() => mauiCall("settings.invoke", { action: "requestPermission", payload: { id: p.id } }).then(refresh)}
-                  className="mt-3 w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
-                  {p.action}
-                </button>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+              <button
+                type="button"
+                onClick={() => request(permission.id)}
+                data-selector-name={`permissions:request:${permission.id}`}
+                className="shrink-0 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+              >
+                {permission.action}
+              </button>
+            </div>
+          </div>
+        ))}
+      </SectionBlock>
     </div>
   );
 }

@@ -1,78 +1,92 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { SettingsHeader } from "@/components/SettingsHeader";
+import { EditableSetting, OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
+import { useAppLabels } from "@/hooks/useAppLabels";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { Card } from "@/components/Card";
-import { Field } from "@/components/Field";
-import { Picker } from "@/components/Picker";
-import { Toggle } from "@/components/Toggle";
-import { SettingsHeader } from "@/components/SettingsHeader";
-import { useAppLabels } from "@/hooks/useAppLabels";
 
 export const Route = createFileRoute("/settings/notifications")({
   component: NotificationsPage,
 });
 
-type N = {
-  enableAdhan: boolean; mobilePrimaryAdhanType: string;
-  hideOnCloseWindows: boolean; runBackgroundServiceWindows: boolean;
-  vibration: boolean; vibrationStrength: string; vibrationPattern: string;
-  minutesBefore: number; reminders: unknown[];
+type NotificationSettings = {
+  enableAdhan: boolean;
+  mobilePrimaryAdhanType: string;
+  hideOnCloseWindows: boolean;
+  runBackgroundServiceWindows: boolean;
+  vibration: boolean;
+  vibrationStrength: string;
+  vibrationPattern: string;
+  minutesBefore: number;
+  reminders: unknown[];
 };
+
+const reminderTypes = ["Full", "Notification", "Silent"];
+const vibrationStrengths = ["Light", "Medium", "Strong"];
+const vibrationPatterns = ["Default", "Pulse", "Heartbeat"];
 
 function NotificationsPage() {
   const t = useAppLabels();
-  const { data, setData } = useSnapshot<N>("settings.getSnapshot", { section: "notifications" });
+  const { data, setData } = useSnapshot<NotificationSettings>("settings.getSnapshot", { section: "notifications" });
+  const [status, setStatus] = useState("ready");
   if (!data) return null;
-  const patch = (p: Partial<N>) => {
-    const next = { ...data, ...p };
+
+  const patch = (next: NotificationSettings) => {
     setData(next);
-    return mauiCall("settings.patch", { notifications: next });
+    setStatus("saving");
+    void mauiCall("settings.patch", { notifications: next }).then((res) => setStatus(res.ok ? "saved" : "error"));
+  };
+
+  const invoke = (action: string) => {
+    setStatus(action);
+    void mauiCall("settings.invoke", { action }).then((res) => setStatus(res.ok ? "ready" : "error"));
   };
 
   return (
-    <div>
-      <SettingsHeader title={t("notifications", "Notifications")} />
-      <div className="flex flex-col gap-3">
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between text-sm font-medium">
-            {t("enableAdhan", "Enable adhan")} <Toggle checked={data.enableAdhan} onChange={(v) => patch({ enableAdhan: v })} />
-          </div>
-          <Field label={t("primaryAdhanType", "Mobile primary adhan type")}>
-            <Picker value={data.mobilePrimaryAdhanType} onChange={(v) => patch({ mobilePrimaryAdhanType: v })}>
-              {["Full", "Notification", "Silent"].map((m) => <option key={m} value={m}>{t(`reminderType_${m}`, m)}</option>)}
-            </Picker>
-          </Field>
-          <div className="flex items-center justify-between text-sm font-medium">
-            {t("hideOnCloseWindows", "Hide on close (Windows)")} <Toggle checked={data.hideOnCloseWindows} onChange={(v) => patch({ hideOnCloseWindows: v })} />
-          </div>
-          <div className="flex items-center justify-between text-sm font-medium">
-            {t("runBackgroundWindows", "Run background service (Windows)")} <Toggle checked={data.runBackgroundServiceWindows} onChange={(v) => patch({ runBackgroundServiceWindows: v })} />
-          </div>
-        </Card>
+    <div data-selector-name="notifications:page" className="flex flex-col gap-3">
+      <SettingsHeader title={t("notifications")} />
+      <StatusLine selectorName="notifications:status" value={t(`status_${status}`)} />
 
-        <Card className="space-y-3">
-          <button onClick={() => mauiCall("settings.invoke", { action: "testNotification" })} className="w-full rounded-md bg-secondary px-3 py-2 text-sm font-medium">{t("testNotification", "Test notification")}</button>
-          <button onClick={() => mauiCall("settings.invoke", { action: "testAlarm" })} className="w-full rounded-md bg-secondary px-3 py-2 text-sm font-medium">{t("testAlarm", "Test alarm")}</button>
-        </Card>
+      <SectionBlock title={t("remindersAndVibration")}>
+        <ToggleSetting label={t("enableAdhan")} checked={data.enableAdhan} onChange={(enableAdhan) => patch({ ...data, enableAdhan })} selectorName="notifications:enable-adhan" onLabel={t("enabled")} offLabel={t("disabled")} />
+        <OptionButtons
+          label={t("primaryAdhanType")}
+          value={data.mobilePrimaryAdhanType}
+          selectorName="notifications:primary-type"
+          options={reminderTypes.map((id) => ({ id, label: t(`reminderType_${id}`) }))}
+          onChange={(mobilePrimaryAdhanType) => patch({ ...data, mobilePrimaryAdhanType })}
+        />
+        <EditableSetting label={t("minutesBefore")} selectorName="notifications:minutes-before" value={data.minutesBefore} onChange={(value) => patch({ ...data, minutesBefore: Number(value) || 0 })} />
+        <ToggleSetting label={t("vibration")} checked={data.vibration} onChange={(vibration) => patch({ ...data, vibration })} selectorName="notifications:vibration" onLabel={t("enabled")} offLabel={t("disabled")} />
+        <OptionButtons
+          label={t("vibrationStrength")}
+          value={data.vibrationStrength}
+          selectorName="notifications:vibration-strength"
+          options={vibrationStrengths.map((id) => ({ id, label: t(`vibration_${id}`) }))}
+          onChange={(vibrationStrength) => patch({ ...data, vibrationStrength })}
+        />
+        <OptionButtons
+          label={t("vibrationPattern")}
+          value={data.vibrationPattern}
+          selectorName="notifications:vibration-pattern"
+          options={vibrationPatterns.map((id) => ({ id, label: t(`vibration_${id}`) }))}
+          onChange={(vibrationPattern) => patch({ ...data, vibrationPattern })}
+        />
+      </SectionBlock>
 
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between text-sm font-medium">
-            {t("vibration", "Vibration")} <Toggle checked={data.vibration} onChange={(v) => patch({ vibration: v })} />
-          </div>
-          <Field label={t("vibrationStrength", "Vibration strength")}>
-            <Picker value={data.vibrationStrength} onChange={(v) => patch({ vibrationStrength: v })}>
-              {["Light", "Medium", "Strong"].map((m) => <option key={m} value={m}>{t(`vibration_${m}`, m)}</option>)}
-            </Picker>
-          </Field>
-          <Field label={t("vibrationPattern", "Vibration pattern")}>
-            <Picker value={data.vibrationPattern} onChange={(v) => patch({ vibrationPattern: v })}>
-              {["Default", "Pulse", "Heartbeat"].map((m) => <option key={m} value={m}>{t(`vibration_${m}`, m)}</option>)}
-            </Picker>
-          </Field>
-          <Field label={t("minutesBefore", "Minutes before")}>
-            <input type="number" value={data.minutesBefore} onChange={(e) => patch({ minutesBefore: Number(e.target.value) })} className="rounded-lg border border-input bg-card px-3 py-2 text-sm" />
-          </Field>
-        </Card>
+      <SectionBlock title={t("systemPermissions")}>
+        <ToggleSetting label={t("hideOnCloseWindows")} checked={data.hideOnCloseWindows} onChange={(hideOnCloseWindows) => patch({ ...data, hideOnCloseWindows })} selectorName="notifications:hide-on-close" onLabel={t("enabled")} offLabel={t("disabled")} />
+        <ToggleSetting label={t("runBackgroundWindows")} checked={data.runBackgroundServiceWindows} onChange={(runBackgroundServiceWindows) => patch({ ...data, runBackgroundServiceWindows })} selectorName="notifications:run-background" onLabel={t("enabled")} offLabel={t("disabled")} />
+      </SectionBlock>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => invoke("testNotification")} data-selector-name="notifications:test-notification" className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+          {t("testNotification")}
+        </button>
+        <button type="button" onClick={() => invoke("testAlarm")} data-selector-name="notifications:test-alarm" className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+          {t("testAlarm")}
+        </button>
       </div>
     </div>
   );
