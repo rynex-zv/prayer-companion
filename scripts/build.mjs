@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { cp, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
@@ -27,6 +27,11 @@ const phoneBridgeBootstrap = `<script>
 
   function sendMessage(message) {
     var request = encodeURIComponent(JSON.stringify(message));
+    if (window.mauiWebberNative && typeof window.mauiWebberNative.postMessage === 'function') {
+      window.mauiWebberNative.postMessage(JSON.stringify(message));
+      return;
+    }
+
     if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
       window.chrome.webview.postMessage(JSON.stringify(message));
       return;
@@ -117,7 +122,18 @@ function run(command, commandArgs) {
   });
 }
 
+if (!phone) {
+  await run('dotnet', ['publish', '../PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj', '-c', 'Release']);
+}
+
 await run('vite', ['build', ...(phone ? ['--mode', 'phone'] : [])]);
+await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), 'dist', 'web.config'));
+if (!phone) {
+  const wasmPublishRoot = resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish', 'wwwroot', '_framework');
+  const wasmDistRoot = resolve(process.cwd(), 'dist', 'wasm', '_framework');
+  await rm(resolve(process.cwd(), 'dist', 'wasm'), { recursive: true, force: true });
+  await cp(wasmPublishRoot, wasmDistRoot, { recursive: true });
+}
 if (phone) {
   const indexPath = resolve(process.cwd(), 'dist', 'index.html');
   const html = await readFile(indexPath, 'utf8');

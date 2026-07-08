@@ -10,9 +10,11 @@ if (phone) {
   await rm(mauiTarget, { recursive: true, force: true });
   await mkdir(mauiTarget, { recursive: true });
   await cp(source, mauiTarget, { recursive: true });
+  process.exit(0);
 }
 
 await rm(resolve(siteRoot, 'assets'), { recursive: true, force: true });
+await rm(resolve(siteRoot, 'wasm'), { recursive: true, force: true });
 await rm(resolve(siteRoot, 'index.html'), { force: true });
 await rm(resolve(siteRoot, 'webber-manifest.json'), { force: true });
 
