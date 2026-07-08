@@ -51,6 +51,7 @@
 
 :root {
   --radius: 1rem;
+  --app-family-font-size: 16px;
 
   --background: oklch(0.985 0.012 90);
   --foreground: oklch(0.22 0.03 220);
@@ -87,6 +88,55 @@
   --warning: oklch(0.78 0.15 75);
 }
 
+:root[data-accent="green"] {
+  --primary: oklch(0.58 0.15 145);
+  --secondary: oklch(0.95 0.025 145);
+  --secondary-foreground: oklch(0.3 0.08 145);
+  --accent: oklch(0.92 0.06 145);
+  --accent-foreground: oklch(0.28 0.09 145);
+  --ring: oklch(0.58 0.15 145);
+  --success: oklch(0.62 0.16 145);
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.15 145) 0%, oklch(0.5 0.14 155) 100%);
+  --shadow-hero: 0 10px 40px -16px oklch(0.55 0.14 145 / 0.38);
+}
+
+:root[data-accent="blue"] {
+  --primary: oklch(0.55 0.18 255);
+  --secondary: oklch(0.94 0.025 255);
+  --secondary-foreground: oklch(0.31 0.09 255);
+  --accent: oklch(0.91 0.055 255);
+  --accent-foreground: oklch(0.31 0.11 255);
+  --ring: oklch(0.55 0.18 255);
+  --success: oklch(0.6 0.13 170);
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.16 245) 0%, oklch(0.5 0.19 270) 100%);
+  --shadow-hero: 0 10px 40px -16px oklch(0.52 0.17 255 / 0.38);
+}
+
+:root[data-accent="amber"] {
+  --primary: oklch(0.62 0.16 65);
+  --primary-foreground: oklch(0.18 0.035 60);
+  --secondary: oklch(0.95 0.035 75);
+  --secondary-foreground: oklch(0.34 0.08 65);
+  --accent: oklch(0.92 0.07 75);
+  --accent-foreground: oklch(0.34 0.1 65);
+  --ring: oklch(0.62 0.16 65);
+  --warning: oklch(0.72 0.17 65);
+  --gradient-primary: linear-gradient(135deg, oklch(0.72 0.16 75) 0%, oklch(0.58 0.16 55) 100%);
+  --shadow-hero: 0 10px 40px -16px oklch(0.58 0.15 65 / 0.35);
+}
+
+:root[data-accent="rose"] {
+  --primary: oklch(0.58 0.2 15);
+  --secondary: oklch(0.95 0.025 20);
+  --secondary-foreground: oklch(0.34 0.09 15);
+  --accent: oklch(0.93 0.055 20);
+  --accent-foreground: oklch(0.34 0.11 15);
+  --ring: oklch(0.58 0.2 15);
+  --destructive: oklch(0.58 0.2 15);
+  --gradient-primary: linear-gradient(135deg, oklch(0.64 0.19 20) 0%, oklch(0.52 0.19 350) 100%);
+  --shadow-hero: 0 10px 40px -16px oklch(0.55 0.18 10 / 0.38);
+}
+
 .dark {
   --background: oklch(0.18 0.03 220);
   --foreground: oklch(0.96 0.01 90);
@@ -115,13 +165,59 @@
   --warning: oklch(0.78 0.15 75);
 }
 
+.dark[data-accent="green"] {
+  --primary: oklch(0.72 0.14 145);
+  --primary-foreground: oklch(0.16 0.03 145);
+  --secondary: oklch(0.29 0.045 145);
+  --secondary-foreground: oklch(0.94 0.02 145);
+  --accent: oklch(0.34 0.07 145);
+  --accent-foreground: oklch(0.96 0.015 145);
+  --ring: oklch(0.72 0.14 145);
+  --gradient-primary: linear-gradient(135deg, oklch(0.7 0.14 145) 0%, oklch(0.58 0.13 160) 100%);
+}
+
+.dark[data-accent="blue"] {
+  --primary: oklch(0.72 0.14 255);
+  --primary-foreground: oklch(0.16 0.035 255);
+  --secondary: oklch(0.29 0.045 255);
+  --secondary-foreground: oklch(0.94 0.02 255);
+  --accent: oklch(0.34 0.075 255);
+  --accent-foreground: oklch(0.96 0.015 255);
+  --ring: oklch(0.72 0.14 255);
+  --gradient-primary: linear-gradient(135deg, oklch(0.7 0.14 245) 0%, oklch(0.62 0.16 275) 100%);
+}
+
+.dark[data-accent="amber"] {
+  --primary: oklch(0.78 0.15 75);
+  --primary-foreground: oklch(0.18 0.035 65);
+  --secondary: oklch(0.3 0.045 75);
+  --secondary-foreground: oklch(0.96 0.02 75);
+  --accent: oklch(0.36 0.075 75);
+  --accent-foreground: oklch(0.98 0.015 75);
+  --ring: oklch(0.78 0.15 75);
+  --gradient-primary: linear-gradient(135deg, oklch(0.78 0.15 75) 0%, oklch(0.66 0.14 55) 100%);
+}
+
+.dark[data-accent="rose"] {
+  --primary: oklch(0.72 0.17 15);
+  --primary-foreground: oklch(0.17 0.035 15);
+  --secondary: oklch(0.3 0.045 15);
+  --secondary-foreground: oklch(0.96 0.02 15);
+  --accent: oklch(0.36 0.08 15);
+  --accent-foreground: oklch(0.98 0.015 15);
+  --ring: oklch(0.72 0.17 15);
+  --gradient-primary: linear-gradient(135deg, oklch(0.72 0.17 20) 0%, oklch(0.62 0.16 350) 100%);
+}
+
 @layer base {
   * { border-color: var(--color-border); }
   html, body, #app { height: 100%; }
+  html { font-size: var(--app-family-font-size); }
   body {
     background: var(--gradient-sky);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 1rem;
     -webkit-font-smoothing: antialiased;
   }
   .dark body { background: var(--color-background); }

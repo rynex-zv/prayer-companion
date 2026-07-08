@@ -19,7 +19,7 @@ export const Route = createFileRoute("/calendar")({
 });
 
 type Day = { date: string; hijri: string; fajr: string; sunrise: string; dhuhr: string; asr: string; maghrib: string; isha: string; isToday?: boolean };
-type Snapshot = { selectedMonth: string; statusMessage: string; days: Day[] };
+type Snapshot = { selectedMonth: string; selectedMonthValue?: string; statusMessage: string; days: Day[] };
 
 function CalendarPage() {
   usePageLog("calendar");
@@ -37,18 +37,32 @@ function CalendarPage() {
         <button onClick={() => mauiCall("calendar.previousMonth").then(refresh)} className="rounded-full p-2 hover:bg-muted" aria-label={t("previousMonth")}>
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-2 font-semibold">
+        <label className="flex items-center gap-2 font-semibold">
           <CalendarDays className="h-4 w-4 text-primary" />
-          {data.selectedMonth}
-        </div>
+          <input
+            type="month"
+            value={data.selectedMonthValue ?? ""}
+            onChange={(event) => mauiCall("calendar.setMonth", { month: event.currentTarget.value }).then(refresh)}
+            data-selector-name="calendar:month"
+            className="w-32 rounded-md border border-input bg-card px-2 py-1 text-center text-sm"
+            dir="ltr"
+          />
+          <span>{data.selectedMonth}</span>
+        </label>
         <button onClick={() => mauiCall("calendar.nextMonth").then(refresh)} className="rounded-full p-2 hover:bg-muted" aria-label={t("nextMonth")}>
           <ChevronRight className="h-5 w-5" />
         </button>
       </Card>
 
-      <button onClick={() => mauiCall("calendar.today").then(refresh)} className="self-center rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">
-        {t("today")}
-      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => mauiCall("calendar.today").then(refresh)} className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">
+          {t("today")}
+        </button>
+        <button onClick={() => mauiCall("calendar.setMonth", { month: data.selectedMonthValue }).then(refresh)} data-selector-name="calendar:load" className="rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium">
+          {t("load")}
+        </button>
+      </div>
+      {data.statusMessage ? <p className="text-center text-xs text-muted-foreground">{data.statusMessage}</p> : null}
 
       <div className="space-y-2">
         {data.days.map((d) => (

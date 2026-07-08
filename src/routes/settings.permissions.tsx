@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { SectionBlock } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useSnapshot } from "@/hooks/useSnapshot";
+import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
 
 export const Route = createFileRoute("/settings/permissions")({
@@ -16,11 +16,11 @@ type PermissionsSnapshot = {
 
 function PermissionsPage() {
   const t = useAppLabels();
-  const { data, refresh } = useSnapshot<PermissionsSnapshot>("settings.getSnapshot", { section: "permissions" });
+  const { data, refresh } = useStoredSnapshot<PermissionsSnapshot>("settings.getSnapshot", { section: "permissions" }, "settings.permissions");
   if (!data) return null;
 
   const request = (id: string) => {
-    void mauiCall("settings.invoke", { action: "requestPermission", payload: { id } }).then(() => refresh());
+    void mauiCall("settings.invoke", { action: "requestPermission", payload: { id } }).then(() => refresh(true));
   };
 
   return (

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { Mail, Phone, Globe, Bug } from "lucide-react";
+import { Mail, Phone, Globe, Bug, DownloadCloud } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 
@@ -13,6 +14,9 @@ export const Route = createFileRoute("/settings/about")({
 function AboutPage() {
   usePageLog("settings.about");
   const t = useAppLabels();
+  const [pullStatus, setPullStatus] = useState("");
+  const [isPullingRemote, setIsPullingRemote] = useState(false);
+  const [remoteUrl, setRemoteUrl] = useState("http://pray.rynex.nl/");
   const info = {
     name: "Pray Ad Free",
     tagline: t("tagline"),
@@ -20,13 +24,79 @@ function AboutPage() {
     source: t("source"),
     maintainer: "Rynex",
     contact: t("contact"),
-    email: "support@rynex.nl",
-    phone: "+31 00 000 0000",
+    email: "rynex@rynex.nl",
+    phone: "+31610331734",
     website: "https://pray.rynex.nl",
     websiteNote: t("websiteNote"),
   };
 
   const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
+  useEffect(() => {
+    console.info("[pray.about] mounted");
+    void mauiCall<{ url?: string }>("mauiWebber.getRemoteUrl").then((res) => {
+      console.info("[pray.about] getRemoteUrl result", res);
+      if (res.ok && res.data.url) {
+        setRemoteUrl(res.data.url);
+      }
+    });
+  }, []);
+
+  const saveRemoteUrl = async (url: string) => {
+    console.info("[pray.about] saveRemoteUrl start", { url });
+    setPullStatus("Saving remote web URL...");
+    const res = await mauiCall<{ url?: string }>("mauiWebber.setRemoteUrl", { url });
+    console.info("[pray.about] saveRemoteUrl result", res);
+    if (!res.ok) {
+      setPullStatus(res.error || "Invalid remote web URL.");
+      return false;
+    }
+
+    setRemoteUrl(res.data.url ?? url);
+    setPullStatus(`Remote web URL saved: ${res.data.url ?? url}`);
+    return true;
+  };
+
+  const pullRemote = async () => {
+    if (isPullingRemote) return;
+    console.info("[pray.about] pullRemote start", { remoteUrl });
+    setIsPullingRemote(true);
+    try {
+      setPullStatus("Pulling latest web version...");
+      const saved = await saveRemoteUrl(remoteUrl);
+      console.info("[pray.about] pullRemote saved", { saved });
+      if (!saved) {
+        return;
+      }
+
+      console.info("[pray.about] pullRemote callNative start");
+      const res = await withTimeout(mauiCall<{
+        status?: string;
+        version?: string;
+        lastPulledVersion?: string;
+        url?: string;
+      }>("mauiWebber.pullRemote"), 45000, "Web update timed out. Last pulled version: unknown");
+      console.info("[pray.about] pullRemote callNative result", res);
+      const data = "data" in res ? res.data : undefined;
+      const version = data?.lastPulledVersion ?? data?.version ?? "unknown";
+      if (!res.ok) {
+        setPullStatus(`${res.error || "Web update failed."} Last pulled version: ${version}`);
+        return;
+      }
+
+      if (data?.status === "same") {
+        setPullStatus(`Same version. Last pulled version: ${version}`);
+        return;
+      }
+
+      setPullStatus(`Pulled latest web version. Last pulled version: ${version}`);
+    } catch (error) {
+      console.error("[pray.about] pullRemote error", error);
+      setPullStatus(error instanceof Error ? error.message : "Web update failed. Last pulled version: unknown");
+    } finally {
+      console.info("[pray.about] pullRemote end");
+      setIsPullingRemote(false);
+    }
+  };
 
   return (
     <div>
@@ -51,12 +121,60 @@ function AboutPage() {
           </div>
         </Card>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("email")}</button>
-          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("call")}</button>
-          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("website")}</button>
+          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> Email Rynex</button>
+          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> Call +31 6 10331734</button>
+          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> Open website</button>
           <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
+          <button onClick={pullRemote} disabled={isPullingRemote} data-selector-name="about:pull-remote-web" className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"><DownloadCloud className="h-4 w-4" /> {isPullingRemote ? "Pulling..." : "Pull latest web version"}</button>
         </div>
+        <div className="grid gap-2">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="remote-web-url">Remote web bundle URL</label>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <input
+              id="remote-web-url"
+              value={remoteUrl}
+              onChange={(event) => setRemoteUrl(event.currentTarget.value)}
+              data-selector-name="about:remote-web-url"
+              className="min-h-10 rounded-md border border-input bg-card px-3 py-2 text-sm"
+              inputMode="url"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              onClick={() => void saveRemoteUrl(remoteUrl)}
+              data-selector-name="about:save-remote-web-url"
+              className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium"
+            >
+              Save
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => void saveRemoteUrl("http://pray.rynex.nl/")}
+            data-selector-name="about:reset-remote-web-url"
+            className="justify-self-start rounded-md bg-secondary px-3 py-2 text-xs font-medium"
+          >
+            Reset to default
+          </button>
+        </div>
+        {pullStatus ? <div data-selector-name="about:pull-remote-status" className="text-center text-xs text-muted-foreground">{pullStatus}</div> : null}
       </div>
     </div>
   );
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, error: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(error)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (reason) => {
+        window.clearTimeout(timeout);
+        reject(reason);
+      },
+    );
+  });
 }

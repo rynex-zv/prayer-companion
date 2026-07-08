@@ -18,6 +18,11 @@ export const mockHandlers: Record<string, MockHandler> = {
     route: "/",
     language: state.language,
     isRtl: state.language === "ar",
+    languageObject: getLanguageObject(state.language),
+    languages: [
+      { code: "en", name: "English", direction: "ltr" },
+      { code: "ar", name: "العربية", direction: "rtl" },
+    ],
     themeMode: state.theme,
     accentColor: "teal",
     tabs: [
@@ -33,8 +38,10 @@ export const mockHandlers: Record<string, MockHandler> = {
 
   "app.navigate": (p) => ({ navigatedTo: (p as { route?: string })?.route ?? "/" }),
   "app.getLocalization": () => translations[state.language as Lang],
+  "app.getLanguageObject": (p) => getLanguageObject((p as TestConfig).language ?? state.language),
   "app.setLanguage": (p) => { state.language = (p as TestConfig).language ?? state.language; return { ok: true }; },
   "app.setTheme": (p) => { state.theme = (p as TestConfig).theme ?? state.theme; return { ok: true }; },
+  "mauiWebber.getRemoteUrl": () => ({ url: "http://pray.rynex.nl/", defaultUrl: "http://pray.rynex.nl/" }),
 
   "today.getSnapshot": () => getTodayMock(state),
   "today.refresh": () => getTodayMock(state),
@@ -58,6 +65,25 @@ export const mockHandlers: Record<string, MockHandler> = {
   "tasbih.selectPreset": (p) => { tasbihSelectPreset((p as { id: string }).id); return getTasbihMock(); },
 
   "settings.getSnapshot": (p) => getSettingsMock((p as { section?: string })?.section),
+  "settings.setField": (p) => {
+    const payload = p as { section?: string; field?: string; value?: unknown };
+    if (payload.section === "theme" && payload.field === "language") {
+      state.language = String(payload.value ?? state.language) as TestConfig["language"];
+      return { ok: true, section: payload.section, field: payload.field, value: state.language, languageObject: getLanguageObject(state.language) };
+    }
+
+    if (payload.section === "theme" && payload.field === "themeMode") {
+      state.theme = String(payload.value ?? state.theme) as TestConfig["theme"];
+    }
+
+    if (payload.field === "value") {
+      patchSettings({ [payload.section ?? ""]: payload.value });
+    } else if (payload.section) {
+      patchSettings({ [payload.section]: { [payload.field ?? "value"]: payload.value } });
+    }
+
+    return { ok: true, section: payload.section, field: payload.field, value: payload.value };
+  },
   "settings.patch": (p) => patchSettings(p as Record<string, unknown>),
   "settings.invoke": (p) => invokeSettings(p as { action: string; payload?: unknown }),
 
@@ -67,6 +93,16 @@ export const mockHandlers: Record<string, MockHandler> = {
 
 function t(s: TestConfig, key: string): string {
   return translations[s.language as Lang]?.[key] ?? key;
+}
+
+function getLanguageObject(language: string) {
+  const code = (language in translations ? language : "en") as Lang;
+  return {
+    code,
+    direction: code === "ar" ? "rtl" : "ltr",
+    labels: translations[code],
+    updatedAt: Date.now(),
+  };
 }
 
 export { translations };

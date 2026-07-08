@@ -6,8 +6,11 @@ export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  const refresh = useCallback(async (silentOrEvent?: unknown) => {
+    const silent = silentOrEvent === true;
+    if (!silent) {
+      setLoading(true);
+    }
     const res = await mauiCall<T>(method, payload);
     if (res.ok) {
       setData(res.data);
@@ -15,7 +18,9 @@ export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[
     } else {
       setError(res.error);
     }
-    setLoading(false);
+    if (!silent) {
+      setLoading(false);
+    }
   }, [method, JSON.stringify(payload)]);
 
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [method, JSON.stringify(payload), ...deps]);

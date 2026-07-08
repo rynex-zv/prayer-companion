@@ -1,14 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useSnapshot } from "@/hooks/useSnapshot";
 import { BottomTabs } from "./BottomTabs";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { createLabelProxy } from "@/hooks/useAppLabels";
-
-type Shell = {
-  language: string; isRtl: boolean; themeMode: string; labels: Record<string, string>;
-  onboardingCompleted: boolean;
-};
+import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
 
 const TAB_ROUTES = ["/", "/calendar", "/qibla", "/tasbih", "/settings"];
 const INSPECTABLE_ROUTES = [
@@ -48,8 +42,11 @@ declare global {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [shellVersion, setShellVersion] = useState(0);
-  const { data } = useSnapshot<Shell>("app.getShellSnapshot", undefined, [shellVersion]);
+  const shell = useAppStore((state) => ({
+    language: state.languageObject.code,
+    direction: state.languageObject.direction,
+    onboardingCompleted: state.onboardingCompleted,
+  }));
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const routeStack = useRef<string[]>([]);
@@ -57,26 +54,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nativeNavigation = useRef(false);
 
   useEffect(() => {
-    const refresh = () => setShellVersion((value) => value + 1);
-    window.addEventListener("prayadfree:shell-refresh", refresh);
-    return () => window.removeEventListener("prayadfree:shell-refresh", refresh);
+    void bootstrapAppState();
   }, []);
 
   useEffect(() => {
-    if (!data) return;
-    document.documentElement.dir = data.isRtl ? "rtl" : "ltr";
-    document.documentElement.lang = data.language || (data.isRtl ? "ar" : "en");
-    if (data.themeMode === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, [data]);
-
-  useEffect(() => {
-    if (!data || data.onboardingCompleted || pathname === "/onboarding") {
+    if (shell.onboardingCompleted || pathname === "/onboarding") {
       return;
     }
 
     void navigate({ to: "/onboarding", replace: true });
-  }, [data, navigate, pathname]);
+  }, [navigate, pathname, shell.onboardingCompleted]);
 
   useEffect(() => {
     if (routeStack.current.length === 0) {
@@ -175,8 +162,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       currentRoute: () => pathname,
       inspect: () => ({
         route: pathname,
-        lang: document.documentElement.lang,
-        dir: document.documentElement.dir,
+        lang: shell.language,
+        dir: shell.direction,
         selectors: Array.from(document.querySelectorAll<HTMLElement>("[data-selector-name]")).map((element) => ({
           name: element.dataset.selectorName ?? "",
           tag: element.tagName.toLowerCase(),
@@ -231,15 +218,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       delete window.prayerCompanion;
     };
-  }, [navigate, pathname]);
+  }, [navigate, pathname, shell.direction, shell.language]);
 
-  const labels = createLabelProxy(data?.labels ?? {});
   const showTabs = TAB_ROUTES.includes(pathname);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col" data-selector-name="app-shell">
       <main className="safe-top flex-1 px-4 pb-6 pt-3" data-selector-name={`route:${pathname}`}>{children}</main>
-      {showTabs ? <BottomTabs labels={labels} /> : null}
+      {showTabs ? <BottomTabs labels={languageProxy} /> : null}
     </div>
   );
 }

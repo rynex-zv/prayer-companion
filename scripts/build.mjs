@@ -8,7 +8,63 @@ const phone = args.has('--phone');
 const phoneBridgeBootstrap = `<script>
 (function(){
   if (window.mauiWebber) return;
+  var appendJSlog = true;
   var callbacks = {};
+
+  function normalizeLogArg(arg) {
+    if (arg instanceof Error) {
+      return { name: arg.name, message: arg.message, stack: arg.stack };
+    }
+    if (typeof arg === 'string' || typeof arg === 'number' || typeof arg === 'boolean' || arg == null) {
+      return arg;
+    }
+    try {
+      return JSON.parse(JSON.stringify(arg));
+    } catch (_) {
+      try { return String(arg); } catch (_) { return '[unserializable]'; }
+    }
+  }
+
+  function appendJsLog(level, args) {
+    if (!appendJSlog || !window.mauiWebber || typeof window.mauiWebber.call !== 'function') return;
+    try {
+      window.mauiWebber.call('mauiWebber.trace', {
+        name: 'console.' + level,
+        level: level,
+        args: Array.prototype.slice.call(args || []).map(normalizeLogArg),
+        location: String(window.location && window.location.href || ''),
+        at: performance.now()
+      });
+    } catch (_) {
+    }
+  }
+
+  ['debug', 'log', 'info', 'warn', 'error'].forEach(function(level) {
+    var original = console[level];
+    console[level] = function() {
+      if (typeof original === 'function') {
+        original.apply(console, arguments);
+      }
+      appendJsLog(level, arguments);
+    };
+  });
+
+  window.addEventListener('error', function(event) {
+    appendJsLog('error', [{
+      message: event.message,
+      source: event.filename,
+      line: event.lineno,
+      column: event.colno,
+      error: normalizeLogArg(event.error)
+    }]);
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    appendJsLog('error', [{
+      message: 'Unhandled promise rejection',
+      reason: normalizeLogArg(event.reason)
+    }]);
+  });
 
   function receiveResponse(message) {
     var data = message && message.data;

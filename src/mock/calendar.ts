@@ -13,6 +13,7 @@ export function getCalendarMock(state: TestConfig, _p?: { month?: string; offset
   });
   return {
     selectedMonth: "June 2026",
+    selectedMonthValue: "2026-06",
     statusMessage: "",
     days,
     isRtl: state.language === "ar",

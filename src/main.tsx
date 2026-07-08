@@ -9,6 +9,7 @@ import "@fontsource/inter/700.css";
 import "@fontsource/amiri/400.css";
 import "@fontsource/amiri/700.css";
 import "./styles.css";
+import "@/state/appStore";
 
 import { getRouter } from "./router";
 

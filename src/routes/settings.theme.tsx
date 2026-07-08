@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
 import { Card } from "@/components/Card";
 import { Field } from "@/components/Field";
 import { Picker } from "@/components/Picker";
@@ -9,33 +7,35 @@ import { SegmentedControl } from "@/components/SegmentedControl";
 import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
-import { refreshShellLabels, useAppLabels } from "@/hooks/useAppLabels";
+import { useAppLabels } from "@/hooks/useAppLabels";
+import { setLanguage, setThemeField, useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/theme")({
   component: ThemePage,
 });
 
-type Theme = {
-  language: string; themeMode: string; accentColor: string; textSize: number;
-  diagnostics: { bridgeReady: boolean; lastSync: string };
-  languages: { code: string; name: string }[];
-  accentColors: string[];
+const ACCENT_HEX: Record<string, string> = {
+  teal: "#0d9488",
+  green: "#16a34a",
+  blue: "#2563eb",
+  amber: "#d97706",
+  rose: "#e11d48",
 };
 
-const ACCENT_HEX: Record<string, string> = {
-  teal: "#0d9488", green: "#16a34a", blue: "#2563eb", amber: "#d97706", rose: "#e11d48",
-};
+const accentColors = ["teal", "green", "blue", "amber", "rose"];
 
 function ThemePage() {
   usePageLog("settings.theme-diagnostics");
   const t = useAppLabels();
-  const { data, setData } = useSnapshot<Theme>("settings.getSnapshot", { section: "theme" });
-  if (!data) return null;
-  const patch = (p: Partial<Theme>) => {
-    const next = { ...data, ...p };
-    setData(next);
-    return mauiCall("settings.patch", { theme: next });
-  };
+  const theme = useAppStore((state) => ({
+    language: state.languageObject.code,
+    languages: state.languages,
+    themeMode: state.themeMode,
+    accentColor: state.accentColor,
+    textSize: state.textSize,
+    bridgeReady: state.fieldSync["shell.bootstrap"]?.status !== "error",
+    fieldSync: state.fieldSync,
+  }));
 
   return (
     <div>
@@ -43,14 +43,18 @@ function ThemePage() {
       <div className="flex flex-col gap-3">
         <Card className="space-y-3">
           <Field label={t("language")}>
-            <Picker value={data.language} onChange={(v) => { patch({ language: v }).then(refreshShellLabels); mauiCall("app.setLanguage", { language: v }).then(refreshShellLabels); }}>
-              {data.languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+            <Picker value={theme.language} onChange={(value) => void setLanguage(value)}>
+              {theme.languages.map((language) => (
+                <option key={language.code} value={language.code}>
+                  {language.name}
+                </option>
+              ))}
             </Picker>
           </Field>
           <Field label={t("themeMode")}>
             <SegmentedControl
-              value={data.themeMode}
-              onChange={(v) => { patch({ themeMode: v }).then(refreshShellLabels); mauiCall("app.setTheme", { theme: v }).then(refreshShellLabels); }}
+              value={theme.themeMode}
+              onChange={(value) => void setThemeField("themeMode", value)}
               options={[
                 { id: "system", label: t("system") },
                 { id: "light", label: t("light") },
@@ -60,23 +64,43 @@ function ThemePage() {
           </Field>
           <Field label={t("accentColor")}>
             <div className="flex flex-wrap gap-2">
-              {data.accentColors.map((c) => (
+              {accentColors.map((color) => (
                 <button
-                  key={c}
-                  onClick={() => patch({ accentColor: c })}
-                  className={cn("h-9 w-9 rounded-full border-2 transition-all",
-                    data.accentColor === c ? "border-foreground scale-110" : "border-transparent")}
-                  style={{ backgroundColor: ACCENT_HEX[c] }}
-                  aria-label={c}
+                  key={color}
+                  type="button"
+                  onClick={() => void setThemeField("accentColor", color)}
+                  className={cn(
+                    "h-9 w-9 rounded-full border-2 transition-all",
+                    theme.accentColor === color ? "scale-110 border-foreground" : "border-transparent",
+                  )}
+                  style={{ backgroundColor: ACCENT_HEX[color] }}
+                  aria-label={color}
+                  data-selector-name={`theme:accent:${color}`}
                 />
               ))}
             </div>
           </Field>
           <Field label={t("textSize")}>
             <div className="flex items-center gap-2">
-              <button onClick={() => patch({ textSize: Math.max(75, data.textSize - 5) })} className="rounded-full bg-muted p-2"><Minus className="h-4 w-4" /></button>
-              <div className="flex-1 text-center text-sm font-semibold tabular-nums">{data.textSize}%</div>
-              <button onClick={() => patch({ textSize: Math.min(150, data.textSize + 5) })} className="rounded-full bg-muted p-2"><Plus className="h-4 w-4" /></button>
+              <button
+                type="button"
+                onClick={() => void setThemeField("textSize", Math.max(75, theme.textSize - 5))}
+                className="rounded-full bg-muted p-2"
+                data-selector-name="theme:text-size:decrease"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <div className="flex-1 text-center text-sm font-semibold tabular-nums" dir="ltr">
+                {theme.textSize}%
+              </div>
+              <button
+                type="button"
+                onClick={() => void setThemeField("textSize", Math.min(150, theme.textSize + 5))}
+                className="rounded-full bg-muted p-2"
+                data-selector-name="theme:text-size:increase"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
           </Field>
         </Card>
@@ -84,8 +108,15 @@ function ThemePage() {
         <Card>
           <div className="text-sm font-semibold">{t("diagnostics")}</div>
           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-            <div>{t("bridgeReady")}: <span className="font-medium text-foreground">{String(data.diagnostics.bridgeReady)}</span></div>
-            <div>{t("lastSync")}: <span className="font-medium text-foreground">{data.diagnostics.lastSync}</span></div>
+            <div>
+              {t("bridgeReady")}: <span className="font-medium text-foreground">{String(theme.bridgeReady)}</span>
+            </div>
+            <div>
+              {t("lastSync")}:{" "}
+              <span className="font-medium text-foreground">
+                {theme.fieldSync["theme.language"]?.status ?? "clean"}
+              </span>
+            </div>
           </div>
         </Card>
       </div>

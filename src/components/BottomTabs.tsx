@@ -2,6 +2,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mauiCall } from "@/native/mauiWebberClient";
+import { useAppStore } from "@/state/appStore";
 
 const tabs = [
   { to: "/", icon: Sun, key: "today" },
@@ -14,10 +15,12 @@ const tabs = [
 export function BottomTabs({ labels }: { labels: Record<string, string> }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const direction = useAppStore((state) => state.direction);
+  const orderedTabs = direction === "rtl" ? [...tabs].reverse() : tabs;
   return (
-    <nav className="safe-bottom sticky bottom-0 z-30 mt-auto border-t border-border bg-card/90 backdrop-blur-md" data-selector-name="bottom-tabs">
+    <nav className="safe-bottom sticky bottom-0 z-30 mt-auto border-t border-border bg-card/90 backdrop-blur-md" data-selector-name="bottom-tabs" dir={direction}>
       <ul className="mx-auto flex max-w-md items-stretch justify-between px-2 pt-1.5">
-        {tabs.map((t) => {
+        {orderedTabs.map((t) => {
           const active = t.to === "/" ? pathname === "/" : pathname.startsWith(t.to);
           const Icon = t.icon;
           return (

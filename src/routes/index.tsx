@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useRef } from "react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { BUILD_TARGET } from "@/app/TEST";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +42,14 @@ function TodayPage() {
   const renderTraceSent = useRef(false);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      void refresh(true);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [refresh]);
+
+  useEffect(() => {
     if (!data || renderTraceSent.current) {
       return;
     }
@@ -56,6 +65,12 @@ function TodayPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {BUILD_TARGET === "web" ? (
+        <div data-selector-name="today:remote-web-marker" className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">
+          hi
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-center gap-2">
         <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L.basmala}</p>
         <PageLog page="today" />
@@ -81,7 +96,7 @@ function TodayPage() {
 
       {/* Next prayer hero */}
       <Card className="overflow-hidden border-0 p-0 shadow-[var(--shadow-hero)]">
-        <div className="bg-[var(--gradient-primary)] p-5 text-primary-foreground">
+        <div className="p-5 text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
           <div className="text-xs uppercase tracking-widest opacity-80">{L.nextPrayer} · {data.nextPrayerDayLabel}</div>
           <div className="mt-1 flex items-end justify-between gap-3">
             <div className="text-3xl font-bold">{data.nextPrayerName}</div>

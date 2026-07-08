@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { Picker } from "./Picker";
+import { BubbeldListComp } from "./bubbeld.list.comp";
 
 export function StatusLine({ value, selectorName }: { value: string; selectorName: string }) {
   return (
@@ -28,15 +30,12 @@ export function EditableSetting({
   return (
     <div className={cn("text-sm text-card-foreground", className)}>
       <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
-      <div
-        contentEditable
-        suppressContentEditableWarning
-        onInput={(event) => onChange(event.currentTarget.textContent ?? "")}
+      <input
+        value={String(value)}
+        onChange={(event) => onChange(event.currentTarget.value)}
         data-selector-name={selectorName}
         className="min-h-9 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-card-foreground"
-      >
-        {String(value)}
-      </div>
+      />
     </div>
   );
 }
@@ -86,28 +85,38 @@ export function OptionButtons({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3 text-sm text-card-foreground">
-      <div className="mb-2 text-xs font-medium text-muted-foreground">{label}</div>
-      <div className="flex flex-wrap gap-2">
+    <label className="text-sm text-card-foreground">
+      <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
+      <Picker value={value} onChange={onChange} selectorName={selectorName}>
         {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            aria-checked={value === option.id}
-            onClick={() => onChange(option.id)}
-            data-selector-name={`${selectorName}:${option.id}`}
-            className={cn(
-              "rounded-md border px-3 py-1.5 text-xs font-medium",
-              value === option.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-card-foreground",
-            )}
-          >
-            {option.label}
-          </button>
+          <option key={option.id} value={option.id}>{option.label}</option>
         ))}
-      </div>
-    </div>
+      </Picker>
+    </label>
+  );
+}
+
+export function BubbeldOptionButtons({
+  label,
+  value,
+  options,
+  selectorName,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { id: string; label: string }[];
+  selectorName: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <BubbeldListComp
+      label={label}
+      value={value}
+      options={options}
+      selectorName={selectorName}
+      onChange={onChange}
+    />
   );
 }
 
