@@ -184,8 +184,8 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton(new MauiWebberOptions {
                 AppId = "prayadfree-app",
                 EmbeddedRoot = "web",
-                RemoteBaseUrl = new Uri("https://pray.rynex.nl/"),
-                ManifestUrl = new Uri("https://pray.rynex.nl/webber-manifest.json"),
+                RemoteBaseUrl = new Uri("http://pray.rynex.nl/"),
+                ManifestUrl = new Uri("http://pray.rynex.nl/webber-manifest.json"),
                 StorageFolderName = "MauiWebber",
                 StartupFile = "index.html",
                 UpdatePolicy = MauiWebberUpdatePolicy.LocalFirst,

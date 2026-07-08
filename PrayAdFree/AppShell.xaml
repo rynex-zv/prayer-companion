@@ -18,5 +18,8 @@
     Shell.TabBarTitleColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource Accent}}"
     Shell.TabBarUnselectedColor="{AppThemeBinding Light={StaticResource TextMuted}, Dark={StaticResource TextMutedDark}}">
 
-    <ShellContent Route="today" Title="{loc:Loc AppTitle}" ContentTemplate="{DataTemplate pages:TodayWebPage}" />
+    <ShellContent
+        Route="today"
+        Title="{loc:Loc AppTitle}"
+        ContentTemplate="{DataTemplate pages:TodayWebPage}" />
 </Shell>

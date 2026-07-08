@@ -8,6 +8,10 @@
     </style>
 
     <style name="Maui.MainTheme" parent="Maui.MainTheme.Base">
+        <item name="android:windowBackground">#EAF7F8</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
         <item name="android:alertDialogTheme">@style/PrayAdFree.DialogOverlay</item>
         <item name="android:datePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
         <item name="android:timePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>

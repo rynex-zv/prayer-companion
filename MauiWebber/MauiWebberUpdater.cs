@@ -10,6 +10,7 @@ public sealed class MauiWebberUpdater {
     private const string EmbeddedSlot = "embedded";
     private const string StagingSlot = "staging";
     private const string ManifestFileName = "webber-manifest.json";
+    private const string UseRemoteSlotPreferencePrefix = "MauiWebber.UseRemoteSlot.";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
@@ -33,6 +34,15 @@ public sealed class MauiWebberUpdater {
         try {
             var embeddedManifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
 #if DEBUG
+            if (Preferences.Get(UseRemoteSlotPreferenceKey(), false)) {
+                var active = SlotPath(ActiveSlot);
+                if (IsHealthy(active)) {
+                    var entry = EntryPath(active);
+                    LogResolve("active-debug", entry, started);
+                    return entry;
+                }
+            }
+
             var debugEmbedded = await ResolveEmbeddedStartupUrlAsync(embeddedManifest, cancellationToken).ConfigureAwait(false);
             LogResolve("embedded-debug", debugEmbedded, started);
             return debugEmbedded;
@@ -64,9 +74,9 @@ public sealed class MauiWebberUpdater {
         }
     }
 
-    public async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default) {
+    public async Task<MauiWebberUpdateResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default) {
         if (_options.UpdatePolicy != MauiWebberUpdatePolicy.LocalFirst) {
-            return;
+            return MauiWebberUpdateResult.Skipped(CurrentInstalledVersion());
         }
 
         var started = DateTime.UtcNow;
@@ -76,13 +86,13 @@ public sealed class MauiWebberUpdater {
             var remoteManifest = await LoadRemoteManifestAsync(cancellationToken).ConfigureAwait(false);
             if (remoteManifest == null || string.IsNullOrWhiteSpace(remoteManifest.Version)) {
                 _logger.Log("UpdateCheck.Skip", "remote_manifest_missing");
-                return;
+                return MauiWebberUpdateResult.Failed("Remote web manifest is missing or invalid.", CurrentInstalledVersion());
             }
 
             var activeManifest = LoadManifest(SlotPath(ActiveSlot)) ?? await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
             if (string.Equals(activeManifest?.Version, remoteManifest.Version, StringComparison.Ordinal)) {
                 _logger.Log("UpdateCheck.Skip", $"same_version:{remoteManifest.Version}");
-                return;
+                return MauiWebberUpdateResult.SameVersion(remoteManifest.Version);
             }
 
             var staging = SlotPath(StagingSlot);
@@ -97,11 +107,18 @@ public sealed class MauiWebberUpdater {
                 Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
 
                 var sourceUri = new Uri(_options.RemoteBaseUrl, relativePath.Replace('\\', '/'));
-                var bytes = await _httpClient.GetByteArrayAsync(sourceUri, cancellationToken).ConfigureAwait(false);
+                byte[] bytes;
+                try {
+                    bytes = await _httpClient.GetByteArrayAsync(sourceUri, cancellationToken).ConfigureAwait(false);
+                } catch (HttpRequestException) when (IsOptionalRemoteFile(relativePath)) {
+                    _logger.Log("UpdateCheck.OptionalFileMissing", relativePath);
+                    continue;
+                }
+
                 if (!IsHashValid(bytes, file.Sha256)) {
                     DeleteDirectory(staging);
                     _logger.Log("UpdateCheck.Fail", $"hash:{relativePath}");
-                    return;
+                    return MauiWebberUpdateResult.Failed($"Downloaded web asset failed validation: {relativePath}", CurrentInstalledVersion());
                 }
 
                 await File.WriteAllBytesAsync(targetPath, bytes, cancellationToken).ConfigureAwait(false);
@@ -110,7 +127,7 @@ public sealed class MauiWebberUpdater {
             if (!IsHealthy(staging)) {
                 DeleteDirectory(staging);
                 _logger.Log("UpdateCheck.Fail", "staging_unhealthy");
-                return;
+                return MauiWebberUpdateResult.Failed("Downloaded web bundle failed health checks.", CurrentInstalledVersion());
             }
 
             var active = SlotPath(ActiveSlot);
@@ -124,12 +141,58 @@ public sealed class MauiWebberUpdater {
 
             Directory.Move(staging, active);
             _logger.Log("UpdateCheck.Success", $"version={remoteManifest.Version};ms={(DateTime.UtcNow - started).TotalMilliseconds:F0}");
+            return MauiWebberUpdateResult.Updated(remoteManifest.Version);
         } catch (Exception ex) {
             _logger.LogException(ex, "MauiWebber.CheckForUpdates");
             DeleteDirectory(SlotPath(StagingSlot));
+            return MauiWebberUpdateResult.Failed(CleanError(ex), CurrentInstalledVersion());
         } finally {
             _gate.Release();
         }
+    }
+
+    public async Task<MauiWebberUpdateResult> PullRemoteAndActivateAsync(CancellationToken cancellationToken = default) {
+        var result = await CheckForUpdatesAsync(cancellationToken).ConfigureAwait(false);
+        var active = SlotPath(ActiveSlot);
+        if (!IsHealthy(active)) {
+            if (string.Equals(result.Status, "same", StringComparison.Ordinal)) {
+                var embedded = SlotPath(EmbeddedSlot);
+                if (!IsHealthy(embedded)) {
+                    var embeddedManifest = await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
+                    await EnsureEmbeddedAsync(embeddedManifest, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (IsHealthy(embedded) && IsSlotSameVersion(embedded, result.Version)) {
+                    ReplaceDirectory(active, embedded);
+                    Preferences.Set(UseRemoteSlotPreferenceKey(), true);
+                    var activeEntry = EntryPath(active);
+                    _logger.Log("RemoteSlot.ActivatedFromEmbedded", activeEntry);
+                    return result with {
+                        StartupFile = activeEntry
+                    };
+                }
+
+                return result with {
+                    Error = "Same web version is installed, but no healthy active web slot is available."
+                };
+            }
+
+            var fallbackVersion = result.Version ?? CurrentInstalledVersion();
+            return MauiWebberUpdateResult.Failed(result.Error ?? "Remote web bundle is not available or failed health checks.", fallbackVersion);
+        }
+
+        Preferences.Set(UseRemoteSlotPreferenceKey(), true);
+        var entry = EntryPath(active);
+        _logger.Log("RemoteSlot.Activated", entry);
+        return result with {
+            Version = LoadManifest(active)?.Version ?? result.Version,
+            StartupFile = entry
+        };
+    }
+
+    public void UseEmbeddedOnNextStartup() {
+        Preferences.Set(UseRemoteSlotPreferenceKey(), false);
+        _logger.Log("RemoteSlot.Disabled", _options.AppId);
     }
 
     public async Task<string?> ResolveAfterNavigationFailureAsync(string failedUrl, CancellationToken cancellationToken = default) {
@@ -234,6 +297,11 @@ public sealed class MauiWebberUpdater {
         }
     }
 
+    private string? CurrentInstalledVersion() {
+        return LoadManifest(SlotPath(ActiveSlot))?.Version ??
+               LoadManifest(SlotPath(EmbeddedSlot))?.Version;
+    }
+
     private MauiWebberManifest? LoadManifest(string slotPath) {
         try {
             var path = Path.Combine(slotPath, ManifestFileName);
@@ -271,7 +339,7 @@ public sealed class MauiWebberUpdater {
             return false;
         }
 
-        return string.CompareOrdinal(version, minimumVersion) >= 0;
+        return CompareVersions(version, minimumVersion) >= 0;
     }
 
     private string EntryPath(string slotPath) {
@@ -290,6 +358,10 @@ public sealed class MauiWebberUpdater {
         return Path.Combine(FileSystem.AppDataDirectory, _options.StorageFolderName, Sanitize(_options.AppId), slot);
     }
 
+    private string UseRemoteSlotPreferenceKey() {
+        return $"{UseRemoteSlotPreferencePrefix}{Sanitize(_options.AppId)}";
+    }
+
     private static bool IsHashValid(byte[] bytes, string? expectedHash) {
         if (string.IsNullOrWhiteSpace(expectedHash)) {
             return true;
@@ -297,6 +369,13 @@ public sealed class MauiWebberUpdater {
 
         var actual = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         return string.Equals(actual, expectedHash.Trim().ToLowerInvariant(), StringComparison.Ordinal);
+    }
+
+    private static bool IsOptionalRemoteFile(string relativePath) {
+        return string.Equals(
+            relativePath.Replace('\\', '/'),
+            "version.web.info",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeRelativePath(string path) {
@@ -310,6 +389,22 @@ public sealed class MauiWebberUpdater {
 
     private static string Sanitize(string value) {
         return string.Concat(value.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_'));
+    }
+
+    private static int CompareVersions(string left, string right) {
+        return long.TryParse(left, out var leftNumber) && long.TryParse(right, out var rightNumber)
+            ? leftNumber.CompareTo(rightNumber)
+            : string.CompareOrdinal(left, right);
+    }
+
+    private static string CleanError(Exception ex) {
+        return ex switch {
+            OperationCanceledException => "Web update was cancelled.",
+            HttpRequestException => "Could not download the web update. Check the network and try again.",
+            JsonException => "Remote web manifest is not valid JSON.",
+            IOException => "Could not write the downloaded web update.",
+            _ => string.IsNullOrWhiteSpace(ex.Message) ? "Web update failed." : ex.Message
+        };
     }
 
     private static void ReplaceDirectory(string target, string source) {
@@ -332,5 +427,27 @@ public sealed class MauiWebberUpdater {
         if (Directory.Exists(path)) {
             Directory.Delete(path, recursive: true);
         }
+    }
+}
+
+public sealed record MauiWebberUpdateResult(
+    string Status,
+    string? Version,
+    string? StartupFile,
+    string? Error) {
+    public static MauiWebberUpdateResult Updated(string version) {
+        return new("updated", version, null, null);
+    }
+
+    public static MauiWebberUpdateResult SameVersion(string version) {
+        return new("same", version, null, null);
+    }
+
+    public static MauiWebberUpdateResult Skipped(string? version) {
+        return new("skipped", version, null, null);
+    }
+
+    public static MauiWebberUpdateResult Failed(string error, string? version) {
+        return new("error", version, null, error);
     }
 }

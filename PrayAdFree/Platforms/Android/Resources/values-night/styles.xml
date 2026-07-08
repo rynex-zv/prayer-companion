@@ -7,6 +7,16 @@
         <item name="android:colorAccent">#2FB79D</item>
     </style>
 
+    <style name="Maui.MainTheme" parent="Maui.MainTheme.Base">
+        <item name="android:windowBackground">#06191D</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:alertDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+        <item name="android:datePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+        <item name="android:timePickerDialogTheme">@style/PrayAdFree.DialogOverlay</item>
+    </style>
+
     <style name="PrayAdFree.AlarmFullscreen" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/alarm_fullscreen_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

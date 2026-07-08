@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MauiWebber;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
@@ -15,6 +16,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly SettingsService _settingsService;
     private readonly PrayerDataService _dataService;
     private readonly IAppPermissionCenterService _permissionCenter;
+    private readonly IGeoLookupService _geoLookupService;
+    private readonly IAdhanPlaybackService _adhanPlaybackService;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
@@ -29,6 +32,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         SettingsService settingsService,
         PrayerDataService dataService,
         IAppPermissionCenterService permissionCenter,
+        IGeoLookupService geoLookupService,
+        IAdhanPlaybackService adhanPlaybackService,
         AndroidAlarmCapabilityService alarmCapability) {
         _today = today;
         _calendar = calendar;
@@ -37,6 +42,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _settingsService = settingsService;
         _dataService = dataService;
         _permissionCenter = permissionCenter;
+        _geoLookupService = geoLookupService;
+        _adhanPlaybackService = adhanPlaybackService;
         _alarmCapability = alarmCapability;
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     }
@@ -51,6 +58,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "mauiWebber.trace" => new { ok = true },
             "app.getShellSnapshot" => BuildShellSnapshot(),
             "app.getLocalization" => BuildLabels(),
+            "app.getLanguageObject" => BuildLanguageObject(ReadString(payload, "language")),
             "app.setLanguage" => SetLanguage(payload),
             "app.setTheme" => SetTheme(payload),
             "app.navigate" => new { ok = true },
@@ -71,9 +79,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "tasbih.reset" => RunTasbihCommand(_tasbih.ResetCommand),
             "tasbih.selectPreset" => SelectTasbihPreset(payload),
             "settings.getSnapshot" => await GetSettingsSnapshotAsync(payload).ConfigureAwait(false),
+            "settings.setField" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
             "settings.patch" => await PatchSettingsAsync(payload).ConfigureAwait(false),
             "settings.invoke" => await InvokeSettingsAsync(payload).ConfigureAwait(false),
-            "onboarding.getSnapshot" => BuildOnboardingSnapshot(),
+            "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
             _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
         };
@@ -87,7 +96,14 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             language,
             isRtl = IsRtl(),
             themeMode = ResolveTheme(settings.ThemeMode),
-            accentColor = "teal",
+            accentColor = AccentFromIndex(settings.AccentIndex),
+            textSize = settings.TextScale == 0 ? 100 : settings.TextScale,
+            languageObject = BuildLanguageObject(language),
+            languages = LocalizationManager.GetAvailableLanguages().Select(item => new {
+                code = item.Code,
+                name = item.Name,
+                direction = string.Equals(item.Code, "ar", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr"
+            }).ToList(),
             tabs = new[] {
                 new { id = "today", label = T("Today"), icon = "sun" },
                 new { id = "calendar", label = T("Calendar"), icon = "calendar" },
@@ -97,6 +113,17 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             },
             labels = BuildLabels(),
             onboardingCompleted = settings.OnboardingCompleted
+        };
+    }
+
+    private static object BuildLanguageObject(string? language) {
+        var requested = ResolveLanguage(language ?? LocalizationManager.CurrentLanguage);
+        LocalizationManager.SetLanguage(requested);
+        return new {
+            code = requested,
+            direction = IsRtl() ? "rtl" : "ltr",
+            labels = BuildLabels(),
+            updatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
     }
 
@@ -127,6 +154,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["adhan"] = T("AdhanCustomizations"),
             ["notifications"] = T("Notifications"),
             ["permissions"] = T("PermissionsTitle"),
+            ["adhanReminders"] = T("AdhanReminders"),
             ["alarmReminders"] = T("AlarmRemindersTitle"),
             ["tasbihSettings"] = T("TasbihSettings"),
             ["about"] = T("About"),
@@ -156,6 +184,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["grantPermissions"] = T("PermissionAction_Request"),
             ["vpnWarning"] = T("OnboardingVpnWarning"),
             ["locationAndGps"] = T("Location"),
+            ["qiblaPreferences"] = T("QiblaPreferences"),
+            ["compassReadingMode"] = T("CompassReadingMode"),
+            ["compassFilter"] = T("CompassFilter"),
             ["themeLanguageAccent"] = T("ThemeMode"),
             ["soundAndCalculation"] = T("Calculation"),
             ["remindersAndVibration"] = T("AdhanReminders"),
@@ -265,6 +296,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["cardinalWest"] = T("CardinalWest"),
             ["previousMonth"] = L("PreviousMonth", "Previous month"),
             ["nextMonth"] = L("NextMonth", "Next month"),
+            ["load"] = T("Load"),
             ["todayBadge"] = T("Today"),
             ["resetToChangePreset"] = L("ResetToChangePreset", "Reset to change preset."),
             ["status_ready"] = T("StatusReady"),
@@ -296,7 +328,33 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["city_Chicago"] = T("City_Chicago"),
             ["city_Dearborn"] = T("City_Dearborn"),
             ["alarmReminderWudu"] = T("AlarmReminder_Wudu"),
-            ["alarmReminderQibla"] = T("AlarmReminder_Qibla")
+            ["alarmReminderQibla"] = T("AlarmReminder_Qibla"),
+            ["compassReading_Smooth"] = T("CompassReading_Smooth"),
+            ["compassReading_Balanced"] = T("CompassReading_Balanced"),
+            ["compassReading_Fast"] = T("CompassReading_Fast"),
+            ["compassReading_Raw"] = T("CompassReading_Raw"),
+            ["compassFilter_Off"] = T("CompassFilter_Off"),
+            ["compassFilter_Normal"] = T("CompassFilter_Normal"),
+            ["compassFilter_Strict"] = T("CompassFilter_Strict"),
+            ["windowsBackgroundServiceHint"] = T("WindowsBackgroundServiceHint"),
+            ["newReminderText"] = T("AlarmReminderNewPlaceholder"),
+            ["moveUp"] = L("MoveUp", "Move up"),
+            ["moveDown"] = L("MoveDown", "Move down"),
+            ["startIndex"] = L("StartIndex", "Start"),
+            ["scope"] = T("ReminderScope"),
+            ["prayer"] = T("ReminderPrayer"),
+            ["unit"] = T("ReminderUnit"),
+            ["direction"] = T("ReminderDirection"),
+            ["alertType"] = T("ReminderType"),
+            ["useGlobal"] = T("UseGlobal"),
+            ["play"] = T("Play"),
+            ["stop"] = T("Stop"),
+            ["select"] = T("Select"),
+            ["selected"] = T("Selected"),
+            ["reminder_All"] = T("Reminder_All"),
+            ["reminder_SpecificPrayer"] = T("Reminder_Specific"),
+            ["reminderType_Adhan"] = T("ReminderType_Adhan"),
+            ["reminderType_Alarm"] = T("ReminderType_Alarm")
         };
     }
 
@@ -356,6 +414,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private object BuildCalendarSnapshot() {
         return new {
             selectedMonth = _calendarMonth.ToString("MMMM yyyy", CultureInfo.CurrentUICulture),
+            selectedMonthValue = _calendarMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture),
             statusMessage = _calendar.StatusMessage,
             days = _calendar.Days.Select(day => new {
                 date = day.Date,
@@ -560,7 +619,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
         if (TryGetObject(payload, "locations", out var locations)) {
             changedSection = "locations";
-            next = CopySettings(next, location: PatchLocation(next.Location, locations));
+            next = CopySettings(
+                next,
+                location: await PatchLocationAsync(next.Location, locations).ConfigureAwait(false),
+                qibla: PatchQibla(next.Qibla, locations));
         }
 
         if (TryGetObject(payload, "theme", out var theme)) {
@@ -602,6 +664,57 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             : await GetSettingsSnapshotAsync(BuildSectionPayload(changedSection)).ConfigureAwait(false);
     }
 
+    private async Task<object> SetSettingsFieldAsync(JsonElement payload) {
+        var section = ReadString(payload, "section") ?? "";
+        var field = ReadString(payload, "field") ?? "";
+        if (!payload.TryGetProperty("value", out var value)) {
+            return new { ok = false, section, field, error = "Missing value" };
+        }
+
+        if (string.Equals(section, "theme", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(field, "value", StringComparison.OrdinalIgnoreCase)) {
+            var themeNode = new JsonObject {
+                [field] = JsonNode.Parse(value.GetRawText())
+            };
+            var root = new JsonObject {
+                ["theme"] = themeNode
+            };
+            await PatchSettingsAsync(JsonSerializer.SerializeToElement(root)).ConfigureAwait(false);
+            if (string.Equals(field, "language", StringComparison.OrdinalIgnoreCase)) {
+                return new { ok = true, section, field, value = value.GetString(), languageObject = BuildLanguageObject(value.GetString()) };
+            }
+
+            return new { ok = true, section, field, value };
+        }
+
+        var patchSection = PatchSectionName(section);
+        if (string.IsNullOrWhiteSpace(patchSection)) {
+            return new { ok = false, section, field, value, error = $"Unsupported section: {section}" };
+        }
+
+        var sectionNode = string.Equals(field, "value", StringComparison.OrdinalIgnoreCase)
+            ? JsonNode.Parse(value.GetRawText())
+            : new JsonObject {
+                [field] = JsonNode.Parse(value.GetRawText())
+            };
+        var payloadNode = new JsonObject {
+            [patchSection] = sectionNode
+        };
+        await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
+        return new { ok = true, section, field, value };
+    }
+
+    private static string PatchSectionName(string section) {
+        return section switch {
+            "locations" => "locations",
+            "theme" => "theme",
+            "adhan" => "adhan",
+            "notifications" => "notifications",
+            "alarmReminders" => "alarmReminders",
+            _ => ""
+        };
+    }
+
     private async Task<object?> InvokeSettingsAsync(JsonElement payload) {
         var action = ReadString(payload, "action") ?? "";
         var actionPayload = TryGetObject(payload, "payload", out var p) ? p : default;
@@ -616,11 +729,80 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 PatchTasbih(action, actionPayload);
                 return BuildTasbihSnapshot();
             case "requestAllPermissions":
-            case "requestPermission":
+                await ResolveAllPermissionsAsync().ConfigureAwait(false);
                 return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+            case "requestPermission":
+                await ResolvePermissionAsync(actionPayload).ConfigureAwait(false);
+                return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+            case "refreshGps":
+                return await RefreshGpsLocationAsync().ConfigureAwait(false);
+            case "previewSound":
+                return await PreviewAdhanSoundAsync(actionPayload).ConfigureAwait(false);
+            case "stopPreviewSound":
+                await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
+                return new { ok = true, action };
+            case "testAlarm":
+                return await TestAdhanAlarmAsync(actionPayload).ConfigureAwait(false);
+            case "testNotification":
+                return await TestAdhanNotificationAsync(actionPayload).ConfigureAwait(false);
             default:
                 return new { ok = true, action };
         }
+    }
+
+    private async Task<object> PreviewAdhanSoundAsync(JsonElement payload) {
+        var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
+        var started = await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
+        return new { ok = started, action = "previewSound", id };
+    }
+
+    private async Task<object> TestAdhanAlarmAsync(JsonElement payload) {
+        var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
+        var scheduled = await _adhanPlaybackService.ScheduleTestAlarmAsync(id, TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+        return new { ok = scheduled, action = "testAlarm", id };
+    }
+
+    private async Task<object> TestAdhanNotificationAsync(JsonElement payload) {
+        var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
+        var started = await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
+        return new { ok = started, action = "testNotification", id };
+    }
+
+    private async Task ResolveAllPermissionsAsync() {
+        var snapshots = await _permissionCenter.GetSnapshotsAsync().ConfigureAwait(false);
+        foreach (var snapshot in snapshots.Where(item => item.IsSupported && !item.IsGranted)) {
+            await _permissionCenter.ResolveAsync(snapshot.Kind).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ResolvePermissionAsync(JsonElement payload) {
+        var id = ReadString(payload, "id");
+        if (string.IsNullOrWhiteSpace(id) ||
+            !Enum.TryParse<AppPermissionKind>(id, ignoreCase: true, out var kind)) {
+            return;
+        }
+
+        await _permissionCenter.ResolveAsync(kind).ConfigureAwait(false);
+    }
+
+    private async Task<object> RefreshGpsLocationAsync() {
+        var settings = _settingsService.Load();
+        var gpsSettings = CopySettings(
+            settings,
+            location: new LocationSettings {
+                Mode = LocationMode.Gps,
+                City = settings.Location.City,
+                Country = settings.Location.Country,
+                CountryCode = settings.Location.CountryCode,
+                Latitude = settings.Location.Latitude,
+                Longitude = settings.Location.Longitude,
+                TimeZoneId = settings.Location.TimeZoneId,
+                LastUpdatedUtc = settings.Location.LastUpdatedUtc
+            });
+        var updated = await _dataService.UpdateLocationAsync(gpsSettings, CancellationToken.None, forceRefresh: true)
+            .ConfigureAwait(false);
+        SaveSettings(updated);
+        return BuildLocationsSettings(updated);
     }
 
     private object CompleteOnboarding() {
@@ -633,17 +815,93 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _dataService.SaveSettings(settings);
     }
 
+    private async Task<LocationSettings> PatchLocationAsync(LocationSettings current, JsonElement payload) {
+        var patched = PatchLocation(current, payload);
+        if (patched.Mode == LocationMode.Gps) {
+            return patched;
+        }
+
+        var latitudeChanged = payload.TryGetProperty("latitude", out _);
+        var longitudeChanged = payload.TryGetProperty("longitude", out _);
+        if ((latitudeChanged || longitudeChanged) && HasUsableCoordinates(patched.Latitude, patched.Longitude)) {
+            var reverse = await _geoLookupService.ReverseAsync(patched.Latitude, patched.Longitude, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (reverse != null) {
+                return new LocationSettings {
+                    Mode = LocationMode.Manual,
+                    City = string.IsNullOrWhiteSpace(reverse.City) ? patched.City : reverse.City,
+                    Country = string.IsNullOrWhiteSpace(reverse.Country) ? patched.Country : reverse.Country,
+                    CountryCode = string.IsNullOrWhiteSpace(reverse.CountryCode) ? patched.CountryCode : reverse.CountryCode,
+                    Latitude = patched.Latitude,
+                    Longitude = patched.Longitude,
+                    TimeZoneId = patched.TimeZoneId,
+                    LastUpdatedUtc = DateTime.UtcNow
+                };
+            }
+        }
+
+        var placeChanged = payload.TryGetProperty("country", out _) ||
+                           payload.TryGetProperty("countryName", out _) ||
+                           payload.TryGetProperty("city", out _);
+        if (placeChanged) {
+            var known = FindKnownPlace(patched.CountryCode, patched.Country, patched.City);
+            if (known != null) {
+                return new LocationSettings {
+                    Mode = LocationMode.Manual,
+                    City = string.IsNullOrWhiteSpace(known.City) ? patched.City : known.City,
+                    Country = string.IsNullOrWhiteSpace(known.Country) ? patched.Country : known.Country,
+                    CountryCode = string.IsNullOrWhiteSpace(known.CountryCode) ? patched.CountryCode : known.CountryCode,
+                    Latitude = known.Latitude,
+                    Longitude = known.Longitude,
+                    TimeZoneId = patched.TimeZoneId,
+                    LastUpdatedUtc = DateTime.UtcNow
+                };
+            }
+        }
+
+        return patched;
+    }
+
+    private GeoLocationResult? FindKnownPlace(string? countryCode, string? country, string? city) {
+        return _geoLookupService.GetKnownPlaces().FirstOrDefault(item =>
+            (string.IsNullOrWhiteSpace(countryCode) ||
+             string.Equals(item.CountryCode, countryCode, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(item.Country, countryCode, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(country) ||
+             string.Equals(item.Country, country, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(item.CountryCode, country, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(city) ||
+             string.Equals(item.City, city, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool HasUsableCoordinates(double latitude, double longitude) {
+        return Math.Abs(latitude) <= 90 &&
+               Math.Abs(longitude) <= 180 &&
+               (Math.Abs(latitude) > 0.000001 || Math.Abs(longitude) > 0.000001);
+    }
+
     private static LocationSettings PatchLocation(LocationSettings current, JsonElement payload) {
         var useGps = ReadBool(payload, "useGps", current.Mode == LocationMode.Gps);
+        var countryCode = ReadString(payload, "country") ?? current.CountryCode;
         return new LocationSettings {
             Mode = useGps ? LocationMode.Gps : LocationMode.Manual,
             City = ReadString(payload, "city") ?? current.City,
-            Country = current.Country,
-            CountryCode = ReadString(payload, "country") ?? current.CountryCode,
+            Country = ReadString(payload, "countryName") ?? current.Country,
+            CountryCode = countryCode,
             Latitude = ReadDouble(payload, "latitude", current.Latitude),
             Longitude = ReadDouble(payload, "longitude", current.Longitude),
             TimeZoneId = current.TimeZoneId,
             LastUpdatedUtc = DateTime.UtcNow
+        };
+    }
+
+    private static QiblaPreferences PatchQibla(QiblaPreferences current, JsonElement payload) {
+        return new QiblaPreferences {
+            ReadingMode = ParseEnum(ReadString(payload, "qiblaReadingMode"), current.ReadingMode),
+            FilterMode = ParseEnum(ReadString(payload, "qiblaFilterMode"), current.FilterMode),
+            DirectionMode = current.DirectionMode,
+            HeadingMode = current.HeadingMode,
+            ManualHeading = current.ManualHeading
         };
     }
 
@@ -705,10 +963,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             PrayerOverrides = current.PrayerOverrides,
             VibrationStrength = ParseEnum(ReadString(payload, "vibrationStrength"), current.VibrationStrength),
             VibrationPattern = ParseEnum(ReadString(payload, "vibrationPattern"), current.VibrationPattern),
-            ReminderScope = current.ReminderScope,
-            ReminderPrayer = current.ReminderPrayer,
-            ReminderItems = current.ReminderItems,
-            ReminderOffsetsMinutes = current.ReminderOffsetsMinutes,
+            ReminderScope = ParseEnum(ReadString(payload, "reminderScope"), current.ReminderScope),
+            ReminderPrayer = ParseEnum(ReadString(payload, "reminderPrayer"), current.ReminderPrayer),
+            ReminderItems = ReadAdhanReminderItems(payload, current.ReminderItems),
+            ReminderOffsetsMinutes = ReadAdhanReminderItems(payload, current.ReminderItems).Select(item => item.OffsetMinutes).ToList(),
             PendingDeferredReminder = current.PendingDeferredReminder
         };
     }
@@ -851,19 +1109,49 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
         var result = new List<AdhanPrayerOverride>();
         foreach (var item in overrides.EnumerateArray()) {
-            var prayerName = ReadString(item, "prayer") ?? "";
+            var prayerName = ReadString(item, "prayer") ?? ReadString(item, "id") ?? "";
             if (!TryParsePrayer(prayerName, out var prayer)) {
                 continue;
             }
 
             result.Add(new AdhanPrayerOverride {
                 Prayer = prayer,
-                SoundKey = ReadString(item, "soundId"),
+                SoundKey = string.Equals(ReadString(item, "soundId"), "default", StringComparison.OrdinalIgnoreCase)
+                    ? null
+                    : ReadString(item, "soundId"),
                 EnableVibration = ReadString(item, "vibration") switch {
                     "none" => false,
+                    "default" => null,
                     null => null,
                     _ => true
                 }
+            });
+        }
+
+        return result;
+    }
+
+    private static List<AdhanReminderItem> ReadAdhanReminderItems(JsonElement payload, IReadOnlyList<AdhanReminderItem> fallback) {
+        if (!payload.TryGetProperty("reminders", out var reminders) || reminders.ValueKind != JsonValueKind.Array) {
+            return fallback.ToList();
+        }
+
+        var result = new List<AdhanReminderItem>();
+        foreach (var reminder in reminders.EnumerateArray()) {
+            var value = Math.Max(0, ReadInt(reminder, "value", ReadInt(reminder, "offsetMinutes", 0)));
+            if (value <= 0) {
+                continue;
+            }
+
+            var unit = ReadString(reminder, "unit");
+            var minutes = string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase) ? value * 60 : value;
+            if (string.Equals(ReadString(reminder, "direction"), "after", StringComparison.OrdinalIgnoreCase)) {
+                minutes = -minutes;
+            }
+
+            result.Add(new AdhanReminderItem {
+                OffsetMinutes = minutes,
+                AlertType = ParseEnum(ReadString(reminder, "alertType"), AdhanReminderAlertType.Adhan)
             });
         }
 
@@ -895,6 +1183,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             var unit = ReadString(reminder, "unit");
             var minutes = string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase) ? value * 60 : value;
             if (minutes > 0) {
+                if (string.Equals(ReadString(reminder, "direction"), "after", StringComparison.OrdinalIgnoreCase)) {
+                    minutes = -minutes;
+                }
                 result.Add(minutes);
             }
         }
@@ -906,20 +1197,83 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return JsonSerializer.SerializeToElement(new { section });
     }
 
-    private static object BuildLocationsSettings(AppSettings settings) {
+    private object BuildLocationsSettings(AppSettings settings) {
+        var knownPlaces = _geoLookupService.GetKnownPlaces()
+            .Where(item => !string.IsNullOrWhiteSpace(item.Country))
+            .Select(item => new {
+                country = string.IsNullOrWhiteSpace(item.Country) ? T("UnknownCountry") : item.Country.Trim(),
+                countryCode = string.IsNullOrWhiteSpace(item.CountryCode) ? item.Country.Trim() : item.CountryCode.Trim(),
+                city = string.IsNullOrWhiteSpace(item.City) ? T("UnknownCity") : item.City.Trim(),
+                latitude = item.Latitude,
+                longitude = item.Longitude
+            })
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(settings.Location.Country) ||
+            !string.IsNullOrWhiteSpace(settings.Location.CountryCode) ||
+            !string.IsNullOrWhiteSpace(settings.Location.City)) {
+            var currentCountry = string.IsNullOrWhiteSpace(settings.Location.Country)
+                ? settings.Location.CountryCode
+                : settings.Location.Country;
+            currentCountry = string.IsNullOrWhiteSpace(currentCountry) ? T("UnknownCountry") : currentCountry.Trim();
+            var currentCountryCode = string.IsNullOrWhiteSpace(settings.Location.CountryCode)
+                ? currentCountry
+                : settings.Location.CountryCode;
+            var currentCity = string.IsNullOrWhiteSpace(settings.Location.City)
+                ? T("UnknownCity")
+                : settings.Location.City;
+            if (!knownPlaces.Any(item =>
+                    string.Equals(item.countryCode, currentCountryCode, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(item.city, currentCity, StringComparison.OrdinalIgnoreCase))) {
+                knownPlaces.Insert(0, new {
+                    country = currentCountry,
+                    countryCode = currentCountryCode.Trim(),
+                    city = currentCity.Trim(),
+                    latitude = settings.Location.Latitude,
+                    longitude = settings.Location.Longitude
+                });
+            }
+        }
+
+        var countries = knownPlaces
+            .GroupBy(item => string.IsNullOrWhiteSpace(item.countryCode) ? item.country : item.countryCode, StringComparer.OrdinalIgnoreCase)
+            .Select(group => {
+                var first = group.First();
+                return new {
+                    code = first.countryCode,
+                    name = first.country,
+                    cities = group
+                        .Where(item => !string.IsNullOrWhiteSpace(item.city))
+                        .GroupBy(item => item.city, StringComparer.OrdinalIgnoreCase)
+                        .Select(cityGroup => cityGroup.First().city)
+                        .ToList()
+                };
+            })
+            .ToList();
+
         return new {
             useGps = settings.Location.Mode == LocationMode.Gps,
             latitude = settings.Location.Latitude,
             longitude = settings.Location.Longitude,
-            country = string.IsNullOrWhiteSpace(settings.Location.CountryCode) ? "NL" : settings.Location.CountryCode,
-            city = string.IsNullOrWhiteSpace(settings.Location.City) ? "Amsterdam" : settings.Location.City,
+            country = string.IsNullOrWhiteSpace(settings.Location.CountryCode) ? countries.FirstOrDefault()?.code ?? "" : settings.Location.CountryCode,
+            countryName = string.IsNullOrWhiteSpace(settings.Location.Country) ? countries.FirstOrDefault()?.name ?? "" : settings.Location.Country,
+            city = string.IsNullOrWhiteSpace(settings.Location.City) ? countries.FirstOrDefault()?.cities.FirstOrDefault() ?? "" : settings.Location.City,
             vpnWarning = false,
-            countries = new[] {
-                new { code = "NL", name = "Netherlands", cities = new[] { "Amsterdam", "Rotterdam", "Utrecht" } },
-                new { code = "SA", name = "Saudi Arabia", cities = new[] { "Makkah", "Madinah", "Riyadh" } },
-                new { code = "TR", name = "Turkey", cities = new[] { "Istanbul", "Ankara" } },
-                new { code = "US", name = "United States", cities = new[] { "New York", "Chicago", "Dearborn" } }
-            }
+            qiblaReadingMode = settings.Qibla.ReadingMode.ToString(),
+            qiblaFilterMode = settings.Qibla.FilterMode.ToString(),
+            qiblaReadingModes = new[] {
+                new { id = QiblaReadingMode.Smooth.ToString(), label = T("CompassReading_Smooth") },
+                new { id = QiblaReadingMode.Balanced.ToString(), label = T("CompassReading_Balanced") },
+                new { id = QiblaReadingMode.Fast.ToString(), label = T("CompassReading_Fast") },
+                new { id = QiblaReadingMode.Raw.ToString(), label = T("CompassReading_Raw") }
+            },
+            qiblaFilterModes = new[] {
+                new { id = QiblaFilterMode.Off.ToString(), label = T("CompassFilter_Off") },
+                new { id = QiblaFilterMode.Normal.ToString(), label = T("CompassFilter_Normal") },
+                new { id = QiblaFilterMode.Strict.ToString(), label = T("CompassFilter_Strict") }
+            },
+            countries,
+            places = knownPlaces
         };
     }
 
@@ -927,7 +1281,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return new {
             language = ResolveLanguage(settings.Language),
             themeMode = ResolveTheme(settings.ThemeMode),
-            accentColor = "teal",
+            accentColor = AccentFromIndex(settings.AccentIndex),
             textSize = settings.TextScale == 0 ? 100 : settings.TextScale,
             diagnostics = new {
                 bridgeReady = true,
@@ -939,16 +1293,41 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     }
 
     private static object BuildAdhanSettings(AppSettings settings) {
+        var selectedSound = string.IsNullOrWhiteSpace(settings.Notifications.SoundKey)
+            ? "adhan_default"
+            : settings.Notifications.SoundKey;
+        var sounds = AdhanSoundLibrary.BuildOptions(settings.Notifications, includeUseGlobal: false)
+            .Select(option => new {
+                id = option.Value,
+                label = option.Label,
+                selected = string.Equals(option.Value, selectedSound, StringComparison.OrdinalIgnoreCase),
+                isCustom = AdhanSoundLibrary.IsCustomSound(settings.Notifications, option.Value),
+                canPreview = !AdhanSoundLibrary.IsSilent(option.Value)
+            })
+            .ToList();
+
+        if (!sounds.Any(sound => sound.selected)) {
+            var defaultSound = sounds.FirstOrDefault(sound => string.Equals(sound.id, "adhan_default", StringComparison.OrdinalIgnoreCase));
+            if (defaultSound != null) {
+                sounds = sounds.Select(sound => new {
+                    sound.id,
+                    sound.label,
+                    selected = string.Equals(sound.id, defaultSound.id, StringComparison.OrdinalIgnoreCase),
+                    sound.isCustom,
+                    sound.canPreview
+                }).ToList();
+            }
+        }
+
         return new {
-            sounds = new[] {
-                new { id = "adhan_default", label = T("Sound_Default"), selected = true, isCustom = false },
-                new { id = "builtin_1", label = T("Sound_Builtin_1"), selected = false, isCustom = false },
-                new { id = "builtin_2", label = T("Sound_Builtin_2"), selected = false, isCustom = false }
-            },
+            sounds,
             volume = (int)Math.Round(settings.Notifications.AdhanVolume * 100),
             calculationMethod = settings.Method.ToString(),
+            calculationMethods = BuildCalculationMethodOptions(),
             madhhab = settings.Madhhab.ToString(),
+            madhhabs = BuildMadhhabOptions(),
             highLatitudeRule = settings.HighLatitudeRule.ToString(),
+            highLatitudeRules = BuildHighLatitudeRuleOptions(),
             fajrAngle = settings.SunAngles.Fajr,
             ishaAngle = settings.SunAngles.Isha,
             isCustomMethod = settings.Method == CalculationMethod.Custom,
@@ -961,24 +1340,104 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 isha = settings.Offsets.Isha,
                 imsak = settings.Offsets.Imsak
             },
-            clockFormat = settings.ClockFormat == ClockFormat.TwentyFourHour ? "24h" : "12h",
+            clockFormat = settings.ClockFormat switch {
+                ClockFormat.TwentyFourHour => "24h",
+                ClockFormat.TwelveHour => "12h",
+                _ => "auto"
+            },
+            clockFormats = BuildClockFormatOptions(),
             fasting = new {
                 iftarDelay = settings.FastingOffsets.IftarDelayMinutes,
                 imsakAdvance = settings.FastingOffsets.ImsakAdvanceMinutes
             },
-            imsakReminders = Array.Empty<object>(),
-            iftarReminders = Array.Empty<object>(),
+            imsakReminders = BuildMinuteReminderOptions(settings.FastingReminders.ImsakRemindersMinutes),
+            iftarReminders = BuildMinuteReminderOptions(settings.FastingReminders.IftarRemindersMinutes),
+            reminderUnits = BuildReminderUnits(),
+            reminderDirections = BuildReminderDirections(),
             perPrayerOverrides = new[] {
-                new { prayer = T("Prayer_Fajr"), soundId = "adhan_default", vibration = "default" },
-                new { prayer = T("Prayer_Dhuhr"), soundId = "adhan_default", vibration = "default" },
-                new { prayer = T("Prayer_Asr"), soundId = "adhan_default", vibration = "default" },
-                new { prayer = T("Prayer_Maghrib"), soundId = "adhan_default", vibration = "default" },
-                new { prayer = T("Prayer_Isha"), soundId = "adhan_default", vibration = "default" }
+                BuildPrayerOverride(settings, PrayerId.Fajr),
+                BuildPrayerOverride(settings, PrayerId.Dhuhr),
+                BuildPrayerOverride(settings, PrayerId.Asr),
+                BuildPrayerOverride(settings, PrayerId.Maghrib),
+                BuildPrayerOverride(settings, PrayerId.Isha)
+            },
+            vibrationOverrideOptions = new[] {
+                new { id = "default", label = T("UseGlobal") },
+                new { id = "enabled", label = T("PermissionStatus_Enabled") },
+                new { id = "none", label = T("PermissionStatus_Disabled") }
             }
         };
     }
 
+    private static object[] BuildCalculationMethodOptions() {
+        return new[] {
+            CalculationMethod.Auto,
+            CalculationMethod.Jafari,
+            CalculationMethod.Karachi,
+            CalculationMethod.Isna,
+            CalculationMethod.MuslimWorldLeague,
+            CalculationMethod.UmmAlQura,
+            CalculationMethod.Egypt,
+            CalculationMethod.Tehran,
+            CalculationMethod.Gulf,
+            CalculationMethod.Kuwait,
+            CalculationMethod.Qatar,
+            CalculationMethod.Singapore,
+            CalculationMethod.France,
+            CalculationMethod.Turkey,
+            CalculationMethod.Russia,
+            CalculationMethod.Moonsighting,
+            CalculationMethod.Dubai,
+            CalculationMethod.Jakim,
+            CalculationMethod.Tunisia,
+            CalculationMethod.Algeria,
+            CalculationMethod.Kemenag,
+            CalculationMethod.Morocco,
+            CalculationMethod.Portugal,
+            CalculationMethod.Jordan,
+            CalculationMethod.Custom
+        }.Select(method => new {
+            id = method.ToString(),
+            label = T($"Method_{method}")
+        }).ToArray();
+    }
+
+    private static object[] BuildMadhhabOptions() {
+        return new[] {
+            Madhhab.Shafi,
+            Madhhab.Maliki,
+            Madhhab.Hanbali,
+            Madhhab.Hanafi
+        }.Select(madhhab => new {
+            id = madhhab.ToString(),
+            label = T($"Madhhab_{madhhab}")
+        }).ToArray();
+    }
+
+    private static object[] BuildHighLatitudeRuleOptions() {
+        return new[] {
+            HighLatitudeRule.MiddleOfTheNight,
+            HighLatitudeRule.SeventhOfTheNight,
+            HighLatitudeRule.TwilightAngle
+        }.Select(rule => new {
+            id = rule.ToString(),
+            label = T($"HighLatitude_{rule}")
+        }).ToArray();
+    }
+
+    private static object[] BuildClockFormatOptions() {
+        return new[] {
+            new { id = "auto", label = T("Clock_Auto") },
+            new { id = "12h", label = T("Clock_12h") },
+            new { id = "24h", label = T("Clock_24h") }
+        };
+    }
+
     private static object BuildNotificationSettings(AppSettings settings) {
+        var reminderItems = (settings.Notifications.ReminderItems.Count > 0
+                ? settings.Notifications.ReminderItems
+                : settings.Notifications.ReminderOffsetsMinutes.Select(minutes => new AdhanReminderItem { OffsetMinutes = minutes }))
+            .ToList();
         return new {
             enableAdhan = settings.Notifications.EnableAdhan,
             mobilePrimaryAdhanType = settings.Notifications.MobilePrimaryAdhanType.ToString(),
@@ -988,8 +1447,95 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             vibrationStrength = settings.Notifications.VibrationStrength.ToString(),
             vibrationPattern = settings.Notifications.VibrationPattern.ToString(),
             minutesBefore = settings.Notifications.MinutesBefore,
-            reminders = Array.Empty<object>()
+            reminderScope = settings.Notifications.ReminderScope.ToString(),
+            reminderPrayer = settings.Notifications.ReminderPrayer.ToString(),
+            reminderScopes = new[] {
+                new { id = AdhanReminderScope.All.ToString(), label = T("Reminder_All") },
+                new { id = AdhanReminderScope.SpecificPrayer.ToString(), label = T("Reminder_Specific") }
+            },
+            reminderPrayers = new[] {
+                new { id = PrayerId.Fajr.ToString(), label = T("Prayer_Fajr") },
+                new { id = PrayerId.Dhuhr.ToString(), label = T("Prayer_Dhuhr") },
+                new { id = PrayerId.Asr.ToString(), label = T("Prayer_Asr") },
+                new { id = PrayerId.Maghrib.ToString(), label = T("Prayer_Maghrib") },
+                new { id = PrayerId.Isha.ToString(), label = T("Prayer_Isha") }
+            },
+            reminderAlertTypes = new[] {
+                new { id = AdhanReminderAlertType.Adhan.ToString(), label = T("ReminderType_Adhan") },
+                new { id = AdhanReminderAlertType.Notification.ToString(), label = T("ReminderType_Notification") },
+                new { id = AdhanReminderAlertType.Silent.ToString(), label = T("ReminderType_Silent") },
+                new { id = AdhanReminderAlertType.Alarm.ToString(), label = T("ReminderType_Alarm") }
+            },
+            reminderUnits = BuildReminderUnits(),
+            reminderDirections = BuildReminderDirections(),
+            reminders = reminderItems.Select((item, index) => new {
+                id = index.ToString(CultureInfo.InvariantCulture),
+                offsetMinutes = item.OffsetMinutes,
+                value = ReminderDisplayValue(item.OffsetMinutes),
+                unit = ReminderDisplayUnit(item.OffsetMinutes),
+                direction = item.OffsetMinutes < 0 ? "after" : "before",
+                alertType = item.AlertType.ToString(),
+                label = FormatReminderLabel(item.OffsetMinutes, item.AlertType)
+            }).ToList()
         };
+    }
+
+    private static object BuildPrayerOverride(AppSettings settings, PrayerId prayer) {
+        var configured = settings.Notifications.PrayerOverrides.FirstOrDefault(item => item.Prayer == prayer);
+        return new {
+            prayer = prayer.ToString(),
+            label = T($"Prayer_{prayer}"),
+            soundId = configured?.SoundKey ?? "default",
+            vibration = configured?.EnableVibration switch {
+                false => "none",
+                true => "enabled",
+                _ => "default"
+            }
+        };
+    }
+
+    private static object[] BuildMinuteReminderOptions(IReadOnlyList<int> minutes) {
+        return minutes.Select((minute, index) => new {
+            id = index.ToString(CultureInfo.InvariantCulture),
+            offsetMinutes = minute,
+            value = ReminderDisplayValue(minute),
+            unit = ReminderDisplayUnit(minute),
+            direction = minute < 0 ? "after" : "before",
+            label = FormatReminderLabel(minute, null)
+        }).Cast<object>().ToArray();
+    }
+
+    private static object[] BuildReminderUnits() {
+        return new object[] {
+            new { id = "minute", label = T("Minutes") },
+            new { id = "hour", label = T("Hours") }
+        };
+    }
+
+    private static object[] BuildReminderDirections() {
+        return new object[] {
+            new { id = "before", label = T("Before") },
+            new { id = "after", label = T("After") }
+        };
+    }
+
+    private static int ReminderDisplayValue(int minutes) {
+        var abs = Math.Abs(minutes);
+        return abs >= 60 && abs % 60 == 0 ? abs / 60 : abs;
+    }
+
+    private static string ReminderDisplayUnit(int minutes) {
+        var abs = Math.Abs(minutes);
+        return abs >= 60 && abs % 60 == 0 ? "hour" : "minute";
+    }
+
+    private static string FormatReminderLabel(int minutes, AdhanReminderAlertType? alertType) {
+        var value = ReminderDisplayValue(minutes);
+        var unit = ReminderDisplayUnit(minutes) == "hour" ? T("Hours") : T("Minutes");
+        var direction = minutes < 0 ? T("After") : T("Before");
+        return alertType is { } type
+            ? $"{value} {unit} {direction} - {T($"ReminderType_{type}")}"
+            : $"{value} {unit} {direction}";
     }
 
     private async Task<object> BuildPermissionsSettingsAsync() {
@@ -1061,16 +1607,18 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         };
     }
 
-    private object BuildOnboardingSnapshot() {
+    private async Task<object> BuildOnboardingSnapshotAsync() {
+        var permissionSettings = await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+        var settings = _settingsService.Load();
         return new {
-            language = ResolveLanguage(_settingsService.Load().Language),
+            language = ResolveLanguage(settings.Language),
             languages = LocalizationManager.GetAvailableLanguages().Select(item => new { code = item.Code, name = item.Name }).ToList(),
             steps = new[] { T("Language"), T("PermissionsTitle"), T("Location") },
             step = "location",
             title = T("OnboardingLocationTitle"),
             subtitle = T("OnboardingManualLocationHint"),
-            permissions = Array.Empty<object>(),
-            location = BuildLocationsSettings(_settingsService.Load())
+            permissions = permissionSettings,
+            location = BuildLocationsSettings(settings)
         };
     }
 
@@ -1208,12 +1756,23 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
     private static int AccentToIndex(string? value, int fallback) {
         return value?.ToLowerInvariant() switch {
-            "teal" => 0,
-            "green" => 1,
-            "blue" => 2,
-            "amber" => 3,
-            "rose" => 4,
+            "amber" => 0,
+            "green" => 5,
+            "teal" => 6,
+            "blue" => 4,
+            "rose" => 12,
             _ => fallback
+        };
+    }
+
+    private static string AccentFromIndex(int index) {
+        return index switch {
+            0 => "amber",
+            4 => "blue",
+            5 => "green",
+            6 => "teal",
+            12 => "rose",
+            _ => "teal"
         };
     }
 

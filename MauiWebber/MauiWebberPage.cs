@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Diagnostics;
 #if ANDROID
 using AndroidWebView = Android.Webkit.WebView;
+using Java.Interop;
 #endif
 #if WINDOWS
 using Microsoft.UI.Xaml.Controls;
@@ -25,6 +26,9 @@ public class MauiWebberPage : ContentPage {
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
     private bool _navigationFallbackTried;
+#if ANDROID
+    private AndroidMauiWebberBridge? _androidBridge;
+#endif
 
     public MauiWebberPage(MauiWebberUpdater updater, IMauiWebberRpcHandler rpcHandler, IMauiWebberLogger? logger = null) {
         _updater = updater;
@@ -52,6 +56,7 @@ public class MauiWebberPage : ContentPage {
     private void OnWebViewHandlerChanged(object? sender, EventArgs e) {
 #if ANDROID
         if (_webView.Handler?.PlatformView is AndroidWebView androidWebView) {
+            AndroidWebView.SetWebContentsDebuggingEnabled(true);
             androidWebView.Settings.JavaScriptEnabled = true;
             androidWebView.Settings.AllowFileAccess = true;
             androidWebView.Settings.AllowContentAccess = true;
@@ -59,6 +64,8 @@ public class MauiWebberPage : ContentPage {
             androidWebView.Settings.AllowFileAccessFromFileURLs = true;
             androidWebView.Settings.AllowUniversalAccessFromFileURLs = true;
 #pragma warning restore CA1416
+            _androidBridge ??= new AndroidMauiWebberBridge(this);
+            androidWebView.AddJavascriptInterface(_androidBridge, "mauiWebberNative");
         }
 #endif
 #if WINDOWS
@@ -219,9 +226,66 @@ public class MauiWebberPage : ContentPage {
         }
     }
 
+#if ANDROID
+    private sealed class AndroidMauiWebberBridge : Java.Lang.Object {
+        private readonly MauiWebberPage _page;
+
+        public AndroidMauiWebberBridge(MauiWebberPage page) {
+            _page = page;
+        }
+
+        [Android.Webkit.JavascriptInterface]
+        [Export("postMessage")]
+        public void PostMessage(string json) {
+            _page._logger.Log("AndroidBridge.MessageReceived", $"length={json?.Length ?? 0}");
+            _ = _page.HandleRpcJsonAsync(json ?? string.Empty);
+        }
+    }
+#endif
+
     private async Task HandleRpcRequestAsync(MauiWebberRpcRequest request) {
         if (string.Equals(request.Method, "mauiWebber.trace", StringComparison.Ordinal)) {
             _logger.Log("JsTrace", $"ms={_stopwatch.ElapsedMilliseconds};payload={request.Payload}");
+            return;
+        }
+
+        if (string.Equals(request.Method, "mauiWebber.pullRemote", StringComparison.Ordinal)) {
+            var result = await _updater.PullRemoteAndActivateAsync(CancellationToken.None).ConfigureAwait(false);
+            await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                Ok = !string.Equals(result.Status, "error", StringComparison.Ordinal),
+                Data = new {
+                    source = "remote",
+                    status = result.Status,
+                    version = result.Version,
+                    lastPulledVersion = result.Version,
+                    url = string.IsNullOrWhiteSpace(result.StartupFile) ? null : ToSourceUrl(result.StartupFile)
+                },
+                Error = result.Error
+            }).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(result.StartupFile) &&
+                !string.Equals(result.Status, "same", StringComparison.Ordinal)) {
+                await MainThread.InvokeOnMainThreadAsync(async () => {
+                    await Task.Delay(250).ConfigureAwait(true);
+                    SetWebViewSource(result.StartupFile, "WebView.RemoteSourceSet");
+                }).ConfigureAwait(false);
+            }
+            return;
+        }
+
+        if (string.Equals(request.Method, "mauiWebber.useEmbedded", StringComparison.Ordinal)) {
+            _updater.UseEmbeddedOnNextStartup();
+            var startupFile = await _updater.ResolveStartupFileAsync().ConfigureAwait(false);
+            await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                Ok = true,
+                Data = new {
+                    source = "embedded",
+                    url = ToSourceUrl(startupFile)
+                }
+            }).ConfigureAwait(false);
+            await MainThread.InvokeOnMainThreadAsync(async () => {
+                await Task.Delay(250).ConfigureAwait(true);
+                SetWebViewSource(startupFile, "WebView.EmbeddedSourceSet");
+            }).ConfigureAwait(false);
             return;
         }
 
@@ -240,6 +304,19 @@ public class MauiWebberPage : ContentPage {
             _logger.Log("Today.GetSnapshot.First.End", $"ms={_stopwatch.ElapsedMilliseconds};elapsed={rpcElapsed}");
         }
         await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = data }).ConfigureAwait(false);
+    }
+
+    private void SetWebViewSource(string startupFile, string logName) {
+        _webView.Source = new UrlWebViewSource {
+            Url = ToSourceUrl(startupFile)
+        };
+        _logger.Log(logName, $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
+    }
+
+    private static string ToSourceUrl(string startupFile) {
+        return Uri.TryCreate(startupFile, UriKind.Absolute, out var uri)
+            ? uri.AbsoluteUri
+            : new Uri(startupFile).AbsoluteUri;
     }
 
     private Task InjectBridgeAsync() {

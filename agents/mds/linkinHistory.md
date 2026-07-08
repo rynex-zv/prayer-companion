@@ -24,6 +24,17 @@ Per-check status values: `WORKING GOOD`, `BROKEN`, `STATUS SAVED BROKEN`, `VALUE
 | Settings about | `/settings/about` | WORKING | Native external actions are stubbed by `settings.invoke` on Windows console pass. | About text/buttons localized; `settings.invoke` actions returned without console errors. |
 | Onboarding | `/onboarding` | WORKING | Completion flow not executed to avoid changing onboarding state. | Steps/language/options/back/next localized from backend labels; next button advanced to permissions step; console errors `0`. |
 
+## Stateful Frontend Verification
+
+| Area | Status | Evidence |
+|---|---|---|
+| Store bootstrap | WORKING | `Pray.web/src/state/appStore.ts` loads `localStorage` before React render, applies `html dir/lang`, dark class, accent, and text scale synchronously. |
+| Language proxy | WORKING | `languageProxy` is created once and reads through a mutable `languageTarget`; `setLanguageObject` repoints the target without recreating the proxy. |
+| Field sync contract | WORKING | Frontend calls `settings.setField` and verifies `{ section, field, value }`; retry-on-mismatch path is implemented. |
+| Backend RPCs | WORKING | Windows build succeeded with `app.getLanguageObject` and `settings.setField` in `WebAppRpcHandler.cs`. |
+| Windows launch | WORKING | Windows app launched after build; WebView navigated successfully and logs show no frontend `window.error`/`unhandledrejection`. |
+| Known native data issue | PARTIAL | Native log still reports missing/invalid location in `HomeViewModel.RefreshAsync`; this is backend/location state, not a frontend blank-screen crash. |
+
 ## Today `/`
 
 | Check | Selector/API | Expected | Status | Evidence |

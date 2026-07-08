@@ -1,6 +1,7 @@
 using Android.App;
 using Android.Content;
 using Android.Content.PM;
+using Android.Graphics.Drawables;
 using Android.OS;
 using Android.Util;
 using Android.Views;
@@ -12,12 +13,14 @@ using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Platforms.Android;
 using Pray_Ad_Free.Services;
+using AndroidColor = Android.Graphics.Color;
 
 namespace Pray_Ad_Free;
 
 [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity {
     private const string BackLogTag = "PrayAdFree.Back";
+    private const string WindowLogTag = "PrayAdFree.Window";
     private static readonly object AlarmIntentLock = new();
     private static string? _lastAlarmPayload;
     private static DateTime _lastAlarmPayloadUtc;
@@ -25,10 +28,23 @@ public class MainActivity : MauiAppCompatActivity {
 
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
+        ScheduleOpaqueWindowCheck("OnCreate");
         OnBackPressedDispatcher.AddCallback(this, new ShellBackPressedCallback(this));
         NotifyNotificationIntent(Intent);
         HandleAlarmPresentationIntent(Intent);
         HandleAdhanControlIntent(Intent);
+    }
+
+    protected override void OnResume() {
+        base.OnResume();
+        ScheduleOpaqueWindowCheck("OnResume");
+    }
+
+    public override void OnWindowFocusChanged(bool hasFocus) {
+        base.OnWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            ScheduleOpaqueWindowCheck("OnWindowFocusChanged");
+        }
     }
 
     protected override void OnNewIntent(Intent? intent) {
@@ -39,6 +55,44 @@ public class MainActivity : MauiAppCompatActivity {
         NotifyNotificationIntent(intent);
         HandleAlarmPresentationIntent(intent);
         HandleAdhanControlIntent(intent);
+    }
+
+    private void ScheduleOpaqueWindowCheck(string reason) {
+        EnsureOpaqueWindow(reason);
+
+        _ = Task.Run(async () => {
+            await Task.Delay(250).ConfigureAwait(false);
+            RunOnUiThread(() => EnsureOpaqueWindow($"{reason}:250ms"));
+            await Task.Delay(750).ConfigureAwait(false);
+            RunOnUiThread(() => EnsureOpaqueWindow($"{reason}:1000ms"));
+        });
+    }
+
+    private void EnsureOpaqueWindow(string reason) {
+        try {
+            var window = Window;
+            if (window == null) {
+                return;
+            }
+
+            window.ClearFlags(WindowManagerFlags.TranslucentStatus | WindowManagerFlags.TranslucentNavigation);
+            window.SetBackgroundDrawable(new ColorDrawable(AndroidColor.Rgb(234, 247, 248)));
+
+            var attributes = window.Attributes;
+            if (attributes != null && Math.Abs(attributes.Alpha - 1f) > 0.001f) {
+                attributes.Alpha = 1f;
+                window.Attributes = attributes;
+            }
+
+            if (window.DecorView != null) {
+                window.DecorView.Alpha = 1f;
+                window.DecorView.SetBackgroundColor(AndroidColor.Rgb(234, 247, 248));
+            }
+
+            Log.Debug(WindowLogTag, $"EnsureOpaqueWindow reason={reason};alpha={window.Attributes?.Alpha}");
+        } catch (Exception ex) {
+            Log.Warn(WindowLogTag, $"EnsureOpaqueWindow failed reason={reason}: {ex}");
+        }
     }
 
     private async Task HandleBackPressedAsync() {
