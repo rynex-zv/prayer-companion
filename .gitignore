@@ -290,6 +290,8 @@ node_modules/
 /prayer-companion/
 !/Pray.web/.git/
 !/prayer-companion/.git/
+!Pray.web/Pray.web.csproj
+
 # Visual Studio 6 build log
 *.plg
 
