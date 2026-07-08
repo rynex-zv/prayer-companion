@@ -11,6 +11,7 @@ public sealed class MauiWebberUpdater {
     private const string StagingSlot = "staging";
     private const string ManifestFileName = "webber-manifest.json";
     private const string UseRemoteSlotPreferencePrefix = "MauiWebber.UseRemoteSlot.";
+    private const string RemoteBaseUrlPreferencePrefix = "MauiWebber.RemoteBaseUrl.";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
@@ -25,6 +26,24 @@ public sealed class MauiWebberUpdater {
         _options = options;
         _httpClient = httpClient ?? new HttpClient();
         _logger = logger ?? NullMauiWebberLogger.Instance;
+    }
+
+    public MauiWebberOptions Options => _options;
+
+    public Uri RemoteBaseUrl => LoadRemoteBaseUrl();
+
+    public Uri ManifestUrl => new(RemoteBaseUrl, ManifestFileName);
+
+    public Uri SetRemoteBaseUrl(string? url) {
+        var normalized = NormalizeRemoteBaseUrl(url);
+        Preferences.Set(RemoteBaseUrlPreferenceKey(), normalized.AbsoluteUri);
+        _logger.Log("RemoteBaseUrl.Set", normalized.AbsoluteUri);
+        return normalized;
+    }
+
+    public void ResetRemoteBaseUrl() {
+        Preferences.Remove(RemoteBaseUrlPreferenceKey());
+        _logger.Log("RemoteBaseUrl.Reset", _options.RemoteBaseUrl.AbsoluteUri);
     }
 
     public async Task<string> ResolveStartupFileAsync(CancellationToken cancellationToken = default) {
@@ -79,17 +98,25 @@ public sealed class MauiWebberUpdater {
             return MauiWebberUpdateResult.Skipped(CurrentInstalledVersion());
         }
 
+        if (!await _gate.WaitAsync(_options.UpdateGateWaitTimeout, cancellationToken).ConfigureAwait(false)) {
+            _logger.Log("UpdateCheck.Skip", "busy");
+            return MauiWebberUpdateResult.Failed("Another web update check is already running. Try again in a few seconds.", CurrentInstalledVersion());
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.UpdateCheckTimeout);
+        var token = timeout.Token;
         var started = DateTime.UtcNow;
-        _logger.Log("UpdateCheck.Start", _options.ManifestUrl.ToString());
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var manifestUrl = ManifestUrl;
+        _logger.Log("UpdateCheck.Start", manifestUrl.ToString());
         try {
-            var remoteManifest = await LoadRemoteManifestAsync(cancellationToken).ConfigureAwait(false);
+            var remoteManifest = await LoadRemoteManifestAsync(manifestUrl, token).ConfigureAwait(false);
             if (remoteManifest == null || string.IsNullOrWhiteSpace(remoteManifest.Version)) {
                 _logger.Log("UpdateCheck.Skip", "remote_manifest_missing");
                 return MauiWebberUpdateResult.Failed("Remote web manifest is missing or invalid.", CurrentInstalledVersion());
             }
 
-            var activeManifest = LoadManifest(SlotPath(ActiveSlot)) ?? await LoadEmbeddedManifestAsync(cancellationToken).ConfigureAwait(false);
+            var activeManifest = LoadManifest(SlotPath(ActiveSlot)) ?? await LoadEmbeddedManifestAsync(token).ConfigureAwait(false);
             if (string.Equals(activeManifest?.Version, remoteManifest.Version, StringComparison.Ordinal)) {
                 _logger.Log("UpdateCheck.Skip", $"same_version:{remoteManifest.Version}");
                 return MauiWebberUpdateResult.SameVersion(remoteManifest.Version);
@@ -98,18 +125,18 @@ public sealed class MauiWebberUpdater {
             var staging = SlotPath(StagingSlot);
             DeleteDirectory(staging);
             Directory.CreateDirectory(staging);
-            await WriteManifestAsync(staging, remoteManifest, cancellationToken).ConfigureAwait(false);
+            await WriteManifestAsync(staging, remoteManifest, token).ConfigureAwait(false);
 
             foreach (var file in remoteManifest.Files.Where(item => !string.IsNullOrWhiteSpace(item.Path))) {
-                cancellationToken.ThrowIfCancellationRequested();
+                token.ThrowIfCancellationRequested();
                 var relativePath = NormalizeRelativePath(file.Path);
                 var targetPath = Path.Combine(staging, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
 
-                var sourceUri = new Uri(_options.RemoteBaseUrl, relativePath.Replace('\\', '/'));
+                var sourceUri = new Uri(RemoteBaseUrl, relativePath.Replace('\\', '/'));
                 byte[] bytes;
                 try {
-                    bytes = await _httpClient.GetByteArrayAsync(sourceUri, cancellationToken).ConfigureAwait(false);
+                    bytes = await _httpClient.GetByteArrayAsync(sourceUri, token).ConfigureAwait(false);
                 } catch (HttpRequestException) when (IsOptionalRemoteFile(relativePath)) {
                     _logger.Log("UpdateCheck.OptionalFileMissing", relativePath);
                     continue;
@@ -121,7 +148,7 @@ public sealed class MauiWebberUpdater {
                     return MauiWebberUpdateResult.Failed($"Downloaded web asset failed validation: {relativePath}", CurrentInstalledVersion());
                 }
 
-                await File.WriteAllBytesAsync(targetPath, bytes, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(targetPath, bytes, token).ConfigureAwait(false);
             }
 
             if (!IsHealthy(staging)) {
@@ -129,6 +156,8 @@ public sealed class MauiWebberUpdater {
                 _logger.Log("UpdateCheck.Fail", "staging_unhealthy");
                 return MauiWebberUpdateResult.Failed("Downloaded web bundle failed health checks.", CurrentInstalledVersion());
             }
+
+            RewriteHtmlForLocalSlot(staging, remoteManifest);
 
             var active = SlotPath(ActiveSlot);
             var previous = SlotPath(PreviousSlot);
@@ -145,7 +174,11 @@ public sealed class MauiWebberUpdater {
         } catch (Exception ex) {
             _logger.LogException(ex, "MauiWebber.CheckForUpdates");
             DeleteDirectory(SlotPath(StagingSlot));
-            return MauiWebberUpdateResult.Failed(CleanError(ex), CurrentInstalledVersion());
+            return MauiWebberUpdateResult.Failed(
+                ex is OperationCanceledException && !cancellationToken.IsCancellationRequested
+                    ? "Web update timed out. Check the network and try again."
+                    : CleanError(ex),
+                CurrentInstalledVersion());
         } finally {
             _gate.Release();
         }
@@ -153,6 +186,10 @@ public sealed class MauiWebberUpdater {
 
     public async Task<MauiWebberUpdateResult> PullRemoteAndActivateAsync(CancellationToken cancellationToken = default) {
         var result = await CheckForUpdatesAsync(cancellationToken).ConfigureAwait(false);
+        if (string.Equals(result.Status, "error", StringComparison.Ordinal)) {
+            return result;
+        }
+
         var active = SlotPath(ActiveSlot);
         if (!IsHealthy(active)) {
             if (string.Equals(result.Status, "same", StringComparison.Ordinal)) {
@@ -288,13 +325,47 @@ public sealed class MauiWebberUpdater {
             ?? new MauiWebberManifest { Version = "embedded", Entry = _options.StartupFile };
     }
 
-    private async Task<MauiWebberManifest?> LoadRemoteManifestAsync(CancellationToken cancellationToken) {
+    private async Task<MauiWebberManifest?> LoadRemoteManifestAsync(Uri manifestUrl, CancellationToken cancellationToken) {
         try {
-            return await _httpClient.GetFromJsonAsync<MauiWebberManifest>(_options.ManifestUrl, JsonOptions, cancellationToken).ConfigureAwait(false);
+            return await _httpClient.GetFromJsonAsync<MauiWebberManifest>(manifestUrl, JsonOptions, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger.LogException(ex, "MauiWebber.LoadRemoteManifest");
             return null;
         }
+    }
+
+    private Uri LoadRemoteBaseUrl() {
+        var saved = Preferences.Get(RemoteBaseUrlPreferenceKey(), string.Empty);
+        if (Uri.TryCreate(saved, UriKind.Absolute, out var uri)) {
+            return NormalizeRemoteBaseUrl(uri.AbsoluteUri);
+        }
+
+        return NormalizeRemoteBaseUrl(_options.RemoteBaseUrl.AbsoluteUri);
+    }
+
+    private Uri NormalizeRemoteBaseUrl(string? url) {
+        if (string.IsNullOrWhiteSpace(url)) {
+            throw new InvalidOperationException("Remote web URL is empty.");
+        }
+
+        var trimmed = url.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) {
+            throw new InvalidOperationException("Remote web URL must start with http:// or https://.");
+        }
+
+        var builder = new UriBuilder(uri);
+        if (builder.Path.EndsWith(ManifestFileName, StringComparison.OrdinalIgnoreCase)) {
+            builder.Path = builder.Path[..^ManifestFileName.Length];
+        }
+
+        if (!builder.Path.EndsWith("/", StringComparison.Ordinal)) {
+            builder.Path += "/";
+        }
+
+        builder.Query = string.Empty;
+        builder.Fragment = string.Empty;
+        return builder.Uri;
     }
 
     private string? CurrentInstalledVersion() {
@@ -358,6 +429,8 @@ public sealed class MauiWebberUpdater {
         return Path.Combine(FileSystem.AppDataDirectory, _options.StorageFolderName, Sanitize(_options.AppId), slot);
     }
 
+    private string RemoteBaseUrlPreferenceKey() => $"{RemoteBaseUrlPreferencePrefix}{_options.AppId}";
+
     private string UseRemoteSlotPreferenceKey() {
         return $"{UseRemoteSlotPreferencePrefix}{Sanitize(_options.AppId)}";
     }
@@ -376,6 +449,28 @@ public sealed class MauiWebberUpdater {
             relativePath.Replace('\\', '/'),
             "version.web.info",
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RewriteHtmlForLocalSlot(string slotPath, MauiWebberManifest manifest) {
+        var entry = string.IsNullOrWhiteSpace(manifest.Entry) ? _options.StartupFile : manifest.Entry;
+        var entryPath = Path.Combine(slotPath, NormalizeRelativePath(entry));
+        if (!File.Exists(entryPath)) {
+            return;
+        }
+
+        var html = File.ReadAllText(entryPath);
+        var rewritten = html
+            .Replace("src=\"/", "src=\"", StringComparison.Ordinal)
+            .Replace("href=\"/", "href=\"", StringComparison.Ordinal)
+            .Replace("src='/", "src='", StringComparison.Ordinal)
+            .Replace("href='/", "href='", StringComparison.Ordinal);
+
+        if (string.Equals(html, rewritten, StringComparison.Ordinal)) {
+            return;
+        }
+
+        File.WriteAllText(entryPath, rewritten);
+        _logger.Log("UpdateCheck.RewriteHtmlForLocalSlot", entry);
     }
 
     private static string NormalizeRelativePath(string path) {

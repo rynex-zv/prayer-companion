@@ -262,11 +262,47 @@ public class MauiWebberPage : ContentPage {
                 },
                 Error = result.Error
             }).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(result.StartupFile) &&
-                !string.Equals(result.Status, "same", StringComparison.Ordinal)) {
+            if (!string.IsNullOrWhiteSpace(result.StartupFile)) {
                 await MainThread.InvokeOnMainThreadAsync(async () => {
                     await Task.Delay(250).ConfigureAwait(true);
                     SetWebViewSource(result.StartupFile, "WebView.RemoteSourceSet");
+                }).ConfigureAwait(false);
+            }
+            return;
+        }
+
+        if (string.Equals(request.Method, "mauiWebber.getRemoteUrl", StringComparison.Ordinal)) {
+            await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                Ok = true,
+                Data = new {
+                    url = _updater.RemoteBaseUrl.AbsoluteUri,
+                    manifestUrl = _updater.ManifestUrl.AbsoluteUri
+                }
+            }).ConfigureAwait(false);
+            return;
+        }
+
+        if (string.Equals(request.Method, "mauiWebber.setRemoteUrl", StringComparison.Ordinal)) {
+            try {
+                string? rawUrl = null;
+                if (request.Payload.ValueKind == JsonValueKind.Object &&
+                    request.Payload.TryGetProperty("url", out var urlElement) &&
+                    urlElement.ValueKind == JsonValueKind.String) {
+                    rawUrl = urlElement.GetString();
+                }
+
+                var normalized = _updater.SetRemoteBaseUrl(rawUrl);
+                await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                    Ok = true,
+                    Data = new {
+                        url = normalized.AbsoluteUri,
+                        manifestUrl = _updater.ManifestUrl.AbsoluteUri
+                    }
+                }).ConfigureAwait(false);
+            } catch (Exception ex) {
+                await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                    Ok = false,
+                    Error = ex.Message
                 }).ConfigureAwait(false);
             }
             return;
@@ -320,8 +356,71 @@ public class MauiWebberPage : ContentPage {
     }
 
     private Task InjectBridgeAsync() {
-        const string script = """
+        var appendJsLog = _updater.Options.AppendJsLog ? "true" : "false";
+        var script = $$"""
             (function(){
+              const appendJSlog = {{appendJsLog}};
+
+              function installJsLogListener() {
+                if (!appendJSlog || window.__mauiWebberJsLogAttached) return;
+                window.__mauiWebberJsLogAttached = true;
+
+                function normalizeArg(arg) {
+                  if (arg instanceof Error) {
+                    return { name: arg.name, message: arg.message, stack: arg.stack };
+                  }
+                  if (typeof arg === 'string' || typeof arg === 'number' || typeof arg === 'boolean' || arg == null) {
+                    return arg;
+                  }
+                  try {
+                    return JSON.parse(JSON.stringify(arg));
+                  } catch (_) {
+                    try { return String(arg); } catch (_) { return '[unserializable]'; }
+                  }
+                }
+
+                function append(level, args) {
+                  try {
+                    if (!window.mauiWebber || typeof window.mauiWebber.call !== 'function') return;
+                    window.mauiWebber.call('mauiWebber.trace', {
+                      name: 'console.' + level,
+                      level: level,
+                      args: Array.prototype.slice.call(args || []).map(normalizeArg),
+                      location: String(window.location && window.location.href || ''),
+                      at: performance.now()
+                    });
+                  } catch (_) {
+                  }
+                }
+
+                ['debug', 'log', 'info', 'warn', 'error'].forEach(function(level) {
+                  var original = console[level];
+                  console[level] = function() {
+                    if (typeof original === 'function') {
+                      original.apply(console, arguments);
+                    }
+                    append(level, arguments);
+                  };
+                });
+
+                window.addEventListener('error', function(event) {
+                  append('error', [{
+                    message: event.message,
+                    source: event.filename,
+                    line: event.lineno,
+                    column: event.colno,
+                    error: normalizeArg(event.error)
+                  }]);
+                });
+
+                window.addEventListener('unhandledrejection', function(event) {
+                  append('error', [{
+                    message: 'Unhandled promise rejection',
+                    reason: normalizeArg(event.reason)
+                  }]);
+                });
+              }
+
               function dispatchNavigation(direction) {
                 var event = new CustomEvent('mauiwebber:navigation', {
                   cancelable: true,
@@ -371,6 +470,7 @@ public class MauiWebberPage : ContentPage {
                   window.chrome.webview.addEventListener('message', window.mauiWebber.__nativeResponseListener);
                 }
                 window.mauiWebber.__navigate = runNavigation;
+                installJsLogListener();
                 return;
               }
               const callbacks = {};
@@ -390,6 +490,11 @@ public class MauiWebberPage : ContentPage {
               }
 
               function sendMessage(request) {
+                if (window.mauiWebberNative && typeof window.mauiWebberNative.postMessage === 'function') {
+                  window.mauiWebberNative.postMessage(decodeURIComponent(request));
+                  return;
+                }
+
                 if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
                   window.chrome.webview.postMessage(decodeURIComponent(request));
                   return;
@@ -454,6 +559,7 @@ public class MauiWebberPage : ContentPage {
                 __navigate: runNavigation,
                 navigation: null
               };
+              installJsLogListener();
               window.dispatchEvent(new CustomEvent('mauiwebber:ready'));
               setTimeout(function(){
                 window.mauiWebber.call('mauiWebber.trace', { name: 'bridgeReady', performanceNow: performance.now() });

@@ -18,4 +18,7 @@ public sealed class MauiWebberOptions {
     public MauiWebberUpdatePolicy UpdatePolicy { get; init; } = MauiWebberUpdatePolicy.LocalFirst;
     public bool RollbackEnabled { get; init; } = true;
     public MauiWebberIntegrityMode IntegrityMode { get; init; } = MauiWebberIntegrityMode.OptionalHash;
+    public bool AppendJsLog { get; init; } = true;
+    public TimeSpan UpdateGateWaitTimeout { get; init; } = TimeSpan.FromSeconds(3);
+    public TimeSpan UpdateCheckTimeout { get; init; } = TimeSpan.FromSeconds(30);
 }

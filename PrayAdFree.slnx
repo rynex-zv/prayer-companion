@@ -8,6 +8,7 @@
   </Configurations>
   <Project Path="MauiWebber/MauiWebber.csproj" />
   <Project Path="Pray.web/Pray.web.csproj" />
+  <Project Path="PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj" />
   <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
   <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
   <Project Path="PrayAdFree/PrayAdFree.csproj">

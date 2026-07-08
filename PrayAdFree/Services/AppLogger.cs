@@ -42,14 +42,14 @@ public sealed class AppLogger : IAppLogger {
     }
 
     public void LogEvent(string name, string details) {
-#if DEBUG
         try {
             var line = $"UTC: {DateTime.UtcNow:O} | {name} | {details}";
+#if DEBUG
             Append(_eventPath, line + Environment.NewLine);
+#endif
             WritePlatformLog(line, isError: false);
         } catch {
         }
-#endif
     }
 
     private void ResetLogs() {

@@ -799,10 +799,20 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 TimeZoneId = settings.Location.TimeZoneId,
                 LastUpdatedUtc = settings.Location.LastUpdatedUtc
             });
-        var updated = await _dataService.UpdateLocationAsync(gpsSettings, CancellationToken.None, forceRefresh: true)
-            .ConfigureAwait(false);
-        SaveSettings(updated);
-        return BuildLocationsSettings(updated);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try {
+            var updated = await _dataService.UpdateLocationAsync(gpsSettings, timeout.Token, forceRefresh: true)
+                .ConfigureAwait(false);
+            SaveSettings(updated);
+            return BuildLocationsSettings(updated);
+        } catch (OperationCanceledException) {
+            return new {
+                ok = false,
+                action = "refreshGps",
+                message = "GPS refresh timed out. Check location permission and try again.",
+                current = BuildLocationsSettings(settings)
+            };
+        }
     }
 
     private object CompleteOnboarding() {
