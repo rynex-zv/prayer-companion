@@ -40,13 +40,27 @@ public sealed class GeoService : IGeoLookupService {
     }
 
     public IReadOnlyList<GeoLocationResult> GetKnownPlaces() {
-        return _cacheEntries
+        var cached = _cacheEntries
             .Select(entry => new GeoLocationResult {
                 City = entry.City,
                 Country = entry.Country,
                 CountryCode = entry.CountryCode,
                 Latitude = entry.Latitude,
                 Longitude = entry.Longitude
+            })
+            .ToList();
+
+        if (cached.Count > 0) {
+            return cached;
+        }
+
+        return DefaultPlaces
+            .Select(place => new GeoLocationResult {
+                City = place.city,
+                Country = place.country,
+                CountryCode = place.countryCode,
+                Latitude = place.latitude,
+                Longitude = place.longitude
             })
             .ToList();
     }
@@ -177,6 +191,15 @@ public sealed class GeoService : IGeoLookupService {
     }
 
     private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
+
+    private static readonly (string country, string countryCode, string city, double latitude, double longitude)[] DefaultPlaces = [
+        ("Netherlands", "NL", "Amsterdam", 52.3676, 4.9041),
+        ("Netherlands", "NL", "Rotterdam", 51.9244, 4.4777),
+        ("Netherlands", "NL", "Utrecht", 52.0907, 5.1214),
+        ("Saudi Arabia", "SA", "Makkah", 21.3891, 39.8579),
+        ("Saudi Arabia", "SA", "Madinah", 24.5247, 39.5692),
+        ("Saudi Arabia", "SA", "Riyadh", 24.7136, 46.6753)
+    ];
 
     private sealed class GeoCacheEntry {
         public string City { get; set; } = "";

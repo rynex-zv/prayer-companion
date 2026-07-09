@@ -13,10 +13,6 @@ public sealed class PrayerTimesCache {
     };
 
     private readonly string _cacheDirectory;
-    private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions {
-        WriteIndented = true
-    };
-
     public PrayerTimesCache(string cacheDirectory) {
         _cacheDirectory = cacheDirectory;
         Directory.CreateDirectory(_cacheDirectory);
@@ -37,7 +33,7 @@ public sealed class PrayerTimesCache {
                     FileShare.ReadWrite | FileShare.Delete,
                     bufferSize: 4096,
                     options: FileOptions.Asynchronous);
-                return await JsonSerializer.DeserializeAsync<PrayerMonth>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                return await JsonSerializer.DeserializeAsync(stream, CoreJsonContext.Default.PrayerMonth, cancellationToken).ConfigureAwait(false);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return null;
@@ -63,7 +59,7 @@ public sealed class PrayerTimesCache {
                         FileShare.None,
                         bufferSize: 4096,
                         options: FileOptions.Asynchronous)) {
-                        await JsonSerializer.SerializeAsync(stream, month, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                        await JsonSerializer.SerializeAsync(stream, month, CoreJsonContext.Default.PrayerMonth, cancellationToken).ConfigureAwait(false);
                         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                     }
 

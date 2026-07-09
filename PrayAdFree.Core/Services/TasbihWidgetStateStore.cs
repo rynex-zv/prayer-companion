@@ -5,10 +5,6 @@ namespace PrayAdFree.Core.Services;
 
 public sealed class TasbihWidgetStateStore {
     private readonly string _path;
-    private readonly JsonSerializerOptions _jsonOptions = new() {
-        WriteIndented = true
-    };
-
     public TasbihWidgetStateStore(string path) {
         _path = path;
         Directory.CreateDirectory(Path.GetDirectoryName(_path) ?? ".");
@@ -58,7 +54,7 @@ public sealed class TasbihWidgetStateStore {
                 return [];
             }
 
-            var payload = JsonSerializer.Deserialize<StorePayload>(json, _jsonOptions);
+            var payload = JsonSerializer.Deserialize(json, CoreJsonContext.Default.TasbihWidgetStorePayload);
             return payload?.Widgets?.ToDictionary(item => item.AppWidgetId) ?? [];
         } catch {
             return [];
@@ -66,10 +62,10 @@ public sealed class TasbihWidgetStateStore {
     }
 
     private void SaveStore(Dictionary<int, TasbihWidgetState> states) {
-        var payload = new StorePayload {
+        var payload = new TasbihWidgetStorePayload {
             Widgets = states.Values.OrderBy(item => item.AppWidgetId).ToList()
         };
-        var json = JsonSerializer.Serialize(payload, _jsonOptions);
+        var json = JsonSerializer.Serialize(payload, CoreJsonContext.Default.TasbihWidgetStorePayload);
         var tempPath = _path + ".tmp";
 
         try {
@@ -89,7 +85,8 @@ public sealed class TasbihWidgetStateStore {
         }
     }
 
-    private sealed class StorePayload {
-        public List<TasbihWidgetState> Widgets { get; set; } = [];
-    }
+}
+
+internal sealed class TasbihWidgetStorePayload {
+    public List<TasbihWidgetState> Widgets { get; set; } = [];
 }

@@ -106,6 +106,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             LocationTitle: _viewModel.LocationTitle,
             HijriDate: LocalizeHijriDate(_viewModel.HijriDate),
             GregorianDate: _viewModel.GregorianDate,
+            CurrentTime: FormatLiveClock(DateTime.Now, _viewModel.CurrentClockFormat),
             NextPrayerName: _viewModel.NextPrayerName,
             NextPrayerClock: _viewModel.NextPrayerClock,
             NextPrayerBaseClock: _viewModel.NextPrayerBaseClock,
@@ -190,6 +191,13 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         return $"\u2066{value}\u2069";
     }
 
+    private static string FormatLiveClock(DateTime time, PrayAdFree.Core.Models.ClockFormat format) {
+        return format switch {
+            PrayAdFree.Core.Models.ClockFormat.TwelveHour => time.ToString("h:mm:ss tt", CultureInfo.CurrentCulture),
+            _ => time.ToString("HH:mm:ss", CultureInfo.CurrentCulture)
+        };
+    }
+
     private TodayWebSnapshot? LoadCachedSnapshot() {
         try {
             if (!File.Exists(_snapshotPath)) {
@@ -217,6 +225,7 @@ public sealed record TodayWebSnapshot(
     string LocationTitle,
     string HijriDate,
     string GregorianDate,
+    string CurrentTime,
     string NextPrayerName,
     string NextPrayerClock,
     string NextPrayerBaseClock,

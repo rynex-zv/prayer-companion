@@ -50,6 +50,7 @@ public sealed class HomeViewModel : ViewModelBase {
 
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }
     public Command RefreshCommand { get; }
+    public ClockFormat CurrentClockFormat => _settings.ClockFormat;
 
     public string LocationTitle {
         get => _locationTitle;

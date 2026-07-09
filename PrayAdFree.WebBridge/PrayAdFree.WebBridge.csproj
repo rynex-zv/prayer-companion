@@ -11,5 +11,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />
+    <TrimmerRootAssembly Include="PrayAdFree.Core" />
   </ItemGroup>
 </Project>

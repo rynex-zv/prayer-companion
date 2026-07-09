@@ -19,16 +19,12 @@ public sealed class StartupNavigationService : IStartupNavigationService {
     }
 
     public StartupTarget ResolveTarget(AppSettings settings) {
-        return HasCompletedSetup(settings)
-            ? StartupTarget.Shell
-            : StartupTarget.Onboarding;
+        return StartupTarget.Shell;
     }
 
     public Page CreateStartupPage() {
         var settings = _settingsService.Load();
-        return ResolveTarget(settings) == StartupTarget.Onboarding
-            ? _services.GetRequiredService<Pages.OnboardingPage>()
-            : GetOrCreateShell(settings);
+        return GetOrCreateShell(settings);
     }
 
     public async Task PrepareShellAsync(AppSettings? settings = null) {
@@ -107,7 +103,4 @@ public sealed class StartupNavigationService : IStartupNavigationService {
         return settings.Language;
     }
 
-    private static bool HasCompletedSetup(AppSettings settings) {
-        return settings.OnboardingCompleted;
-    }
 }

@@ -119,7 +119,7 @@ public sealed class TasbihViewModel : ViewModelBase {
                 Qibla = _settings.Qibla,
                 ClockFormat = _settings.ClockFormat,
                 TextScale = _settings.TextScale,
-                Tasbih = TasbihDefaults.BuildDefaults(),
+                Tasbih = PrayAdFree.Core.Services.TasbihDefaults.BuildDefaults(),
                 Language = _settings.Language,
                 LanguageSelected = _settings.LanguageSelected,
                 ThemeMode = _settings.ThemeMode,

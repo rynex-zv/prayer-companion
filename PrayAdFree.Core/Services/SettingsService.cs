@@ -6,10 +6,6 @@ namespace PrayAdFree.Core.Services;
 public sealed class SettingsService {
     private const string SettingsKey = "app_settings";
     private readonly ISettingsStore _store;
-    private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions {
-        WriteIndented = true
-    };
-
     public SettingsService(ISettingsStore store) {
         _store = store;
     }
@@ -21,7 +17,7 @@ public sealed class SettingsService {
                 return new AppSettings();
             }
 
-            return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+            return JsonSerializer.Deserialize(json, CoreJsonContext.Default.AppSettings) ?? new AppSettings();
         } catch {
             var fallback = new AppSettings();
             try {
@@ -33,7 +29,7 @@ public sealed class SettingsService {
     }
 
     public void Save(AppSettings settings) {
-        var json = JsonSerializer.Serialize(settings, _jsonOptions);
+        var json = JsonSerializer.Serialize(settings, CoreJsonContext.Default.AppSettings);
         _store.Set(SettingsKey, json);
     }
 }
