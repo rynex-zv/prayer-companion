@@ -87,16 +87,15 @@ function TasbihRing({
   const busyRef = useRef(false);
   const ignoreNextClick = useRef(false);
 
-  const centerX = 160;
-  const centerY = 218;
-  const radiusX = 116;
-  const radiusY = 176;
+  const size = 340;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = 138;
   const dragStep = 32;
   const swipeThreshold = 22;
 
   const incrementOnce = async () => {
     if (busyRef.current) return;
-
     busyRef.current = true;
     try {
       await onIncrement();
@@ -107,34 +106,25 @@ function TasbihRing({
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-
     startY.current = e.clientY;
     dragDistanceRef.current = 0;
     ignoreNextClick.current = false;
-
     setDragging(true);
     setDragDistance(0);
   };
 
   const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-
-    const nextDistance = Math.max(
-      -70,
-      Math.min(70, e.clientY - startY.current),
-    );
-
+    const nextDistance = Math.max(-70, Math.min(70, e.clientY - startY.current));
     dragDistanceRef.current = nextDistance;
     setDragDistance(nextDistance);
   };
 
   const handlePointerUp = () => {
     const shouldIncrement = Math.abs(dragDistanceRef.current) > swipeThreshold;
-
     setDragging(false);
     setDragDistance(0);
     dragDistanceRef.current = 0;
-
     if (shouldIncrement) {
       ignoreNextClick.current = true;
       void incrementOnce();
@@ -146,7 +136,6 @@ function TasbihRing({
       ignoreNextClick.current = false;
       return;
     }
-
     void incrementOnce();
   };
 
@@ -154,31 +143,18 @@ function TasbihRing({
     directionMultiplier * count + directionMultiplier * (dragDistance / dragStep);
 
   const points: Point[] = Array.from({ length: safeBeadCount }).map((_, i) => {
-    const angle =
-      ((i - visualOffset) / safeBeadCount) * Math.PI * 2 - Math.PI / 2;
-
+    const angle = ((i - visualOffset) / safeBeadCount) * Math.PI * 2 - Math.PI / 2;
     return {
       angle,
-      x: centerX + Math.cos(angle) * radiusX,
-      y: centerY + Math.sin(angle) * radiusY,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
     };
   });
 
-  const visibleIndexes = points
-    .map((point, index) => {
-      const gapAngle = normalizeAngle(point.angle - Math.PI / 2);
-      const isInBottomTouchArea = Math.abs(gapAngle) < 0.2;
-
-      return isInBottomTouchArea ? null : index;
-    })
-    .filter((index): index is number => index !== null);
-
   let activeIndex = 0;
   let smallestTopDistance = Number.POSITIVE_INFINITY;
-
   points.forEach((point, index) => {
     const topDistance = Math.abs(normalizeAngle(point.angle + Math.PI / 2));
-
     if (topDistance < smallestTopDistance) {
       smallestTopDistance = topDistance;
       activeIndex = index;
@@ -201,97 +177,76 @@ function TasbihRing({
         }
       }}
       className={cn(
-        "relative mx-auto h-[455px] w-full max-w-[350px] touch-none select-none outline-none",
-        "cursor-pointer rounded-[2rem]",
+        "relative mx-auto touch-none select-none outline-none cursor-pointer",
+        dragging && "scale-[0.99] transition-transform",
       )}
-      aria-label="Tasbih counter"
+      style={{ width: size, height: size }}
     >
-      {/* connecting thread */}
-      {visibleIndexes.map((index) => {
-        const nextIndex = (index + 1) % safeBeadCount;
+      {/* outer soft ring */}
+      <div
+        className="pointer-events-none absolute rounded-full bg-gradient-to-br from-primary/8 to-transparent"
+        style={{
+          left: centerX - radius - 26,
+          top: centerY - radius - 26,
+          width: (radius + 26) * 2,
+          height: (radius + 26) * 2,
+        }}
+      />
+      {/* thin guide circle */}
+      <div
+        className="pointer-events-none absolute rounded-full border border-dashed border-primary/15"
+        style={{
+          left: centerX - radius,
+          top: centerY - radius,
+          width: radius * 2,
+          height: radius * 2,
+        }}
+      />
 
-        if (!visibleIndexes.includes(nextIndex)) return null;
-
-        const a = points[index];
-        const b = points[nextIndex];
-
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        const angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
-
+      {/* beads */}
+      {points.map((point, index) => {
+        const isActive = index === activeIndex;
+        const beadSize = isActive ? 26 : 16;
         return (
           <div
-            key={`thread-${index}`}
-            className="pointer-events-none absolute z-0 h-[2px] origin-left rounded-full bg-primary/25"
+            key={`bead-${index}`}
+            className={cn(
+              "pointer-events-none absolute rounded-full transition-all duration-200",
+              isActive
+                ? "z-20 bg-gradient-to-br from-primary to-primary/70 shadow-[0_4px_12px_-2px_var(--color-primary)] ring-2 ring-primary/25 ring-offset-2 ring-offset-background"
+                : "z-10 bg-gradient-to-br from-primary/40 to-primary/20 shadow-sm",
+            )}
             style={{
-              left: a.x,
-              top: a.y,
-              width: length,
-              transform: `rotate(${angleDeg}deg)`,
+              left: point.x,
+              top: point.y,
+              width: beadSize,
+              height: beadSize,
+              transform: "translate(-50%, -50%)",
             }}
           />
         );
       })}
 
-      {/* beads */}
-      {visibleIndexes.map((index) => {
-        const point = points[index];
-        const isActive = index === activeIndex;
-        const size = isActive ? 34 : 26;
-
-        return (
-          <div
-            key={`bead-${index}`}
-            className={cn(
-              "pointer-events-none absolute z-10 rounded-full border shadow-sm",
-              "border-primary/55 bg-primary/15",
-              isActive && "z-20 border-primary/85 bg-primary/25 shadow-md",
-            )}
-            style={{
-              left: point.x,
-              top: point.y,
-              width: size,
-              height: size,
-              transform: "translate(-50%, -50%)",
-            }}
-          >
-            {isActive && (
-              <div
-                className="absolute rounded-full bg-primary/65"
-                style={{
-                  left: "50%",
-                  top: "50%",
-                  width: 12,
-                  height: 12,
-                  transform: "translate(-50%, -50%)",
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
-
-      {/* small touch guide, not blocking the beads */}
-      <div className="pointer-events-none absolute left-1/2 top-[374px] z-20 h-6 w-24 -translate-x-1/2 rounded-full border border-dashed border-primary/45 bg-background/70" />
-
-      {/* center counter */}
-      <div className="pointer-events-none absolute left-1/2 top-[218px] z-30 flex h-44 w-44 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-border bg-background/95 px-4 text-center shadow-sm backdrop-blur">
-        <div className="line-clamp-2 text-lg font-bold leading-snug text-primary">
+      {/* center face */}
+      <div
+        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)]"
+        style={{
+          left: centerX,
+          top: centerY,
+          width: 200,
+          height: 200,
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <div className="line-clamp-2 text-base font-semibold leading-snug text-primary">
           {currentPhrase}
         </div>
-
-        <div className="mt-1 text-sm font-medium text-muted-foreground">
+        <div className="mt-1 text-xs font-medium text-muted-foreground tabular-nums">
           {progressText}
         </div>
-
-        <div className="mt-3 text-6xl font-bold tabular-nums text-primary">
+        <div className="mt-2 text-5xl font-bold tabular-nums text-foreground">
           {count}
         </div>
-      </div>
-
-      <div className="absolute bottom-1 left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-background/95 px-5 py-2 text-center text-sm text-muted-foreground shadow-sm">
-        اضغط أو اسحب للأعلى أو للأسفل
       </div>
     </div>
   );
