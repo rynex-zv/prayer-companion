@@ -287,10 +287,6 @@ node_modules/
 
 # Frontend is part of this repository; ignore only generated frontend output.
 /Pray.web/dist/
-/Pray.web/assets/
-/Pray.web/.vite/
-/prayer-companion/
-!/prayer-companion/.git/
 
 # Visual Studio 6 build log
 *.plg
