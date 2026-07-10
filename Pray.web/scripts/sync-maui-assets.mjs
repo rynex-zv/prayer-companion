@@ -1,7 +1,7 @@
 import { cp, mkdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const source = resolve('dist');
+const source = resolve(process.env.PRAY_WEB_DIST_DIR || 'dist');
 const mauiTarget = resolve('../PrayAdFree/Resources/Raw/web');
 const phone = process.argv.includes('--phone');
 

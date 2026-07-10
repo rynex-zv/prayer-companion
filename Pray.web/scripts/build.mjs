@@ -9,8 +9,8 @@ const phone = args.has('--phone');
 // clash with the local dist/ used by the desktop/phone shells.
 const love = args.has('--love') || args.has('-love');
 const devMode = args.has('--dev');
-const outDir = love ? '../.lovable-dist' : '../dist';
-const distDir = love ? '.lovable-dist' : 'dist';
+const distDir = love ? '.lovable-dist' : phone ? 'dist-phone' : 'dist';
+const outDir = `../${distDir}`;
 
 const phoneBridgeBootstrap = `<script>
 (function(){
@@ -171,7 +171,8 @@ function run(command, commandArgs) {
       env: {
         ...process.env,
         PRAY_WEB_TARGET: phone ? 'phone' : 'web',
-        PRAY_WEB_OUTDIR: outDir
+        PRAY_WEB_OUTDIR: outDir,
+        PRAY_WEB_DIST_DIR: distDir
       }
     });
 

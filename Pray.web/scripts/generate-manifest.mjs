@@ -3,7 +3,8 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = new URL('../dist/', import.meta.url);
+const distDir = process.env.PRAY_WEB_DIST_DIR || 'dist';
+const root = new URL(`../${distDir}/`, import.meta.url);
 const rootPath = fileURLToPath(root);
 const target = process.argv.includes('--phone') ? 'phone' : 'web';
 const versionPath = resolve(rootPath, '..', 'version.web.info');

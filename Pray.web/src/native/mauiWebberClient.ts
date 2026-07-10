@@ -17,12 +17,22 @@ export async function mauiCall<T = unknown>(
   try {
     const bridge = await withBridgeTimeout(resolveBridge(), 2500, method, "resolveBridge");
     if (bridge) {
-      const res = await withBridgeTimeout(bridge.call(method, payload), timeoutMs, method, "maui");
-      logBridge("success", { callId, method, source: "maui", elapsedMs: elapsed(started) });
-      if (res && typeof res === "object" && "ok" in res) {
-        return res as BridgeResponse<T>;
+      try {
+        const res = await withBridgeTimeout(bridge.call(method, payload), mauiTimeoutFor(method, timeoutMs), method, "maui");
+        logBridge("success", { callId, method, source: "maui", elapsedMs: elapsed(started) });
+        if (res && typeof res === "object" && "ok" in res) {
+          return res as BridgeResponse<T>;
+        }
+        return { ok: true, data: res as T };
+      } catch (error) {
+        logBridge("failure", {
+          callId,
+          method,
+          source: "maui",
+          elapsedMs: elapsed(started),
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
-      return { ok: true, data: res as T };
     }
 
     const webPlatform = await withBridgeTimeout(tryHandleWebPlatformCall<T>(method, payload), timeoutMs, method, "web-platform");
@@ -51,7 +61,7 @@ export async function mauiCall<T = unknown>(
 }
 
 export function isBridgeReady(): boolean {
-  return typeof window !== "undefined" && !!window.mauiWebber;
+  return typeof window !== "undefined" && !!window.mauiWebber && hasNativeTransport();
 }
 
 export function mauiTrace(name: string, detail: Record<string, unknown> = {}): void {
@@ -105,6 +115,24 @@ function shouldWaitForBridge(): boolean {
   return import.meta.env.MODE === "phone" || window.location.protocol === "file:";
 }
 
+function hasNativeTransport(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const nativeWindow = window as Window & {
+    chrome?: { webview?: { postMessage?: unknown } };
+    mauiWebberNative?: { postMessage?: unknown };
+  };
+
+  return Boolean(
+    nativeWindow.mauiWebberNative?.postMessage ||
+    nativeWindow.chrome?.webview?.postMessage ||
+    window.location.protocol === "file:" ||
+    import.meta.env.MODE === "phone",
+  );
+}
+
 function bridgeTimeoutFor(method: string): number {
   if (method === "mauiWebber.pullRemote") {
     return 50000;
@@ -119,6 +147,33 @@ function bridgeTimeoutFor(method: string): number {
   }
 
   return 15000;
+}
+
+function mauiTimeoutFor(method: string, defaultTimeoutMs: number): number {
+  if (!isImplicitPhoneBridgeWithoutNativeTransport()) {
+    return defaultTimeoutMs;
+  }
+
+  if (method === "mauiWebber.pullRemote") {
+    return 2500;
+  }
+
+  return 800;
+}
+
+function isImplicitPhoneBridgeWithoutNativeTransport(): boolean {
+  if (typeof window === "undefined" || import.meta.env.MODE !== "phone") {
+    return false;
+  }
+
+  const nativeWindow = window as Window & {
+    chrome?: { webview?: { postMessage?: unknown } };
+    mauiWebberNative?: { postMessage?: unknown };
+  };
+
+  return window.location.protocol !== "file:" &&
+    !nativeWindow.mauiWebberNative?.postMessage &&
+    !nativeWindow.chrome?.webview?.postMessage;
 }
 
 function withBridgeTimeout<T>(promise: Promise<T>, timeoutMs: number, method: string, source: string): Promise<T> {
