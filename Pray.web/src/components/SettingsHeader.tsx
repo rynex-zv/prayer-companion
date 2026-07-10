@@ -2,12 +2,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { PageLog } from "@/components/PageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { getLabel, useAppStore } from "@/state/appStore";
+import { useAppStore } from "@/state/appStore";
 
 export function SettingsHeader({ title, logPage, children }: { title: string; logPage?: string; children?: ReactNode }) {
   const navigate = useNavigate();
   const direction = useAppStore((state) => state.direction);
+  const t = useAppLabels();
   const BackIcon = direction === "rtl" ? ChevronRight : ChevronLeft;
   return (
     <div className="mb-3 flex items-center gap-2" dir={direction}>
@@ -19,7 +21,7 @@ export function SettingsHeader({ title, logPage, children }: { title: string; lo
         }}
         data-selector-name="settings:back"
         className="rounded-full p-2 hover:bg-muted"
-        aria-label={getLabel("back")}
+        aria-label={t("back")}
       >
         <BackIcon className="h-5 w-5" />
       </button>

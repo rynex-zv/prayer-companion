@@ -46,6 +46,4 @@ static string BuildTypeScript(string json) =>
 
     export type CoreContract = typeof coreContract;
     export type CoreRpcMethod = CoreContract["rpcMethods"][number];
-    export type CoreLanguageCode = CoreContract["catalog"]["languages"][number]["code"];
-    export type CoreLabelKey = keyof CoreContract["labels"]["en"];
     """;

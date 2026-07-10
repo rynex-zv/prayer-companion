@@ -10,14 +10,10 @@ import { MapPin } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useCallback, useEffect, useRef } from "react";
-import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/qibla")({
   head: () => ({
-    meta: [
-      { title: getLabel("metaQiblaTitle") },
-      { name: "description", content: getLabel("metaQiblaDescription") },
-    ],
+    meta: [],
   }),
   component: QiblaPage,
 });

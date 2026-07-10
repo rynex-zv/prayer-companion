@@ -7,14 +7,10 @@ import { cn } from "@/lib/utils";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
-    meta: [
-      { title: getLabel("metaCalendarTitle") },
-      { name: "description", content: getLabel("metaCalendarDescription") },
-    ],
+    meta: [],
   }),
   component: CalendarPage,
 });

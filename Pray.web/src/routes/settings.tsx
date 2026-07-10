@@ -6,14 +6,11 @@ import { usePageLog } from "@/hooks/usePageLog";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { cn } from "@/lib/utils";
-import { getLabel, useAppStore } from "@/state/appStore";
+import { useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
-    meta: [
-      { title: getLabel("metaSettingsTitle") },
-      { name: "description", content: getLabel("metaSettingsDescription") },
-    ],
+    meta: [],
   }),
   component: SettingsLayout,
 });

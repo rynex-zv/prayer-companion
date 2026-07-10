@@ -7,14 +7,10 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
-import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: getLabel("metaTodayTitle") },
-      { name: "description", content: getLabel("metaTodayDescription") },
-    ],
+    meta: [],
   }),
   component: TodayPage,
 });

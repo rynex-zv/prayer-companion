@@ -55,8 +55,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: getLabel("metaAppTitle") },
-      { name: "description", content: getLabel("metaAppDescription") },
       { name: "theme-color", content: "#0d9488" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
