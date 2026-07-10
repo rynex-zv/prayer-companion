@@ -186,27 +186,30 @@ function run(command, commandArgs) {
   });
 }
 
-if (!phone) {
+if (!phone && !love) {
   await rm(resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish'), { recursive: true, force: true });
   await run('dotnet', ['publish', '../PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj', '-c', 'Release']);
 }
 
-await run('vite', ['build', ...(phone ? ['--mode', 'phone'] : [])]);
-await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), 'dist', 'web.config'));
-if (!phone) {
+const viteArgs = ['build'];
+if (phone) viteArgs.push('--mode', 'phone');
+else if (devMode) viteArgs.push('--mode', 'development');
+await run('vite', viteArgs);
+await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), distDir, 'web.config'));
+if (!phone && !love) {
   const wasmPublishRoot = resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish', 'wwwroot', '_framework');
-  const wasmDistRoot = resolve(process.cwd(), 'dist', 'wasm', '_framework');
-  await rm(resolve(process.cwd(), 'dist', 'wasm'), { recursive: true, force: true });
+  const wasmDistRoot = resolve(process.cwd(), distDir, 'wasm', '_framework');
+  await rm(resolve(process.cwd(), distDir, 'wasm'), { recursive: true, force: true });
   await cp(wasmPublishRoot, wasmDistRoot, { recursive: true });
 }
 if (phone) {
-  const indexPath = resolve(process.cwd(), 'dist', 'index.html');
+  const indexPath = resolve(process.cwd(), distDir, 'index.html');
   const html = await readFile(indexPath, 'utf8');
   let embeddedHtml = html.replace(/\s+crossorigin(?=[\s>])/g, '');
 
   const scriptMatch = embeddedHtml.match(/<script\s+type="module"\s+src="([^"]+)"><\/script>/);
   if (scriptMatch) {
-    const scriptPath = resolve(process.cwd(), 'dist', scriptMatch[1].replace(/^\.\//, ''));
+    const scriptPath = resolve(process.cwd(), distDir, scriptMatch[1].replace(/^\.\//, ''));
     const script = (await readFile(scriptPath, 'utf8'))
       .replaceAll('import.meta.url', 'document.baseURI')
       .replace(/new URL\("([^"/][^"]+)",document\.baseURI\)/g, 'new URL("assets/$1",document.baseURI)')
@@ -221,7 +224,7 @@ if (phone) {
 
   const styleMatch = embeddedHtml.match(/<link\s+rel="stylesheet"\s+href="([^"]+)">/);
   if (styleMatch) {
-    const stylePath = resolve(process.cwd(), 'dist', styleMatch[1].replace(/^\.\//, ''));
+    const stylePath = resolve(process.cwd(), distDir, styleMatch[1].replace(/^\.\//, ''));
     const style = (await readFile(stylePath, 'utf8')).replace(
       /url\((['"]?)\.\/([^)'"]+)\1\)/g,
       'url($1assets/$2$1)'
@@ -231,5 +234,7 @@ if (phone) {
 
   await writeFile(indexPath, embeddedHtml, 'utf8');
 }
-await run('node', ['scripts/generate-manifest.mjs', ...(phone ? ['--phone'] : [])]);
-await run('node', ['scripts/sync-maui-assets.mjs', ...(phone ? ['--phone'] : [])]);
+if (!love) {
+  await run('node', ['scripts/generate-manifest.mjs', ...(phone ? ['--phone'] : [])]);
+  await run('node', ['scripts/sync-maui-assets.mjs', ...(phone ? ['--phone'] : [])]);
+}
