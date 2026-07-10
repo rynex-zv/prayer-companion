@@ -170,7 +170,8 @@ function run(command, commandArgs) {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PRAY_WEB_TARGET: phone ? 'phone' : 'web'
+        PRAY_WEB_TARGET: phone ? 'phone' : 'web',
+        PRAY_WEB_OUTDIR: outDir
       }
     });
 
