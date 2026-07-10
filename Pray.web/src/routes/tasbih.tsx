@@ -235,7 +235,8 @@ function TasbihRing({
 
       {/* center face */}
       <div
-        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)]"
+        key={bumpKey}
+        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)] animate-in zoom-in-95 duration-150"
         style={{
           left: centerX,
           top: centerY,
