@@ -82,6 +82,7 @@ function TasbihRing({
 
   const [dragging, setDragging] = useState(false);
   const [dragDistance, setDragDistance] = useState(0);
+  const [bumpKey, setBumpKey] = useState(0);
 
   const startY = useRef(0);
   const dragDistanceRef = useRef(0);
@@ -98,6 +99,10 @@ function TasbihRing({
   const incrementOnce = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
+    setBumpKey((k) => k + 1);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate?.(8); } catch { /* noop */ }
+    }
     try {
       await onIncrement();
     } finally {
