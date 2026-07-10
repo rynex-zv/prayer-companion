@@ -3,6 +3,6 @@ paths = ["Pray.web/src"]
 dev_port = 8080
 
 [run]
-dev = "cd Pray.web && bun run dev"
-build = "cd Pray.web && bun run build"
-"build:dev" = "cd Pray.web && bunx vite build --mode development"
+dev = "bash -c 'cd Pray.web && bun run dev'"
+build = "bash -c 'cd Pray.web && bun run build'"
+"build:dev" = "bash -c 'cd Pray.web && bunx vite build --mode development'"
