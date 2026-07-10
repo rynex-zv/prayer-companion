@@ -82,7 +82,6 @@ function TasbihRing({
 
   const [dragging, setDragging] = useState(false);
   const [dragDistance, setDragDistance] = useState(0);
-  const [bumpKey, setBumpKey] = useState(0);
 
   const startY = useRef(0);
   const dragDistanceRef = useRef(0);
@@ -99,7 +98,6 @@ function TasbihRing({
   const incrementOnce = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
-    setBumpKey((k) => k + 1);
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       try { navigator.vibrate?.(8); } catch { /* noop */ }
     }
@@ -212,15 +210,15 @@ function TasbihRing({
       {/* beads */}
       {points.map((point, index) => {
         const isActive = index === activeIndex;
-        const beadSize = isActive ? 26 : 16;
+        const beadSize = isActive ? 24 : 16;
         return (
           <div
             key={`bead-${index}`}
             className={cn(
-              "pointer-events-none absolute rounded-full transition-all duration-200",
+              "pointer-events-none absolute rounded-full",
               isActive
-                ? "z-20 bg-gradient-to-br from-primary to-primary/70 shadow-[0_4px_12px_-2px_var(--color-primary)] ring-2 ring-primary/25 ring-offset-2 ring-offset-background"
-                : "z-10 bg-gradient-to-br from-primary/40 to-primary/20 shadow-sm",
+                ? "z-20 bg-primary shadow-[0_2px_8px_-2px_var(--color-primary)]"
+                : "z-10 bg-primary/30",
             )}
             style={{
               left: point.x,
@@ -235,8 +233,7 @@ function TasbihRing({
 
       {/* center face */}
       <div
-        key={bumpKey}
-        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)] animate-in zoom-in-95 duration-150"
+        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)]"
         style={{
           left: centerX,
           top: centerY,
