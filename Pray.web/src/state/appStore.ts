@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { mauiCall } from "@/native/mauiWebberClient";
+import { coreContract } from "@/generated/core-contract";
 
 export type Direction = "rtl" | "ltr";
 export type SyncStatus = "clean" | "dirty" | "syncing" | "saved" | "error";
@@ -114,7 +115,7 @@ export function useAppStore<T>(selector: (state: AppState) => T): T {
 }
 
 export function getLabel(key: string) {
-  return languageTarget.labels[key] ?? key;
+  return languageTarget.labels[key] ?? coreContract.labels.en[key as keyof typeof coreContract.labels.en] ?? key;
 }
 
 export function setLanguageObject(languageObject: LanguageObject) {

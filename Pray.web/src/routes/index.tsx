@@ -7,12 +7,13 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Today — Pray Ad Free" },
-      { name: "description", content: "Today's prayer times and countdown to the next prayer." },
+      { title: getLabel("metaTodayTitle") },
+      { name: "description", content: getLabel("metaTodayDescription") },
     ],
   }),
   component: TodayPage,
@@ -98,7 +99,7 @@ function TodayPage() {
           <button
             onClick={() => { mauiCall("today.refresh").then(refresh); }}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label="Refresh"
+            aria-label={L.refresh}
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>

@@ -7,12 +7,12 @@ import { Field } from "@/components/Field";
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { setLanguage, syncField, useAppStore } from "@/state/appStore";
+import { getLabel, setLanguage, syncField, useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
-      { title: "Welcome — Pray Ad Free" },
+      { title: getLabel("metaOnboardingTitle") },
       { name: "robots", content: "noindex" },
     ],
   }),

@@ -10,12 +10,13 @@ import { MapPin } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useCallback, useEffect, useRef } from "react";
+import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/qibla")({
   head: () => ({
     meta: [
-      { title: "Qibla — Pray Ad Free" },
-      { name: "description", content: "Find the Qibla direction with compass and map modes." },
+      { title: getLabel("metaQiblaTitle") },
+      { name: "description", content: getLabel("metaQiblaDescription") },
     ],
   }),
   component: QiblaPage,

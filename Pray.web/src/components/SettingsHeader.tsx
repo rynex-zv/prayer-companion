@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { PageLog } from "@/components/PageLog";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { useAppStore } from "@/state/appStore";
+import { getLabel, useAppStore } from "@/state/appStore";
 
 export function SettingsHeader({ title, logPage, children }: { title: string; logPage?: string; children?: ReactNode }) {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export function SettingsHeader({ title, logPage, children }: { title: string; lo
         }}
         data-selector-name="settings:back"
         className="rounded-full p-2 hover:bg-muted"
-        aria-label="Back"
+        aria-label={getLabel("back")}
       >
         <BackIcon className="h-5 w-5" />
       </button>

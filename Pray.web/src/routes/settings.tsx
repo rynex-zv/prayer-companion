@@ -6,13 +6,13 @@ import { usePageLog } from "@/hooks/usePageLog";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/state/appStore";
+import { getLabel, useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Pray Ad Free" },
-      { name: "description", content: "App settings: location, theme, adhan, notifications, permissions, and more." },
+      { title: getLabel("metaSettingsTitle") },
+      { name: "description", content: getLabel("metaSettingsDescription") },
     ],
   }),
   component: SettingsLayout,
@@ -26,14 +26,14 @@ function SettingsLayout() {
 }
 
 const items = [
-  { to: "/settings/locations", icon: MapPin, titleKey: "locations", title: "Locations", subtitleKey: "locationAndGps", subtitle: "Location and GPS" },
-  { to: "/settings/theme", icon: Palette, titleKey: "themeDiagnostics", title: "Theme & Diagnostics", subtitleKey: "themeLanguageAccent", subtitle: "Theme, language, accent" },
-  { to: "/settings/adhan", icon: Volume2, titleKey: "adhan", title: "Adhan Customizations", subtitleKey: "soundAndCalculation", subtitle: "Sound and calculation" },
-  { to: "/settings/notifications", icon: Bell, titleKey: "notifications", title: "Notifications", subtitleKey: "remindersAndVibration", subtitle: "Reminders and vibration" },
-  { to: "/settings/permissions", icon: ShieldCheck, titleKey: "permissions", title: "Permissions", subtitleKey: "systemPermissions", subtitle: "System permissions" },
-  { to: "/settings/alarms", icon: AlarmClock, titleKey: "alarmReminders", title: "Alarm Reminders", subtitleKey: "alarmScreenReminders", subtitle: "Alarm-screen reminders" },
-  { to: "/settings/tasbih", icon: Circle, titleKey: "tasbihSettings", title: "Tasbih", subtitleKey: "tasbihPresets", subtitle: "Tasbih presets" },
-  { to: "/settings/about", icon: Info, titleKey: "about", title: "About", subtitleKey: "appAndContactInfo", subtitle: "App and contact info" },
+  { to: "/settings/locations", icon: MapPin, titleKey: "locations", subtitleKey: "locationAndGps" },
+  { to: "/settings/theme", icon: Palette, titleKey: "themeDiagnostics", subtitleKey: "themeLanguageAccent" },
+  { to: "/settings/adhan", icon: Volume2, titleKey: "adhan", subtitleKey: "soundAndCalculation" },
+  { to: "/settings/notifications", icon: Bell, titleKey: "notifications", subtitleKey: "remindersAndVibration" },
+  { to: "/settings/permissions", icon: ShieldCheck, titleKey: "permissions", subtitleKey: "systemPermissions" },
+  { to: "/settings/alarms", icon: AlarmClock, titleKey: "alarmReminders", subtitleKey: "alarmScreenReminders" },
+  { to: "/settings/tasbih", icon: Circle, titleKey: "tasbihSettings", subtitleKey: "tasbihPresets" },
+  { to: "/settings/about", icon: Info, titleKey: "about", subtitleKey: "appAndContactInfo" },
 ] as const;
 
 const groups: string[][] = [

@@ -9,12 +9,13 @@ import { cn } from "@/lib/utils";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
+import { getLabel } from "@/state/appStore";
 
 export const Route = createFileRoute("/tasbih")({
   head: () => ({
     meta: [
-      { title: "Tasbih — Pray Ad Free" },
-      { name: "description", content: "Tasbih counter with presets." },
+      { title: getLabel("metaTasbihTitle") },
+      { name: "description", content: getLabel("metaTasbihDescription") },
     ],
   }),
   component: TasbihPage,
