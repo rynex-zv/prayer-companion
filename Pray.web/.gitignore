@@ -6,8 +6,6 @@ obj/
 dist/
 assets/
 wasm/
-index.html
 webber-manifest.json
-
 *.log
 *.tmp
