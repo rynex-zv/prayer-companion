@@ -98,7 +98,6 @@ function TasbihRing({
   const incrementOnce = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
-    setBumpKey((k) => k + 1);
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       try { navigator.vibrate?.(8); } catch { /* noop */ }
     }
