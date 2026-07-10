@@ -13,7 +13,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../dist',
+    outDir: process.env.PRAY_WEB_OUTDIR ?? '../dist',
     emptyOutDir: true
   }
 });
