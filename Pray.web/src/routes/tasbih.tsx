@@ -82,7 +82,6 @@ function TasbihRing({
 
   const [dragging, setDragging] = useState(false);
   const [dragDistance, setDragDistance] = useState(0);
-  const [bumpKey, setBumpKey] = useState(0);
 
   const startY = useRef(0);
   const dragDistanceRef = useRef(0);
