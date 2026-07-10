@@ -82,6 +82,7 @@ function TasbihRing({
 
   const [dragging, setDragging] = useState(false);
   const [dragDistance, setDragDistance] = useState(0);
+  const [bumpKey, setBumpKey] = useState(0);
 
   const startY = useRef(0);
   const dragDistanceRef = useRef(0);
@@ -98,6 +99,10 @@ function TasbihRing({
   const incrementOnce = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
+    setBumpKey((k) => k + 1);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try { navigator.vibrate?.(8); } catch { /* noop */ }
+    }
     try {
       await onIncrement();
     } finally {
@@ -230,7 +235,8 @@ function TasbihRing({
 
       {/* center face */}
       <div
-        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)]"
+        key={bumpKey}
+        className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)] animate-in zoom-in-95 duration-150"
         style={{
           left: centerX,
           top: centerY,

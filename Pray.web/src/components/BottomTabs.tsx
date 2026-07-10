@@ -33,11 +33,14 @@ export function BottomTabs({ labels }: { labels: Record<string, string> }) {
                 }}
                 data-selector-name={`tab:${t.key}`}
                 className={cn(
-                  "flex w-full flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                  "relative flex w-full flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-medium transition-all duration-200 active:scale-95",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
+                {active && (
+                  <span className="pointer-events-none absolute inset-x-3 top-0 h-0.5 rounded-full bg-primary" />
+                )}
+                <Icon className={cn("h-5 w-5 transition-transform", active && "scale-110 stroke-[2.5]")} />
                 <span>{labels[t.key] ?? t.key}</span>
               </button>
             </li>

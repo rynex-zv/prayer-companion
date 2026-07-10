@@ -228,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-background md:min-h-[min(900px,90vh)] md:rounded-[2.25rem] md:shadow-[0_30px_80px_-30px_oklch(0.2_0.04_220_/_0.35)] md:ring-1 md:ring-border/60 md:overflow-hidden"
         data-selector-name="app-shell"
       >
-        <main className="safe-top flex-1 overflow-y-auto px-4 pb-6 pt-3" data-selector-name={`route:${pathname}`}>{children}</main>
+        <main key={pathname} className="safe-top flex-1 overflow-y-auto px-4 pb-6 pt-3 animate-in fade-in slide-in-from-bottom-1 duration-200" data-selector-name={`route:${pathname}`}>{children}</main>
         {showTabs ? <BottomTabs labels={languageProxy} /> : null}
       </div>
     </div>
