@@ -1,0 +1,3 @@
+[run]
+dev = "cd Pray.web && bun run dev"
+build:dev = "cd Pray.web && bunx vite build --mode development"
