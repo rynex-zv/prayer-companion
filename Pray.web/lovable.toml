@@ -1,0 +1,2 @@
+[run]
+build:dev = "bunx vite build --mode development"
