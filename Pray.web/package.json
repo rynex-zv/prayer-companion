@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0 --port 8080",
     "generate:contracts": "dotnet run --project ../tools/generate-web-contracts/GenerateWebContracts.csproj",
     "build": "node scripts/build.mjs",
     "build:phone": "node scripts/build.mjs --phone",
