@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Rynex",
+  "classifications": ["MAUI", "Web", "WASM", "React", "Template"],
+  "identity": "Rynex.MultiSurfaceApp",
+  "name": "Multi-surface App",
+  "shortName": "multi-surface-app",
+  "sourceName": "TemplateApp",
+  "preferNameDirectory": true,
+  "description": "Creates a Core + Web Client + Web Bridge + Native Host project family with generic role folders.",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {
+    "projectType": {
+      "type": "parameter",
+      "datatype": "choice",
+      "displayName": "Project type",
+      "description": "Choose which role folders to create.",
+      "defaultValue": "full-app",
+      "choices": [
+        {
+          "choice": "full-app",
+          "displayName": "Full App",
+          "description": "Creates core, web.client, web.bridge, app.host, and core.tests."
+        },
+        {
+          "choice": "web-only",
+          "displayName": "Web Only",
+          "description": "Creates core, web.client, web.bridge, and core.tests."
+        },
+        {
+          "choice": "native-host-only",
+          "displayName": "Native Host Only",
+          "description": "Creates core, app.host, and core.tests."
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "source": "./",
+      "target": "./",
+      "exclude": [
+        ".template.config/**",
+        "**/[Bb]in/**",
+        "**/[Oo]bj/**",
+        "web.client/node_modules/**",
+        "web.client/dist/**",
+        "web.client/assets/**"
+      ],
+      "modifiers": [
+        {
+          "condition": "(projectType == \"web-only\")",
+          "exclude": ["app.host/**"]
+        },
+        {
+          "condition": "(projectType == \"native-host-only\")",
+          "exclude": ["web.client/**", "web.bridge/**"]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    {
+      "path": "README.md"
+    }
+  ]
+}

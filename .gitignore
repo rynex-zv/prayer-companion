@@ -285,12 +285,12 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
-# Frontend is a separate Git repository.
-/Pray.web/
+# Frontend is part of this repository; ignore only generated frontend output.
+/Pray.web/dist/
+/Pray.web/assets/
+/Pray.web/.vite/
 /prayer-companion/
-!/Pray.web/.git/
 !/prayer-companion/.git/
-!Pray.web/Pray.web.csproj
 
 # Visual Studio 6 build log
 *.plg

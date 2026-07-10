@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net10.0-android</TargetFrameworks>
@@ -133,15 +133,8 @@
 		<FrontendBuildInput Include="$(FrontendProjectDir)\src\**\*" />
 	</ItemGroup>
 
-	<Target Name="BuildPhoneFrontend"
-	        BeforeTargets="PrepareForBuild"
-	        Inputs="@(FrontendBuildInput)"
-	        Outputs="$(FrontendBuildOutput)"
-	        Condition="'$(BuildFrontend)' == 'true' and '$(SkipFrontendBuild)' != 'true' and Exists('$(FrontendProjectDir)\package.json')">
-		<Warning Condition="!Exists('$(FrontendProjectDir)\node_modules')"
-		         Text="Skipping Pray.web frontend build because node_modules is missing. Run npm install in $(FrontendProjectDir)." />
-		<Exec Condition="Exists('$(FrontendProjectDir)\node_modules')"
-		      Command="$(NpmExecutable) run build -- $(FrontendBuildArgs)"
-		      WorkingDirectory="$(FrontendProjectDir)" />
+	<Target Name="BuildPhoneFrontend" BeforeTargets="PrepareForBuild" Inputs="@(FrontendBuildInput)" Outputs="$(FrontendBuildOutput)" Condition="'$(BuildFrontend)' == 'true' and '$(SkipFrontendBuild)' != 'true' and Exists('$(FrontendProjectDir)\package.json')">
+		<Warning Condition="!Exists('$(FrontendProjectDir)\node_modules')" Text="Skipping Pray.web frontend build because node_modules is missing. Run npm install in $(FrontendProjectDir)." />
+		<Exec Condition="Exists('$(FrontendProjectDir)\node_modules')" Command="$(NpmExecutable) run build -- $(FrontendBuildArgs)" WorkingDirectory="$(FrontendProjectDir)" />
 	</Target>
 </Project>

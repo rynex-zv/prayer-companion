@@ -11,15 +11,15 @@ The app shows:
 - Settings for location, calculation method, adhan, notifications, permissions, alarm reminders, theme, language, and about/contact.
 - First-run onboarding for language, permissions, and location.
 
-Important: this is a frontend-only UI. Do not implement prayer calculations, GPS logic, notification scheduling, adhan playback, permission handling, file picking, or settings persistence in JavaScript. Those stay in the existing C# MAUI app. React only displays snapshots and sends user actions through the native bridge.
+Important: this is a frontend-only UI. Do not implement prayer calculations, qibla math, tasbih rules, GPS logic, notification scheduling, adhan playback, permission handling, file picking, or settings persistence in JavaScript. Business logic lives in `PrayAdFree.Core`. React displays snapshots and sends user actions through the runtime adapter.
 
 ## Build Targets / Modes
 The frontend must support multiple build/use modes:
 
 1. **Browser Preview / Lovable Preview**
    - Runs in a normal browser.
-   - Uses mock data only.
-   - No native bridge required.
+   - Uses generated Core contract data for preview-safe labels, defaults, and options.
+   - No native bridge or DLL access required for Lovable.
 
 2. **Phone Build**
    - Built with a `--phone` flag or equivalent mode.
@@ -30,7 +30,7 @@ The frontend must support multiple build/use modes:
 3. **Remote Web Build**
    - Served as static files from `https://pray.rynex.nl/`.
    - Same app/design as phone where possible.
-   - Must be usable in a browser as a web app, but inside MAUI it still talks to C# through `window.mauiWebber.call`.
+   - Must be usable in a browser as a web app through the WebAssembly Core bridge, but inside MAUI it still talks to C# through `window.mauiWebber.call`.
 
 4. **Embedded Fallback Build**
    - Same static build copied into MAUI resources.
@@ -39,39 +39,23 @@ The frontend must support multiple build/use modes:
 
 Do not create separate unrelated apps for these modes. Use one React codebase with build flags/config.
 
-## Mock Data Rule
-Put all mock/demo data in one folder:
+## Contract and Preview Data Rule
+Core exports readable contract files for the web and Lovable:
 
 ```txt
-src/mock/
-  index.ts
-  countries.ts
-  today.ts
-  calendar.ts
-  qibla.ts
-  tasbih.ts
-  settings.ts
-  onboarding.ts
+src/generated/core-contract.json
+src/generated/core-contract.ts
 ```
 
-At the top of the app, expose a single test configuration object that can be edited manually:
+Generated files include RPC method names, labels, defaults, app catalogs, options, and preview-safe values. Do not hand-edit generated files.
 
-```ts
-export const TEST = {
-  enabled: !window.mauiWebber,
-  country: "NL",
-  city: "Amsterdam",
-  language: "ar",
-  theme: "light",
-  clockFormat: "12h",
-  qiblaState: "aligned", // aligned | searching | noPermission | manual | map
-  permissionsScenario: "partial", // allGranted | partial | missingCritical
-}
+When Lovable needs new app data, do not hardcode it in React. Add it to `PrayAdFree.Core`, then run:
+
+```txt
+dotnet run --project tools/generate-web-contracts/GenerateWebContracts.csproj
 ```
 
-All browser mock data must come from this folder and this `TEST` object. Do not scatter mock objects inside page components.
-
-When running inside MAUI and `window.mauiWebber` exists, ignore mock data and use native snapshots.
+Browser production must use the WebAssembly Core bridge. Do not add a fake runtime fallback.
 
 ## Native Bridge Contract
 Use one wrapper around the MAUI bridge:
@@ -84,7 +68,8 @@ const response = await mauiWebber.call(method, payload)
 
 The wrapper should:
 - Use `window.mauiWebber.call` when available.
-- Use mock handlers from `src/mock/` when not available.
+- Use the WebAssembly Core bridge in standalone browser web.
+- Use generated contract files only as readable UI contracts and constants.
 - Never throw directly into UI components; return a clean error state.
 
 Suggested file:
@@ -94,16 +79,16 @@ src/native/mauiWebberClient.ts
 ```
 
 ## Translation / Text Rule
-The source of truth for text is C# localization.
+The source of truth for text is `PrayAdFree.Core`.
 
 Inside MAUI:
 - Every snapshot should include `labels` or localized display values.
 - React must display labels from the snapshot.
 - React must not hardcode final production text except fallback/demo text.
 
-In browser/mock mode:
-- Use mock translation dictionaries in `src/mock/translations/`.
-- The selected language comes from `TEST.language`.
+In Lovable/design preview:
+- Use generated labels from `src/generated/core-contract.ts`.
+- Do not add production labels directly inside route components.
 
 Use this pattern:
 
@@ -112,7 +97,7 @@ const label = snapshot.labels?.nextPrayer ?? t("nextPrayer")
 ```
 
 Text direction:
-- Use `snapshot.isRtl` or mock language.
+- Use `snapshot.isRtl` or the generated language metadata.
 - Set root `dir="rtl"` for Arabic.
 - Handle mixed Arabic + AM/PM times correctly. Use bidi isolation for time fragments when needed:
 
@@ -622,24 +607,11 @@ src/
   app/
     App.tsx
     routes.ts
-    TEST.ts
+  generated/
+    core-contract.json
+    core-contract.ts
   native/
     mauiWebberClient.ts
-  mock/
-    index.ts
-    countries.ts
-    today.ts
-    calendar.ts
-    qibla.ts
-    tasbih.ts
-    settings.ts
-    onboarding.ts
-    translations/
-      en.ts
-      ar.ts
-      fr.ts
-      es.ts
-      tr.ts
   pages/
     TodayPage.tsx
     CalendarPage.tsx
@@ -671,8 +643,8 @@ src/
 ```
 
 ## Acceptance Criteria
-- Browser preview works with mock data from `src/mock/` only.
-- `TEST.country` and `TEST.language` can change all mock page data.
+- Browser web works through the WebAssembly Core bridge.
+- Lovable-readable constants come from `src/generated/core-contract.ts`.
 - Phone build works with `--phone`.
 - Inside MAUI, data comes from `window.mauiWebber.call`.
 - React does not calculate prayer times, GPS, permissions, or notifications.

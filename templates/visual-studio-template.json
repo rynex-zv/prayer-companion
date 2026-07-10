@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "templateName": "Multi-surface App",
+  "sourceRepository": "PrayAdFree",
+  "folderNaming": "generic-role-names",
+  "roles": [
+    {
+      "name": "core",
+      "description": "Business logic, models, validation, labels, defaults, and RPC dispatcher"
+    },
+    {
+      "name": "web.client",
+      "description": "React client editable by Lovable"
+    },
+    {
+      "name": "web.bridge",
+      "description": ".NET WebAssembly connector for browser runtime"
+    },
+    {
+      "name": "app.host",
+      "description": "MAUI phone and Windows native host"
+    },
+    {
+      "name": "core.tests",
+      "description": "Core and contract tests"
+    }
+  ],
+  "projectChoices": [
+    {
+      "id": "full-app",
+      "displayName": "Full App",
+      "roles": ["core", "web.client", "web.bridge", "app.host", "core.tests"]
+    },
+    {
+      "id": "web-only",
+      "displayName": "Web Only",
+      "roles": ["core", "web.client", "web.bridge", "core.tests"]
+    },
+    {
+      "id": "native-host-only",
+      "displayName": "Native Host Only",
+      "roles": ["core", "app.host", "core.tests"]
+    }
+  ],
+  "identityReplacementTargets": [
+    "namespaces",
+    "assemblyNames",
+    "packageNames",
+    "bundleIdentifiers",
+    "appDisplayNames"
+  ],
+  "doNotReplace": [
+    "core",
+    "web.client",
+    "web.bridge",
+    "app.host",
+    "core.tests"
+  ],
+  "currentPrayAdFreeMapping": {
+    "core": "PrayAdFree.Core",
+    "web.client": "Pray.web",
+    "web.bridge": "PrayAdFree.WebBridge",
+    "app.host": "PrayAdFree",
+    "core.tests": "PrayAdFree.Tests"
+  }
+}

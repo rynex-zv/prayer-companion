@@ -6,16 +6,25 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="MauiWebber/MauiWebber.csproj" />
-  <Project Path="Pray.web/Pray.web.csproj" />
-  <Project Path="PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj" />
-  <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
-  <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
-  <Project Path="PrayAdFree/PrayAdFree.csproj">
-    <Platform Solution="*|ARM32" Project="ARM32" />
-    <Platform Solution="*|ARM64" Project="ARM64" />
-    <Platform Solution="*|x64" Project="x64" />
-    <Platform Solution="*|x86" Project="x86" />
-    <Deploy Solution="*|Any CPU" />
-  </Project>
+  <Folder Name="/Backend/">
+    <Project Path="PrayAdFree.Tests/PrayAdFree.Tests.csproj" />
+    <Project Path="PrayAdFree/PrayAdFree.csproj">
+      <Platform Solution="*|ARM32" Project="ARM32" />
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x86" Project="x86" />
+      <Deploy Solution="*|Any CPU" />
+      <Deploy Solution="Release|x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Core/">
+    <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
+  </Folder>
+  <Folder Name="/Frontend/">
+    <Project Path="Pray.web/Pray.web.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="MauiWebber/MauiWebber.csproj" />
+    <Project Path="PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj" />
+  </Folder>
 </Solution>

@@ -1,23 +1,26 @@
 # Prayer Companion Integration
 
-Source Lovable repo:
+Canonical source repo:
 
 ```txt
-https://github.com/rynex-zv/prayer-companion.git
+PrayAdFree
 ```
 
 Integration decision:
-- Do not nest the Lovable repo as a second `.git` repository inside this MAUI repo.
-- Use the Lovable repo as an upstream source for frontend code.
-- Keep the production frontend in `Pray.web`.
-- Keep MauiWebber build/update scripts in `Pray.web/scripts`.
+- Do not use a separate Lovable upstream repo for ongoing app work.
+- Do not nest another `.git` repository inside this repo.
+- Lovable should work inside the `web.client` role. In this repo that maps to `Pray.web`.
+- Core-owned data for Lovable is exported to `web.client/src/generated`.
+- Keep the production frontend in `web.client`.
+- Keep MauiWebber build/update scripts in `web.client/scripts`.
 - Keep embedded phone output in `PrayAdFree/Resources/Raw/web`.
 
 Current layout:
 
 ```txt
-Pray.web/
-  src/                 React source imported from prayer-companion and adapted to static Vite
+web.client/               current path: Pray.web/
+  src/                 React source for the app
+  src/generated/       Core-exported contract files; do not hand-edit
   scripts/             MauiWebber build, manifest, and MAUI asset sync scripts
   dist/                generated Vite build output
   assets/              generated static site output served by IIS
@@ -33,11 +36,17 @@ Why static Vite instead of TanStack Start:
 - No JavaScript server should be required on phone.
 
 Update flow from Lovable:
-1. Pull or clone `rynex-zv/prayer-companion`.
-2. Copy relevant `src/` changes into `Pray.web/src`.
-3. Do not overwrite `Pray.web/scripts`.
-4. Keep `Pray.web/vite.config.js` as static Vite config.
-5. Run:
+1. Open the `PrayAdFree` repo.
+2. Read `docs/LOVABLE.md`, `docs/ARCHITECTURE.md`, and `docs/CONTRACTS.md`.
+3. Edit only `web.client` UI files unless explicitly asked otherwise.
+4. Do not hand-edit `web.client/src/generated`, `web.client/scripts`, Core, WebBridge, MAUI native code, or built assets.
+5. If new Core data is needed, update Core and regenerate contracts:
+
+```txt
+dotnet run --project tools/generate-web-contracts/GenerateWebContracts.csproj
+```
+
+6. Run:
 
 ```txt
 npm run typecheck
@@ -47,4 +56,4 @@ dotnet test PrayAdFree.Tests/PrayAdFree.Tests.csproj --no-restore
 
 Notes:
 - npm on this machine may need `--strict-ssl=false` because the local npm certificate chain currently fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`.
-- React must remain frontend-only. C# MAUI remains the backend/native source of truth.
+- React must remain UI-focused. The `core` role remains the business logic source of truth.

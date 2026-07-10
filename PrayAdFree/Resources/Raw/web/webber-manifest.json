@@ -1,5 +1,5 @@
 {
-  "version": "101",
+  "version": "107",
   "target": "phone",
   "entry": "index.html",
   "files": [
@@ -52,12 +52,12 @@
       "sha256": "76c24b51eeca53bf23a101c0467d4496e1d12eee1f12a077c32b09248a8bb84d"
     },
     {
-      "path": "assets/index-DiTAbVfv.css",
-      "sha256": "555514960c7b48a28075b9ae6e67e42c4bfb734f835230436bacd82591060a6e"
+      "path": "assets/index-D0glePqy.js",
+      "sha256": "536851307063d2bdc37e29999aaaab53e29390b1f1a7475ee50ae8dd95e170a7"
     },
     {
-      "path": "assets/index-uzHLGJYw.js",
-      "sha256": "cb8a0d099be88fc145e01cefe5e5df20d7c35494004bd9dac6774b91e9626cb6"
+      "path": "assets/index-DiTAbVfv.css",
+      "sha256": "555514960c7b48a28075b9ae6e67e42c4bfb734f835230436bacd82591060a6e"
     },
     {
       "path": "assets/inter-cyrillic-400-normal-HOLc17fK.woff",
@@ -289,7 +289,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "e70552c9fd4fba6cf58648ce4d585e78ed97f67590759254280da3713dcd0290"
+      "sha256": "6b3b6012e31279ed75cf3de39418cef901c1a23dbd18f3f5c296415ab86984e0"
     }
   ]
 }
