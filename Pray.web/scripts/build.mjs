@@ -4,6 +4,13 @@ import { resolve } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
 const phone = args.has('--phone');
+// --love: Lovable-managed build. Skips .NET/WASM bridge, native manifest, and
+// MAUI asset sync; emits to Pray.web/.lovable-dist (gitignored) so it doesn't
+// clash with the local dist/ used by the desktop/phone shells.
+const love = args.has('--love') || args.has('-love');
+const devMode = args.has('--dev');
+const outDir = love ? '../.lovable-dist' : '../dist';
+const distDir = love ? '.lovable-dist' : 'dist';
 
 const phoneBridgeBootstrap = `<script>
 (function(){
