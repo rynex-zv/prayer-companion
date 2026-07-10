@@ -1,2 +1,8 @@
+[project]
+root = "Pray.web"
+
 [run]
+dev = "bun run dev"
+build = "bun run build"
 build:dev = "bunx vite build --mode development"
+preview = "bun run preview"
