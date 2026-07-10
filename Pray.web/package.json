@@ -8,6 +8,8 @@
     "generate:contracts": "dotnet run --project ../tools/generate-web-contracts/GenerateWebContracts.csproj",
     "build": "node scripts/build.mjs",
     "build:phone": "node scripts/build.mjs --phone",
+    "build:love": "node scripts/build.mjs --love",
+    "build:dev:love": "node scripts/build.mjs --love --dev",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit"
   },
