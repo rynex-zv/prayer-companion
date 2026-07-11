@@ -14,7 +14,7 @@ public static class WebStateDefaults {
             ThemeMode = "system",
             AccentColor = "teal",
             TextSize = 100,
-            OnboardingCompleted = true,
+            OnboardingCompleted = false,
             Country = "Netherlands",
             CountryCode = "NL",
             City = "Amsterdam",

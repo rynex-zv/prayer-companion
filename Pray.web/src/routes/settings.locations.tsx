@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { CoordinateInput } from "@/components/CoordinateInput";
 import { SettingsHeader } from "@/components/SettingsHeader";
-import { EditableSetting, OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
+import { OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/locations")({
   component: LocationsPage,
@@ -28,6 +28,7 @@ type LocationSettings = {
   countries: Country[];
   places?: Place[];
 };
+type LocationConfirmation = { value: LocationSettings; calculated?: LocationSettings };
 
 function LocationsPage() {
   const t = useAppLabels();
@@ -39,10 +40,28 @@ function LocationsPage() {
 
   const country = data.countries.find((item) => item.code === data.country) ?? data.countries[0];
   const places = data.places ?? [];
-  const patch = (next: LocationSettings) => {
+  const patch = async (next: LocationSettings, resolveCoordinates = false) => {
     setData(next);
     setStatus("saving");
-    void syncField("locations", "value", next).then((ok) => setStatus(ok ? "saved" : "error"));
+    const response = await mauiCall<LocationConfirmation>("settings.setField", { section: "locations", field: "value", value: next });
+    if (!response.ok) {
+      setStatus("error");
+      return false;
+    }
+
+    const confirmed = response.data.calculated ?? next;
+    setData(confirmed);
+    if (resolveCoordinates) {
+      const resolved = await mauiCall<LocationSettings>("settings.invoke", {
+        action: "reverseGeocode",
+        payload: { latitude: next.latitude, longitude: next.longitude },
+      });
+      if (resolved.ok) {
+        setData(resolved.data);
+      }
+    }
+    setStatus("saved");
+    return true;
   };
   const patchCountry = (code: string) => {
     const nextCountry = data.countries.find((item) => item.code === code);
@@ -50,7 +69,7 @@ function LocationsPage() {
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === code.toLowerCase() &&
       item.city.toLowerCase() === firstCity.toLowerCase());
-    patch({
+    void patch({
       ...data,
       useGps: false,
       country: code,
@@ -64,7 +83,7 @@ function LocationsPage() {
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === data.country.toLowerCase() &&
       item.city.toLowerCase() === city.toLowerCase());
-    patch({
+    void patch({
       ...data,
       useGps: false,
       countryName: place?.country ?? data.countryName,
@@ -78,15 +97,18 @@ function LocationsPage() {
     setIsRefreshingGps(true);
     setGpsMessage("");
     setStatus("refreshing");
-    void mauiCall("settings.invoke", { action: "refreshGps" }).then((res) => {
+    void mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" }).then((res) => {
       setStatus(res.ok ? "saved" : "error");
       if (!res.ok) {
         setGpsMessage(res.error);
+      } else {
+        const refreshed = "useGps" in res.data ? res.data : res.data.location;
+        if (refreshed) setData(refreshed);
       }
-      void refresh(true);
+      return refresh(true);
     }).catch((error) => {
       setStatus("error");
-      setGpsMessage(error instanceof Error ? error.message : "GPS refresh failed.");
+      setGpsMessage(error instanceof Error ? error.message : t("status_error"));
     }).finally(() => {
       setIsRefreshingGps(false);
     });
@@ -103,7 +125,7 @@ function LocationsPage() {
       ) : null}
 
       <SectionBlock title={t("locationAndGps")}>
-        <ToggleSetting label={t("useGps")} checked={data.useGps} onChange={(useGps) => patch({ ...data, useGps })} selectorName="locations:gps-toggle" onLabel={t("enabled")} offLabel={t("disabled")} />
+        <ToggleSetting label={t("useGps")} checked={data.useGps} onChange={(useGps) => void patch({ ...data, useGps })} selectorName="locations:gps-toggle" onLabel={t("enabled")} offLabel={t("disabled")} />
         <button type="button" onClick={refreshGps} disabled={isRefreshingGps} data-selector-name="locations:refresh-gps" className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground disabled:opacity-60">
           {isRefreshingGps ? t("status_refreshing") : t("refreshGps")}
         </button>
@@ -128,8 +150,8 @@ function LocationsPage() {
           />
         ) : null}
         <div className="grid grid-cols-2 gap-3">
-          <EditableSetting label={t("latitude")} selectorName="locations:latitude" value={data.latitude} onChange={(value) => patch({ ...data, latitude: Number(value) || 0 })} />
-          <EditableSetting label={t("longitude")} selectorName="locations:longitude" value={data.longitude} onChange={(value) => patch({ ...data, longitude: Number(value) || 0 })} />
+          <CoordinateInput label={t("latitude")} selectorName="locations:latitude" value={data.latitude} onCommit={(latitude) => void patch({ ...data, useGps: false, latitude }, true)} />
+          <CoordinateInput label={t("longitude")} selectorName="locations:longitude" value={data.longitude} onCommit={(longitude) => void patch({ ...data, useGps: false, longitude }, true)} />
         </div>
       </SectionBlock>
 
@@ -139,14 +161,14 @@ function LocationsPage() {
           value={data.qiblaReadingMode}
           selectorName="locations:qibla-reading-mode"
           options={(data.qiblaReadingModes ?? []).map((item) => ({ id: item.id, label: item.label }))}
-          onChange={(qiblaReadingMode) => patch({ ...data, qiblaReadingMode })}
+          onChange={(qiblaReadingMode) => void patch({ ...data, qiblaReadingMode })}
         />
         <OptionButtons
           label={t("compassFilter")}
           value={data.qiblaFilterMode}
           selectorName="locations:qibla-filter-mode"
           options={(data.qiblaFilterModes ?? []).map((item) => ({ id: item.id, label: item.label }))}
-          onChange={(qiblaFilterMode) => patch({ ...data, qiblaFilterMode })}
+          onChange={(qiblaFilterMode) => void patch({ ...data, qiblaFilterMode })}
         />
       </SectionBlock>
     </div>

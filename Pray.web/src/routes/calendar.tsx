@@ -23,14 +23,18 @@ function CalendarPage() {
   const t = useAppLabels();
   const { data, refresh } = useSnapshot<Snapshot>("calendar.getSnapshot");
   if (!data) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
+  const todayIndex = data.days.findIndex((day) => day.isToday);
+  const days = todayIndex > 0
+    ? [...data.days.slice(todayIndex), ...data.days.slice(0, todayIndex)]
+    : data.days;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex shrink-0 items-center justify-between gap-2">
         <h1 className="text-xl font-bold">{t("calendar")}</h1>
         <PageLog page="calendar" />
       </div>
-      <Card className="flex items-center justify-between">
+      <Card className="flex shrink-0 items-center justify-between p-2">
         <button onClick={() => mauiCall("calendar.previousMonth").then(refresh)} className="rounded-full p-2 hover:bg-muted" aria-label={t("previousMonth")}>
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -51,7 +55,7 @@ function CalendarPage() {
         </button>
       </Card>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid shrink-0 grid-cols-2 gap-2">
         <button onClick={() => mauiCall("calendar.today").then(refresh)} className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground">
           {t("today")}
         </button>
@@ -61,23 +65,23 @@ function CalendarPage() {
       </div>
       {data.statusMessage ? <p className="text-center text-xs text-muted-foreground">{data.statusMessage}</p> : null}
 
-      <div className="space-y-2">
-        {data.days.map((d) => (
-          <Card key={d.date} className={cn("p-3", d.isToday && "ring-2 ring-primary")}>
-            <div className="mb-2 flex items-center justify-between">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pb-2" data-selector-name="calendar:days">
+        {days.map((d) => (
+          <Card key={d.date} className={cn("p-2", d.isToday && "ring-2 ring-primary")}>
+            <div className="mb-1 flex items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold">{d.date}</div>
-                <div className="text-xs text-muted-foreground">{d.hijri}</div>
+                <div className="text-xs font-semibold">{d.date}</div>
+                <div className="text-[10px] text-muted-foreground">{d.hijri}</div>
               </div>
               {d.isToday && <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">{t("todayBadge")}</span>}
             </div>
-            <div className="grid grid-cols-3 gap-1.5 text-xs">
+            <div className="grid grid-cols-6 gap-1 text-[10px]">
               {[
                 [t("prayer_Fajr"), d.fajr], [t("prayer_Sunrise"), d.sunrise], [t("prayer_Dhuhr"), d.dhuhr],
                 [t("prayer_Asr"), d.asr], [t("prayer_Maghrib"), d.maghrib], [t("prayer_Isha"), d.isha],
               ].map(([n, t]) => (
-                <div key={n} className="rounded-md bg-muted/60 px-2 py-1.5">
-                  <div className="text-[10px] uppercase text-muted-foreground">{n}</div>
+                <div key={n} className="min-w-0 rounded bg-muted/60 px-1 py-1 text-center">
+                  <div className="truncate text-[9px] text-muted-foreground">{n}</div>
                   <div className="font-medium tabular-nums" dir="ltr">{t}</div>
                 </div>
               ))}

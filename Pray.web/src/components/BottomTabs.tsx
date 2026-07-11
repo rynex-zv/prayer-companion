@@ -18,7 +18,7 @@ export function BottomTabs({ labels }: { labels: Record<string, string> }) {
   const direction = useAppStore((state) => state.direction);
   const orderedTabs = direction === "rtl" ? [...tabs].reverse() : tabs;
   return (
-    <nav className="safe-bottom sticky bottom-0 z-30 mt-auto border-t border-border bg-card/90 backdrop-blur-md" data-selector-name="bottom-tabs" dir={direction}>
+    <nav className="safe-bottom z-30 mt-auto shrink-0 border-t border-border bg-card/90 backdrop-blur-md" data-selector-name="bottom-tabs" dir={direction}>
       <ul className="mx-auto flex max-w-md items-stretch justify-between px-2 pt-1.5">
         {orderedTabs.map((t) => {
           const active = t.to === "/" ? pathname === "/" : pathname.startsWith(t.to);

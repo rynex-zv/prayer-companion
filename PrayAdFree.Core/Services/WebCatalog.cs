@@ -153,6 +153,25 @@ public static class WebCatalog {
             string.Equals(item.City, city, StringComparison.OrdinalIgnoreCase));
     }
 
+    public static WebPlaceOption? FindNearestPlace(double latitude, double longitude, double maxDistanceKm) {
+        return Places
+            .Select(place => new { Place = place, Distance = HaversineKm(latitude, longitude, place.Latitude, place.Longitude) })
+            .Where(item => item.Distance <= maxDistanceKm)
+            .OrderBy(item => item.Distance)
+            .Select(item => item.Place)
+            .FirstOrDefault();
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2) {
+        const double radius = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180d;
+        var dLon = (lon2 - lon1) * Math.PI / 180d;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180d) * Math.Cos(lat2 * Math.PI / 180d) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return radius * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
     private static class LabelCatalog {
         private static readonly Lazy<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>> Catalog = new(Load);
 
@@ -175,7 +194,10 @@ public static class WebCatalog {
             var resourceName = $"PrayAdFree.Core.Resources.i18n.{language}.json";
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
                 ?? throw new InvalidOperationException($"Missing Core i18n resource: {resourceName}");
-            var labels = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)
+            var labels = (Dictionary<string, string>?)JsonSerializer.Deserialize(
+                stream,
+                typeof(Dictionary<string, string>),
+                CoreJsonContext.Default)
                 ?? throw new InvalidOperationException($"Invalid Core i18n resource: {resourceName}");
             return new Dictionary<string, string>(labels, StringComparer.Ordinal);
         }

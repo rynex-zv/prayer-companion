@@ -184,6 +184,10 @@ export function setSettingsSection<T>(section: string, value: T) {
   });
 }
 
+export function setOnboardingCompleted(onboardingCompleted: boolean) {
+  updateState({ onboardingCompleted });
+}
+
 export async function syncField<T>(section: string, field: string, value: T, retry = true) {
   const key = `${section}.${field}`;
   markField(key, "syncing");

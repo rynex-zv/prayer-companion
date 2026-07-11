@@ -34,7 +34,7 @@ public sealed class NotificationBootstrapper : INotificationBootstrapper {
         _logger = logger;
     }
 
-    public async Task EnsureScheduledAsync(string reason, bool requestPermissions) {
+    public async Task EnsureScheduledAsync(string reason, bool requestPermissions, bool force = false) {
         var settings = _settingsService.Load();
 
         if (requestPermissions) {
@@ -42,13 +42,13 @@ public sealed class NotificationBootstrapper : INotificationBootstrapper {
             await EnsureLocationPermissionAsync(reason, settings.Location.Mode == LocationMode.Gps).ConfigureAwait(false);
         }
 
-        if (DateTime.UtcNow - _lastRunUtc < TimeSpan.FromMinutes(5)) {
+        if (!force && DateTime.UtcNow - _lastRunUtc < TimeSpan.FromMinutes(5)) {
             return;
         }
 
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
-            if (DateTime.UtcNow - _lastRunUtc < TimeSpan.FromMinutes(5)) {
+            if (!force && DateTime.UtcNow - _lastRunUtc < TimeSpan.FromMinutes(5)) {
                 return;
             }
 

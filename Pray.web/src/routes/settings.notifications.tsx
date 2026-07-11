@@ -28,6 +28,7 @@ type NotificationSettings = {
   reminderUnits: Option[];
   reminderDirections: Option[];
   reminders: Reminder[];
+  pendingDeferredReminder?: { prayer: string; notifyTime: string; openAlarmScreen: boolean; label: string } | null;
 };
 
 type Option = { id: string; label: string };
@@ -96,6 +97,12 @@ function NotificationsPage() {
       </SectionBlock>
 
       <SectionBlock title={t("adhanReminders")}>
+        {data.pendingDeferredReminder ? (
+          <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm" data-selector-name="notifications:pending-deferred">
+            <div className="font-semibold">{t("pendingDeferredReminder")}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{data.pendingDeferredReminder.label}</div>
+          </div>
+        ) : null}
         <OptionButtons
           label={t("scope")}
           value={data.reminderScope}

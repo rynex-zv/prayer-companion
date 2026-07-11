@@ -3,6 +3,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BottomTabs } from "./BottomTabs";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
+import { cn } from "@/lib/utils";
 
 const TAB_ROUTES = ["/", "/calendar", "/qibla", "/tasbih", "/settings"];
 const INSPECTABLE_ROUTES = [
@@ -229,7 +230,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-background md:min-h-0 md:h-[min(880px,90vh)] md:max-h-[min(880px,90vh)] md:rounded-[2.25rem] md:shadow-[0_40px_100px_-30px_oklch(0.2_0.04_220_/_0.35)] md:ring-1 md:ring-border/60 md:overflow-hidden"
         data-selector-name="app-shell"
       >
-        <main key={pathname} className="safe-top flex-1 overflow-y-auto px-4 pb-6 pt-3 animate-in fade-in duration-150" data-selector-name={`route:${pathname}`}>{children}</main>
+        <main
+          key={pathname}
+          className={cn(
+            "safe-top min-h-0 flex-1 px-4 pb-3 pt-3 animate-in fade-in duration-150",
+            pathname === "/calendar" ? "overflow-hidden" : "overflow-y-auto",
+          )}
+          data-selector-name={`route:${pathname}`}
+        >
+          {children}
+        </main>
         {showTabs ? <BottomTabs labels={languageProxy} /> : null}
       </div>
     </div>

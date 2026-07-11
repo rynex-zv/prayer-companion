@@ -18,6 +18,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly IAppPermissionCenterService _permissionCenter;
     private readonly IGeoLookupService _geoLookupService;
     private readonly IAdhanPlaybackService _adhanPlaybackService;
+    private readonly INotificationBootstrapper _notificationBootstrapper;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
@@ -34,6 +35,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         IAppPermissionCenterService permissionCenter,
         IGeoLookupService geoLookupService,
         IAdhanPlaybackService adhanPlaybackService,
+        INotificationBootstrapper notificationBootstrapper,
         AndroidAlarmCapabilityService alarmCapability) {
         _today = today;
         _calendar = calendar;
@@ -44,6 +46,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _permissionCenter = permissionCenter;
         _geoLookupService = geoLookupService;
         _adhanPlaybackService = adhanPlaybackService;
+        _notificationBootstrapper = notificationBootstrapper;
         _alarmCapability = alarmCapability;
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     }
@@ -173,242 +176,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     }
 
     private static IReadOnlyDictionary<string, string> BuildLabels() {
-        return new Dictionary<string, string> {
-            ["today"] = T("Today"),
-            ["calendar"] = T("Calendar"),
-            ["qibla"] = T("Qibla"),
-            ["tasbih"] = T("Tasbih"),
-            ["settings"] = T("Settings"),
-            ["nextPrayer"] = T("NextPrayer"),
-            ["timeLeft"] = T("TimeLeft"),
-            ["qiblaDirection"] = T("QiblaDirection"),
-            ["qiblaMapAttribution"] = T("QiblaMapAttribution"),
-            ["qiblaMapZoomIn"] = T("QiblaMapZoomIn"),
-            ["qiblaMapZoomOut"] = T("QiblaMapZoomOut"),
-            ["permissionMissing"] = T("PermissionStatus_Disabled"),
-            ["grantPermission"] = T("PermissionAction_Request"),
-            ["auto"] = T("QiblaHeadingMode_Auto"),
-            ["manual"] = T("QiblaHeadingMode_Manual"),
-            ["compass"] = T("QiblaModeCompass"),
-            ["map"] = T("QiblaModeMap"),
-            ["filter_none"] = T("QiblaVisualFilter_None"),
-            ["filter_night"] = T("QiblaVisualFilter_Night"),
-            ["filter_contrast"] = T("QiblaVisualFilter_Contrast"),
-            ["searching"] = T("FindingLocation"),
-            ["aligned"] = T("StayReady"),
-            ["locations"] = T("Locations"),
-            ["theme"] = T("Theme"),
-            ["themeDiagnostics"] = T("Theme"),
-            ["adhan"] = T("AdhanCustomizations"),
-            ["notifications"] = T("Notifications"),
-            ["permissions"] = T("PermissionsTitle"),
-            ["adhanReminders"] = T("AdhanReminders"),
-            ["alarmReminders"] = T("AlarmRemindersTitle"),
-            ["tasbihSettings"] = T("TasbihSettings"),
-            ["about"] = T("About"),
-            ["useGps"] = T("UseGps"),
-            ["refreshGps"] = T("UpdateGps"),
-            ["country"] = T("Country"),
-            ["city"] = T("City"),
-            ["latitude"] = T("Latitude"),
-            ["longitude"] = T("Longitude"),
-            ["language"] = T("Language"),
-            ["themeMode"] = T("Theme"),
-            ["system"] = T("System"),
-            ["light"] = T("Light"),
-            ["dark"] = T("Dark"),
-            ["accentColor"] = T("AccentColor"),
-            ["textSize"] = T("TextSize"),
-            ["diagnostics"] = T("Diagnostics"),
-            ["bridgeReady"] = T("BridgeReady"),
-            ["lastSync"] = T("LastUpdated"),
-            ["reset"] = T("Reset"),
-            ["presets"] = T("Presets"),
-            ["add"] = T("Add"),
-            ["remove"] = T("Remove"),
-            ["back"] = T("Back"),
-            ["next"] = T("Next"),
-            ["finish"] = T("Finish"),
-            ["grantPermissions"] = T("PermissionAction_Request"),
-            ["vpnWarning"] = T("OnboardingVpnWarning"),
-            ["locationAndGps"] = T("Location"),
-            ["qiblaPreferences"] = T("QiblaPreferences"),
-            ["compassReadingMode"] = T("CompassReadingMode"),
-            ["compassFilter"] = T("CompassFilter"),
-            ["themeLanguageAccent"] = T("ThemeMode"),
-            ["soundAndCalculation"] = T("Calculation"),
-            ["remindersAndVibration"] = T("AdhanReminders"),
-            ["systemPermissions"] = T("PermissionsTitle"),
-            ["alarmScreenReminders"] = T("AlarmRemindersTitle"),
-            ["tasbihPresets"] = T("TasbihPresets"),
-            ["appAndContactInfo"] = T("About"),
-            ["adhanSound"] = T("AdhanSound"),
-            ["addCustomSound"] = T("AddCustomAdhanSound"),
-            ["testNotification"] = T("TestNotification"),
-            ["testAlarm"] = T("TestAlarm"),
-            ["volume"] = T("AdhanVolume"),
-            ["calculation"] = T("Calculation"),
-            ["method"] = T("Method"),
-            ["madhhab"] = T("Madhhab"),
-            ["highLatitudeRule"] = T("HighLatitude"),
-            ["fajrAngle"] = T("FajrAngle"),
-            ["ishaAngle"] = T("IshaAngle"),
-            ["offsetsMinutes"] = T("Offsets"),
-            ["clockFormat"] = T("ClockFormat"),
-            ["iftarDelay"] = T("IftarDelay"),
-            ["imsakAdvance"] = T("ImsakAdvance"),
-            ["fastingReminders"] = T("FastingSettings"),
-            ["imsakReminders"] = T("ImsakReminders"),
-            ["iftarReminders"] = T("IftarReminders"),
-            ["addReminder"] = T("Add"),
-            ["perPrayerAdhan"] = T("AdhanPerPrayer"),
-            ["enableAdhan"] = T("EnableAdhan"),
-            ["primaryAdhanType"] = T("PrimaryAdhanType"),
-            ["hideOnCloseWindows"] = T("WindowsHideOnClose"),
-            ["runBackgroundWindows"] = T("WindowsBackgroundServiceEnable"),
-            ["vibration"] = T("Vibration"),
-            ["vibrationStrength"] = T("VibrationStrength"),
-            ["vibrationPattern"] = T("VibrationPattern"),
-            ["minutesBefore"] = T("MinutesBefore"),
-            ["fallback"] = T("PermissionsSubtitle"),
-            ["builtIn"] = T("AlarmRemindersBuiltIn"),
-            ["yourReminders"] = T("AlarmRemindersUser"),
-            ["newReminder"] = T("AlarmReminderNewPlaceholder"),
-            ["tasbihPresetName"] = T("TasbihPresetName"),
-            ["editPreset"] = T("AlarmReminderEdit"),
-            ["repeatMode"] = T("TasbihRepeatMode"),
-            ["items"] = T("TasbihItems"),
-            ["itemText"] = T("TasbihText"),
-            ["newPresetName"] = T("TasbihPresetNewName"),
-            ["tagline"] = L("PrayerTimesTagline", "Prayer times, Qibla, and tasbih - ad free."),
-            ["privacy"] = L("PrivacySummary", "We don't collect personal data. Everything stays on your device."),
-            ["source"] = L("OpenSourceSummary", "Open source on GitHub."),
-            ["maintainedBy"] = L("MaintainedBy", "Maintained by"),
-            ["contact"] = L("SupportAndFeedback", "Support and feedback"),
-            ["websiteNote"] = L("WebsiteNote", "Visit for updates and web version."),
-            ["email"] = L("Email", "Email"),
-            ["call"] = L("Call", "Call"),
-            ["website"] = L("Website", "Website"),
-            ["report"] = T("ReportIssue"),
-            ["chooseLanguage"] = T("LanguageTitle"),
-            ["permissionsIntro"] = T("PermissionsSubtitle"),
-            ["permissionStatus"] = T("PermissionsTitle"),
-            ["locationNoInternetGps"] = T("OnboardingLocationRequired"),
-            ["locationNetwork"] = T("OnboardingLocationGranted"),
-            ["locationGps"] = T("OnboardingManualLocationHint"),
-            ["stepProgress"] = L("Step", "Step"),
-            ["of"] = L("Of", "of"),
-            ["minutes"] = T("Minutes"),
-            ["hours"] = T("Hours"),
-            ["before"] = T("Before"),
-            ["after"] = T("After"),
-            ["clock12h"] = T("Clock_12h"),
-            ["clock24h"] = T("Clock_24h"),
-            ["method_MuslimWorldLeague"] = T("Method_MuslimWorldLeague"),
-            ["method_Egyptian"] = T("Method_Egypt"),
-            ["method_Karachi"] = T("Method_Karachi"),
-            ["method_UmmAlQura"] = T("Method_UmmAlQura"),
-            ["method_Dubai"] = T("Method_Dubai"),
-            ["method_Qatar"] = T("Method_Qatar"),
-            ["method_Kuwait"] = T("Method_Kuwait"),
-            ["method_MoonsightingCommittee"] = T("Method_Moonsighting"),
-            ["method_NorthAmerica"] = T("Method_Isna"),
-            ["method_Custom"] = T("Method_Custom"),
-            ["madhhab_Shafi"] = T("Madhhab_Shafi"),
-            ["madhhab_Hanafi"] = T("Madhhab_Hanafi"),
-            ["highLatitude_MiddleOfTheNight"] = T("HighLatitude_MiddleOfTheNight"),
-            ["highLatitude_SeventhOfTheNight"] = T("HighLatitude_SeventhOfTheNight"),
-            ["highLatitude_TwilightAngle"] = T("HighLatitude_TwilightAngle"),
-            ["reminderType_Full"] = T("ReminderType_Alarm"),
-            ["reminderType_Notification"] = T("ReminderType_Notification"),
-            ["reminderType_Silent"] = T("ReminderType_Silent"),
-            ["vibration_Light"] = T("Vibration_Low"),
-            ["vibration_Medium"] = T("Vibration_Medium"),
-            ["vibration_Strong"] = T("Vibration_High"),
-            ["vibration_Default"] = T("Vibration_Short"),
-            ["vibration_Pulse"] = T("Vibration_Pulse"),
-            ["vibration_Heartbeat"] = T("Vibration_Long"),
-            ["tasbihRepeat_Sequence"] = T("TasbihRepeat_Continue"),
-            ["tasbihRepeat_Loop"] = T("TasbihRepeat_Reset"),
-            ["tasbihRepeat_Once"] = T("TasbihRepeat_None"),
-            ["prayer_Fajr"] = T("Prayer_Fajr"),
-            ["prayer_Sunrise"] = T("Prayer_Sunrise"),
-            ["prayer_Dhuhr"] = T("Prayer_Dhuhr"),
-            ["prayer_Asr"] = T("Prayer_Asr"),
-            ["prayer_Maghrib"] = T("Prayer_Maghrib"),
-            ["prayer_Isha"] = T("Prayer_Isha"),
-            ["prayer_Imsak"] = T("Imsak"),
-            ["cardinalNorth"] = T("CardinalNorth"),
-            ["cardinalEast"] = T("CardinalEast"),
-            ["cardinalSouth"] = T("CardinalSouth"),
-            ["cardinalWest"] = T("CardinalWest"),
-            ["previousMonth"] = L("PreviousMonth", "Previous month"),
-            ["nextMonth"] = L("NextMonth", "Next month"),
-            ["load"] = T("Load"),
-            ["todayBadge"] = T("Today"),
-            ["resetToChangePreset"] = L("ResetToChangePreset", "Reset to change preset."),
-            ["status_ready"] = T("StatusReady"),
-            ["status_saving"] = T("StatusSaving"),
-            ["status_saved"] = T("StatusSaved"),
-            ["status_error"] = T("StatusError"),
-            ["status_refreshing"] = T("Refreshing"),
-            ["status_testNotification"] = T("TestNotification"),
-            ["status_testAlarm"] = T("TestAlarm"),
-            ["enabled"] = T("PermissionStatus_Enabled"),
-            ["disabled"] = T("PermissionStatus_Disabled"),
-            ["targetCount"] = T("TasbihCount"),
-            ["tasbihRepeat_Continue"] = T("TasbihRepeat_Continue"),
-            ["tasbihRepeat_Reset"] = T("TasbihRepeat_Reset"),
-            ["tasbihRepeat_None"] = T("TasbihRepeat_None"),
-            ["country_NL"] = T("Country_NL"),
-            ["country_SA"] = T("Country_SA"),
-            ["country_TR"] = T("Country_TR"),
-            ["country_US"] = T("Country_US"),
-            ["city_Amsterdam"] = T("City_Amsterdam"),
-            ["city_Rotterdam"] = T("City_Rotterdam"),
-            ["city_Utrecht"] = T("City_Utrecht"),
-            ["city_Makkah"] = T("City_Makkah"),
-            ["city_Madinah"] = T("City_Madinah"),
-            ["city_Riyadh"] = T("City_Riyadh"),
-            ["city_Istanbul"] = T("City_Istanbul"),
-            ["city_Ankara"] = T("City_Ankara"),
-            ["city_NewYork"] = T("City_NewYork"),
-            ["city_Chicago"] = T("City_Chicago"),
-            ["city_Dearborn"] = T("City_Dearborn"),
-            ["alarmReminderWudu"] = T("AlarmReminder_Wudu"),
-            ["alarmReminderQibla"] = T("AlarmReminder_Qibla"),
-            ["compassReading_Smooth"] = T("CompassReading_Smooth"),
-            ["compassReading_Balanced"] = T("CompassReading_Balanced"),
-            ["compassReading_Fast"] = T("CompassReading_Fast"),
-            ["compassReading_Raw"] = T("CompassReading_Raw"),
-            ["compassFilter_Off"] = T("CompassFilter_Off"),
-            ["compassFilter_Normal"] = T("CompassFilter_Normal"),
-            ["compassFilter_Strict"] = T("CompassFilter_Strict"),
-            ["windowsBackgroundServiceHint"] = T("WindowsBackgroundServiceHint"),
-            ["newReminderText"] = T("AlarmReminderNewPlaceholder"),
-            ["moveUp"] = L("MoveUp", "Move up"),
-            ["moveDown"] = L("MoveDown", "Move down"),
-            ["startIndex"] = L("StartIndex", "Start"),
-            ["scope"] = T("ReminderScope"),
-            ["prayer"] = T("ReminderPrayer"),
-            ["unit"] = T("ReminderUnit"),
-            ["direction"] = T("ReminderDirection"),
-            ["alertType"] = T("ReminderType"),
-            ["useGlobal"] = T("UseGlobal"),
-            ["play"] = T("Play"),
-            ["stop"] = T("Stop"),
-            ["select"] = T("Select"),
-            ["selected"] = T("Selected"),
-            ["reminder_All"] = T("Reminder_All"),
-            ["reminder_SpecificPrayer"] = T("Reminder_Specific"),
-            ["reminderType_Adhan"] = T("ReminderType_Adhan"),
-            ["reminderType_Alarm"] = T("ReminderType_Alarm")
-        };
-    }
-
-    private static string L(string key, string fallback) {
-        var value = T(key);
-        return string.Equals(value, key, StringComparison.Ordinal) ? fallback : value;
+        return WebCatalog.Labels(ResolveLanguage(LocalizationManager.CurrentLanguage));
     }
 
     private object SetLanguage(JsonElement payload) {
@@ -707,6 +475,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
         SaveSettings(next);
         ThemeManager.ApplyTheme(next);
+        if (changedSection is "notifications" or "adhan" or "locations") {
+            _ = _notificationBootstrapper.EnsureScheduledAsync($"WebSettings:{changedSection}", requestPermissions: false, force: true);
+        }
         return changedSection == null
             ? await GetSettingsSnapshotAsync(payload).ConfigureAwait(false)
             : await GetSettingsSnapshotAsync(BuildSectionPayload(changedSection)).ConfigureAwait(false);
@@ -749,7 +520,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             [patchSection] = sectionNode
         };
         await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
-        return new { ok = true, section, field, value };
+        var calculated = string.Equals(section, "locations", StringComparison.OrdinalIgnoreCase)
+            ? BuildLocationsSettings(_settingsService.Load())
+            : null;
+        return new { ok = true, section, field, value, calculated };
     }
 
     private static string PatchSectionName(string section) {
@@ -784,6 +558,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
             case "refreshGps":
                 return await RefreshGpsLocationAsync().ConfigureAwait(false);
+            case "reverseGeocode":
+                return await ReverseGeocodeLocationAsync(actionPayload).ConfigureAwait(false);
             case "previewSound":
                 return await PreviewAdhanSoundAsync(actionPayload).ConfigureAwait(false);
             case "stopPreviewSound":
@@ -863,6 +639,31 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         }
     }
 
+    private async Task<object> ReverseGeocodeLocationAsync(JsonElement payload) {
+        var settings = _settingsService.Load();
+        var latitude = ReadDouble(payload, "latitude", settings.Location.Latitude);
+        var longitude = ReadDouble(payload, "longitude", settings.Location.Longitude);
+        if (!HasUsableCoordinates(latitude, longitude)) {
+            return BuildLocationsSettings(settings);
+        }
+
+        var reverse = await _geoLookupService.ReverseAsync(latitude, longitude, CancellationToken.None)
+            .ConfigureAwait(false);
+        var location = new LocationSettings {
+            Mode = LocationMode.Manual,
+            City = string.IsNullOrWhiteSpace(reverse?.City) ? T("UnknownCity") : reverse.City,
+            Country = string.IsNullOrWhiteSpace(reverse?.Country) ? T("UnknownCountry") : reverse.Country,
+            CountryCode = reverse?.CountryCode ?? string.Empty,
+            Latitude = latitude,
+            Longitude = longitude,
+            TimeZoneId = settings.Location.TimeZoneId,
+            LastUpdatedUtc = DateTime.UtcNow
+        };
+        var updated = CopySettings(settings, location: location);
+        SaveSettings(updated);
+        return BuildLocationsSettings(updated);
+    }
+
     private object CompleteOnboarding() {
         var settings = _settingsService.Load();
         SaveSettings(CopySettings(settings, onboardingCompleted: true));
@@ -896,6 +697,17 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                     LastUpdatedUtc = DateTime.UtcNow
                 };
             }
+
+            return new LocationSettings {
+                Mode = LocationMode.Manual,
+                City = T("UnknownCity"),
+                Country = T("UnknownCountry"),
+                CountryCode = string.Empty,
+                Latitude = patched.Latitude,
+                Longitude = patched.Longitude,
+                TimeZoneId = patched.TimeZoneId,
+                LastUpdatedUtc = DateTime.UtcNow
+            };
         }
 
         var placeChanged = payload.TryGetProperty("country", out _) ||
@@ -1534,7 +1346,19 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 direction = item.OffsetMinutes < 0 ? "after" : "before",
                 alertType = item.AlertType.ToString(),
                 label = FormatReminderLabel(item.OffsetMinutes, item.AlertType)
-            }).ToList()
+            }).ToList(),
+            pendingDeferredReminder = settings.Notifications.PendingDeferredReminder is { } pending
+                ? new {
+                    prayer = T($"Prayer_{pending.Prayer}"),
+                    notifyTime = pending.NotifyTime.ToString("g", CultureInfo.CurrentUICulture),
+                    openAlarmScreen = pending.OpenAlarmScreen,
+                    label = string.Format(
+                        CultureInfo.CurrentUICulture,
+                        T("PendingDeferredReminderFormat"),
+                        T($"Prayer_{pending.Prayer}"),
+                        pending.NotifyTime.ToString("g", CultureInfo.CurrentUICulture))
+                }
+                : null
         };
     }
 

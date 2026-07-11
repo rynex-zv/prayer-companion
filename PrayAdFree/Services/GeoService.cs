@@ -41,6 +41,7 @@ public sealed class GeoService : IGeoLookupService {
 
     public IReadOnlyList<GeoLocationResult> GetKnownPlaces() {
         var cached = _cacheEntries
+            .Where(entry => (DateTime.UtcNow - entry.TimestampUtc) <= CacheTtl)
             .Select(entry => new GeoLocationResult {
                 City = entry.City,
                 Country = entry.Country,
@@ -50,18 +51,19 @@ public sealed class GeoService : IGeoLookupService {
             })
             .ToList();
 
-        if (cached.Count > 0) {
-            return cached;
-        }
-
-        return DefaultPlaces
+        var defaults = DefaultPlaces
             .Select(place => new GeoLocationResult {
                 City = place.city,
                 Country = place.country,
                 CountryCode = place.countryCode,
                 Latitude = place.latitude,
                 Longitude = place.longitude
-            })
+            });
+
+        return cached
+            .Concat(defaults)
+            .GroupBy(place => $"{place.CountryCode}|{place.City}", StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .ToList();
     }
 

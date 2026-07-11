@@ -3,9 +3,45 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { fileURLToPath, URL } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { extname, isAbsolute, relative, resolve } from 'node:path';
+
+const wasmRoot = fileURLToPath(new URL('./wasm', import.meta.url));
+
+function serveWasmDuringDevelopment() {
+  return {
+    name: 'serve-pray-wasm',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/wasm', async (request, response, next) => {
+        try {
+          const relativePath = decodeURIComponent((request.url ?? '').split('?')[0]).replace(/^\/+/, '');
+          const filePath = resolve(wasmRoot, relativePath);
+          const pathFromRoot = relative(wasmRoot, filePath);
+          if (pathFromRoot.startsWith('..') || isAbsolute(pathFromRoot)) {
+            next();
+            return;
+          }
+
+          const contentTypes = {
+            '.js': 'text/javascript',
+            '.json': 'application/json',
+            '.wasm': 'application/wasm',
+            '.dat': 'application/octet-stream',
+          };
+          response.setHeader('Content-Type', contentTypes[extname(filePath)] ?? 'application/octet-stream');
+          response.end(await readFile(filePath));
+        } catch {
+          next();
+        }
+      });
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
+    serveWasmDuringDevelopment(),
     tanstackRouter({
       target: 'react',
       autoCodeSplitting: false,

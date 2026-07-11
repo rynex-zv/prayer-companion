@@ -19,7 +19,7 @@ public sealed class WebCoreRpcDispatcher {
             "app.setLanguage" => SetLanguage(GetString(payload, "language", _state.Language)),
             "app.setTheme" => SetTheme(GetString(payload, "theme", _state.ThemeMode)),
             "app.navigate" => new { navigatedTo = GetString(payload, "route", "/") },
-            "app.importState" => ImportState(GetString(payload, "_state", "")),
+            "app.importState" => ImportState(GetString(payload, "state", GetString(payload, "_state", ""))),
             "app.exportState" => ExportState(),
 
             "today.getSnapshot" or "today.refresh" => TodaySnapshot(),
@@ -314,7 +314,8 @@ public sealed class WebCoreRpcDispatcher {
                 vibrationStrength = WebCatalog.NotificationDefaults.VibrationStrength,
                 vibrationPattern = WebCatalog.NotificationDefaults.VibrationPattern,
                 minutesBefore = WebCatalog.NotificationDefaults.MinutesBefore,
-                reminders = Array.Empty<object>()
+                reminders = Array.Empty<object>(),
+                pendingDeferredReminder = (object?)null
             },
             "permissions" => PermissionsSnapshot(),
             "alarmReminders" => new {
@@ -344,6 +345,8 @@ public sealed class WebCoreRpcDispatcher {
         } else if (section == "theme" && field == "textSize") {
             _state.TextSize = WebCatalog.ClampTextSize(value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var textSize) ? textSize : _state.TextSize);
         } else if (section == "locations" && field == "value" && value.ValueKind == JsonValueKind.Object) {
+            var previousLatitude = _state.Latitude;
+            var previousLongitude = _state.Longitude;
             _state.UseGps = GetBool(value, "useGps", _state.UseGps);
             _state.Latitude = GetDouble(value, "latitude", _state.Latitude);
             _state.Longitude = GetDouble(value, "longitude", _state.Longitude);
@@ -352,11 +355,24 @@ public sealed class WebCoreRpcDispatcher {
             _state.City = GetString(value, "city", _state.City) ?? _state.City;
             _state.ReadingMode = GetString(value, "qiblaReadingMode", _state.ReadingMode) ?? _state.ReadingMode;
             _state.FilterMode = GetString(value, "qiblaFilterMode", _state.FilterMode) ?? _state.FilterMode;
+            if (Math.Abs(previousLatitude - _state.Latitude) > 0.000001 ||
+                Math.Abs(previousLongitude - _state.Longitude) > 0.000001) {
+                var place = WebCatalog.FindNearestPlace(_state.Latitude, _state.Longitude, 50);
+                _state.Country = place?.Country ?? string.Empty;
+                _state.CountryCode = place?.CountryCode ?? string.Empty;
+                _state.City = place?.City ?? string.Empty;
+            }
         } else if (section == "adhan" && field == "value" && value.ValueKind == JsonValueKind.Object) {
             _state.ClockFormat = GetString(value, "clockFormat", _state.ClockFormat) ?? _state.ClockFormat;
         }
 
-        return new { ok = true, section, field, value = CloneJsonValue(value) };
+        return new {
+            ok = true,
+            section,
+            field,
+            value = CloneJsonValue(value),
+            calculated = section == "locations" ? SettingsSnapshot("locations") : null
+        };
     }
 
     private object InvokeSetting(string action, JsonElement payload) {

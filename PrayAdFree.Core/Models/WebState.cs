@@ -7,7 +7,7 @@ public sealed class WebState {
     public string ThemeMode { get; set; } = "system";
     public string AccentColor { get; set; } = "teal";
     public int TextSize { get; set; } = 100;
-    public bool OnboardingCompleted { get; set; } = true;
+    public bool OnboardingCompleted { get; set; }
     public bool UseGps { get; set; }
     public string Country { get; set; } = "";
     public string CountryCode { get; set; } = "";

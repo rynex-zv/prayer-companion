@@ -258,6 +258,17 @@ public sealed class MauiWebberUpdater {
                 return null;
             }
 
+            var active = SlotPath(ActiveSlot);
+            var previous = SlotPath(PreviousSlot);
+            if (_options.RollbackEnabled && IsHealthy(previous)) {
+                ReplaceDirectory(active, previous);
+                Preferences.Set(UseRemoteSlotPreferenceKey(), true);
+                var previousEntry = EntryPath(active);
+                _logger.Log("NavigationFailure.PreviousFallback", previousEntry);
+                return previousEntry;
+            }
+
+            Preferences.Set(UseRemoteSlotPreferenceKey(), false);
             var embedded = await ResolveEmbeddedStartupUrlAsync(cancellationToken).ConfigureAwait(false);
             _logger.Log("NavigationFailure.Fallback", embedded);
             return embedded;

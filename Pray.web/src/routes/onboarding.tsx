@@ -3,11 +3,12 @@ import { useState } from "react";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { Card } from "@/components/Card";
+import { CoordinateInput } from "@/components/CoordinateInput";
 import { Field } from "@/components/Field";
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { setLanguage, syncField, useAppStore } from "@/state/appStore";
+import { setLanguage, setOnboardingCompleted, useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -49,11 +50,13 @@ type LocationSettings = {
   countries?: Country[];
   places?: Place[];
 };
+type LocationConfirmation = { value: LocationSettings; calculated?: LocationSettings };
 
 function OnboardingPage() {
   const t = useAppLabels();
   const { data, refresh, setData } = useSnapshot<Snapshot>("onboarding.getSnapshot");
   const [step, setStep] = useState(0);
+  const [finishError, setFinishError] = useState("");
   const navigate = useNavigate();
   const language = useAppStore((state) => state.language);
   const languages = useAppStore((state) => state.languages);
@@ -71,19 +74,52 @@ function OnboardingPage() {
   const locationPermission = permissionItems.find((permission) => permission.id?.toLowerCase() === "location");
   const locationPermissionGranted = locationPermission?.status === t("enabled");
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
-  const patchLocation = (location: LocationSettings) => {
+  const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
     setData({ ...data, location });
-    void syncField("locations", "value", location);
+    const response = await mauiCall<LocationConfirmation>("settings.setField", {
+      section: "locations",
+      field: "value",
+      value: location,
+    });
+    if (!response.ok) {
+      setFinishError(t("status_error"));
+      return false;
+    }
+
+    const confirmed = response.data.calculated ?? location;
+    setData({ ...data, location: confirmed });
+    if (resolveCoordinates) {
+      const resolved = await mauiCall<LocationSettings>("settings.invoke", {
+        action: "reverseGeocode",
+        payload: { latitude: location.latitude, longitude: location.longitude },
+      });
+      if (resolved.ok) {
+        setData({ ...data, location: resolved.data });
+      }
+    }
+    setFinishError("");
+    return true;
   };
   const requestLocationPermission = () =>
     mauiCall("settings.invoke", { action: "requestPermission", payload: { id: "Location" } }).then(() => refresh());
-  const refreshGps = () => {
+  const refreshGps = async () => {
     if (!locationPermissionGranted) {
-      void requestLocationPermission();
+      await requestLocationPermission();
       return;
     }
 
-    void mauiCall("settings.invoke", { action: "refreshGps" }).then(() => refresh());
+    const response = await mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" });
+    if (!response.ok) {
+      setFinishError(t("status_error"));
+      return;
+    }
+
+    const location = (response.data as { location?: LocationSettings }).location ?? response.data as LocationSettings;
+    if (location) {
+      setData({ ...data, location });
+    } else {
+      await refresh();
+    }
   };
   const places = data.location?.places ?? [];
   const currentCountry = data.location?.countries?.find((item) => item.code === data.location?.country);
@@ -95,7 +131,7 @@ function OnboardingPage() {
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === countryCode.toLowerCase() &&
       item.city.toLowerCase() === firstCity.toLowerCase());
-    patchLocation({
+    void patchLocation({
       ...location,
       useGps: false,
       country: countryCode,
@@ -111,7 +147,7 @@ function OnboardingPage() {
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === (location.country ?? "").toLowerCase() &&
       item.city.toLowerCase() === city.toLowerCase());
-    patchLocation({
+    void patchLocation({
       ...location,
       useGps: false,
       countryName: place?.country ?? location.countryName,
@@ -120,7 +156,6 @@ function OnboardingPage() {
       longitude: place?.longitude ?? location.longitude,
     });
   };
-	let errorText = '';
   return (
     <div className="flex h-[calc(100vh-7rem)] min-h-0 flex-col" dir={direction} data-selector-name="onboarding:page">
       <div className="mb-4 flex shrink-0 items-center gap-1" data-selector-name="onboarding:progress">
@@ -228,7 +263,7 @@ function OnboardingPage() {
                         return;
                       }
 
-                      patchLocation({ ...data.location, useGps: !data.location?.useGps });
+                      void patchLocation({ ...data.location, useGps: !data.location?.useGps });
                     }}
                     data-selector-name="onboarding:location:gps"
                     className="rounded-full bg-muted px-3 py-1 text-xs"
@@ -238,7 +273,7 @@ function OnboardingPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={refreshGps}
+                  onClick={() => void refreshGps()}
                   data-selector-name="onboarding:location:refresh-gps"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                 >
@@ -267,14 +302,8 @@ function OnboardingPage() {
                   </select>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="block text-xs text-muted-foreground">
-                    {t("latitude")}
-                    <input value={data.location.latitude ?? ""} onChange={(event) => patchLocation({ ...data.location, useGps: false, latitude: Number(event.currentTarget.value) || 0 })} data-selector-name="onboarding:location:latitude" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground" dir="ltr" />
-                  </label>
-                  <label className="block text-xs text-muted-foreground">
-                    {t("longitude")}
-                    <input value={data.location.longitude ?? ""} onChange={(event) => patchLocation({ ...data.location, useGps: false, longitude: Number(event.currentTarget.value) || 0 })} data-selector-name="onboarding:location:longitude" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground" dir="ltr" />
-                  </label>
+                  <CoordinateInput label={t("latitude")} value={data.location.latitude ?? 0} selectorName="onboarding:location:latitude" onCommit={(latitude) => void patchLocation({ ...data.location, useGps: false, latitude }, true)} />
+                  <CoordinateInput label={t("longitude")} value={data.location.longitude ?? 0} selectorName="onboarding:location:longitude" onCommit={(longitude) => void patchLocation({ ...data.location, useGps: false, longitude }, true)} />
                 </div>
               </div>
             ) : null}
@@ -287,39 +316,42 @@ function OnboardingPage() {
         <button
           type="button"
           data-selector-name="onboarding:next"
-          /* onClick={() => {
-            if (step === steps.length - 1) {
-              mauiCall("onboarding.complete").then(() => navigate({ to: "/" }));
-            } else setStep((s) => s + 1);
-          }} */
-				  onClick={async () => {
-					  if (step !== steps.length - 1) {
-						  setStep((s) => s + 1);
-						  return;
-					  }
+          onClick={async () => {
+            if (step !== steps.length - 1) {
+              setStep((current) => current + 1);
+              return;
+            }
 
-					  setData({ ...data, completed: true });
+            const location = data.location;
+            const latitude = location?.latitude ?? 0;
+            const longitude = location?.longitude ?? 0;
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+                (Math.abs(latitude) < 0.000001 && Math.abs(longitude) < 0.000001)) {
+              setFinishError(t("onboardingLocationInvalid"));
+              return;
+            }
 
-					  try {
-						  await mauiCall("onboarding.complete");
-					  } catch (error) {
-						  console.error("onboarding.complete failed", error);
-						  errorText = String(error ?? 'wtf')
-					  }
+            if (!await patchLocation(location!)) {
+              return;
+            }
 
-					  await navigate({
-						  to: "/",
-						  replace: true,
-					  });
+            const completed = await mauiCall("onboarding.complete");
+            if (!completed.ok) {
+              setFinishError(t("status_error"));
+              return;
+            }
 
-					  void mauiCall("app.navigate", { route: "/" });
-				  }}
+            setData({ ...data, completed: true });
+            setOnboardingCompleted(true);
+            await navigate({ to: "/", replace: true });
+            void mauiCall("app.navigate", { route: "/" });
+          }}
           className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
         >
           {step === steps.length - 1 ? t("finish") : t("next")} <NextIcon className="h-4 w-4" />
         </button>
-			  <span>{step} == {steps.length - 1}{step == steps.length - 1}{step === steps.length - 1} {errorText}</span>
       </div>
+      {finishError ? <p className="mt-2 shrink-0 text-sm text-destructive" data-selector-name="onboarding:error">{finishError}</p> : null}
     </div>
   );
 }

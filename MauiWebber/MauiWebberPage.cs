@@ -26,7 +26,7 @@ public class MauiWebberPage : ContentPage {
     private readonly SemaphoreSlim _scriptGate = new(1, 1);
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
-    private bool _navigationFallbackTried;
+    private int _navigationFallbackAttempts;
 #if ANDROID
     private AndroidMauiWebberBridge? _androidBridge;
 #endif
@@ -153,18 +153,50 @@ public class MauiWebberPage : ContentPage {
                         })();
                         """)).ConfigureAwait(false);
                 _logger.Log("Bridge.PageDiagnostics", $"ms={_stopwatch.ElapsedMilliseconds};result={diagnostics}");
+                if (await WaitForReactRootAsync().ConfigureAwait(false)) {
+                    _logger.Log("WebView.RuntimeHealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={e.Url}");
+                    return;
+                }
+
+                _logger.Log("WebView.RuntimeUnhealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={e.Url}");
             } catch (Exception ex) {
                 _logger.LogException(ex, "MauiWebber.Bridge.Inject");
             }
+
+            await TryUseFallbackAsync(e.Url).ConfigureAwait(false);
             return;
         }
 
-        if (_navigationFallbackTried) {
+        await TryUseFallbackAsync(e.Url).ConfigureAwait(false);
+    }
+
+    private async Task<bool> WaitForReactRootAsync() {
+        for (var attempt = 1; attempt <= 12; attempt++) {
+            var result = await MainThread.InvokeOnMainThreadAsync(() =>
+                _webView.EvaluateJavaScriptAsync("""
+                    (function(){
+                      var app = document.getElementById('app');
+                      return !!(app && app.childElementCount > 0 && app.innerHTML.length > 20);
+                    })();
+                    """)).ConfigureAwait(false);
+            if (string.Equals(result?.Trim().Trim('"'), "true", StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+
+            await Task.Delay(250).ConfigureAwait(false);
+        }
+
+        return false;
+    }
+
+    private async Task TryUseFallbackAsync(string failedUrl) {
+        if (_navigationFallbackAttempts >= 2) {
+            _logger.Log("WebView.FallbackExhausted", $"url={failedUrl}");
             return;
         }
 
-        _navigationFallbackTried = true;
-        var fallback = await _updater.ResolveAfterNavigationFailureAsync(e.Url).ConfigureAwait(false);
+        _navigationFallbackAttempts++;
+        var fallback = await _updater.ResolveAfterNavigationFailureAsync(failedUrl).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(fallback)) {
             await MainThread.InvokeOnMainThreadAsync(() => {
                 _webView.Source = new UrlWebViewSource {
@@ -348,6 +380,7 @@ public class MauiWebberPage : ContentPage {
     }
 
     private void SetWebViewSource(string startupFile, string logName) {
+        _navigationFallbackAttempts = 0;
         _webView.Source = new UrlWebViewSource {
             Url = ToSourceUrl(startupFile)
         };
