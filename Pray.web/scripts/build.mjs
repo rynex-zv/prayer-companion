@@ -198,7 +198,7 @@ if (phone) viteArgs.push('--mode', 'phone');
 else if (devMode) viteArgs.push('--mode', 'development');
 await run('vite', viteArgs);
 await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), distDir, 'web.config'));
-if (!phone) {
+if (!phone && !skipDotnet) {
   const wasmPublishRoot = resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish', 'wwwroot', '_framework');
   const wasmDistRoot = resolve(process.cwd(), distDir, 'wasm', '_framework');
   await rm(resolve(process.cwd(), distDir, 'wasm'), { recursive: true, force: true });
