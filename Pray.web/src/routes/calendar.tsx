@@ -274,7 +274,7 @@ function WeekView({ data, mode, anchorIso, onSelect, t }: { data: Snapshot; mode
             <div className="mb-2 flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">
-                  {mode === "gregorian" ? d.date : `${d.hijriDay} ${t(`hijriMonth_${d.hijriMonth}`)} ${d.hijriYear}`}
+                  {mode === "gregorian" ? d.date : `${d.hijriDay} ${localizedHijriMonth(d, t)} ${d.hijriYear}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {mode === "gregorian" ? d.hijri : d.date}
@@ -308,7 +308,7 @@ function DayView({ day, mode, t }: { day: Day; mode: CalendarMode; t: (k: string
       <div className="flex items-baseline justify-between">
         <div>
           <div className="text-2xl font-bold">
-            {mode === "gregorian" ? day.date : `${day.hijriDay} ${t(`hijriMonth_${day.hijriMonth}`)} ${day.hijriYear}`}
+            {mode === "gregorian" ? day.date : `${day.hijriDay} ${localizedHijriMonth(day, t)} ${day.hijriYear}`}
           </div>
           <div className="text-sm text-muted-foreground">
             {mode === "gregorian" ? day.hijri : day.date}
@@ -388,11 +388,17 @@ function localizedHijriHeader(data: Snapshot, t: (k: string) => string) {
   const first = data.days[0];
   const last = data.days[data.days.length - 1];
   if (!first || !last) return data.hijriMonthLabel;
-  const firstName = t(`hijriMonth_${first.hijriMonth}`);
-  const lastName = t(`hijriMonth_${last.hijriMonth}`);
+  const firstName = localizedHijriMonth(first, t);
+  const lastName = localizedHijriMonth(last, t);
   return first.hijriMonth === last.hijriMonth
     ? `${firstName} ${first.hijriYear}`
     : `${firstName} – ${lastName} ${last.hijriYear}`;
+}
+
+function localizedHijriMonth(day: Day, t: (k: string) => string) {
+  return day.hijriMonth >= 1 && day.hijriMonth <= 12
+    ? t(`hijriMonth_${day.hijriMonth}`)
+    : day.hijriMonthName;
 }
 
 function PrayerGrid({ day, t }: { day: Day; t: (k: string) => string }) {
@@ -426,7 +432,7 @@ function DayBottomSheet({ day, mode, onClose, t }: { day: Day; mode: CalendarMod
         <div className="mb-3 flex items-start justify-between">
           <div>
             <div className="text-lg font-bold">
-              {mode === "gregorian" ? day.date : `${day.hijriDay} ${t(`hijriMonth_${day.hijriMonth}`)} ${day.hijriYear}`}
+              {mode === "gregorian" ? day.date : `${day.hijriDay} ${localizedHijriMonth(day, t)} ${day.hijriYear}`}
             </div>
             <div className="text-sm text-muted-foreground">
               {mode === "gregorian" ? day.hijri : day.date}

@@ -9,7 +9,8 @@ const phone = args.has('--phone');
 // clash with the local dist/ used by the desktop/phone shells.
 const love = args.has('--love') || args.has('-love');
 const devMode = args.has('--dev');
-const skipDotnet = process.env.PRAY_WEB_SKIP_DOTNET === '1';
+const skipDotnet = String(process.env.PRAY_WEB_SKIP_DOTNET ?? "") == "1";
+console.log(skipDotnet, "is it >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 const distDir = love ? '.lovable-dist' : phone ? 'dist-phone' : 'dist';
 const outDir = `../${distDir}`;
 

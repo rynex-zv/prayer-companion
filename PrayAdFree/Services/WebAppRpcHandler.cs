@@ -207,8 +207,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             _calendarMonth = new DateTime(parsed.Year, parsed.Month, 1);
         }
 
-        _calendar.SelectedMonth = _calendarMonth;
-        await _calendar.LoadAsync().ConfigureAwait(false);
+        await LoadCalendarMonthAsync().ConfigureAwait(false);
         return BuildCalendarSnapshot();
     }
 
@@ -220,9 +219,30 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _calendarMonth = today
             ? new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
             : _calendarMonth.AddMonths(offset);
-        _calendar.SelectedMonth = _calendarMonth;
-        await _calendar.LoadAsync().ConfigureAwait(false);
+        await LoadCalendarMonthAsync().ConfigureAwait(false);
         return BuildCalendarSnapshot();
+    }
+
+    private async Task LoadCalendarMonthAsync() {
+        var changed = _calendar.SelectedMonth.Year != _calendarMonth.Year ||
+                      _calendar.SelectedMonth.Month != _calendarMonth.Month;
+        if (changed) {
+            _calendar.SelectedMonth = _calendarMonth;
+        } else {
+            await _calendar.LoadAsync().ConfigureAwait(false);
+        }
+
+        while (_calendar.IsBusy) {
+            await Task.Delay(20).ConfigureAwait(false);
+        }
+
+        // Do not return a new header paired with stale days from the previous month.
+        if (_calendar.Days.Count == 0 ||
+            _calendar.Days[0].SourceDate.Year != _calendarMonth.Year ||
+            _calendar.Days[0].SourceDate.Month != _calendarMonth.Month) {
+            await _calendar.LoadAsync().ConfigureAwait(false);
+            while (_calendar.IsBusy) await Task.Delay(20).ConfigureAwait(false);
+        }
     }
 
     private object BuildCalendarSnapshot() {
