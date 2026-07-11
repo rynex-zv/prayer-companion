@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\PrayAdFree\Resources\Raw\i18n\*.json" Link="Resources\i18n\%(Filename)%(Extension)" LogicalName="PrayAdFree.Core.Resources.i18n.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Resources\CalendarEvents\*.json" LogicalName="PrayAdFree.Core.Resources.CalendarEvents.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
