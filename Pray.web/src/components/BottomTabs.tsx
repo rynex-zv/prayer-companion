@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,34 +17,10 @@ export function BottomTabs({ labels }: { labels: Record<string, string> }) {
   const navigate = useNavigate();
   const direction = useAppStore((state) => state.direction);
   const orderedTabs = direction === "rtl" ? [...tabs].reverse() : tabs;
-  const [hidden, setHidden] = useState(false);
-  const lastY = useRef(0);
-
-  useEffect(() => {
-    const mainEl = document.querySelector<HTMLElement>('main[data-selector-name^="route:"]');
-    const scroller: HTMLElement | Window = mainEl ?? window;
-    const getY = () => (mainEl ? mainEl.scrollTop : window.scrollY);
-    lastY.current = getY();
-
-    const onScroll = () => {
-      const y = getY();
-      const delta = y - lastY.current;
-      if (Math.abs(delta) < 6) return;
-      if (delta > 0 && y > 40) setHidden(true);
-      else if (delta < 0) setHidden(false);
-      lastY.current = y;
-    };
-
-    scroller.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
-    return () => scroller.removeEventListener("scroll", onScroll as EventListener);
-  }, [pathname]);
 
   return (
     <nav
-      className={cn(
-        "safe-bottom absolute inset-x-0 bottom-0 z-30 border-t border-border bg-card/90 backdrop-blur-md transition-transform duration-300",
-        hidden ? "translate-y-full" : "translate-y-0",
-      )}
+      className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/90 backdrop-blur-md md:absolute"
       data-selector-name="bottom-tabs"
       dir={direction}
     >
