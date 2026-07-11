@@ -9,7 +9,20 @@ public sealed class WebCoreRpcDispatcher {
     private readonly CalendarMonthPresenter _calendarPresenter = new();
     private readonly TasbihProgressCalculator _tasbihCalculator = new();
     private readonly WebPrayerMonthFactory _prayerMonthFactory = new();
+    private readonly IslamicOccasionCatalog _occasions = new();
     private WebState _state = WebState.Default();
+
+    private static readonly string[] HijriMonthNames = {
+        "Muharram", "Safar", "Rabi al-awwal", "Rabi al-thani",
+        "Jumada al-awwal", "Jumada al-thani", "Rajab", "Shaban",
+        "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"
+    };
+
+    private static int HijriMonthNumber(string name) {
+        for (int i = 0; i < HijriMonthNames.Length; i++)
+            if (string.Equals(HijriMonthNames[i], name, StringComparison.OrdinalIgnoreCase)) return i + 1;
+        return 0;
+    }
 
     public object? Dispatch(string method, JsonElement payload) {
         return method switch {
