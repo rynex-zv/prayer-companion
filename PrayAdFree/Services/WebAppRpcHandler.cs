@@ -20,6 +20,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly IAdhanPlaybackService _adhanPlaybackService;
     private readonly INotificationBootstrapper _notificationBootstrapper;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
+    private readonly MauiWebberUpdater _webUpdater;
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
     private string _qiblaDisplayMode = "compass";
@@ -36,7 +37,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         IGeoLookupService geoLookupService,
         IAdhanPlaybackService adhanPlaybackService,
         INotificationBootstrapper notificationBootstrapper,
-        AndroidAlarmCapabilityService alarmCapability) {
+        AndroidAlarmCapabilityService alarmCapability,
+        MauiWebberUpdater webUpdater) {
         _today = today;
         _calendar = calendar;
         _qibla = qibla;
@@ -48,6 +50,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _adhanPlaybackService = adhanPlaybackService;
         _notificationBootstrapper = notificationBootstrapper;
         _alarmCapability = alarmCapability;
+        _webUpdater = webUpdater;
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     }
 
@@ -105,18 +108,12 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             accentColor = AccentFromIndex(settings.AccentIndex),
             textSize = settings.TextScale == 0 ? 100 : settings.TextScale,
             languageObject = BuildLanguageObject(language),
-            languages = LocalizationManager.GetAvailableLanguages().Select(item => new {
+            languages = WebCatalog.Languages.Select(item => new {
                 code = item.Code,
                 name = item.Name,
-                direction = string.Equals(item.Code, "ar", StringComparison.OrdinalIgnoreCase) ? "rtl" : "ltr"
+                direction = item.Direction
             }).ToList(),
-            tabs = new[] {
-                new { id = "today", label = T("Today"), icon = "sun" },
-                new { id = "calendar", label = T("Calendar"), icon = "calendar" },
-                new { id = "qibla", label = T("Qibla"), icon = "compass" },
-                new { id = "tasbih", label = T("Tasbih"), icon = "circle" },
-                new { id = "settings", label = T("Settings"), icon = "settings" }
-            },
+            tabs = WebCatalog.LocalizedShellTabs(language),
             labels = BuildLabels(),
             onboardingCompleted = settings.OnboardingCompleted
         };
@@ -417,6 +414,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "notifications" => BuildNotificationSettings(settings),
             "permissions" => await BuildPermissionsSettingsAsync().ConfigureAwait(false),
             "alarmReminders" => BuildAlarmReminderSettings(settings),
+            "about" => BuildAboutSettings(),
             _ => new {
                 locations = BuildLocationsSettings(settings),
                 theme = BuildThemeSettings(settings),
@@ -427,6 +425,22 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             }
         };
     }
+
+    private object BuildAboutSettings() => new {
+        name = WebCatalog.AboutInfo.Name,
+        tagline = T("tagline"),
+        privacy = T("privacy"),
+        source = T("source"),
+        maintainer = WebCatalog.AboutInfo.Maintainer,
+        contact = T("contact"),
+        email = WebCatalog.AboutInfo.Email,
+        phone = WebCatalog.AboutInfo.Phone,
+        website = WebCatalog.AboutInfo.Website,
+        websiteNote = T("websiteNote"),
+        report = T("report"),
+        remoteWebUrl = _webUpdater.RemoteBaseUrl.AbsoluteUri,
+        defaultRemoteWebUrl = WebCatalog.AboutInfo.RemoteWebUrl
+    };
 
     private async Task<object?> PatchSettingsAsync(JsonElement payload) {
         var settings = _settingsService.Load();
@@ -892,7 +906,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         switch (action) {
             case "addTasbihPreset":
                 presets.Add(new TasbihPresetSettings {
-                    Name = ReadString(payload, "name") ?? T("Tasbih"),
+                    Name = ReadString(payload, "name") ?? T("tasbih"),
                     RepeatMode = TasbihRepeatMode.None,
                     Items = new List<TasbihItemSettings>()
                 });
@@ -1232,7 +1246,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 BuildPrayerOverride(settings, PrayerId.Isha)
             },
             vibrationOverrideOptions = new[] {
-                new { id = "default", label = T("UseGlobal") },
+                new { id = "default", label = T("useGlobal") },
                 new { id = "enabled", label = T("PermissionStatus_Enabled") },
                 new { id = "none", label = T("PermissionStatus_Disabled") }
             }
@@ -1268,7 +1282,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             CalculationMethod.Custom
         }.Select(method => new {
             id = method.ToString(),
-            label = T($"Method_{method}")
+            label = T($"method_{method}")
         }).ToArray();
     }
 
@@ -1280,7 +1294,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             Madhhab.Hanafi
         }.Select(madhhab => new {
             id = madhhab.ToString(),
-            label = T($"Madhhab_{madhhab}")
+            label = T($"madhhab_{madhhab}")
         }).ToArray();
     }
 
@@ -1291,7 +1305,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             HighLatitudeRule.TwilightAngle
         }.Select(rule => new {
             id = rule.ToString(),
-            label = T($"HighLatitude_{rule}")
+            label = T($"highLatitude_{rule}")
         }).ToArray();
     }
 
@@ -1320,21 +1334,21 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             reminderScope = settings.Notifications.ReminderScope.ToString(),
             reminderPrayer = settings.Notifications.ReminderPrayer.ToString(),
             reminderScopes = new[] {
-                new { id = AdhanReminderScope.All.ToString(), label = T("Reminder_All") },
+                new { id = AdhanReminderScope.All.ToString(), label = T("reminder_All") },
                 new { id = AdhanReminderScope.SpecificPrayer.ToString(), label = T("Reminder_Specific") }
             },
             reminderPrayers = new[] {
-                new { id = PrayerId.Fajr.ToString(), label = T("Prayer_Fajr") },
-                new { id = PrayerId.Dhuhr.ToString(), label = T("Prayer_Dhuhr") },
-                new { id = PrayerId.Asr.ToString(), label = T("Prayer_Asr") },
-                new { id = PrayerId.Maghrib.ToString(), label = T("Prayer_Maghrib") },
-                new { id = PrayerId.Isha.ToString(), label = T("Prayer_Isha") }
+                new { id = PrayerId.Fajr.ToString(), label = T("prayer_Fajr") },
+                new { id = PrayerId.Dhuhr.ToString(), label = T("prayer_Dhuhr") },
+                new { id = PrayerId.Asr.ToString(), label = T("prayer_Asr") },
+                new { id = PrayerId.Maghrib.ToString(), label = T("prayer_Maghrib") },
+                new { id = PrayerId.Isha.ToString(), label = T("prayer_Isha") }
             },
             reminderAlertTypes = new[] {
-                new { id = AdhanReminderAlertType.Adhan.ToString(), label = T("ReminderType_Adhan") },
-                new { id = AdhanReminderAlertType.Notification.ToString(), label = T("ReminderType_Notification") },
-                new { id = AdhanReminderAlertType.Silent.ToString(), label = T("ReminderType_Silent") },
-                new { id = AdhanReminderAlertType.Alarm.ToString(), label = T("ReminderType_Alarm") }
+                new { id = AdhanReminderAlertType.Adhan.ToString(), label = T("reminderType_Adhan") },
+                new { id = AdhanReminderAlertType.Notification.ToString(), label = T("reminderType_Notification") },
+                new { id = AdhanReminderAlertType.Silent.ToString(), label = T("reminderType_Silent") },
+                new { id = AdhanReminderAlertType.Alarm.ToString(), label = T("reminderType_Alarm") }
             },
             reminderUnits = BuildReminderUnits(),
             reminderDirections = BuildReminderDirections(),
@@ -1349,13 +1363,13 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             }).ToList(),
             pendingDeferredReminder = settings.Notifications.PendingDeferredReminder is { } pending
                 ? new {
-                    prayer = T($"Prayer_{pending.Prayer}"),
+                    prayer = T($"prayer_{pending.Prayer}"),
                     notifyTime = pending.NotifyTime.ToString("g", CultureInfo.CurrentUICulture),
                     openAlarmScreen = pending.OpenAlarmScreen,
                     label = string.Format(
                         CultureInfo.CurrentUICulture,
                         T("PendingDeferredReminderFormat"),
-                        T($"Prayer_{pending.Prayer}"),
+                        T($"prayer_{pending.Prayer}"),
                         pending.NotifyTime.ToString("g", CultureInfo.CurrentUICulture))
                 }
                 : null
@@ -1366,7 +1380,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         var configured = settings.Notifications.PrayerOverrides.FirstOrDefault(item => item.Prayer == prayer);
         return new {
             prayer = prayer.ToString(),
-            label = T($"Prayer_{prayer}"),
+            label = T($"prayer_{prayer}"),
             soundId = configured?.SoundKey ?? "default",
             vibration = configured?.EnableVibration switch {
                 false => "none",
@@ -1389,15 +1403,15 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
     private static object[] BuildReminderUnits() {
         return new object[] {
-            new { id = "minute", label = T("Minutes") },
-            new { id = "hour", label = T("Hours") }
+            new { id = "minute", label = T("minutes") },
+            new { id = "hour", label = T("hours") }
         };
     }
 
     private static object[] BuildReminderDirections() {
         return new object[] {
-            new { id = "before", label = T("Before") },
-            new { id = "after", label = T("After") }
+            new { id = "before", label = T("before") },
+            new { id = "after", label = T("after") }
         };
     }
 
@@ -1413,10 +1427,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
     private static string FormatReminderLabel(int minutes, AdhanReminderAlertType? alertType) {
         var value = ReminderDisplayValue(minutes);
-        var unit = ReminderDisplayUnit(minutes) == "hour" ? T("Hours") : T("Minutes");
-        var direction = minutes < 0 ? T("After") : T("Before");
+        var unit = ReminderDisplayUnit(minutes) == "hour" ? T("hours") : T("minutes");
+        var direction = minutes < 0 ? T("after") : T("before");
         return alertType is { } type
-            ? $"{value} {unit} {direction} - {T($"ReminderType_{type}")}"
+            ? $"{value} {unit} {direction} - {T($"reminderType_{type}")}"
             : $"{value} {unit} {direction}";
     }
 
@@ -1495,7 +1509,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return new {
             language = ResolveLanguage(settings.Language),
             languages = LocalizationManager.GetAvailableLanguages().Select(item => new { code = item.Code, name = item.Name }).ToList(),
-            steps = new[] { T("Language"), T("PermissionsTitle"), T("Location") },
+            steps = new[] { T("language"), T("PermissionsTitle"), T("Location") },
             step = "location",
             title = T("OnboardingLocationTitle"),
             subtitle = T("OnboardingManualLocationHint"),
@@ -1505,7 +1519,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     }
 
     private static string T(string key) {
-        return LocalizationManager.Translate(key);
+        return WebCatalog.Translate(ResolveLanguage(LocalizationManager.CurrentLanguage), key);
     }
 
     private static bool IsRtl() {

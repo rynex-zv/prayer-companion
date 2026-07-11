@@ -138,6 +138,10 @@ function bridgeTimeoutFor(method: string): number {
     return 50000;
   }
 
+  if (method === "mauiWebber.clearSiteData") {
+    return 30000;
+  }
+
   if (method === "mauiWebber.trace") {
     return 5000;
   }

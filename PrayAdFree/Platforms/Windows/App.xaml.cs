@@ -47,7 +47,7 @@ namespace Pray_Ad_Free.WinUI {
 
         private static void RegisterNotifications() {
             Trace("WinUI.RegisterNotifications:start");
-            SetCurrentProcessExplicitAppUserModelID("com.rynex.prayadfree");
+            SetCurrentProcessExplicitAppUserModelID("com.rynex.prayer");
             AppNotificationManager.Default.NotificationInvoked += OnNotificationInvoked;
             AppNotificationManager.Default.Register();
             Trace("WinUI.RegisterNotifications:end");

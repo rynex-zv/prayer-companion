@@ -49,6 +49,8 @@ public sealed class HomeViewModel : ViewModelBase {
     }
 
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }
+    public PrayerId NextPrayerId => _nextPrayerId;
+    public string NextPrayerDayId => _nextPrayerTime.Date > DateTime.Now.Date ? "tomorrow" : "today";
     public Command RefreshCommand { get; }
     public ClockFormat CurrentClockFormat => _settings.ClockFormat;
 

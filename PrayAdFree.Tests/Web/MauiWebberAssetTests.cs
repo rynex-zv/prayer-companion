@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PrayAdFree.Core.Services;
 
 namespace PrayAdFree.Tests;
 
@@ -11,8 +12,10 @@ public sealed class MauiWebberAssetTests {
         var manifestPath = Path.Combine(root, "webber-manifest.json");
 
         using var manifest = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var contractVersion = manifest.RootElement.GetProperty("contractVersion").GetInt32();
         var entry = manifest.RootElement.GetProperty("entry").GetString();
 
+        Assert.Equal(WebContractExporter.SchemaVersion, contractVersion);
         Assert.False(string.IsNullOrWhiteSpace(entry));
         Assert.True(File.Exists(Path.Combine(root, entry!)), $"Missing manifest entry: {entry}");
 

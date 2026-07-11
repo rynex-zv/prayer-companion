@@ -3,9 +3,11 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public static class WebContractExporter {
+    public const int SchemaVersion = 3;
+
     public static object Export() {
         return new {
-            schemaVersion = 1,
+            schemaVersion = SchemaVersion,
             generatedFrom = "PrayAdFree.Core",
             rpcMethods = RpcMethods
         };
@@ -49,6 +51,7 @@ public static class WebContractExporter {
         "onboarding.complete",
         "mauiWebber.getRemoteUrl",
         "mauiWebber.setRemoteUrl",
+        "mauiWebber.clearSiteData",
         "mauiWebber.pullRemote",
         "mauiWebber.useEmbedded"
     };

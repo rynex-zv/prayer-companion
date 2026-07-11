@@ -44,6 +44,28 @@ public sealed class WebStateRpcTests {
         Assert.Equal(string.Empty, calculated.GetProperty("city").GetString());
     }
 
+    [Fact]
+    public void TodaySnapshotUsesPrayerIdsAndCoreLabels() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        var result = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.getSnapshot", new { }));
+
+        Assert.True(result.TryGetProperty("nextPrayerId", out var nextPrayerId));
+        Assert.False(string.IsNullOrWhiteSpace(nextPrayerId.GetString()));
+        Assert.False(result.TryGetProperty("nextPrayerName", out _));
+        Assert.True(result.TryGetProperty("nextPrayerDayId", out _));
+        Assert.All(result.GetProperty("todayTimings").EnumerateArray(), timing => {
+            Assert.True(timing.TryGetProperty("id", out _));
+            Assert.False(timing.TryGetProperty("name", out _));
+        });
+        Assert.Equal("Asr", WebCatalog.Translate("en", "Prayer_Asr"));
+        Assert.Equal("العصر", WebCatalog.Translate("ar", "Prayer_Asr"));
+    }
+
+    [Fact]
+    public void MissingCoreLabelThrowsInsteadOfLeakingAKey() {
+        Assert.Throws<InvalidOperationException>(() => WebCatalog.Translate("en", "ThisKeyDoesNotExist"));
+    }
+
     private static object? Dispatch(WebCoreRpcDispatcher dispatcher, string method, object payload) {
         return dispatcher.Dispatch(method, JsonSerializer.SerializeToElement(payload));
     }

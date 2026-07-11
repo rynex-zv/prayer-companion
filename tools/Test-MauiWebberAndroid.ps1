@@ -1,5 +1,5 @@
 param(
-    [string]$PackageName = "com.rynex.prayadfree",
+    [string]$PackageName = "com.rynex.prayer",
     [string]$ApkPath = "",
     [int]$WaitSeconds = 8,
     [switch]$Install,
@@ -27,7 +27,7 @@ function Resolve-ApkPath {
     }
 
     $root = Repo-Root
-    $candidate = Join-Path $root "PrayAdFree\bin\Debug\net10.0-android\com.rynex.prayadfree-Signed.apk"
+    $candidate = Join-Path $root "PrayAdFree\bin\Debug\net10.0-android\com.rynex.prayer-Signed.apk"
     if (-not (Test-Path $candidate)) {
         throw "APK not found at $candidate. Build Android Debug first."
     }

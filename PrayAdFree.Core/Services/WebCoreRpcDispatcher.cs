@@ -106,11 +106,11 @@ public sealed class WebCoreRpcDispatcher {
             hijriDate = day.Hijri.Date,
             gregorianDate = now.ToString("dddd, dd MMMM yyyy", CultureInfo.InvariantCulture),
             currentTime = FormatLiveClock(now, settings),
-            nextPrayerName = PrayerLabel(snapshot.NextPrayerId),
+            nextPrayerId = snapshot.NextPrayerId.ToString(),
             nextPrayerClock = Format(next, settings),
             nextPrayerBaseClock = snapshot.NextPrayerBaseTime.HasValue ? Format(snapshot.NextPrayerBaseTime.Value, settings) : Format(next, settings),
             showNextPrayerBaseClock = snapshot.NextPrayerBaseTime.HasValue,
-            nextPrayerDayLabel = snapshot.IsNextPrayerTomorrow ? T("tomorrow") : T("today"),
+            nextPrayerDayId = snapshot.IsNextPrayerTomorrow ? "tomorrow" : "today",
             countdown = FormatDuration(next - now),
             statusMessage = "",
             imsakTime = Format(day.Timings.Imsak, settings),
@@ -122,7 +122,6 @@ public sealed class WebCoreRpcDispatcher {
             labels = Labels(),
             todayTimings = snapshot.Entries.Select(entry => new {
                 id = entry.Prayer.ToString().ToLowerInvariant(),
-                name = PrayerLabel(entry.Prayer),
                 time = Format(entry.AdjustedTime, settings),
                 baseTime = Format(entry.BaseTime, settings),
                 isNext = entry.IsNext

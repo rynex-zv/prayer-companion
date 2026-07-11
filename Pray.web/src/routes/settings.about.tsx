@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { mauiCall } from "@/native/mauiWebberClient";
-import { Mail, Phone, Globe, Bug, DownloadCloud } from "lucide-react";
+import { Mail, Phone, Globe, Bug, DownloadCloud, DatabaseZap } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useSnapshot } from "@/hooks/useSnapshot";
+import { Toggle } from "@/components/Toggle";
+import { clearApplicationSiteData } from "@/lib/siteDataReset";
 
 export const Route = createFileRoute("/settings/about")({
   component: AboutPage,
@@ -19,6 +21,8 @@ function AboutPage() {
   const [pullStatus, setPullStatus] = useState("");
   const [isPullingRemote, setIsPullingRemote] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
+  const [restoreLocalData, setRestoreLocalData] = useState(true);
+  const [isClearingData, setIsClearingData] = useState(false);
 
   const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
   useEffect(() => {
@@ -94,6 +98,19 @@ function AboutPage() {
     }
   };
 
+  const clearSiteData = async () => {
+    if (isClearingData) return;
+    setIsClearingData(true);
+    setPullStatus(t("clearingAppData"));
+    try {
+      await clearApplicationSiteData(restoreLocalData ? "localStorage" : "backend");
+    } catch (error) {
+      console.error("[pray.about] clear site data failed", error);
+      setPullStatus(error instanceof Error ? error.message : t("clearAppDataFailed"));
+      setIsClearingData(false);
+    }
+  };
+
   if (!info) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
 
   return (
@@ -117,6 +134,31 @@ function AboutPage() {
             <div className="flex items-center gap-2"><Globe className="h-4 w-4 text-primary" />{info.website}</div>
             <p className="text-xs text-muted-foreground">{info.websiteNote}</p>
           </div>
+        </Card>
+        <Card className="space-y-3">
+          <div>
+            <div className="text-sm font-semibold">{t("appStorage")}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{t("clearAppDataDescription")}</p>
+          </div>
+          <Toggle
+            checked={restoreLocalData}
+            onChange={setRestoreLocalData}
+            label={t("restoreDataFromLocalStorage")}
+            selectorName="about:restore-local-data"
+          />
+          <p className="text-xs text-muted-foreground">
+            {restoreLocalData ? t("localStorageRestoreHint") : t("backendRestoreHint")}
+          </p>
+          <button
+            type="button"
+            onClick={() => void clearSiteData()}
+            disabled={isClearingData}
+            data-selector-name="about:clear-site-data"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground disabled:opacity-60"
+          >
+            <DatabaseZap className="h-4 w-4" />
+            {isClearingData ? t("clearingAppData") : t("clearAppCache")}
+          </button>
         </Card>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("emailRynex")}</button>

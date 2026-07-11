@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using MauiWebber;
+using PrayAdFree.Core.Services;
 using Pray_Ad_Free.ViewModels;
 
 namespace Pray_Ad_Free.Services;
@@ -107,11 +108,11 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             HijriDate: LocalizeHijriDate(_viewModel.HijriDate),
             GregorianDate: _viewModel.GregorianDate,
             CurrentTime: FormatLiveClock(DateTime.Now, _viewModel.CurrentClockFormat),
-            NextPrayerName: _viewModel.NextPrayerName,
+            NextPrayerId: _viewModel.NextPrayerId.ToString(),
             NextPrayerClock: _viewModel.NextPrayerClock,
             NextPrayerBaseClock: _viewModel.NextPrayerBaseClock,
             ShowNextPrayerBaseClock: _viewModel.ShowNextPrayerBaseClock,
-            NextPrayerDayLabel: _viewModel.NextPrayerDayLabel,
+            NextPrayerDayId: _viewModel.NextPrayerDayId,
             Countdown: _viewModel.Countdown,
             StatusMessage: BuildStatusMessage(_viewModel.StatusMessage),
             ImsakTime: _viewModel.ImsakTime,
@@ -120,18 +121,9 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             IsIftarNext: _viewModel.IsIftarNext,
             NextFastingCountdown: _viewModel.NextFastingCountdown,
             IsRtl: isRtl,
-            Labels: new TodayWebLabels(
-                NextPrayer: LocalizationManager.Translate("NextPrayer"),
-                TimeLeft: LocalizationManager.Translate("TimeLeft"),
-                TodayPrayerTimes: LocalizationManager.Translate("TodayPrayTimesLabel"),
-                Iftar: LocalizationManager.Translate("Iftar"),
-                Imsak: LocalizationManager.Translate("Imsak"),
-                Refresh: LocalizationManager.Translate("Refresh"),
-                Refreshing: LocalizationManager.Translate("Refreshing"),
-                Base: LocalizationManager.Translate("BaseTimeLabel")),
+            Labels: WebCatalog.Labels(LocalizationManager.CurrentLanguage),
             TodayTimings: _viewModel.TodayTimings.Select(row => new TodayWebTiming(
                 Id: row.Id.ToString(),
-                Name: row.Name,
                 Time: row.Time,
                 BaseTime: row.BaseTime,
                 ShowBaseTime: row.ShowBaseTime,
@@ -226,11 +218,11 @@ public sealed record TodayWebSnapshot(
     string HijriDate,
     string GregorianDate,
     string CurrentTime,
-    string NextPrayerName,
+    string NextPrayerId,
     string NextPrayerClock,
     string NextPrayerBaseClock,
     bool ShowNextPrayerBaseClock,
-    string NextPrayerDayLabel,
+    string NextPrayerDayId,
     string Countdown,
     string StatusMessage,
     string ImsakTime,
@@ -239,22 +231,11 @@ public sealed record TodayWebSnapshot(
     bool IsIftarNext,
     string NextFastingCountdown,
     bool IsRtl,
-    TodayWebLabels Labels,
+    IReadOnlyDictionary<string, string> Labels,
     IReadOnlyList<TodayWebTiming> TodayTimings);
-
-public sealed record TodayWebLabels(
-    string NextPrayer,
-    string TimeLeft,
-    string TodayPrayerTimes,
-    string Iftar,
-    string Imsak,
-    string Refresh,
-    string Refreshing,
-    string Base);
 
 public sealed record TodayWebTiming(
     string Id,
-    string Name,
     string Time,
     string BaseTime,
     bool ShowBaseTime,

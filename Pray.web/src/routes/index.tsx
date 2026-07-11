@@ -15,12 +15,12 @@ export const Route = createFileRoute("/")({
   component: TodayPage,
 });
 
-type Timing = { id: string; name: string; time: string; baseTime?: string; isNext: boolean };
+type Timing = { id: string; time: string; baseTime?: string; isNext: boolean };
 type Today = {
   locationTitle: string; hijriDate: string; gregorianDate: string;
   currentTime?: string;
-  nextPrayerName: string; nextPrayerClock: string; nextPrayerBaseClock: string;
-  showNextPrayerBaseClock: boolean; nextPrayerDayLabel: string;
+  nextPrayerId: string; nextPrayerClock: string; nextPrayerBaseClock: string;
+  showNextPrayerBaseClock: boolean; nextPrayerDayId: string;
   countdown: string; statusMessage: string;
   imsakTime: string; iftarTime: string;
   isImsakNext: boolean; isIftarNext: boolean;
@@ -69,6 +69,12 @@ function TodayPage() {
 
   if (!data) return <SkeletonToday />;
   const L = data.labels;
+  const text = (key: string) => {
+    const value = L[key];
+    if (!value) throw new Error(`Missing Core label: ${key}`);
+    return value;
+  };
+  const prayer = (id: string) => text(`prayer_${id[0].toUpperCase()}${id.slice(1).toLowerCase()}`);
 
   return (
     <div className="flex flex-col gap-3">
@@ -105,9 +111,9 @@ function TodayPage() {
       {/* Next prayer hero */}
       <Card className="overflow-hidden border-0 p-0 shadow-[var(--shadow-hero)]">
         <div className="p-5 text-primary-foreground" style={{ background: "var(--gradient-primary)" }}>
-          <div className="text-xs uppercase tracking-widest opacity-80">{L.nextPrayer} · {data.nextPrayerDayLabel}</div>
+          <div className="text-xs uppercase tracking-widest opacity-80">{text("nextPrayer")} · {text(data.nextPrayerDayId)}</div>
           <div className="mt-1 flex items-end justify-between gap-3">
-            <div className="text-3xl font-bold">{data.nextPrayerName}</div>
+            <div className="text-3xl font-bold">{prayer(data.nextPrayerId)}</div>
             <div className="text-right">
               <div className="text-2xl font-semibold"><Time>{data.nextPrayerClock}</Time></div>
               {data.showNextPrayerBaseClock && (
@@ -129,7 +135,7 @@ function TodayPage() {
             <li key={t.id} className={cn("flex items-center justify-between py-2.5", t.isNext && "font-semibold text-primary")}>
               <span className="flex items-center gap-2">
                 <span className={cn("h-2 w-2 rounded-full", t.isNext ? "bg-primary" : "bg-accent")} />
-                {t.name}
+                {prayer(t.id)}
               </span>
               <Time>{t.time}</Time>
             </li>

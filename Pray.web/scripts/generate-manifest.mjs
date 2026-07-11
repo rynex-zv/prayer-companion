@@ -8,6 +8,7 @@ const root = new URL(`../${distDir}/`, import.meta.url);
 const rootPath = fileURLToPath(root);
 const target = process.argv.includes('--phone') ? 'phone' : 'web';
 const versionPath = resolve(rootPath, '..', 'version.web.info');
+const contractPath = resolve(rootPath, '..', 'src', 'generated', 'core-contract.json');
 
 async function nextBuildVersion() {
   let current = 0;
@@ -44,6 +45,7 @@ async function walk(dir) {
 }
 
 const version = await nextBuildVersion();
+const contract = JSON.parse(await readFile(contractPath, 'utf8'));
 await writeFile(join(rootPath, 'version.web.info'), `${version}\n`, 'utf8');
 
 const files = [];
@@ -61,6 +63,7 @@ await writeFile(
   join(rootPath, 'webber-manifest.json'),
   JSON.stringify({
     version,
+    contractVersion: contract.schemaVersion,
     target,
     entry: 'index.html',
     files

@@ -17,8 +17,8 @@ namespace Pray_Ad_Free.Platforms.Android;
 
 [Service(Exported = false, ForegroundServiceType = global::Android.Content.PM.ForegroundService.TypeSystemExempted)]
 public sealed class AlarmOverlayService : Service {
-    private const string StartAction = "com.rynex.prayadfree.ALARM_OVERLAY_START";
-    private const string StopAction = "com.rynex.prayadfree.ALARM_OVERLAY_STOP";
+    private const string StartAction = "com.rynex.prayer.ALARM_OVERLAY_START";
+    private const string StopAction = "com.rynex.prayer.ALARM_OVERLAY_STOP";
     private const string OverlayChannelId = "adhan_alarm_overlay";
     private const int OverlayNotificationId = 54010;
     private const string LogTag = "PrayAdFree.Alarm";

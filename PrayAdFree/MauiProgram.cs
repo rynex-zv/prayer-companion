@@ -191,7 +191,8 @@ namespace Pray_Ad_Free {
                 UpdatePolicy = MauiWebberUpdatePolicy.LocalFirst,
                 RollbackEnabled = true,
                 IntegrityMode = MauiWebberIntegrityMode.OptionalHash,
-                AppendJsLog = true
+                AppendJsLog = true,
+                RequiredContractVersion = WebContractExporter.SchemaVersion
             });
             builder.Services.AddSingleton(sp => new MauiWebberUpdater(
                 sp.GetRequiredService<MauiWebberOptions>(),

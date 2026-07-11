@@ -32,9 +32,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public const int AndroidDismissControlActionId = 54006;
     public const int PreviewNotificationId = 54007;
     public const string ControlReturningData = "adhan_control";
-    public const string AndroidControlAction = "com.rynex.prayadfree.ADHAN_CONTROL";
+    public const string AndroidControlAction = "com.rynex.prayer.ADHAN_CONTROL";
     public const string AndroidControlActionIdExtra = "adhan_control_action_id";
-    public const string AndroidAlarmAction = "com.rynex.prayadfree.ADHAN_ALARM_FULLSCREEN";
+    public const string AndroidAlarmAction = "com.rynex.prayer.ADHAN_ALARM_FULLSCREEN";
     private const int MinSnoozeMinutes = 4;
     private const int BufferBeforeNextPrayerMinutes = 30;
     public const string WindowsStopActionToken = WindowsNotificationActionParser.StopActionToken;
@@ -945,7 +945,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
     private static PendingIntent BuildAndroidNoOpPendingIntent(Context context) {
         var intent = new Intent(context, typeof(Pray_Ad_Free.Platforms.Android.AdhanControlActionReceiver));
-        intent.SetAction("com.rynex.prayadfree.ADHAN_NOOP");
+        intent.SetAction("com.rynex.prayer.ADHAN_NOOP");
 
         var flags = PendingIntentFlags.UpdateCurrent;
         if (OperatingSystem.IsAndroidVersionAtLeast(23)) {

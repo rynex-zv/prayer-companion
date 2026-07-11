@@ -13,10 +13,10 @@ namespace Pray_Ad_Free.Platforms.Android;
 [IntentFilterAttribute([AppWidgetManager.ActionAppwidgetUpdate, ActionIncrement, ActionReset, ActionPresetPrevious, ActionPresetNext])]
 [MetaData("android.appwidget.provider", Resource = "@xml/tasbih_widget_info")]
 public sealed class TasbihWidgetProvider : AppWidgetProvider {
-    internal const string ActionIncrement = "com.rynex.prayadfree.widget.TASBIH_INCREMENT";
-    internal const string ActionReset = "com.rynex.prayadfree.widget.TASBIH_RESET";
-    internal const string ActionPresetPrevious = "com.rynex.prayadfree.widget.TASBIH_PRESET_PREVIOUS";
-    internal const string ActionPresetNext = "com.rynex.prayadfree.widget.TASBIH_PRESET_NEXT";
+    internal const string ActionIncrement = "com.rynex.prayer.widget.TASBIH_INCREMENT";
+    internal const string ActionReset = "com.rynex.prayer.widget.TASBIH_RESET";
+    internal const string ActionPresetPrevious = "com.rynex.prayer.widget.TASBIH_PRESET_PREVIOUS";
+    internal const string ActionPresetNext = "com.rynex.prayer.widget.TASBIH_PRESET_NEXT";
     private const string ExtraAppWidgetId = "appWidgetId";
     private static readonly TasbihProgressCalculator ProgressCalculator = new();
 

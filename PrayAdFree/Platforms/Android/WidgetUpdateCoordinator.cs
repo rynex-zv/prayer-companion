@@ -6,7 +6,7 @@ using Android.Content;
 namespace Pray_Ad_Free.Platforms.Android;
 
 internal static class WidgetUpdateCoordinator {
-    internal const string RefreshAction = "com.rynex.prayadfree.widget.REFRESH";
+    internal const string RefreshAction = "com.rynex.prayer.widget.REFRESH";
     private const int RefreshRequestCode = 40401;
 
     public static void RequestImmediateRefresh(string reason) {

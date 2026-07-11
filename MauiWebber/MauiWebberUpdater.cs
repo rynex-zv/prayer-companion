@@ -21,6 +21,7 @@ public sealed class MauiWebberUpdater {
     private readonly HttpClient _httpClient;
     private readonly IMauiWebberLogger _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private string? _embeddedVersion;
 
     public MauiWebberUpdater(MauiWebberOptions options, HttpClient? httpClient = null, IMauiWebberLogger? logger = null) {
         _options = options;
@@ -55,7 +56,7 @@ public sealed class MauiWebberUpdater {
 #if DEBUG
             if (Preferences.Get(UseRemoteSlotPreferenceKey(), false)) {
                 var active = SlotPath(ActiveSlot);
-                if (IsHealthy(active)) {
+                if (IsHealthy(active) && IsSlotAtLeastVersion(active, embeddedManifest.Version)) {
                     var entry = EntryPath(active);
                     LogResolve("active-debug", entry, started);
                     return entry;
@@ -116,10 +117,31 @@ public sealed class MauiWebberUpdater {
                 return MauiWebberUpdateResult.Failed("Remote web manifest is missing or invalid.", CurrentInstalledVersion());
             }
 
-            var activeManifest = LoadManifest(SlotPath(ActiveSlot)) ?? await LoadEmbeddedManifestAsync(token).ConfigureAwait(false);
-            if (string.Equals(activeManifest?.Version, remoteManifest.Version, StringComparison.Ordinal)) {
+            if (_options.RequiredContractVersion > 0 &&
+                remoteManifest.ContractVersion != _options.RequiredContractVersion) {
+                _logger.Log("UpdateCheck.Skip", $"contract_mismatch:required={_options.RequiredContractVersion};remote={remoteManifest.ContractVersion}");
+                return MauiWebberUpdateResult.Failed(
+                    $"Web update contract is incompatible (required {_options.RequiredContractVersion}, received {remoteManifest.ContractVersion}).",
+                    CurrentInstalledVersion());
+            }
+
+            var embeddedManifest = await LoadEmbeddedManifestAsync(token).ConfigureAwait(false);
+            var activeManifest = LoadManifest(SlotPath(ActiveSlot));
+            var installedManifest = activeManifest != null &&
+                                    !string.IsNullOrWhiteSpace(activeManifest.Version) &&
+                                    CompareVersions(activeManifest.Version, embeddedManifest.Version) >= 0
+                ? activeManifest
+                : embeddedManifest;
+            if (string.Equals(installedManifest.Version, remoteManifest.Version, StringComparison.Ordinal)) {
                 _logger.Log("UpdateCheck.Skip", $"same_version:{remoteManifest.Version}");
                 return MauiWebberUpdateResult.SameVersion(remoteManifest.Version);
+            }
+
+            if (CompareVersions(remoteManifest.Version, installedManifest.Version) < 0) {
+                _logger.Log("UpdateCheck.Skip", $"remote_older:remote={remoteManifest.Version};installed={installedManifest.Version}");
+                return MauiWebberUpdateResult.Failed(
+                    $"Remote web version {remoteManifest.Version} is older than installed version {installedManifest.Version}.",
+                    installedManifest.Version);
             }
 
             var staging = SlotPath(StagingSlot);
@@ -332,8 +354,10 @@ public sealed class MauiWebberUpdater {
     private async Task<MauiWebberManifest> LoadEmbeddedManifestAsync(CancellationToken cancellationToken) {
         var path = $"{_options.EmbeddedRoot.TrimEnd('/', '\\')}/{ManifestFileName}";
         await using var stream = await FileSystem.OpenAppPackageFileAsync(path).ConfigureAwait(false);
-        return await JsonSerializer.DeserializeAsync<MauiWebberManifest>(stream, JsonOptions, cancellationToken).ConfigureAwait(false)
+        var manifest = await JsonSerializer.DeserializeAsync<MauiWebberManifest>(stream, JsonOptions, cancellationToken).ConfigureAwait(false)
             ?? new MauiWebberManifest { Version = "embedded", Entry = _options.StartupFile };
+        _embeddedVersion = manifest.Version;
+        return manifest;
     }
 
     private async Task<MauiWebberManifest?> LoadRemoteManifestAsync(Uri manifestUrl, CancellationToken cancellationToken) {
@@ -380,8 +404,19 @@ public sealed class MauiWebberUpdater {
     }
 
     private string? CurrentInstalledVersion() {
-        return LoadManifest(SlotPath(ActiveSlot))?.Version ??
-               LoadManifest(SlotPath(EmbeddedSlot))?.Version;
+        string? installed = null;
+        foreach (var candidate in new[] {
+                     LoadManifest(SlotPath(ActiveSlot))?.Version,
+                     LoadManifest(SlotPath(EmbeddedSlot))?.Version,
+                     _embeddedVersion
+                 }) {
+            if (!string.IsNullOrWhiteSpace(candidate) &&
+                (installed == null || CompareVersions(candidate, installed) > 0)) {
+                installed = candidate;
+            }
+        }
+
+        return installed;
     }
 
     private MauiWebberManifest? LoadManifest(string slotPath) {
@@ -397,6 +432,11 @@ public sealed class MauiWebberUpdater {
 
     private bool IsHealthy(string slotPath) {
         var manifest = LoadManifest(slotPath);
+        if (_options.RequiredContractVersion > 0 &&
+            manifest?.ContractVersion != _options.RequiredContractVersion) {
+            return false;
+        }
+
         var entry = manifest?.Entry;
         if (string.IsNullOrWhiteSpace(entry)) {
             entry = _options.StartupFile;

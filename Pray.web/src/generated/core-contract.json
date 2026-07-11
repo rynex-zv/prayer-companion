@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "generatedFrom": "PrayAdFree.Core",
   "rpcMethods": [
     "app.getShellSnapshot",
@@ -39,6 +39,7 @@
     "onboarding.complete",
     "mauiWebber.getRemoteUrl",
     "mauiWebber.setRemoteUrl",
+    "mauiWebber.clearSiteData",
     "mauiWebber.pullRemote",
     "mauiWebber.useEmbedded"
   ]

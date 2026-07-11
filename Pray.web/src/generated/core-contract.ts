@@ -3,7 +3,7 @@
 // dotnet run --project tools/generate-web-contracts/GenerateWebContracts.csproj
 
 export const coreContract = {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "generatedFrom": "PrayAdFree.Core",
   "rpcMethods": [
     "app.getShellSnapshot",
@@ -43,6 +43,7 @@ export const coreContract = {
     "onboarding.complete",
     "mauiWebber.getRemoteUrl",
     "mauiWebber.setRemoteUrl",
+    "mauiWebber.clearSiteData",
     "mauiWebber.pullRemote",
     "mauiWebber.useEmbedded"
   ]

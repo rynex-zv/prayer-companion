@@ -25,7 +25,7 @@
 		<ApplicationTitle>Pray Ad Free</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.rynex.prayadfree</ApplicationId>
+		<ApplicationId>com.rynex.prayer</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0.1</ApplicationDisplayVersion>
@@ -49,6 +49,7 @@
 		<AndroidDeviceUserId>0</AndroidDeviceUserId>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<AndroidPackageFormats>apk</AndroidPackageFormats>
+		<AndroidBuildApplicationPackage>true</AndroidBuildApplicationPackage>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android' and '$(Configuration)' == 'Debug'">

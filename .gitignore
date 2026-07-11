@@ -16,6 +16,7 @@
 # Mono auto generated files
 mono_crash.*
 
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -367,6 +368,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /agents/mds/screenshots
 
-# Lovable-managed web build output
-/Pray.web/.lovable-dist/
 
+build/*
+build/*/*
+build/**

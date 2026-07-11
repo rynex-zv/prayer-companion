@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Diagnostics;
+using Microsoft.Maui.Devices.Sensors;
 #if ANDROID
 using AndroidWebView = Android.Webkit.WebView;
 using Java.Interop;
@@ -7,6 +8,10 @@ using Java.Interop;
 #if WINDOWS
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+#endif
+#if IOS || MACCATALYST
+using Foundation;
+using WebKit;
 #endif
 
 namespace MauiWebber;
@@ -27,6 +32,9 @@ public class MauiWebberPage : ContentPage {
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
     private int _navigationFallbackAttempts;
+    private int _shakeCount;
+    private DateTimeOffset _shakeSequenceStartedAt;
+    private DateTimeOffset _lastShakeAt;
 #if ANDROID
     private AndroidMauiWebberBridge? _androidBridge;
 #endif
@@ -117,6 +125,7 @@ public class MauiWebberPage : ContentPage {
 
     protected override async void OnAppearing() {
         base.OnAppearing();
+        StartShakeDetection();
         if (_loaded) {
             return;
         }
@@ -130,6 +139,63 @@ public class MauiWebberPage : ContentPage {
             _logger.Log("WebView.SourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
         });
         _ = _updater.CheckForUpdatesAsync();
+    }
+
+    protected override void OnDisappearing() {
+        StopShakeDetection();
+        base.OnDisappearing();
+    }
+
+    private void StartShakeDetection() {
+        try {
+            if (Accelerometer.Default.IsMonitoring) return;
+            Accelerometer.Default.ReadingChanged += OnAccelerometerReadingChanged;
+            Accelerometer.Default.Start(SensorSpeed.Game);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Shake.Start");
+        }
+    }
+
+    private void StopShakeDetection() {
+        try {
+            Accelerometer.Default.ReadingChanged -= OnAccelerometerReadingChanged;
+            if (Accelerometer.Default.IsMonitoring) {
+                Accelerometer.Default.Stop();
+            }
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Shake.Stop");
+        }
+    }
+
+    private void OnAccelerometerReadingChanged(object? sender, AccelerometerChangedEventArgs e) {
+        var acceleration = e.Reading.Acceleration;
+        if (acceleration.Length() < 2.25f) return;
+
+        var now = DateTimeOffset.UtcNow;
+        if ((now - _lastShakeAt).TotalMilliseconds < 400) return;
+        if (_shakeSequenceStartedAt == default || (now - _shakeSequenceStartedAt).TotalSeconds > 12) {
+            _shakeSequenceStartedAt = now;
+            _shakeCount = 0;
+        }
+
+        _lastShakeAt = now;
+        _shakeCount += 1;
+        if (_shakeCount < 5) return;
+
+        _shakeCount = 0;
+        _shakeSequenceStartedAt = default;
+        _ = DispatchShakeUnlockAsync();
+    }
+
+    private async Task DispatchShakeUnlockAsync() {
+        try {
+            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(
+                "window.dispatchEvent(new Event('prayercompanion:shake-unlock'));"
+            )).ConfigureAwait(false);
+            _logger.Log("Shake.Unlock", "count=5");
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Shake.Unlock");
+        }
     }
 
     private async void OnNavigated(object? sender, WebNavigatedEventArgs e) {
@@ -286,6 +352,15 @@ public class MauiWebberPage : ContentPage {
             return;
         }
 
+        if (string.Equals(request.Method, "mauiWebber.clearSiteData", StringComparison.Ordinal)) {
+            await ClearNativeSiteDataAsync().ConfigureAwait(false);
+            await ResolveAsync(request.Id, new MauiWebberRpcResponse {
+                Ok = true,
+                Data = new { cleared = true }
+            }).ConfigureAwait(false);
+            return;
+        }
+
         if (string.Equals(request.Method, "mauiWebber.pullRemote", StringComparison.Ordinal)) {
             var result = await _updater.PullRemoteAndActivateAsync(CancellationToken.None).ConfigureAwait(false);
             await ResolveAsync(request.Id, new MauiWebberRpcResponse {
@@ -385,6 +460,39 @@ public class MauiWebberPage : ContentPage {
             Url = ToSourceUrl(startupFile)
         };
         _logger.Log(logName, $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
+    }
+
+    private async Task ClearNativeSiteDataAsync() {
+#if ANDROID
+        await MainThread.InvokeOnMainThreadAsync(() => {
+            if (_webView.Handler?.PlatformView is AndroidWebView androidWebView) {
+                androidWebView.ClearCache(true);
+                androidWebView.ClearHistory();
+            }
+
+            Android.Webkit.CookieManager.Instance?.RemoveAllCookies(null);
+            Android.Webkit.CookieManager.Instance?.Flush();
+            Android.Webkit.WebStorage.Instance?.DeleteAllData();
+        }).ConfigureAwait(false);
+#elif WINDOWS
+        await MainThread.InvokeOnMainThreadAsync(async () => {
+            if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
+                await windowsWebView.CoreWebView2.Profile.ClearBrowsingDataAsync();
+            }
+        }).ConfigureAwait(false);
+#elif IOS || MACCATALYST
+        var cleared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await MainThread.InvokeOnMainThreadAsync(() => {
+            WKWebsiteDataStore.DefaultDataStore.RemoveDataOfTypes(
+                WKWebsiteDataStore.AllWebsiteDataTypes,
+                NSDate.DistantPast,
+                () => cleared.TrySetResult(true));
+        }).ConfigureAwait(false);
+        await cleared.Task.ConfigureAwait(false);
+#else
+        await Task.CompletedTask;
+#endif
+        _logger.Log("WebView.SiteDataCleared", "all");
     }
 
     private static string ToSourceUrl(string startupFile) {

@@ -103,8 +103,21 @@ public static class WebCatalog {
 
     public static IReadOnlyDictionary<string, string> Labels(string language) => LabelCatalog.ForLanguage(NormalizeLanguage(language));
 
-    public static string Translate(string language, string key) =>
-        Labels(language).TryGetValue(key, out var value) ? value : key;
+    public static string Translate(string language, string key) {
+        var labels = Labels(language);
+        if (labels.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)) {
+            return value;
+        }
+
+        var canonicalKey = string.IsNullOrEmpty(key)
+            ? key
+            : char.ToLowerInvariant(key[0]) + key[1..];
+        if (labels.TryGetValue(canonicalKey, out value) && !string.IsNullOrWhiteSpace(value)) {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Missing Core i18n key '{key}' for language '{NormalizeLanguage(language)}'.");
+    }
 
     public static bool IsRtl(string language) => string.Equals(NormalizeLanguage(language), "ar", StringComparison.Ordinal);
 

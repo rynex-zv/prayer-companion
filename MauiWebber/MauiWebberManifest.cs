@@ -3,6 +3,9 @@ using System.Text.Json.Serialization;
 namespace MauiWebber;
 
 public sealed class MauiWebberManifest {
+    [JsonPropertyName("contractVersion")]
+    public int ContractVersion { get; init; }
+
     [JsonPropertyName("version")]
     public string Version { get; init; } = "";
 

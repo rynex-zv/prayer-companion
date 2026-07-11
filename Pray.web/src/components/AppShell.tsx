@@ -4,6 +4,7 @@ import { BottomTabs } from "./BottomTabs";
 import { mauiCall } from "@/native/mauiWebberClient";
 import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
+import { ShakeDataResetButton } from "./ShakeDataResetButton";
 
 const TAB_ROUTES = ["/", "/calendar", "/qibla", "/tasbih", "/settings"];
 const INSPECTABLE_ROUTES = [
@@ -240,6 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {children}
         </main>
+        <ShakeDataResetButton />
         {showTabs ? <BottomTabs labels={languageProxy} /> : null}
       </div>
     </div>
