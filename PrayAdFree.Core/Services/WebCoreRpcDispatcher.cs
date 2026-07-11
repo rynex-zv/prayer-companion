@@ -591,7 +591,7 @@ public sealed class WebCoreRpcDispatcher {
     };
 
     private object PermissionItems() => WebCatalog.BrowserPermissionItems
-        .Select(item => new { id = item.Id, title = item.Title, role = item.Role, description = item.Description, fallback = item.Fallback, status = item.Status, action = item.Action })
+        .Select(item => new { id = item.Id, isGranted = false, title = item.Title, role = item.Role, description = item.Description, fallback = item.Fallback, status = item.Status, action = item.Action })
         .ToArray();
 
     private object CompleteOnboarding() {

@@ -33,6 +33,7 @@ type Country = { code: string; name: string; cities: string[] };
 type Place = { country: string; countryCode: string; city: string; latitude: number; longitude: number };
 type PermissionItem = {
   id?: string;
+  isGranted?: boolean;
   title?: string;
   name?: string;
   description?: string;
@@ -69,10 +70,10 @@ function OnboardingPage() {
   const languageOptions = languages.length ? languages : (data.languages ?? []);
   const permissionItems = Array.isArray(data.permissions) ? data.permissions : (data.permissions?.items ?? []);
   const permissionSummary = permissionItems.length
-    ? `${permissionItems.filter((permission) => permission.status === t("enabled")).length} / ${permissionItems.length}`
+    ? `${permissionItems.filter((permission) => permission.isGranted === true).length} / ${permissionItems.length}`
     : t("permissionStatus");
   const locationPermission = permissionItems.find((permission) => permission.id?.toLowerCase() === "location");
-  const locationPermissionGranted = locationPermission?.status === t("enabled");
+  const locationPermissionGranted = locationPermission?.isGranted === true;
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
   const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
     setData({ ...data, location });
@@ -100,26 +101,39 @@ function OnboardingPage() {
     setFinishError("");
     return true;
   };
-  const requestLocationPermission = () =>
-    mauiCall("settings.invoke", { action: "requestPermission", payload: { id: "Location" } }).then(() => refresh());
+  const refreshGpsFromNative = async () => {
+    const response = await mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" });
+    if (!response.ok) {
+      setFinishError(response.error);
+      return false;
+    }
+
+    const location = (response.data as { location?: LocationSettings }).location ?? response.data as LocationSettings;
+    if (!hasUsableCoordinates(location?.latitude, location?.longitude)) {
+      setFinishError(t("onboardingLocationInvalid"));
+      return false;
+    }
+    setData({ ...data, location });
+    setFinishError("");
+    return true;
+  };
+  const requestLocationPermission = async () => {
+    const response = await mauiCall("settings.invoke", { action: "requestPermission", payload: { id: "Location" } });
+    if (!response.ok) {
+      setFinishError(response.error);
+      return false;
+    }
+
+    await refresh();
+    return refreshGpsFromNative();
+  };
   const refreshGps = async () => {
     if (!locationPermissionGranted) {
       await requestLocationPermission();
       return;
     }
 
-    const response = await mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" });
-    if (!response.ok) {
-      setFinishError(t("status_error"));
-      return;
-    }
-
-    const location = (response.data as { location?: LocationSettings }).location ?? response.data as LocationSettings;
-    if (location) {
-      setData({ ...data, location });
-    } else {
-      await refresh();
-    }
+    await refreshGpsFromNative();
   };
   const places = data.location?.places ?? [];
   const currentCountry = data.location?.countries?.find((item) => item.code === data.location?.country);
@@ -325,13 +339,12 @@ function OnboardingPage() {
             const location = data.location;
             const latitude = location?.latitude ?? 0;
             const longitude = location?.longitude ?? 0;
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
-                (Math.abs(latitude) < 0.000001 && Math.abs(longitude) < 0.000001)) {
+            if (!hasUsableCoordinates(latitude, longitude)) {
               setFinishError(t("onboardingLocationInvalid"));
               return;
             }
 
-            if (!await patchLocation(location!)) {
+            if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationPermissionGranted })) {
               return;
             }
 
@@ -354,4 +367,10 @@ function OnboardingPage() {
       {finishError ? <p className="mt-2 shrink-0 text-sm text-destructive" data-selector-name="onboarding:error">{finishError}</p> : null}
     </div>
   );
+}
+
+function hasUsableCoordinates(latitude?: number, longitude?: number): boolean {
+  return Number.isFinite(latitude) && Number.isFinite(longitude) &&
+    Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180 &&
+    (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
 }

@@ -146,45 +146,94 @@ public class MauiWebberPage : ContentPage {
         base.OnDisappearing();
     }
 
+    private bool _shakeDetectionStarted;
+
     private void StartShakeDetection() {
+        if (_shakeDetectionStarted)
+            return;
+
+        var accelerometer = Accelerometer.Default;
+
+        if (!accelerometer.IsSupported) {
+            _logger.LogInformation(
+                "Accelerometer is not supported on this device/platform." );
+
+            return;
+        }
+
+        if (accelerometer.IsMonitoring)
+            return;
+
         try {
-            if (Accelerometer.Default.IsMonitoring) return;
-            Accelerometer.Default.ReadingChanged += OnAccelerometerReadingChanged;
-            Accelerometer.Default.Start(SensorSpeed.Game);
+            accelerometer.ReadingChanged += OnAccelerometerReadingChanged;
+            accelerometer.Start( SensorSpeed.Game );
+
+            _shakeDetectionStarted = true;
+        } catch (FeatureNotSupportedException ex) {
+            accelerometer.ReadingChanged -= OnAccelerometerReadingChanged;
+
+            _logger.LogException(
+                ex ,
+                "MauiWebber.Shake.NotSupported" );
         } catch (Exception ex) {
-            _logger.LogException(ex, "MauiWebber.Shake.Start");
+            accelerometer.ReadingChanged -= OnAccelerometerReadingChanged;
+
+            _logger.LogException(
+                ex ,
+                "MauiWebber.Shake.Start" );
         }
     }
-
     private void StopShakeDetection() {
+        var accelerometer = Accelerometer.Default;
+
         try {
-            Accelerometer.Default.ReadingChanged -= OnAccelerometerReadingChanged;
-            if (Accelerometer.Default.IsMonitoring) {
-                Accelerometer.Default.Stop();
-            }
+            if (_shakeDetectionStarted && accelerometer.IsMonitoring)
+                accelerometer.Stop();
         } catch (Exception ex) {
-            _logger.LogException(ex, "MauiWebber.Shake.Stop");
+            _logger.LogException(
+                ex ,
+                "MauiWebber.Shake.Stop" );
+        } finally {
+            accelerometer.ReadingChanged -= OnAccelerometerReadingChanged;
+
+            _shakeDetectionStarted = false;
+            _shakeCount = 0;
+            _lastShakeAt = default;
+            _shakeSequenceStartedAt = default;
         }
     }
-
-    private void OnAccelerometerReadingChanged(object? sender, AccelerometerChangedEventArgs e) {
+    private void OnAccelerometerReadingChanged(
+    object? sender ,
+    AccelerometerChangedEventArgs e ) {
         var acceleration = e.Reading.Acceleration;
-        if (acceleration.Length() < 2.25f) return;
+
+        if (acceleration.Length() < 2.25f)
+            return;
 
         var now = DateTimeOffset.UtcNow;
-        if ((now - _lastShakeAt).TotalMilliseconds < 400) return;
-        if (_shakeSequenceStartedAt == default || (now - _shakeSequenceStartedAt).TotalSeconds > 12) {
+
+        if ((now - _lastShakeAt).TotalMilliseconds < 400)
+            return;
+
+        if (_shakeSequenceStartedAt == default ||
+            (now - _shakeSequenceStartedAt).TotalSeconds > 12) {
             _shakeSequenceStartedAt = now;
             _shakeCount = 0;
         }
 
         _lastShakeAt = now;
-        _shakeCount += 1;
-        if (_shakeCount < 5) return;
+        _shakeCount++;
+
+        if (_shakeCount < 5)
+            return;
 
         _shakeCount = 0;
         _shakeSequenceStartedAt = default;
-        _ = DispatchShakeUnlockAsync();
+
+        Dispatcher.Dispatch( () =>
+        {
+            _ = DispatchShakeUnlockAsync();
+        } );
     }
 
     private async Task DispatchShakeUnlockAsync() {

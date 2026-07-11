@@ -16,4 +16,8 @@ public sealed class MauiWebberAppLogger : IMauiWebberLogger {
     public void LogException(Exception exception, string context) {
         _logger.LogException(exception, context);
     }
+
+    public void LogInformation( string name ) {
+        _logger.LogEvent( $"MauiWebber.{name}" , "Information" );
+    }
 }

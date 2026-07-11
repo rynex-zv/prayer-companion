@@ -82,9 +82,14 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
 #endif
     }
 
-    private static async Task<bool> IsLocationGrantedAsync() {
-        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>().ConfigureAwait(false);
-        return status == PermissionStatus.Granted;
+    private static Task<bool> IsLocationGrantedAsync() {
+        return MainThread.InvokeOnMainThreadAsync( async () =>
+        {
+            var status =
+                await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+
+            return status == PermissionStatus.Granted;
+        } );
     }
 
     private static bool IsLocationSupported() => true;

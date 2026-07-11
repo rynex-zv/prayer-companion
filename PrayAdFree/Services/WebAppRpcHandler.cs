@@ -641,15 +641,14 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         try {
             var updated = await _dataService.UpdateLocationAsync(gpsSettings, timeout.Token, forceRefresh: true)
                 .ConfigureAwait(false);
+            if (!HasUsableCoordinates(updated.Location.Latitude, updated.Location.Longitude)) {
+                throw new InvalidOperationException(T("webGpsUnavailable"));
+            }
+
             SaveSettings(updated);
             return BuildLocationsSettings(updated);
         } catch (OperationCanceledException) {
-            return new {
-                ok = false,
-                action = "refreshGps",
-                message = "GPS refresh timed out. Check location permission and try again.",
-                current = BuildLocationsSettings(settings)
-            };
+            throw new InvalidOperationException(T("webGpsTimedOut"));
         }
     }
 
@@ -1135,13 +1134,35 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             })
             .ToList();
 
+        var countryCode = string.IsNullOrWhiteSpace(settings.Location.CountryCode)
+            ? countries.FirstOrDefault()?.code ?? ""
+            : settings.Location.CountryCode;
+        var countryName = string.IsNullOrWhiteSpace(settings.Location.Country)
+            ? countries.FirstOrDefault()?.name ?? ""
+            : settings.Location.Country;
+        var city = string.IsNullOrWhiteSpace(settings.Location.City)
+            ? countries.FirstOrDefault()?.cities.FirstOrDefault() ?? ""
+            : settings.Location.City;
+        var latitude = settings.Location.Latitude;
+        var longitude = settings.Location.Longitude;
+        if (!HasUsableCoordinates(latitude, longitude)) {
+            var known = knownPlaces.FirstOrDefault(item =>
+                (string.Equals(item.countryCode, countryCode, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(item.country, countryName, StringComparison.OrdinalIgnoreCase)) &&
+                string.Equals(item.city, city, StringComparison.OrdinalIgnoreCase));
+            if (known != null) {
+                latitude = known.latitude;
+                longitude = known.longitude;
+            }
+        }
+
         return new {
             useGps = settings.Location.Mode == LocationMode.Gps,
-            latitude = settings.Location.Latitude,
-            longitude = settings.Location.Longitude,
-            country = string.IsNullOrWhiteSpace(settings.Location.CountryCode) ? countries.FirstOrDefault()?.code ?? "" : settings.Location.CountryCode,
-            countryName = string.IsNullOrWhiteSpace(settings.Location.Country) ? countries.FirstOrDefault()?.name ?? "" : settings.Location.Country,
-            city = string.IsNullOrWhiteSpace(settings.Location.City) ? countries.FirstOrDefault()?.cities.FirstOrDefault() ?? "" : settings.Location.City,
+            latitude,
+            longitude,
+            country = countryCode,
+            countryName,
+            city,
             vpnWarning = false,
             qiblaReadingMode = settings.Qibla.ReadingMode.ToString(),
             qiblaFilterMode = settings.Qibla.FilterMode.ToString(),
@@ -1445,6 +1466,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             },
             items = snapshots.Where(item => item.IsSupported).Select(item => new {
                 id = item.Kind.ToString(),
+                isGranted = item.IsGranted,
                 title = T(PermissionTitleKey(item.Kind)),
                 role = item.IsCritical ? "critical" : "optional",
                 description = T(PermissionDescriptionKey(item.Kind)),
