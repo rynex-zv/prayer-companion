@@ -1,4 +1,4 @@
 [run]
 dev = "cd Pray.web && bun run dev"
-build = "cd Pray.web && bun run build:love"
-build:dev = "cd Pray.web && bun run build:dev:love"
+build = "cd Pray.web && PRAY_WEB_SKIP_DOTNET=1 bun run build:love"
+build:dev = "cd Pray.web && PRAY_WEB_SKIP_DOTNET=1 bun run build:dev:love"
