@@ -51,7 +51,7 @@ const MODE_KEY = "prayadfree:calendarMode";
 function CalendarPage() {
   usePageLog("calendar");
   const t = useAppLabels();
-  const { data, refresh } = useSnapshot<Snapshot>("calendar.getSnapshot");
+  const { data, refresh, setData } = useSnapshot<Snapshot>("calendar.getSnapshot");
 
   const [view, setView] = useState<ViewMode>(() => (localStorage.getItem(VIEW_KEY) as ViewMode) || "month");
   const [mode, setMode] = useState<CalendarMode>(() => (localStorage.getItem(MODE_KEY) as CalendarMode) || "gregorian");
@@ -60,9 +60,40 @@ function CalendarPage() {
   useEffect(() => { localStorage.setItem(MODE_KEY, mode); }, [mode]);
 
   if (!data) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
+  const snapshot = data;
 
   const selectedDay = selectedIso ? data.days.find((d) => d.sourceDate === selectedIso) ?? null : null;
   const todayDay = data.days.find((d) => d.isToday) ?? null;
+
+  async function navigate(direction: -1 | 1) {
+    if (view === "month") {
+      const result = await mauiCall<Snapshot>(direction < 0 ? "calendar.previousMonth" : "calendar.nextMonth");
+      if (result.ok) setData(result.data);
+      setSelectedIso(null);
+      return;
+    }
+
+    if (view === "year") {
+      const target = new Date(snapshot.yearNumber + direction, snapshot.monthNumber - 1, 1);
+      const month = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`;
+      const result = await mauiCall<Snapshot>("calendar.setMonth", { month });
+      if (result.ok) setData(result.data);
+      setSelectedIso(null);
+      return;
+    }
+
+    const anchor = selectedDay ?? todayDay ?? snapshot.days[0];
+    if (!anchor) return;
+    const target = new Date(`${anchor.sourceDate}T12:00:00`);
+    target.setDate(target.getDate() + direction * (view === "week" ? 7 : 1));
+    const iso = target.toISOString().slice(0, 10);
+    const month = iso.slice(0, 7);
+    if (month !== snapshot.selectedMonthValue) {
+      const result = await mauiCall<Snapshot>("calendar.setMonth", { month });
+      if (result.ok) setData(result.data);
+    }
+    setSelectedIso(iso);
+  }
 
   return (
     <div className="flex flex-col gap-3 pb-4">
@@ -72,29 +103,29 @@ function CalendarPage() {
       </div>
 
       <Card className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2" dir="ltr">
           <button
-            onClick={() => mauiCall("calendar.previousMonth").then(refresh)}
+            onClick={() => navigate(-1)}
             className="rounded-full p-2 hover:bg-muted"
             aria-label={t("previousMonth")}
           >
-            <ChevronLeft className="h-5 w-5" />
+            <span dir="ltr"><ChevronLeft className="h-5 w-5" /></span>
           </button>
-          <div className="flex flex-col items-center leading-tight">
+          <div className="flex flex-col items-center leading-tight" dir="auto">
             <div className="flex items-center gap-2 font-semibold">
               <CalendarDays className="h-4 w-4 text-primary" />
-              <span>{mode === "gregorian" ? data.selectedMonth : data.hijriMonthLabel}</span>
+              <span>{mode === "gregorian" ? data.selectedMonth : localizedHijriHeader(data, t)}</span>
             </div>
             <div className="text-xs text-muted-foreground">
-              {mode === "gregorian" ? data.hijriMonthLabel : data.selectedMonth}
+              {mode === "gregorian" ? localizedHijriHeader(data, t) : data.selectedMonth}
             </div>
           </div>
           <button
-            onClick={() => mauiCall("calendar.nextMonth").then(refresh)}
+            onClick={() => navigate(1)}
             className="rounded-full p-2 hover:bg-muted"
             aria-label={t("nextMonth")}
           >
-            <ChevronRight className="h-5 w-5" />
+            <span dir="ltr"><ChevronRight className="h-5 w-5" /></span>
           </button>
         </div>
 
@@ -115,7 +146,11 @@ function CalendarPage() {
 
         <div className="flex items-center justify-between gap-2">
           <button
-            onClick={() => mauiCall("calendar.today").then(refresh)}
+            onClick={async () => {
+              const result = await mauiCall<Snapshot>("calendar.today");
+              if (result.ok) setData(result.data);
+              setSelectedIso(new Date().toISOString().slice(0, 10));
+            }}
             className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground"
           >
             {t("today")}
@@ -239,7 +274,7 @@ function WeekView({ data, mode, anchorIso, onSelect, t }: { data: Snapshot; mode
             <div className="mb-2 flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">
-                  {mode === "gregorian" ? d.date : `${d.hijriDay} ${d.hijriMonthName}`}
+                  {mode === "gregorian" ? d.date : `${d.hijriDay} ${t(`hijriMonth_${d.hijriMonth}`)} ${d.hijriYear}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {mode === "gregorian" ? d.hijri : d.date}
@@ -273,7 +308,7 @@ function DayView({ day, mode, t }: { day: Day; mode: CalendarMode; t: (k: string
       <div className="flex items-baseline justify-between">
         <div>
           <div className="text-2xl font-bold">
-            {mode === "gregorian" ? day.date : `${day.hijriDay} ${day.hijriMonthName}`}
+            {mode === "gregorian" ? day.date : `${day.hijriDay} ${t(`hijriMonth_${day.hijriMonth}`)} ${day.hijriYear}`}
           </div>
           <div className="text-sm text-muted-foreground">
             {mode === "gregorian" ? day.hijri : day.date}
@@ -335,7 +370,7 @@ function YearView({ data, mode, onPickMonth }: { data: Snapshot; mode: CalendarM
                       !isToday && !hasOccasion && "text-muted-foreground"
                     )}
                   >
-                    {mode === "gregorian" ? dayNum : day?.hijriDay ?? ""}
+                    {mode === "gregorian" ? dayNum : day?.hijriDay ?? dayNum}
                   </div>
                 );
               })}
@@ -348,6 +383,17 @@ function YearView({ data, mode, onPickMonth }: { data: Snapshot; mode: CalendarM
 }
 
 /* ---------- Helpers ---------- */
+
+function localizedHijriHeader(data: Snapshot, t: (k: string) => string) {
+  const first = data.days[0];
+  const last = data.days[data.days.length - 1];
+  if (!first || !last) return data.hijriMonthLabel;
+  const firstName = t(`hijriMonth_${first.hijriMonth}`);
+  const lastName = t(`hijriMonth_${last.hijriMonth}`);
+  return first.hijriMonth === last.hijriMonth
+    ? `${firstName} ${first.hijriYear}`
+    : `${firstName} – ${lastName} ${last.hijriYear}`;
+}
 
 function PrayerGrid({ day, t }: { day: Day; t: (k: string) => string }) {
   const rows: [string, string][] = [
@@ -380,7 +426,7 @@ function DayBottomSheet({ day, mode, onClose, t }: { day: Day; mode: CalendarMod
         <div className="mb-3 flex items-start justify-between">
           <div>
             <div className="text-lg font-bold">
-              {mode === "gregorian" ? day.date : `${day.hijriDay} ${day.hijriMonthName}`}
+              {mode === "gregorian" ? day.date : `${day.hijriDay} ${t(`hijriMonth_${day.hijriMonth}`)} ${day.hijriYear}`}
             </div>
             <div className="text-sm text-muted-foreground">
               {mode === "gregorian" ? day.hijri : day.date}

@@ -21,6 +21,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly INotificationBootstrapper _notificationBootstrapper;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private readonly MauiWebberUpdater _webUpdater;
+    private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
     private string _qiblaDisplayMode = "compass";
@@ -225,22 +226,81 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     }
 
     private object BuildCalendarSnapshot() {
-        return new {
-            selectedMonth = _calendarMonth.ToString("MMMM yyyy", CultureInfo.CurrentUICulture),
-            selectedMonthValue = _calendarMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture),
-            statusMessage = _calendar.StatusMessage,
-            days = _calendar.Days.Select(day => new {
+        var settings = _dataService.LoadSettings();
+        var occasions = _islamicOccasions.ForMadhhab(settings.Madhhab)
+            .GroupBy(item => (item.HijriMonth, item.HijriDay))
+            .ToDictionary(group => group.Key, group => group.First());
+        var enrichedDays = _calendar.Days.Select(day => {
+            var hijri = ParseHijri(day.Hijri);
+            occasions.TryGetValue((hijri.Month, hijri.Day), out var occasion);
+            return new {
+                sourceDate = day.SourceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                weekday = (int)day.SourceDate.ToDateTime(TimeOnly.MinValue).DayOfWeek,
+                dayNumber = day.SourceDate.Day,
                 date = day.Date,
                 hijri = LocalizeHijriDate(day.Hijri),
+                hijriDay = hijri.Day,
+                hijriMonth = hijri.Month,
+                hijriMonthName = LocalizeHijriMonth(hijri.MonthName),
+                hijriYear = hijri.Year,
                 fajr = day.Fajr,
                 sunrise = day.Sunrise,
                 dhuhr = day.Dhuhr,
                 asr = day.Asr,
                 maghrib = day.Maghrib,
                 isha = day.Isha,
-                isToday = IsToday(day)
-            }).ToList()
+                isToday = IsToday(day),
+                occasionKey = occasion?.LabelKey,
+                occasionColor = occasion?.Color,
+                occasionImportance = occasion?.Importance
+            };
+        }).ToList();
+        var firstHijri = enrichedDays.FirstOrDefault();
+        var lastHijri = enrichedDays.LastOrDefault();
+        var hijriMonthLabel = firstHijri is null ? "" :
+            firstHijri.hijriMonth == lastHijri!.hijriMonth
+                ? $"{firstHijri.hijriMonthName} {firstHijri.hijriYear}"
+                : $"{firstHijri.hijriMonthName} – {lastHijri.hijriMonthName} {lastHijri.hijriYear}";
+        return new {
+            selectedMonth = _calendarMonth.ToString("MMMM yyyy", CultureInfo.CurrentUICulture),
+            selectedMonthValue = _calendarMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            monthName = _calendarMonth.ToString("MMMM", CultureInfo.CurrentUICulture),
+            yearNumber = _calendarMonth.Year,
+            monthNumber = _calendarMonth.Month,
+            hijriMonthLabel,
+            statusMessage = _calendar.StatusMessage,
+            days = enrichedDays
         };
+    }
+
+    private static (int Day, int Month, string MonthName, int Year) ParseHijri(string value) {
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3) return (0, 0, "", 0);
+        _ = int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var day);
+        _ = int.TryParse(parts[^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var year);
+        var monthName = string.Join(" ", parts[1..^1]);
+        return (day, HijriMonthNumber(monthName), monthName, year);
+    }
+
+    private static int HijriMonthNumber(string name) {
+        var normalized = name.ToLowerInvariant().Replace("ḥ", "h").Replace("ḍ", "d").Replace("ṭ", "t").Replace("ʿ", "").Replace("ā", "a").Replace("ī", "i").Replace("ū", "u");
+        if (normalized.Contains("muharram")) return 1;
+        if (normalized.Contains("safar")) return 2;
+        if (normalized.Contains("rabi") && (normalized.Contains("awwal") || normalized.Contains("first"))) return 3;
+        if (normalized.Contains("rabi")) return 4;
+        if (normalized.Contains("jumad") && (normalized.Contains("ula") || normalized.Contains("awwal") || normalized.Contains("first"))) return 5;
+        if (normalized.Contains("jumad")) return 6;
+        if (normalized.Contains("rajab")) return 7;
+        if (normalized.Contains("shaban")) return 8;
+        if (normalized.Contains("ramadan")) return 9;
+        if (normalized.Contains("shawwal")) return 10;
+        if (normalized.Contains("qadah") || normalized.Contains("qida")) return 11;
+        if (normalized.Contains("hijjah") || normalized.Contains("hijja")) return 12;
+        return 0;
+    }
+
+    private static string LocalizeHijriMonth(string value) {
+        return LocalizeHijriDate($"1 {value} 1").Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1).SkipLast(1).Aggregate("", (a, b) => string.IsNullOrEmpty(a) ? b : $"{a} {b}");
     }
 
     private static bool IsToday(CalendarDayRow day) {
