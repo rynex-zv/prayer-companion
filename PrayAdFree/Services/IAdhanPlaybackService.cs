@@ -7,5 +7,7 @@ public interface IAdhanPlaybackService {
     Task<bool> PlayPreviewAsync(string? soundKey);
     Task<bool> PlayScheduledAsync(AdhanNotificationPayload payload);
     Task<bool> ScheduleTestAlarmAsync(string? soundKey, TimeSpan delay);
+    Task<AlarmPresentationModel?> GetActiveAlarmPresentationModelAsync();
+    Task<bool> SnoozeActiveAlarmAsync(int delayMinutes);
     Task StopAsync();
 }

@@ -138,6 +138,11 @@ function QiblaPage() {
             longitude={data.longitude}
             bearing={data.bearing}
             locationTitle={data.locationTitle}
+            labels={{
+              zoomIn: L.qiblaMapZoomIn,
+              zoomOut: L.qiblaMapZoomOut,
+              attribution: L.qiblaMapAttribution,
+            }}
           />
         </Card>
       ) : (

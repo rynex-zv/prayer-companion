@@ -78,6 +78,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "tasbih.increment" => RunTasbihCommand(_tasbih.IncrementCommand),
             "tasbih.reset" => RunTasbihCommand(_tasbih.ResetCommand),
             "tasbih.selectPreset" => SelectTasbihPreset(payload),
+            "alarm.getSnapshot" => await GetAlarmSnapshotAsync().ConfigureAwait(false),
+            "alarm.snooze" => await SnoozeAlarmAsync(payload).ConfigureAwait(false),
+            "alarm.stop" => await StopAlarmAsync().ConfigureAwait(false),
             "settings.getSnapshot" => await GetSettingsSnapshotAsync(payload).ConfigureAwait(false),
             "settings.setField" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
             "settings.patch" => await PatchSettingsAsync(payload).ConfigureAwait(false),
@@ -116,6 +119,48 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         };
     }
 
+    private async Task<object> GetAlarmSnapshotAsync() {
+        var settings = _settingsService.Load();
+        var language = ResolveLanguage(settings.Language);
+        var model = await _adhanPlaybackService.GetActiveAlarmPresentationModelAsync().ConfigureAwait(false);
+        return model == null
+            ? WebAlarmSnapshotFactory.Inactive(language)
+            : WebAlarmSnapshotFactory.Active(
+                language,
+                model.PrayerClock,
+                model.DelayFromBase,
+                model.PrayerName,
+                model.ReminderText,
+                model.CanSnooze,
+                model.MinDelayMinutes,
+                model.MaxDelayMinutes,
+                model.InitialDelayMinutes);
+    }
+
+    private async Task<object> SnoozeAlarmAsync(JsonElement payload) {
+        var scheduled = await _adhanPlaybackService
+            .SnoozeActiveAlarmAsync(ReadInt(payload, "minutes", 0))
+            .ConfigureAwait(false);
+        if (scheduled) {
+            await CloseAlarmHostAsync().ConfigureAwait(false);
+        }
+
+        return new { ok = scheduled };
+    }
+
+    private async Task<object> StopAlarmAsync() {
+        await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
+        await CloseAlarmHostAsync().ConfigureAwait(false);
+        return new { ok = true };
+    }
+
+    private static Task CloseAlarmHostAsync() => MainThread.InvokeOnMainThreadAsync(async () => {
+        var navigation = Shell.Current?.Navigation ?? Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
+        if (navigation?.ModalStack.LastOrDefault() is Pages.AdhanSnoozePage) {
+            await navigation.PopModalAsync().ConfigureAwait(true);
+        }
+    });
+
     private static object BuildLanguageObject(string? language) {
         var requested = ResolveLanguage(language ?? LocalizationManager.CurrentLanguage);
         LocalizationManager.SetLanguage(requested);
@@ -137,6 +182,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             ["nextPrayer"] = T("NextPrayer"),
             ["timeLeft"] = T("TimeLeft"),
             ["qiblaDirection"] = T("QiblaDirection"),
+            ["qiblaMapAttribution"] = T("QiblaMapAttribution"),
+            ["qiblaMapZoomIn"] = T("QiblaMapZoomIn"),
+            ["qiblaMapZoomOut"] = T("QiblaMapZoomOut"),
             ["permissionMissing"] = T("PermissionStatus_Disabled"),
             ["grantPermission"] = T("PermissionAction_Request"),
             ["auto"] = T("QiblaHeadingMode_Auto"),

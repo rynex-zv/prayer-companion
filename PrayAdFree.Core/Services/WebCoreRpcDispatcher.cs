@@ -43,6 +43,8 @@ public sealed class WebCoreRpcDispatcher {
             "tasbih.reset" => ResetTasbih(),
             "tasbih.selectPreset" => SelectTasbihPreset(GetString(payload, "id", _state.SelectedTasbihPresetId)),
 
+            "alarm.getSnapshot" or "alarm.snooze" or "alarm.stop" => AlarmSnapshot(),
+
             "settings.getSnapshot" => SettingsSnapshot(GetString(payload, "section", "")),
             "settings.setField" => SetSettingsField(payload),
             "settings.patch" => new { ok = true },
@@ -249,6 +251,8 @@ public sealed class WebCoreRpcDispatcher {
         _state.TasbihCount = 0;
         return TasbihSnapshot();
     }
+
+    private object AlarmSnapshot() => WebAlarmSnapshotFactory.Inactive(_state.Language);
 
     private object SelectTasbihPreset(string? id) {
         if (_state.TasbihCount == 0 && _state.TasbihPresets.Any(item => item.Id == id)) {

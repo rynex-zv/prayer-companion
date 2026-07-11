@@ -94,9 +94,6 @@ function TasbihRing({
   const incrementOnce = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try { navigator.vibrate?.(8); } catch { /* noop */ }
-    }
     try {
       await onIncrement();
     } finally {
@@ -176,10 +173,7 @@ function TasbihRing({
           void incrementOnce();
         }
       }}
-      className={cn(
-        "relative mx-auto touch-none select-none outline-none cursor-pointer",
-        dragging && "scale-[0.99] transition-transform",
-      )}
+      className="relative mx-auto touch-none select-none outline-none cursor-pointer"
       style={{ width: size, height: size }}
     >
       {/* outer soft ring */}
@@ -206,7 +200,7 @@ function TasbihRing({
       {/* beads — layered Islamic style: pearl highlight + primary body + inner ring */}
       {points.map((point, index) => {
         const isActive = index === activeIndex;
-        const beadSize = isActive ? 26 : 16;
+        const beadSize = 18;
         return (
           <div
             key={`bead-${index}`}
@@ -220,6 +214,7 @@ function TasbihRing({
               width: beadSize,
               height: beadSize,
               transform: "translate(-50%, -50%)",
+              opacity: isActive ? 1 : 0.62,
               background: isActive
                 ? "radial-gradient(circle at 32% 30%, oklch(1 0 0 / 0.65) 0%, oklch(1 0 0 / 0.15) 22%, transparent 42%), radial-gradient(circle at 62% 68%, color-mix(in oklab, var(--color-primary) 100%, black 22%) 0%, var(--color-primary) 55%, color-mix(in oklab, var(--color-primary) 65%, black 25%) 100%)"
                 : "radial-gradient(circle at 32% 30%, oklch(1 0 0 / 0.45) 0%, transparent 45%), radial-gradient(circle at 60% 65%, color-mix(in oklab, var(--color-primary) 70%, transparent) 0%, color-mix(in oklab, var(--color-primary) 35%, transparent) 100%)",

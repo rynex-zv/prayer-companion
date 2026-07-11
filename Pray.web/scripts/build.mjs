@@ -4,11 +4,12 @@ import { resolve } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
 const phone = args.has('--phone');
-// --love: Lovable-managed build. Skips .NET/WASM bridge, native manifest, and
-// MAUI asset sync; emits to Pray.web/.lovable-dist (gitignored) so it doesn't
+// --love: Lovable-managed build. Skips native manifest and MAUI asset sync;
+// emits to Pray.web/.lovable-dist (gitignored) so it doesn't
 // clash with the local dist/ used by the desktop/phone shells.
 const love = args.has('--love') || args.has('-love');
 const devMode = args.has('--dev');
+const skipDotnet = process.env.PRAY_WEB_SKIP_DOTNET === '1';
 const distDir = love ? '.lovable-dist' : phone ? 'dist-phone' : 'dist';
 const outDir = `../${distDir}`;
 
@@ -187,7 +188,7 @@ function run(command, commandArgs) {
   });
 }
 
-if (!phone && !love) {
+if (!phone && !skipDotnet) {
   await rm(resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish'), { recursive: true, force: true });
   await run('dotnet', ['publish', '../PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj', '-c', 'Release']);
 }
@@ -197,7 +198,7 @@ if (phone) viteArgs.push('--mode', 'phone');
 else if (devMode) viteArgs.push('--mode', 'development');
 await run('vite', viteArgs);
 await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), distDir, 'web.config'));
-if (!phone && !love) {
+if (!phone) {
   const wasmPublishRoot = resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish', 'wwwroot', '_framework');
   const wasmDistRoot = resolve(process.cwd(), distDir, 'wasm', '_framework');
   await rm(resolve(process.cwd(), distDir, 'wasm'), { recursive: true, force: true });
@@ -235,7 +236,7 @@ if (phone) {
 
   await writeFile(indexPath, embeddedHtml, 'utf8');
 }
+await run('node', ['scripts/generate-manifest.mjs', ...(phone ? ['--phone'] : [])]);
 if (!love) {
-  await run('node', ['scripts/generate-manifest.mjs', ...(phone ? ['--phone'] : [])]);
   await run('node', ['scripts/sync-maui-assets.mjs', ...(phone ? ['--phone'] : [])]);
 }

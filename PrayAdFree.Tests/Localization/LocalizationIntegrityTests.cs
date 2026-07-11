@@ -5,19 +5,19 @@ namespace PrayAdFree.Tests;
 public sealed class LocalizationIntegrityTests {
     private static readonly string[] Languages = ["en", "ar", "fr", "tr", "es"];
     private static readonly string[] CriticalKeys = [
-        "Today",
-        "Calendar",
-        "Qibla",
-        "Tasbih",
-        "Settings",
-        "Notifications",
-        "AdhanReminders",
-        "PrimaryAdhanType",
+        "today",
+        "calendar",
+        "qibla",
+        "tasbih",
+        "settings",
+        "notifications",
+        "adhanReminders",
+        "primaryAdhanType",
         "ReminderType",
-        "ReminderType_Adhan",
-        "ReminderType_Notification",
-        "ReminderType_Silent",
-        "ReminderType_Alarm",
+        "reminderType_Adhan",
+        "reminderType_Notification",
+        "reminderType_Silent",
+        "reminderType_Alarm",
         "PermissionsTitle",
         "PermissionsSubtitle",
         "PermissionStatus_Enabled",
@@ -42,7 +42,7 @@ public sealed class LocalizationIntegrityTests {
         "AlarmScreenTitle",
         "AlarmStopButton",
         "AlarmSnoozeButton",
-        "TestAlarm",
+        "testAlarm",
         "StopAdhan"
     ];
 

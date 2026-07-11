@@ -5,7 +5,7 @@ namespace PrayAdFree.Tests;
 public sealed class MauiWebberAssetTests {
     [Theory]
     [InlineData("PrayAdFree/Resources/Raw/web")]
-    [InlineData("Pray.web")]
+    [InlineData("Pray.web/dist")]
     public void WebberManifest_ReferencesExistingFiles(string relativeRoot) {
         var root = Path.Combine(GetRepoRoot(), relativeRoot.Replace('/', Path.DirectorySeparatorChar));
         var manifestPath = Path.Combine(root, "webber-manifest.json");
@@ -47,7 +47,7 @@ public sealed class MauiWebberAssetTests {
             var values = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path))
                 ?? throw new InvalidOperationException($"Failed to parse {path}");
 
-            foreach (var key in new[] { "NextPrayer", "TimeLeft", "TodayPrayTimesLabel", "Iftar", "Imsak", "Refresh", "Refreshing", "LastUpdated", "LastUpdatedFormat", "BaseTimeLabel" }) {
+            foreach (var key in new[] { "nextPrayer", "TimeLeft", "TodayPrayTimesLabel", "iftar", "imsak", "refresh", "Refreshing", "LastUpdated", "LastUpdatedFormat", "BaseTimeLabel" }) {
                 Assert.True(values.TryGetValue(key, out var value), $"{language}.json missing key '{key}'");
                 Assert.False(string.IsNullOrWhiteSpace(value), $"{language}.json key '{key}' is empty");
                 if (language == "ar") {

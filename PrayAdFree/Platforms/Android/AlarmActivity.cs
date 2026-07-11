@@ -4,9 +4,6 @@ using Android.Content.PM;
 using Android.OS;
 using Android.Util;
 using Android.Views;
-using Android.Widget;
-using AndroidX.AppCompat.App;
-using Microsoft.Extensions.DependencyInjection;
 using PrayAdFree.Core.Models;
 using Pray_Ad_Free.Services;
 
@@ -20,370 +17,79 @@ namespace Pray_Ad_Free.Platforms.Android;
     NoHistory = true,
     ScreenOrientation = ScreenOrientation.Portrait,
     ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-public sealed class AlarmActivity : AppCompatActivity {
+public sealed class AlarmActivity : Activity {
     private const string LogTag = "PrayAdFree.Alarm";
-    private const int DefaultSnoozeDelayMinutes = 10;
-    private const int DefaultMaxSnoozeDelayMinutes = 30;
-    private TextView? _clockText;
-    private TextView? _offsetText;
-    private TextView? _prayerNameText;
-    private TextView? _reminderText;
-    private NumberPicker? _snoozePicker;
-    private global::Android.Widget.Button? _decreaseButton;
-    private global::Android.Widget.Button? _increaseButton;
-    private global::Android.Widget.Button? _snoozeButton;
-    private global::Android.Widget.Button? _stopButton;
-    private string? _payloadText;
-    private AdhanAlarmPayload _payload;
-    private bool _isBusy;
-    private bool _canSnooze = true;
 
     protected override void OnCreate(Bundle? savedInstanceState) {
         base.OnCreate(savedInstanceState);
-        LocalizationBootstrapper.EnsureInitialized();
-        Log.Info(LogTag, "AlarmActivity.OnCreate");
         ConfigureForLockScreen();
-        SetContentView(global::Pray_Ad_Free.Resource.Layout.alarm_activity);
-        BindViews();
-        HandleAlarmIntent(Intent, "OnCreate");
+        ForwardToReactHost(Intent, "OnCreate");
     }
 
     protected override void OnNewIntent(Intent? intent) {
         base.OnNewIntent(intent);
-        Log.Info(LogTag, "AlarmActivity.OnNewIntent");
         if (intent != null) {
             Intent = intent;
         }
 
-        HandleAlarmIntent(intent, "OnNewIntent");
-    }
-
-    protected override void OnResume() {
-        base.OnResume();
-        Log.Info(LogTag, "AlarmActivity.OnResume");
-        AndroidAlarmFullscreenNotifier.Cancel(this);
-        if (!string.IsNullOrWhiteSpace(_payloadText)) {
-            AndroidAlarmLaunchCoordinator.Enqueue(_payloadText);
-            AndroidAlarmLaunchCoordinator.TryDispatchPending("AlarmActivity.OnResume");
-        }
+        ForwardToReactHost(intent, "OnNewIntent");
     }
 
     private void ConfigureForLockScreen() {
-        try {
-            if (OperatingSystem.IsAndroidVersionAtLeast(27)) {
-                SetShowWhenLocked(true);
-                SetTurnScreenOn(true);
-            } else {
+        if (OperatingSystem.IsAndroidVersionAtLeast(27)) {
+            SetShowWhenLocked(true);
+            SetTurnScreenOn(true);
+        } else {
 #pragma warning disable CS0618
-                Window?.AddFlags(WindowManagerFlags.ShowWhenLocked | WindowManagerFlags.TurnScreenOn);
+            Window?.AddFlags(WindowManagerFlags.ShowWhenLocked | WindowManagerFlags.TurnScreenOn);
 #pragma warning restore CS0618
-            }
-
-            Window?.AddFlags(WindowManagerFlags.KeepScreenOn | WindowManagerFlags.DismissKeyguard);
-
-            if (OperatingSystem.IsAndroidVersionAtLeast(30)) {
-#pragma warning disable CA1422
-                Window?.SetDecorFitsSystemWindows(false);
-#pragma warning restore CA1422
-                if (Window?.InsetsController != null) {
-                    Window.InsetsController.Hide(WindowInsets.Type.StatusBars() | WindowInsets.Type.NavigationBars());
-                    Window.InsetsController.SystemBarsBehavior = (int)WindowInsetsControllerBehavior.ShowTransientBarsBySwipe;
-                }
-            } else if (Window?.DecorView != null) {
-#pragma warning disable CS0618
-                Window.DecorView.SystemUiVisibility = (StatusBarVisibility)(
-                    SystemUiFlags.Fullscreen |
-                    SystemUiFlags.HideNavigation |
-                    SystemUiFlags.ImmersiveSticky);
-#pragma warning restore CS0618
-            }
-        } catch {
         }
+
+        Window?.AddFlags(WindowManagerFlags.KeepScreenOn | WindowManagerFlags.DismissKeyguard);
     }
 
-    private void BindViews() {
-        _clockText = FindViewById<TextView>(global::Pray_Ad_Free.Resource.Id.alarmClockText);
-        _offsetText = FindViewById<TextView>(global::Pray_Ad_Free.Resource.Id.alarmOffsetText);
-        _prayerNameText = FindViewById<TextView>(global::Pray_Ad_Free.Resource.Id.alarmPrayerNameText);
-        _reminderText = FindViewById<TextView>(global::Pray_Ad_Free.Resource.Id.alarmReminderText);
-        _snoozePicker = FindViewById<NumberPicker>(global::Pray_Ad_Free.Resource.Id.alarmSnoozePicker);
-        _decreaseButton = FindViewById<global::Android.Widget.Button>(global::Pray_Ad_Free.Resource.Id.alarmDecreaseButton);
-        _increaseButton = FindViewById<global::Android.Widget.Button>(global::Pray_Ad_Free.Resource.Id.alarmIncreaseButton);
-        _snoozeButton = FindViewById<global::Android.Widget.Button>(global::Pray_Ad_Free.Resource.Id.alarmSnoozeButton);
-        _stopButton = FindViewById<global::Android.Widget.Button>(global::Pray_Ad_Free.Resource.Id.alarmStopButton);
-
-        if (_snoozePicker != null) {
-            _snoozePicker.WrapSelectorWheel = false;
-            _snoozePicker.MinValue = DefaultSnoozeDelayMinutes;
-            _snoozePicker.MaxValue = DefaultMaxSnoozeDelayMinutes;
-            _snoozePicker.Value = DefaultSnoozeDelayMinutes;
-        }
-
-        if (_decreaseButton != null) {
-            _decreaseButton.Click += (_, _) => AdjustPicker(-1);
-        }
-
-        if (_increaseButton != null) {
-            _increaseButton.Click += (_, _) => AdjustPicker(1);
-        }
-
-        if (_snoozeButton != null) {
-            _snoozeButton.Text = ResolveSnoozeButtonTitle();
-            _snoozeButton.Click += async (_, _) => await SnoozeAsync();
-        }
-
-        if (_stopButton != null) {
-            _stopButton.Text = ResolveStopButtonTitle();
-            _stopButton.Click += async (_, _) => await StopAsync();
-        }
-    }
-
-    private void HandleAlarmIntent(Intent? intent, string reason) {
-        if (!TryGetAlarmPayload(intent, out var payloadText, out var payload)) {
-            Log.Warn(LogTag, $"AlarmActivity.HandleAlarmIntent failed reason={reason}");
-            FinishAlarmUi();
+    private void ForwardToReactHost(Intent? source, string reason) {
+        if (!TryGetAlarmPayload(source, out var payloadText)) {
+            Log.Warn(LogTag, $"AlarmActivity payload missing reason={reason}");
+            Finish();
             return;
         }
 
-        Log.Info(LogTag, $"AlarmActivity.HandleAlarmIntent succeeded reason={reason} payloadLength={payloadText.Length}");
-        _payloadText = payloadText;
-        _payload = payload;
         AndroidAlarmFullscreenNotifier.Cancel(this);
-        ApplyFallbackPresentation(payload);
-        _ = InitializeAlarmAsync(reason);
+        var target = new Intent(this, typeof(MainActivity));
+        target.SetAction(AdhanPlaybackService.AndroidAlarmAction);
+        target.PutExtra(AndroidAdhanAlarmScheduler.AlarmPayloadExtra, payloadText);
+        target.AddFlags(ActivityFlags.NewTask | ActivityFlags.ClearTop | ActivityFlags.SingleTop);
+        StartActivity(target);
+        Log.Info(LogTag, $"AlarmActivity forwarded to React host reason={reason}");
+        Finish();
     }
 
-    private async Task InitializeAlarmAsync(string reason) {
-        if (string.IsNullOrWhiteSpace(_payloadText)) {
-            return;
-        }
-
-        AndroidAlarmLaunchCoordinator.Enqueue(_payloadText);
-        AndroidAlarmLaunchCoordinator.TryDispatchPending($"AlarmActivity.{reason}");
-
-        var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(12)).ConfigureAwait(false);
-        if (playbackService == null) {
-            Log.Warn(LogTag, $"AlarmActivity.InitializeAlarmAsync playback service unavailable reason={reason}");
-            return;
-        }
-
-        var model = await playbackService.BuildAlarmPresentationModelAsync(_payload).ConfigureAwait(false);
-        RunOnUiThread(() => ApplyPresentation(model));
-        Log.Info(LogTag, $"AlarmActivity.InitializeAlarmAsync applied model reason={reason}");
-    }
-
-    private void ApplyFallbackPresentation(AdhanAlarmPayload payload) {
-        if (_clockText != null) {
-            _clockText.Text = payload.BasePrayerTime.ToLocalTime().ToString("HH:mm");
-        }
-
-        if (_offsetText != null) {
-            _offsetText.Text = ResolveDelayOffsetText(payload);
-        }
-
-        if (_prayerNameText != null) {
-            _prayerNameText.Text = ResolvePrayerName(payload.Prayer);
-        }
-
-        if (_reminderText != null) {
-            _reminderText.Text = ResolveFallbackReminderText();
-        }
-    }
-
-    private void ApplyPresentation(AlarmPresentationModel model) {
-        _canSnooze = model.CanSnooze;
-        if (_clockText != null) {
-            _clockText.Text = model.PrayerClock;
-        }
-
-        if (_offsetText != null) {
-            _offsetText.Text = model.DelayFromBase;
-        }
-
-        if (_prayerNameText != null) {
-            _prayerNameText.Text = model.PrayerName;
-        }
-
-        if (_reminderText != null) {
-            _reminderText.Text = string.IsNullOrWhiteSpace(model.ReminderText)
-                ? ResolveFallbackReminderText()
-                : model.ReminderText;
-        }
-
-        if (_snoozePicker != null) {
-            _snoozePicker.MinValue = model.MinDelayMinutes;
-            _snoozePicker.MaxValue = model.MaxDelayMinutes;
-            _snoozePicker.Value = Math.Clamp(model.InitialDelayMinutes, model.MinDelayMinutes, model.MaxDelayMinutes);
-            _snoozePicker.Enabled = model.CanSnooze;
-        }
-
-        SetButtonsEnabled(!_isBusy);
-    }
-
-    private async Task StopAsync() {
-        if (_isBusy) {
-            return;
-        }
-
-        await ExecuteBusyAsync(async playbackService => {
-            if (playbackService != null) {
-                await playbackService.StopAsync().ConfigureAwait(false);
-            }
-
-            FinishAlarmUi();
-        }).ConfigureAwait(false);
-    }
-
-    private async Task SnoozeAsync() {
-        if (_isBusy || !_canSnooze) {
-            return;
-        }
-
-        var delayMinutes = _snoozePicker?.Value ?? 10;
-        await ExecuteBusyAsync(async playbackService => {
-            if (playbackService == null) {
-                return;
-            }
-
-            var scheduled = await playbackService.SnoozeAlarmAsync(_payload, delayMinutes).ConfigureAwait(false);
-            if (scheduled) {
-                FinishAlarmUi();
-            }
-        }).ConfigureAwait(false);
-    }
-
-    private async Task ExecuteBusyAsync(Func<AdhanPlaybackService?, Task> action) {
-        _isBusy = true;
-        SetButtonsEnabled(false);
-        try {
-            var playbackService = await WaitForPlaybackServiceAsync(TimeSpan.FromSeconds(4)).ConfigureAwait(false);
-            await action(playbackService).ConfigureAwait(false);
-        } finally {
-            _isBusy = false;
-            RunOnUiThread(() => SetButtonsEnabled(true));
-        }
-    }
-
-    private void SetButtonsEnabled(bool enabled) {
-        if (_decreaseButton != null) {
-            _decreaseButton.Enabled = enabled && _canSnooze;
-        }
-
-        if (_increaseButton != null) {
-            _increaseButton.Enabled = enabled && _canSnooze;
-        }
-
-        if (_snoozePicker != null) {
-            _snoozePicker.Enabled = enabled && _canSnooze;
-        }
-
-        if (_snoozeButton != null) {
-            _snoozeButton.Enabled = enabled && _canSnooze;
-        }
-
-        if (_stopButton != null) {
-            _stopButton.Enabled = enabled;
-        }
-    }
-
-    private void AdjustPicker(int delta) {
-        if (_snoozePicker == null) {
-            return;
-        }
-
-        var next = Math.Clamp(_snoozePicker.Value + delta, _snoozePicker.MinValue, _snoozePicker.MaxValue);
-        _snoozePicker.Value = next;
-    }
-
-    private void FinishAlarmUi() {
-        RunOnUiThread(() => {
-            Log.Info(LogTag, "AlarmActivity.FinishAlarmUi");
-            AndroidAlarmFullscreenNotifier.Cancel(this);
-            try {
-                FinishAndRemoveTask();
-            } catch {
-                Finish();
-            }
-        });
-    }
-
-    private static bool TryGetAlarmPayload(Intent? intent, out string payloadText, out AdhanAlarmPayload payload) {
+    private static bool TryGetAlarmPayload(Intent? intent, out string payloadText) {
         payloadText = string.Empty;
-        payload = default;
         if (intent == null) {
             return false;
         }
 
         var directPayload = intent.GetStringExtra(AndroidAdhanAlarmScheduler.AlarmPayloadExtra);
-        if (!string.IsNullOrWhiteSpace(directPayload) && AdhanAlarmPayload.TryParse(directPayload, out payload)) {
+        if (!string.IsNullOrWhiteSpace(directPayload) && AdhanAlarmPayload.TryParse(directPayload, out _)) {
             payloadText = directPayload;
             return true;
         }
 
-        var extras = intent.Extras;
-        if (extras == null) {
-            return false;
-        }
-
-        var keys = extras.KeySet();
+        var keys = intent.Extras?.KeySet();
         if (keys == null) {
             return false;
         }
 
         foreach (var key in keys) {
-            var text = extras.Get(key)?.ToString();
-            if (!string.IsNullOrWhiteSpace(text) && AdhanAlarmPayload.TryParse(text, out payload)) {
+            var text = intent.Extras?.Get(key)?.ToString();
+            if (!string.IsNullOrWhiteSpace(text) && AdhanAlarmPayload.TryParse(text, out _)) {
                 payloadText = text;
                 return true;
             }
         }
 
         return false;
-    }
-
-    private static async Task<AdhanPlaybackService?> WaitForPlaybackServiceAsync(TimeSpan timeout) {
-        var deadlineUtc = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadlineUtc) {
-            var services = ResolveServices();
-            if (services?.GetService(typeof(AdhanPlaybackService)) is AdhanPlaybackService playbackService) {
-                return playbackService;
-            }
-
-            await Task.Delay(100).ConfigureAwait(false);
-        }
-
-        return null;
-    }
-
-    private static IServiceProvider? ResolveServices() {
-        if (App.Services != null) {
-            return App.Services;
-        }
-
-        return Microsoft.Maui.IPlatformApplication.Current?.Services;
-    }
-
-    private static string ResolveDelayOffsetText(AdhanAlarmPayload payload) {
-        var offset = payload.NotifyTime - payload.BasePrayerTime;
-        var sign = offset < TimeSpan.Zero ? "-" : "+";
-        var absolute = offset < TimeSpan.Zero ? offset.Negate() : offset;
-        var totalHours = (int)Math.Floor(absolute.TotalHours);
-        return $"{sign}{totalHours}:{absolute.Minutes:00}";
-    }
-
-    private static string ResolvePrayerName(PrayerId prayer) {
-        return LocalizationManager.TranslatePrayer(prayer);
-    }
-
-    private static string ResolveFallbackReminderText() {
-        return LocalizationManager.Translate("AdhanPlaybackStopHint");
-    }
-
-    private static string ResolveSnoozeButtonTitle() {
-        return LocalizationManager.Translate("AlarmSnoozeButton");
-    }
-
-    private static string ResolveStopButtonTitle() {
-        return LocalizationManager.Translate("AlarmStopButton");
     }
 }

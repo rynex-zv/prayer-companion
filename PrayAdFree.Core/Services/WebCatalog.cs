@@ -124,6 +124,14 @@ public static class WebCatalog {
     public static object[] LocalizedShellTabs(string language) =>
         ShellTabs.Select(item => new { id = item.Id, label = Translate(language, item.LabelKey), icon = item.Icon }).ToArray<object>();
 
+    public static object AlarmLabels(string language) => new {
+        title = Translate(language, "AlarmScreenTitle"),
+        snooze = Translate(language, "AlarmSnoozeButton"),
+        stop = Translate(language, "AlarmStopButton"),
+        noActiveAlarm = Translate(language, "AlarmNoActive"),
+        delayTemplate = Translate(language, "SnoozeDelayLabel")
+    };
+
     public static string QiblaDisplayLabel(string language, string readingMode) =>
         Translate(language, readingMode == "map" ? "map" : "compass");
 

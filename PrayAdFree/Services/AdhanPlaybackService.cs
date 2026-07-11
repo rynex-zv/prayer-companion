@@ -51,6 +51,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private ILocalNotificationScheduler? _localNotificationScheduler;
     private AdhanNotificationPayload? _activeScheduledPayload;
     private AdhanAlarmPayload? _activeAlarmPayload;
+    private AlarmPresentationModel? _activeAlarmPresentation;
     private bool _initialized;
     private bool _disposed;
     private readonly object _alarmScreenStateLock = new();
@@ -331,7 +332,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _logger.LogEvent(
                 "AdhanAlarmLaunch.Android",
                 $"source={source};presentationMode={presentationMode};payload={BuildAlarmPayloadKey(payload)}");
-            await ActivateAlarmAsync(payload, settings, showAlarmScreen: false).ConfigureAwait(false);
+            await ActivateAlarmAsync(
+                payload,
+                settings,
+                showAlarmScreen: presentationMode == AlarmPresentationMode.FullscreenActivity).ConfigureAwait(false);
             if (presentationMode == AlarmPresentationMode.ControlNotification) {
                 var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
                 await ShowControlNotificationAsync(prayerName, includeSnoozeActions: true).ConfigureAwait(false);
@@ -428,6 +432,37 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         return await BuildAlarmPresentationModelAsync(payload, settings).ConfigureAwait(false);
     }
 
+    public async Task<AlarmPresentationModel?> GetActiveAlarmPresentationModelAsync() {
+        AdhanAlarmPayload? payload;
+        AlarmPresentationModel? presentation;
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            payload = _activeAlarmPayload;
+            presentation = _activeAlarmPresentation;
+        } finally {
+            _gate.Release();
+        }
+
+        if (!payload.HasValue) {
+            return null;
+        }
+
+        return presentation ?? await BuildAlarmPresentationModelAsync(payload.Value).ConfigureAwait(false);
+    }
+
+    public async Task<bool> SnoozeActiveAlarmAsync(int delayMinutes) {
+        AdhanAlarmPayload? payload;
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            payload = _activeAlarmPayload;
+        } finally {
+            _gate.Release();
+        }
+
+        return payload.HasValue &&
+            await SnoozeAlarmAsync(payload.Value, delayMinutes).ConfigureAwait(false);
+    }
+
     public async Task<bool> SnoozeAlarmAsync(AdhanAlarmPayload payload, int delayMinutes) {
         await StopAsync().ConfigureAwait(false);
         return await ScheduleDeferredReminderAsync(
@@ -485,17 +520,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         TimeSpan? navigationWait = null) {
         await _alarmScreenGate.WaitAsync().ConfigureAwait(false);
         try {
-            var presentation = await BuildAlarmPresentationModelAsync(payload, settings).ConfigureAwait(false);
-            var model = new Pages.AdhanSnoozePageModel(
-                PrayerClock: presentation.PrayerClock,
-                DelayFromBase: presentation.DelayFromBase,
-                PrayerName: presentation.PrayerName,
-                ReminderText: presentation.ReminderText,
-                CanSnooze: presentation.CanSnooze,
-                MinDelayMinutes: presentation.MinDelayMinutes,
-                MaxDelayMinutes: presentation.MaxDelayMinutes,
-                InitialDelayMinutes: presentation.InitialDelayMinutes);
-
             var navigation = await WaitForNavigationAsync(navigationWait ?? TimeSpan.FromSeconds(12)).ConfigureAwait(false);
             if (navigation == null) {
                 if (queueOnFailure) {
@@ -514,14 +538,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                         return;
                     }
 
-                    var page = new Pages.AdhanSnoozePage(
-                        model,
-                        onStop: async () => await StopAsync().ConfigureAwait(false),
-                        onSnooze: async minutes => await ScheduleDeferredReminderAsync(
-                            new AdhanNotificationPayload(payload.Prayer, payload.SoundKey),
-                            minutes,
-                            payload.BasePrayerTime,
-                            openAlarmScreen: true).ConfigureAwait(false));
+                    var page = _serviceProvider.GetRequiredService<Pages.AdhanSnoozePage>();
 
                     await navigation.PushModalAsync(page);
                     ClearPendingAlarmScreen(payload);
@@ -545,11 +562,14 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return;
         }
 
+        var presentation = await BuildAlarmPresentationModelAsync(payload, settings).ConfigureAwait(false);
+
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
             StopCore();
             _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
             _activeAlarmPayload = payload;
+            _activeAlarmPresentation = presentation;
             StartCore(source, settings.Notifications.AdhanVolume);
         } finally {
             _gate.Release();
@@ -1477,6 +1497,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         _activeScheduledPayload = null;
         _activeAlarmPayload = null;
+        _activeAlarmPresentation = null;
     }
 
 #if ANDROID

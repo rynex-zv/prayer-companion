@@ -20,6 +20,7 @@ const INSPECTABLE_ROUTES = [
   "/settings/tasbih",
   "/settings/about",
   "/onboarding",
+  "/alarm",
 ] as const;
 
 declare global {
@@ -58,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (shell.onboardingCompleted || pathname === "/onboarding") {
+    if (shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm") {
       return;
     }
 
@@ -225,7 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen w-full bg-background md:h-screen md:overflow-hidden md:bg-[radial-gradient(ellipse_at_top,_color-mix(in_oklab,var(--color-primary)_12%,transparent),transparent_60%),radial-gradient(ellipse_at_bottom_right,_color-mix(in_oklab,var(--color-primary)_8%,transparent),transparent_55%)] md:flex md:items-center md:justify-center md:py-8 md:px-6">
       <div
-        className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-background md:min-h-0 md:h-[min(880px,calc(100vh-4rem))] md:rounded-[2.25rem] md:shadow-[0_40px_100px_-30px_oklch(0.2_0.04_220_/_0.35)] md:ring-1 md:ring-border/60 md:overflow-hidden"
+        className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-background md:min-h-0 md:h-[min(880px,90vh)] md:max-h-[min(880px,90vh)] md:rounded-[2.25rem] md:shadow-[0_40px_100px_-30px_oklch(0.2_0.04_220_/_0.35)] md:ring-1 md:ring-border/60 md:overflow-hidden"
         data-selector-name="app-shell"
       >
         <main key={pathname} className="safe-top flex-1 overflow-y-auto px-4 pb-6 pt-3 animate-in fade-in duration-150" data-selector-name={`route:${pathname}`}>{children}</main>

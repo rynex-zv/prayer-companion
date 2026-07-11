@@ -256,6 +256,12 @@
   }
   *::-webkit-scrollbar-thumb {
     background:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0 3px,
+        color-mix(in oklab, white 24%, transparent) 3px 4px,
+        transparent 4px 7px
+      ),
       linear-gradient(
         180deg,
         color-mix(in oklab, var(--color-primary) 85%, transparent) 0%,

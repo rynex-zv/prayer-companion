@@ -1,85 +1,160 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
-import { useAppLabels } from "@/hooks/useAppLabels";
+import { AlarmClock, Minus, Plus } from "lucide-react";
+
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
-import { AlarmClock } from "lucide-react";
+import { useSnapshot } from "@/hooks/useSnapshot";
+import { mauiCall } from "@/native/mauiWebberClient";
 
 export const Route = createFileRoute("/alarm")({
   head: () => ({ meta: [] }),
   component: AlarmPage,
 });
 
-type AlarmSnapshot = {
-  prayerName: string;
-  timeText: string;
-  soundLabel?: string;
-  canSnooze: boolean;
-  snoozeMinutes: number;
-  isActive: boolean;
-  labels?: Record<string, string>;
+type AlarmLabels = {
+  title: string;
+  snooze: string;
+  stop: string;
+  noActiveAlarm: string;
+  delayTemplate: string;
 };
 
-// NOTE: Core must expose `alarm.getSnapshot`, `alarm.snooze`, `alarm.stop`
-// (via PrayAdFree.Core/WebCoreRpcDispatcher + WebCatalog). Until then, this
-// route renders a friendly placeholder on web; the native shell will host
-// this same route once the RPC methods are wired.
+type AlarmSnapshot = {
+  isActive: boolean;
+  prayerClock: string;
+  delayFromBase: string;
+  prayerName: string;
+  reminderText: string;
+  canSnooze: boolean;
+  minDelayMinutes: number;
+  maxDelayMinutes: number;
+  selectedDelayMinutes: number;
+  labels: AlarmLabels;
+};
+
 function AlarmPage() {
   usePageLog("alarm");
-  const t = useAppLabels();
-  const { data, error, refresh } = useSnapshot<AlarmSnapshot>("alarm.getSnapshot");
+  const { data, refresh } = useSnapshot<AlarmSnapshot>("alarm.getSnapshot");
+  const [delayMinutes, setDelayMinutes] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
-  const L = data?.labels ?? {};
-  const snoozeLabel = L.snooze ?? t("snooze");
-  const stopLabel = L.stop ?? t("stop");
-  const noAlarm = L.noActiveAlarm ?? t("noActiveAlarm");
+  useEffect(() => {
+    if (data) {
+      setDelayMinutes(data.selectedDelayMinutes);
+    }
+  }, [data?.selectedDelayMinutes]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    const poll = async () => {
+      await refresh(true);
+      if (!cancelled) {
+        timer = window.setTimeout(poll, 1000);
+      }
+    };
+    timer = window.setTimeout(poll, 1000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [refresh]);
+
+  const run = async (method: "alarm.snooze" | "alarm.stop", payload?: unknown) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await mauiCall(method, payload);
+      await refresh(true);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!data) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center">
+        <AlarmClock className="h-20 w-20 text-primary" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  if (!data.isActive) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 text-center">
+        <div className="flex w-full items-center justify-end"><PageLog page="alarm" /></div>
+        <AlarmClock className="h-20 w-20 text-primary" aria-hidden="true" />
+        <h1 className="text-xl font-semibold">{data.labels.title}</h1>
+        <p className="text-sm text-muted-foreground">{data.labels.noActiveAlarm}</p>
+      </div>
+    );
+  }
+
+  const delayLabel = data.labels.delayTemplate.replace("{0}", String(delayMinutes));
+  const canDecrease = data.canSnooze && delayMinutes > data.minDelayMinutes && !submitting;
+  const canIncrease = data.canSnooze && delayMinutes < data.maxDelayMinutes && !submitting;
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 text-center">
-      <div className="flex w-full items-center justify-end">
-        <PageLog page="alarm" />
+      <div className="flex w-full items-center justify-end"><PageLog page="alarm" /></div>
+      <AlarmClock className="h-20 w-20 text-primary" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{data.labels.title}</p>
+        <h1 className="mt-2 text-3xl font-bold">{data.prayerName}</h1>
       </div>
+      <div className="text-6xl font-bold tabular-nums text-primary" dir="ltr">{data.prayerClock}</div>
+      {data.delayFromBase ? <p className="text-lg font-semibold">{data.delayFromBase}</p> : null}
+      {data.reminderText ? <p className="max-w-sm text-sm text-muted-foreground">{data.reminderText}</p> : null}
 
-      <AlarmClock className="h-24 w-24 text-primary animate-pulse" />
-
-      {data ? (
-        <>
-          <div className="text-3xl font-bold">{data.prayerName}</div>
-          <div className="text-6xl font-bold tabular-nums text-primary" dir="ltr">
-            {data.timeText}
-          </div>
-          {data.soundLabel ? (
-            <div className="text-sm text-muted-foreground">{data.soundLabel}</div>
-          ) : null}
-
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            {data.canSnooze ? (
-              <button
-                data-selector-name="alarm.snooze"
-                onClick={() =>
-                  mauiCall("alarm.snooze", { minutes: data.snoozeMinutes }).then(() => refresh())
-                }
-                className="rounded-full bg-secondary px-6 py-4 text-lg font-semibold text-secondary-foreground shadow-md active:scale-[0.98]"
-              >
-                {snoozeLabel}
-                {data.snoozeMinutes ? ` · ${data.snoozeMinutes}m` : ""}
-              </button>
-            ) : null}
-            <button
-              data-selector-name="alarm.stop"
-              onClick={() => mauiCall("alarm.stop").then(() => refresh())}
-              className="rounded-full bg-destructive px-6 py-4 text-lg font-semibold text-destructive-foreground shadow-md active:scale-[0.98]"
-            >
-              {stopLabel}
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="text-sm text-muted-foreground">
-          {error ? noAlarm : "…"}
+      {data.canSnooze ? (
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            data-selector-name="alarm.delay.decrease"
+            aria-label={data.labels.snooze}
+            disabled={!canDecrease}
+            onClick={() => setDelayMinutes((value) => Math.max(data.minDelayMinutes, value - 1))}
+            className="grid h-12 w-12 place-items-center rounded-full bg-secondary text-secondary-foreground disabled:opacity-40"
+          >
+            <Minus className="h-5 w-5" />
+          </button>
+          <span className="min-w-40 text-base font-semibold tabular-nums">{delayLabel}</span>
+          <button
+            type="button"
+            data-selector-name="alarm.delay.increase"
+            aria-label={data.labels.snooze}
+            disabled={!canIncrease}
+            onClick={() => setDelayMinutes((value) => Math.min(data.maxDelayMinutes, value + 1))}
+            className="grid h-12 w-12 place-items-center rounded-full bg-secondary text-secondary-foreground disabled:opacity-40"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
         </div>
-      )}
+      ) : null}
+
+      <div className="flex w-full max-w-sm flex-col gap-3">
+        {data.canSnooze ? (
+          <button
+            type="button"
+            data-selector-name="alarm.snooze"
+            disabled={submitting}
+            onClick={() => void run("alarm.snooze", { minutes: delayMinutes })}
+            className="rounded-full bg-secondary px-6 py-4 text-lg font-semibold text-secondary-foreground shadow-md disabled:opacity-50"
+          >
+            {data.labels.snooze}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          data-selector-name="alarm.stop"
+          disabled={submitting}
+          onClick={() => void run("alarm.stop")}
+          className="rounded-full bg-destructive px-6 py-4 text-lg font-semibold text-destructive-foreground shadow-md disabled:opacity-50"
+        >
+          {data.labels.stop}
+        </button>
+      </div>
     </div>
   );
 }

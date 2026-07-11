@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { MapPin, Plus, Minus } from "lucide-react";
 
 type Props = {
@@ -6,6 +6,11 @@ type Props = {
   longitude: number;
   bearing: number;
   locationTitle: string;
+  labels: {
+    zoomIn: string;
+    zoomOut: string;
+    attribution: string;
+  };
 };
 
 const KAABA_LAT = 21.4225241;
@@ -13,7 +18,7 @@ const KAABA_LON = 39.8261818;
 const TILE_SIZE = 256;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 12;
-const DEFAULT_ZOOM = 5;
+const DEFAULT_ZOOM = 6;
 const VIEW = 320;
 
 type Vec3 = { x: number; y: number; z: number };
@@ -53,30 +58,32 @@ function normalizeTile(v: number, zoom: number) {
   return ((v % m) + m) % m;
 }
 
-function intersectViewportEdge(from: Point, to: Point, w: number, h: number): Point | null {
+function clipSegment(from: Point, to: Point, w: number, h: number): [Point, Point] | null {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
-  const ts: number[] = [];
-  const eps = 1e-6;
-  if (Math.abs(dx) > eps) {
-    ts.push((0 - from.x) / dx);
-    ts.push((w - from.x) / dx);
+  let enter = 0;
+  let exit = 1;
+  const edges: [number, number][] = [[-dx, from.x], [dx, w - from.x], [-dy, from.y], [dy, h - from.y]];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else exit = Math.min(exit, t);
+    if (enter > exit) return null;
   }
-  if (Math.abs(dy) > eps) {
-    ts.push((0 - from.y) / dy);
-    ts.push((h - from.y) / dy);
-  }
-  const inside = ts.filter((t) => t >= 0 && t <= 1).sort((a, b) => a - b);
-  for (const t of inside) {
-    const x = from.x + dx * t;
-    const y = from.y + dy * t;
-    if (x >= -0.5 && x <= w + 0.5 && y >= -0.5 && y <= h + 0.5) return { x, y };
-  }
-  return null;
+  return [
+    { x: from.x + dx * enter, y: from.y + dy * enter },
+    { x: from.x + dx * exit, y: from.y + dy * exit },
+  ];
 }
 
-export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props) {
+export function QiblaMap({ latitude, longitude, bearing, locationTitle, labels }: Props) {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const drag = useRef<{ pointerId: number; x: number; y: number; pan: Point } | null>(null);
   const valid =
     Number.isFinite(latitude) &&
     Number.isFinite(longitude) &&
@@ -86,9 +93,10 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
     if (!valid) return null;
     const userWorld = project(latitude, longitude, zoom);
     const kaabaWorld = project(KAABA_LAT, KAABA_LON, zoom);
-    const originX = userWorld.x - VIEW / 2;
-    const originY = userWorld.y - VIEW / 2;
+    const originX = userWorld.x - VIEW / 2 - pan.x;
+    const originY = userWorld.y - VIEW / 2 - pan.y;
     const worldWidth = TILE_SIZE * 2 ** zoom;
+    const userPx = { x: userWorld.x - originX, y: userWorld.y - originY };
 
     // pick the kaaba copy nearest the user (handle antimeridian)
     let kaabaX = kaabaWorld.x;
@@ -137,31 +145,18 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
     const inView = (p: Point) => p.x >= 0 && p.x <= VIEW && p.y >= 0 && p.y <= VIEW;
     const kaabaVisible = inView(kaabaPx);
 
-    // clip: keep points from user (index 0) up to and including first exit
-    let visible: Point[] = [];
-    if (kaabaVisible) {
-      visible = path;
-    } else {
-      // find last consecutive index in view starting from the user side
-      let lastInside = -1;
-      for (let i = 0; i < path.length; i++) {
-        if (inView(path[i])) lastInside = i;
-        else break;
+    const visible: Point[] = [];
+    for (let i = 1; i < path.length; i++) {
+      const clipped = clipSegment(path[i - 1], path[i], VIEW, VIEW);
+      if (!clipped) continue;
+      if (visible.length === 0) {
+        visible.push(clipped[0]);
       }
-      if (lastInside < 0) {
-        // even the user isn't inside (shouldn't happen); fall back to straight line
-        const edge = intersectViewportEdge({ x: VIEW / 2, y: VIEW / 2 }, kaabaPx, VIEW, VIEW);
-        visible = edge ? [{ x: VIEW / 2, y: VIEW / 2 }, edge] : [{ x: VIEW / 2, y: VIEW / 2 }];
-      } else {
-        visible = path.slice(0, lastInside + 1);
-        const next = path[Math.min(lastInside + 1, path.length - 1)];
-        const edge = intersectViewportEdge(path[lastInside], next, VIEW, VIEW);
-        if (edge) visible.push(edge);
-      }
+      visible.push(clipped[1]);
     }
 
-    return { tiles, kaabaPx, kaabaVisible, path: visible };
-  }, [latitude, longitude, zoom, valid]);
+    return { tiles, userPx, kaabaPx, kaabaVisible, path: visible };
+  }, [latitude, longitude, zoom, pan.x, pan.y, valid]);
 
   if (!valid || !geometry) {
     return (
@@ -171,13 +166,27 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
     );
   }
 
-  const { tiles, kaabaPx, kaabaVisible, path } = geometry;
+  const { tiles, userPx, kaabaPx, kaabaVisible, path } = geometry;
   const d = path.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
 
   return (
     <div
       className="relative mx-auto overflow-hidden rounded-2xl border border-border bg-muted shadow-inner"
-      style={{ width: VIEW, height: VIEW }}
+      style={{ width: VIEW, height: VIEW, touchAction: "none" }}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, pan };
+      }}
+      onPointerMove={(event) => {
+        const start = drag.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        setPan({ x: start.pan.x + event.clientX - start.x, y: start.pan.y + event.clientY - start.y });
+      }}
+      onPointerUp={(event) => {
+        if (drag.current?.pointerId === event.pointerId) drag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={() => { drag.current = null; }}
     >
       {/* tiles */}
       <div className="absolute inset-0">
@@ -224,18 +233,20 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
           strokeWidth="3.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          markerEnd={kaabaVisible ? undefined : "url(#qibla-arrow)"}
+          markerEnd={path.length > 1 ? "url(#qibla-arrow)" : undefined}
           style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))" }}
         />
       </svg>
 
       {/* user marker (center) */}
-      <div
-        className="pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background"
-        style={{ left: VIEW / 2, top: VIEW / 2, transform: "translate(-50%, -50%)" }}
-      >
-        <MapPin className="h-5 w-5" />
-      </div>
+      {userPx.x >= 0 && userPx.x <= VIEW && userPx.y >= 0 && userPx.y <= VIEW ? (
+        <div
+          className="pointer-events-none absolute z-10 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background"
+          style={{ left: userPx.x, top: userPx.y, transform: "translate(-50%, -50%)" }}
+        >
+          <MapPin className="h-5 w-5" />
+        </div>
+      ) : null}
 
       {/* kaaba marker only when actually visible on the map */}
       {kaabaVisible ? (
@@ -248,10 +259,13 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
       ) : null}
 
       {/* zoom controls */}
-      <div className="absolute right-2 top-2 z-20 flex flex-col gap-1">
+      <div
+        className="absolute right-2 top-2 z-20 flex flex-col gap-1"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
         <button
           type="button"
-          aria-label="Zoom in"
+          aria-label={labels.zoomIn}
           onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1))}
           className="grid h-8 w-8 place-items-center rounded-md bg-card/95 shadow ring-1 ring-border hover:bg-card"
         >
@@ -259,7 +273,7 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
         </button>
         <button
           type="button"
-          aria-label="Zoom out"
+          aria-label={labels.zoomOut}
           onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 1))}
           className="grid h-8 w-8 place-items-center rounded-md bg-card/95 shadow ring-1 ring-border hover:bg-card"
         >
@@ -282,9 +296,10 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle }: Props)
         href="https://www.openstreetmap.org/copyright"
         target="_blank"
         rel="noreferrer"
+        onPointerDown={(event) => event.stopPropagation()}
         className="absolute left-2 top-2 z-20 rounded-md bg-card/85 px-1.5 py-0.5 text-[9px] text-muted-foreground shadow-sm backdrop-blur"
       >
-        © OpenStreetMap
+        {labels.attribution}
       </a>
     </div>
   );

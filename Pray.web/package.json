@@ -12,6 +12,7 @@
     "build:dev:love": "node scripts/build.mjs --love --dev",
     "build:all": "node scripts/build-all.mjs",
     "build:all:love": "node scripts/build-all.mjs --love",
+    "build:all:dev:love": "node scripts/build-all.mjs --love --dev",
     "build:all:dev": "node scripts/build-all.mjs --dev",
     "build:all:phone": "node scripts/build-all.mjs --phone",
     "preview": "vite preview --host 0.0.0.0",
@@ -34,6 +35,7 @@
     "vite": "^7.2.0"
   },
   "devDependencies": {
+    "@tanstack/router-plugin": "^1.168.19",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "typescript": "^5.8.3"

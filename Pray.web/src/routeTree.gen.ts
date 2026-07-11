@@ -14,6 +14,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QiblaRouteImport } from './routes/qibla'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as AlarmRouteImport } from './routes/alarm'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsThemeRouteImport } from './routes/settings.theme'
 import { Route as SettingsTasbihRouteImport } from './routes/settings.tasbih'
@@ -47,6 +48,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlarmRoute = AlarmRouteImport.update({
+  id: '/alarm',
+  path: '/alarm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -97,6 +103,7 @@ const SettingsAboutRoute = SettingsAboutRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alarm': typeof AlarmRoute
   '/calendar': typeof CalendarRoute
   '/onboarding': typeof OnboardingRoute
   '/qibla': typeof QiblaRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alarm': typeof AlarmRoute
   '/calendar': typeof CalendarRoute
   '/onboarding': typeof OnboardingRoute
   '/qibla': typeof QiblaRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alarm': typeof AlarmRoute
   '/calendar': typeof CalendarRoute
   '/onboarding': typeof OnboardingRoute
   '/qibla': typeof QiblaRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/alarm'
     | '/calendar'
     | '/onboarding'
     | '/qibla'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/alarm'
     | '/calendar'
     | '/onboarding'
     | '/qibla'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/alarm'
     | '/calendar'
     | '/onboarding'
     | '/qibla'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlarmRoute: typeof AlarmRoute
   CalendarRoute: typeof CalendarRoute
   OnboardingRoute: typeof OnboardingRoute
   QiblaRoute: typeof QiblaRoute
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/calendar'
       fullPath: '/calendar'
       preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alarm': {
+      id: '/alarm'
+      path: '/alarm'
+      fullPath: '/alarm'
+      preLoaderRoute: typeof AlarmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -335,6 +355,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlarmRoute: AlarmRoute,
   CalendarRoute: CalendarRoute,
   OnboardingRoute: OnboardingRoute,
   QiblaRoute: QiblaRoute,

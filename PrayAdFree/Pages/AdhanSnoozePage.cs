@@ -1,3 +1,15 @@
+using MauiWebber;
+using Pray_Ad_Free.Services;
+
+namespace Pray_Ad_Free.Pages;
+
+public sealed class AdhanSnoozePage : MauiWebberPage {
+    public AdhanSnoozePage(MauiWebberUpdater updater, WebAppRpcHandler handler, IMauiWebberLogger logger)
+        : base(updater, handler, logger, "/alarm") {
+        Title = LocalizationManager.Translate("AlarmScreenTitle");
+    }
+}
+/*
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Graphics;
 using Pray_Ad_Free.Services;
@@ -263,3 +275,4 @@ public sealed class AdhanSnoozePage : ContentPage {
         }
     });
 }
+*/

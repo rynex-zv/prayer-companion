@@ -21,6 +21,7 @@ public class MauiWebberPage : ContentPage {
     private readonly MauiWebberUpdater _updater;
     private readonly IMauiWebberRpcHandler _rpcHandler;
     private readonly IMauiWebberLogger _logger;
+    private readonly string? _initialRoute;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly SemaphoreSlim _scriptGate = new(1, 1);
     private bool _loaded;
@@ -30,10 +31,15 @@ public class MauiWebberPage : ContentPage {
     private AndroidMauiWebberBridge? _androidBridge;
 #endif
 
-    public MauiWebberPage(MauiWebberUpdater updater, IMauiWebberRpcHandler rpcHandler, IMauiWebberLogger? logger = null) {
+    public MauiWebberPage(
+        MauiWebberUpdater updater,
+        IMauiWebberRpcHandler rpcHandler,
+        IMauiWebberLogger? logger = null,
+        string? initialRoute = null) {
         _updater = updater;
         _rpcHandler = rpcHandler;
         _logger = logger ?? NullMauiWebberLogger.Instance;
+        _initialRoute = initialRoute;
         Content = _webView;
         _webView.HandlerChanged += OnWebViewHandlerChanged;
         _webView.Navigating += OnNavigating;
@@ -119,9 +125,7 @@ public class MauiWebberPage : ContentPage {
         var startupFile = await _updater.ResolveStartupFileAsync().ConfigureAwait(false);
         await MainThread.InvokeOnMainThreadAsync(() => {
             _webView.Source = new UrlWebViewSource {
-                Url = Uri.TryCreate(startupFile, UriKind.Absolute, out var uri)
-                    ? uri.AbsoluteUri
-                    : new Uri(startupFile).AbsoluteUri
+                Url = BuildSourceUrl(startupFile)
             };
             _logger.Log("WebView.SourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
         });
@@ -134,6 +138,7 @@ public class MauiWebberPage : ContentPage {
             try {
                 _logger.Log("Bridge.Inject.Start", $"ms={_stopwatch.ElapsedMilliseconds}");
                 await InjectBridgeAsync().ConfigureAwait(false);
+                await NavigateToInitialRouteAsync().ConfigureAwait(false);
                 _logger.Log("Bridge.Inject.End", $"ms={_stopwatch.ElapsedMilliseconds}");
                 var diagnostics = await MainThread.InvokeOnMainThreadAsync(() =>
                     _webView.EvaluateJavaScriptAsync("""
@@ -353,6 +358,31 @@ public class MauiWebberPage : ContentPage {
         return Uri.TryCreate(startupFile, UriKind.Absolute, out var uri)
             ? uri.AbsoluteUri
             : new Uri(startupFile).AbsoluteUri;
+    }
+
+    private string BuildSourceUrl(string startupFile) {
+        var source = ToSourceUrl(startupFile);
+        if (string.IsNullOrWhiteSpace(_initialRoute)) {
+            return source;
+        }
+
+        var builder = new UriBuilder(source) { Fragment = _initialRoute.TrimStart('#') };
+        return builder.Uri.AbsoluteUri;
+    }
+
+    private async Task NavigateToInitialRouteAsync() {
+        if (string.IsNullOrWhiteSpace(_initialRoute)) {
+            return;
+        }
+
+        var routeJson = JsonSerializer.Serialize(_initialRoute, JsonOptions);
+        await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync($$"""
+            (function(){
+              if (window.prayerCompanion && typeof window.prayerCompanion.navigate === 'function') {
+                window.prayerCompanion.navigate({{routeJson}});
+              }
+            })();
+            """)).ConfigureAwait(false);
     }
 
     private Task InjectBridgeAsync() {
