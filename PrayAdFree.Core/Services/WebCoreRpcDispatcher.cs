@@ -151,25 +151,61 @@ public sealed class WebCoreRpcDispatcher {
         var settings = BuildSettings();
         var month = _prayerMonthFactory.BuildMonth(settings, _state.SelectedMonth.Year, _state.SelectedMonth.Month);
         var rows = _calendarPresenter.BuildRows(month, settings, CultureInfo.InvariantCulture);
+        var occasions = _occasions.ForMadhhab(settings.Madhhab);
+        var occasionByHijri = occasions
+            .GroupBy(o => (o.HijriMonth, o.HijriDay))
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var daysPayload = new List<object>(rows.Count);
+        for (int i = 0; i < rows.Count; i++) {
+            var row = rows[i];
+            var hijri = month.Days[i].Hijri;
+            int hDay = int.TryParse(hijri.Day, out var hd) ? hd : 0;
+            int hMonth = HijriMonthNumber(hijri.Month);
+            int hYear = int.TryParse(hijri.Year, out var hy) ? hy : 0;
+            occasionByHijri.TryGetValue((hMonth, hDay), out var occ);
+            var sourceDt = row.SourceDate.ToDateTime(TimeOnly.MinValue);
+            daysPayload.Add(new {
+                sourceDate = row.SourceDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                weekday = (int)sourceDt.DayOfWeek,
+                dayNumber = row.SourceDate.Day,
+                date = row.Date,
+                hijri = row.Hijri,
+                hijriDay = hDay,
+                hijriMonth = hMonth,
+                hijriMonthName = hijri.Month,
+                hijriYear = hYear,
+                fajr = row.Fajr, sunrise = row.Sunrise, dhuhr = row.Dhuhr,
+                asr = row.Asr, maghrib = row.Maghrib, isha = row.Isha,
+                isToday = row.SourceDate == DateOnly.FromDateTime(DateTime.Today),
+                occasionKey = occ?.LabelKey,
+                occasionColor = occ?.Color,
+                occasionImportance = occ?.Importance
+            });
+        }
+
+        var firstHijri = month.Days.Count > 0 ? month.Days[0].Hijri : null;
+        var lastHijri = month.Days.Count > 0 ? month.Days[^1].Hijri : null;
+        var hijriMonthLabel = firstHijri is null
+            ? ""
+            : firstHijri.Month == lastHijri!.Month
+                ? $"{firstHijri.Month} {firstHijri.Year}"
+                : $"{firstHijri.Month} – {lastHijri.Month} {lastHijri.Year}";
 
         return new {
             selectedMonth = _state.SelectedMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             selectedMonthValue = _state.SelectedMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            monthName = _state.SelectedMonth.ToString("MMMM", CultureInfo.InvariantCulture),
+            yearNumber = _state.SelectedMonth.Year,
+            monthNumber = _state.SelectedMonth.Month,
+            hijriMonthLabel,
             statusMessage = "",
-            days = rows.Select(row => new {
-                date = row.Date,
-                hijri = row.Hijri,
-                fajr = row.Fajr,
-                sunrise = row.Sunrise,
-                dhuhr = row.Dhuhr,
-                asr = row.Asr,
-                maghrib = row.Maghrib,
-                isha = row.Isha,
-                isToday = row.SourceDate == DateOnly.FromDateTime(DateTime.Today)
-            }).ToArray(),
+            days = daysPayload.ToArray(),
+            madhhab = settings.Madhhab.ToString(),
             isRtl = WebCatalog.IsRtl(_state.Language)
         };
     }
+
 
     private object SetCalendarMonth(string? month) => CalendarSnapshot(month);
 
