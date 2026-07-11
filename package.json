@@ -1,0 +1,9 @@
+{
+  "name": "prayadfree-root",
+  "private": true,
+  "scripts": {
+    "dev": "cd Pray.web && bun run dev",
+    "build": "cd Pray.web && bun run build",
+    "build:love": "cd Pray.web && bun run build:love"
+  }
+}

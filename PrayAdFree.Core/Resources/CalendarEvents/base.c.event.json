@@ -1,0 +1,19 @@
+[
+  { "id": "muharram_new_year", "hijriMonth": 1,  "hijriDay": 1,  "labelKey": "occasion_muharram_new_year", "importance": "major", "color": "primary" },
+  { "id": "ashura",            "hijriMonth": 1,  "hijriDay": 10, "labelKey": "occasion_ashura",            "importance": "major", "color": "primary" },
+  { "id": "mawlid",            "hijriMonth": 3,  "hijriDay": 12, "labelKey": "occasion_mawlid",            "importance": "major", "color": "accent"  },
+  { "id": "isra_miraj",        "hijriMonth": 7,  "hijriDay": 27, "labelKey": "occasion_isra_miraj",        "importance": "major", "color": "accent"  },
+  { "id": "midshaban",         "hijriMonth": 8,  "hijriDay": 15, "labelKey": "occasion_midshaban",         "importance": "minor", "color": "accent"  },
+  { "id": "ramadan_start",     "hijriMonth": 9,  "hijriDay": 1,  "labelKey": "occasion_ramadan_start",     "importance": "major", "color": "primary" },
+  { "id": "laylat_al_qadr_21", "hijriMonth": 9,  "hijriDay": 21, "labelKey": "occasion_laylat_al_qadr",    "importance": "minor", "color": "accent"  },
+  { "id": "laylat_al_qadr_23", "hijriMonth": 9,  "hijriDay": 23, "labelKey": "occasion_laylat_al_qadr",    "importance": "minor", "color": "accent"  },
+  { "id": "laylat_al_qadr_25", "hijriMonth": 9,  "hijriDay": 25, "labelKey": "occasion_laylat_al_qadr",    "importance": "minor", "color": "accent"  },
+  { "id": "laylat_al_qadr_27", "hijriMonth": 9,  "hijriDay": 27, "labelKey": "occasion_laylat_al_qadr",    "importance": "major", "color": "accent"  },
+  { "id": "laylat_al_qadr_29", "hijriMonth": 9,  "hijriDay": 29, "labelKey": "occasion_laylat_al_qadr",    "importance": "minor", "color": "accent"  },
+  { "id": "eid_fitr",          "hijriMonth": 10, "hijriDay": 1,  "labelKey": "occasion_eid_fitr",          "importance": "major", "color": "primary" },
+  { "id": "arafah",            "hijriMonth": 12, "hijriDay": 9,  "labelKey": "occasion_arafah",            "importance": "major", "color": "primary" },
+  { "id": "eid_adha",          "hijriMonth": 12, "hijriDay": 10, "labelKey": "occasion_eid_adha",          "importance": "major", "color": "primary" },
+  { "id": "tashreeq_1",        "hijriMonth": 12, "hijriDay": 11, "labelKey": "occasion_tashreeq",          "importance": "minor", "color": "primary" },
+  { "id": "tashreeq_2",        "hijriMonth": 12, "hijriDay": 12, "labelKey": "occasion_tashreeq",          "importance": "minor", "color": "primary" },
+  { "id": "tashreeq_3",        "hijriMonth": 12, "hijriDay": 13, "labelKey": "occasion_tashreeq",          "importance": "minor", "color": "primary" }
+]
