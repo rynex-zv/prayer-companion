@@ -203,18 +203,16 @@ function TasbihRing({
         }}
       />
 
-      {/* beads */}
+      {/* beads — layered Islamic style: pearl highlight + primary body + inner ring */}
       {points.map((point, index) => {
         const isActive = index === activeIndex;
-        const beadSize = isActive ? 24 : 16;
+        const beadSize = isActive ? 26 : 16;
         return (
           <div
             key={`bead-${index}`}
             className={cn(
               "pointer-events-none absolute rounded-full",
-              isActive
-                ? "z-20 bg-primary shadow-[0_2px_8px_-2px_var(--color-primary)]"
-                : "z-10 bg-primary/30",
+              isActive ? "z-20" : "z-10",
             )}
             style={{
               left: point.x,
@@ -222,12 +220,18 @@ function TasbihRing({
               width: beadSize,
               height: beadSize,
               transform: "translate(-50%, -50%)",
+              background: isActive
+                ? "radial-gradient(circle at 32% 30%, oklch(1 0 0 / 0.65) 0%, oklch(1 0 0 / 0.15) 22%, transparent 42%), radial-gradient(circle at 62% 68%, color-mix(in oklab, var(--color-primary) 100%, black 22%) 0%, var(--color-primary) 55%, color-mix(in oklab, var(--color-primary) 65%, black 25%) 100%)"
+                : "radial-gradient(circle at 32% 30%, oklch(1 0 0 / 0.45) 0%, transparent 45%), radial-gradient(circle at 60% 65%, color-mix(in oklab, var(--color-primary) 70%, transparent) 0%, color-mix(in oklab, var(--color-primary) 35%, transparent) 100%)",
+              boxShadow: isActive
+                ? "inset 0 -2px 4px color-mix(in oklab, var(--color-primary) 60%, black 40%), inset 0 0 0 1px color-mix(in oklab, var(--color-primary) 55%, black), 0 3px 10px -3px color-mix(in oklab, var(--color-primary) 60%, transparent)"
+                : "inset 0 -1px 2px color-mix(in oklab, var(--color-primary) 40%, black 20% / 30%), inset 0 0 0 1px color-mix(in oklab, var(--color-primary) 30%, transparent)",
             }}
           />
         );
       })}
 
-      {/* center face */}
+      {/* center face — Islamic rosette panel */}
       <div
         className="pointer-events-none absolute z-30 flex flex-col items-center justify-center rounded-full border border-border/60 bg-card px-6 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_30px_-12px_rgba(0,0,0,0.15)]"
         style={{
@@ -236,15 +240,52 @@ function TasbihRing({
           width: 200,
           height: 200,
           transform: "translate(-50%, -50%)",
+          backgroundImage:
+            "radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--color-primary) 8%, transparent) 0%, transparent 60%)",
         }}
       >
-        <div className="line-clamp-2 text-base font-semibold leading-snug text-primary">
+        {/* subtle 8-point star rosette */}
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.07]"
+        >
+          <g fill="none" stroke="currentColor" strokeWidth="0.6" className="text-primary">
+            <circle cx="50" cy="50" r="46" />
+            <circle cx="50" cy="50" r="34" />
+            {Array.from({ length: 8 }).map((_, i) => {
+              const a = (i * Math.PI) / 4;
+              return (
+                <line
+                  key={i}
+                  x1={50 + Math.cos(a) * 12}
+                  y1={50 + Math.sin(a) * 12}
+                  x2={50 + Math.cos(a) * 46}
+                  y2={50 + Math.sin(a) * 46}
+                />
+              );
+            })}
+            {Array.from({ length: 8 }).map((_, i) => {
+              const a = (i * Math.PI) / 4 + Math.PI / 8;
+              return (
+                <line
+                  key={`d-${i}`}
+                  x1={50 + Math.cos(a) * 18}
+                  y1={50 + Math.sin(a) * 18}
+                  x2={50 + Math.cos(a) * 40}
+                  y2={50 + Math.sin(a) * 40}
+                />
+              );
+            })}
+          </g>
+        </svg>
+        <div className="relative line-clamp-2 text-base font-semibold leading-snug text-primary">
           {currentPhrase}
         </div>
-        <div className="mt-1 text-xs font-medium text-muted-foreground tabular-nums">
+        <div className="relative mt-1 text-xs font-medium text-muted-foreground tabular-nums">
           {progressText}
         </div>
-        <div className="mt-2 text-5xl font-bold tabular-nums text-foreground">
+        <div className="relative mt-2 text-5xl font-bold tabular-nums text-foreground">
           {count}
         </div>
       </div>
