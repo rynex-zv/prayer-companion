@@ -21,7 +21,7 @@ public sealed class IslamicOccasionCatalog {
             var baseList = Load("base");
             var madhhabList = Load(key);
             var byId = baseList.ToDictionary(o => o.Id, o => o);
-            foreach (var o in madhhabList) byId[o.Id] = o with { };
+            foreach (var o in madhhabList) byId[o.Id] = o;
             var merged = byId.Values
                 .OrderBy(o => o.HijriMonth)
                 .ThenBy(o => o.HijriDay)
@@ -52,7 +52,7 @@ public sealed class IslamicOccasionCatalog {
         }).ToList();
     }
 
-    private sealed record IslamicOccasion; // avoid name clash — see file below
+    
 
     private sealed class Entry {
         public string? Id { get; set; }
