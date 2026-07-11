@@ -10,6 +10,10 @@
     "build:phone": "node scripts/build.mjs --phone",
     "build:love": "node scripts/build.mjs --love",
     "build:dev:love": "node scripts/build.mjs --love --dev",
+    "build:all": "node scripts/build-all.mjs",
+    "build:all:love": "node scripts/build-all.mjs --love",
+    "build:all:dev": "node scripts/build-all.mjs --dev",
+    "build:all:phone": "node scripts/build-all.mjs --phone",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit"
   },
