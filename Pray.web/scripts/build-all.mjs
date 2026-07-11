@@ -36,21 +36,26 @@ function run(cmd, cargs, cwd = webRoot, extraEnv = {}) {
 async function main() {
   console.log(`[build-all] mode=${love ? 'love' : phone ? 'phone' : 'web'} dev=${dev}`);
 
-  const bridgeCsproj = resolve(repoRoot, 'PrayAdFree.WebBridge', 'PrayAdFree.WebBridge.csproj');
-  if (!existsSync(bridgeCsproj)) {
-    throw new Error(`WebBridge project not found: ${bridgeCsproj}`);
-  }
-  const publishRoot = resolve(repoRoot, 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish');
-  console.log('[build-all] 1/3 clean + publish Core/WebBridge/WASM');
-  await rm(publishRoot, { recursive: true, force: true });
-  await run('dotnet', ['publish', bridgeCsproj, '-c', 'Release'], repoRoot);
+  const skipDotnet = process.env.PRAY_WEB_SKIP_DOTNET === '1';
+  if (!skipDotnet) {
+    const bridgeCsproj = resolve(repoRoot, 'PrayAdFree.WebBridge', 'PrayAdFree.WebBridge.csproj');
+    if (!existsSync(bridgeCsproj)) {
+      throw new Error(`WebBridge project not found: ${bridgeCsproj}`);
+    }
+    const publishRoot = resolve(repoRoot, 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish');
+    console.log('[build-all] 1/3 clean + publish Core/WebBridge/WASM');
+    await rm(publishRoot, { recursive: true, force: true });
+    await run('dotnet', ['publish', bridgeCsproj, '-c', 'Release'], repoRoot);
 
-  const contractsCsproj = resolve(repoRoot, 'tools', 'generate-web-contracts', 'GenerateWebContracts.csproj');
-  if (!existsSync(contractsCsproj)) {
-    throw new Error(`Contract generator not found: ${contractsCsproj}`);
+    const contractsCsproj = resolve(repoRoot, 'tools', 'generate-web-contracts', 'GenerateWebContracts.csproj');
+    if (!existsSync(contractsCsproj)) {
+      throw new Error(`Contract generator not found: ${contractsCsproj}`);
+    }
+    console.log('[build-all] 2/3 regenerate Core contract');
+    await run('dotnet', ['run', '--project', contractsCsproj, '-c', 'Release'], repoRoot);
+  } else {
+    console.log('[build-all] skipping dotnet steps (PRAY_WEB_SKIP_DOTNET=1)');
   }
-  console.log('[build-all] 2/3 regenerate Core contract');
-  await run('dotnet', ['run', '--project', contractsCsproj, '-c', 'Release'], repoRoot);
 
   const buildArgs = [];
   if (love) buildArgs.push('--love');
