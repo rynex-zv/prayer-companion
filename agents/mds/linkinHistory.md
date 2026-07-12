@@ -1,6 +1,6 @@
 # Linkin History
 
-> Historical verification log. For current instructions and architecture, read `../README.md` and `current-architecture.md`. Phase 8 was reverified on 2026-07-12 with fresh-origin onboarding, Today, Calendar, Qibla, About, authoritative settings mutation, and zero browser console warnings/errors; older page-level details remain historical.
+> Historical verification log. For current instructions and architecture, read `../README.md` and `current-architecture.md`. Phase 8 was reverified on 2026-07-12 with fresh-origin onboarding, Today, Calendar, Qibla, About, authoritative settings mutation, and zero browser console warnings/errors. Live loaded `index-C8OgqFz1.js`; Windows loaded embedded version 207 (`index-DhAOFjqM.js`), selected MAUI, rendered Today, and produced a zero-byte exception log. Older page-level details remain historical.
 
 Do not delete this file. Update it while checking each page.
 
