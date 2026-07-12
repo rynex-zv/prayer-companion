@@ -19,7 +19,7 @@ export function useStoredSnapshot<T>(method: string, payload: unknown, storeKey:
     setLoading(forceBackend || !current);
     const res = await appClient.query<T>({ name: method, payload, domain: method.split(".", 1)[0], projectionKey: storeKey });
     if (res.ok) {
-      setData(res.data);
+      if (!res.notModified) setData(res.data);
       setError(null);
     } else {
       setError(res.error.message);

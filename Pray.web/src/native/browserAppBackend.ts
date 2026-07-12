@@ -9,6 +9,7 @@ const STATE_KEY = "core-state";
 const SCHEMA_VERSION = 2;
 let ready: Promise<void> | undefined;
 let mutationQueue = Promise.resolve();
+let volatileState: string | undefined;
 const kinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
 
 export async function callBrowserBackend<T>(method: string, payload?: unknown): Promise<BridgeResponse<T> | undefined> {
@@ -30,24 +31,36 @@ export { getLastWasmCoreLoadError };
 
 async function hydrate(): Promise<void> {
   let state = await readRecord();
+  console.info(`[pray.storage] hydrate source=${state ? "indexeddb" : "empty"}`);
+  let hasAuthoritativeState = false;
+  if (state) {
+    const imported = await tryCallWasmCore("app.importState", { state });
+    hasAuthoritativeState = imported?.ok === true;
+  }
   if (!state) {
-    state = localStorage.getItem("pray.web.core.state") ?? undefined;
-    if (state) {
-      await writeRecord(state);
+    const legacyCoreState = localStorage.getItem("pray.web.core.state") ?? undefined;
+    if (legacyCoreState) {
+      const imported = await tryCallWasmCore("app.importState", { state: legacyCoreState });
+      if (imported?.ok) {
+        await writeRecord(legacyCoreState);
+        state = legacyCoreState;
+        hasAuthoritativeState = true;
+      }
       localStorage.removeItem("pray.web.core.state");
     }
   }
-  if (state) await tryCallWasmCore("app.importState", { state });
   const legacyAppState = localStorage.getItem("prayer-companion:app-state:v1");
   if (legacyAppState) {
     try {
-      const legacy = JSON.parse(legacyAppState) as { language?: string; themeMode?: string; accentColor?: string; textSize?: number; onboardingCompleted?: boolean };
-      if (legacy.language) await tryCallWasmCore("app.setLanguage", { language: legacy.language });
-      if (legacy.themeMode) await tryCallWasmCore("app.setTheme", { theme: legacy.themeMode });
-      if (legacy.accentColor !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "accentColor", value: legacy.accentColor });
-      if (legacy.textSize !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "textSize", value: legacy.textSize });
-      if (legacy.onboardingCompleted) await tryCallWasmCore("onboarding.complete", {});
-      await persist();
+      if (!hasAuthoritativeState) {
+        const legacy = JSON.parse(legacyAppState) as { language?: string; themeMode?: string; accentColor?: string; textSize?: number; onboardingCompleted?: boolean };
+        if (legacy.language) await tryCallWasmCore("app.setLanguage", { language: legacy.language });
+        if (legacy.themeMode) await tryCallWasmCore("app.setTheme", { theme: legacy.themeMode });
+        if (legacy.accentColor !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "accentColor", value: legacy.accentColor });
+        if (legacy.textSize !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "textSize", value: legacy.textSize });
+        if (legacy.onboardingCompleted) await tryCallWasmCore("onboarding.complete", {});
+        await persist();
+      }
     } finally {
       localStorage.removeItem("prayer-companion:app-state:v1");
     }
@@ -56,7 +69,12 @@ async function hydrate(): Promise<void> {
 
 async function persist(): Promise<void> {
   const exported = await tryCallWasmCore<string>("app.exportState", {});
-  if (exported?.ok && typeof exported.data === "string") await writeRecord(exported.data);
+  if (exported?.ok && typeof exported.data === "string") {
+    await writeRecord(exported.data);
+    console.info(`[pray.storage] persisted bytes=${exported.data.length}`);
+  } else {
+    console.error("[pray.storage] state export failed");
+  }
 }
 
 function isMutation(method: string): boolean {
@@ -76,25 +94,35 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 async function readRecord(): Promise<string | undefined> {
-  const db = await openDatabase();
-  return new Promise<string | undefined>((resolve, reject) => {
-    const request = db.transaction(STORE, "readonly").objectStore(STORE).get(STATE_KEY);
-    request.onsuccess = () => {
-      const value = request.result as string | { schemaVersion?: number; data?: string } | undefined;
-      if (typeof value === "string") resolve(value);
-      else resolve(value?.schemaVersion === SCHEMA_VERSION ? value.data : undefined);
-    };
-    request.onerror = () => reject(request.error);
-  }).finally(() => db.close());
+  try {
+    const db = await openDatabase();
+    return await new Promise<string | undefined>((resolve, reject) => {
+      const request = db.transaction(STORE, "readonly").objectStore(STORE).get(STATE_KEY);
+      request.onsuccess = () => {
+        const value = request.result as string | { schemaVersion?: number; data?: string } | undefined;
+        if (typeof value === "string") resolve(value);
+        else resolve(value?.schemaVersion === SCHEMA_VERSION ? value.data : undefined);
+      };
+      request.onerror = () => reject(request.error);
+    }).finally(() => db.close());
+  } catch (error) {
+    console.warn("Browser repository is using volatile storage because IndexedDB is unavailable.", error);
+    return volatileState;
+  }
 }
 
 async function writeRecord(value: string): Promise<void> {
-  const db = await openDatabase();
-  return new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(STORE, "readwrite");
-    transaction.objectStore(STORE).put({ schemaVersion: SCHEMA_VERSION, data: value }, STATE_KEY);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error);
-  }).finally(() => db.close());
+  volatileState = value;
+  try {
+    const db = await openDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE, "readwrite");
+      transaction.objectStore(STORE).put({ schemaVersion: SCHEMA_VERSION, data: value }, STATE_KEY);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    }).finally(() => db.close());
+  } catch (error) {
+    console.warn("Browser repository could not persist to IndexedDB; state is volatile.", error);
+  }
 }

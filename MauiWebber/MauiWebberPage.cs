@@ -303,13 +303,20 @@ public class MauiWebberPage : ContentPage {
 
     private async Task<bool> WaitForReactRootAsync() {
         for (var attempt = 1; attempt <= 12; attempt++) {
-            var result = await MainThread.InvokeOnMainThreadAsync(() =>
-                _webView.EvaluateJavaScriptAsync("""
+            const string script = """
                     (function(){
                       var app = document.getElementById('app');
                       return !!(app && app.childElementCount > 0 && app.innerHTML.length > 20);
                     })();
-                    """)).ConfigureAwait(false);
+                    """;
+            var result = await MainThread.InvokeOnMainThreadAsync(async () => {
+#if WINDOWS
+                if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
+                    return await windowsWebView.CoreWebView2.ExecuteScriptAsync(script);
+                }
+#endif
+                return await _webView.EvaluateJavaScriptAsync(script);
+            }).ConfigureAwait(false);
             if (string.Equals(result?.Trim().Trim('"'), "true", StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }

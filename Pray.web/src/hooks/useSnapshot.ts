@@ -17,7 +17,7 @@ export function useSnapshot<T>(method: string, payload?: unknown, deps: unknown[
     }
     const res = await appClient.query<T>({ name: method, payload, domain: method.split(".", 1)[0], projectionKey });
     if (res.ok) {
-      setLocalData(res.data);
+      if (!res.notModified) setLocalData(res.data);
       setError(null);
     } else {
       setError(res.error.message);

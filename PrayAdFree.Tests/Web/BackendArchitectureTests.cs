@@ -24,6 +24,15 @@ public sealed class BackendArchitectureTests {
         Assert.Contains("SCHEMA_VERSION", backend, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Cold_start_has_bundled_labels_and_cannot_throw_before_bootstrap() {
+        var root = FindRepoRoot();
+        var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));
+        Assert.Contains("bundledEnglishLabels", appStore, StringComparison.Ordinal);
+        Assert.DoesNotContain("throw new Error(`Missing app label", appStore, StringComparison.Ordinal);
+        Assert.Contains("bootstrapStatus", appStore, StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot() {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "storage-edit.md"))) directory = directory.Parent;

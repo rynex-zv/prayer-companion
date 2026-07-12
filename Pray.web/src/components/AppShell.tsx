@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     language: state.languageObject.code,
     direction: state.languageObject.direction,
     onboardingCompleted: state.onboardingCompleted,
+    bootstrapStatus: state.bootstrapStatus,
   }));
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -61,12 +62,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm") {
+    if (shell.bootstrapStatus !== "ready" || shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm") {
       return;
     }
 
     void navigate({ to: "/onboarding", replace: true });
-  }, [navigate, pathname, shell.onboardingCompleted]);
+  }, [navigate, pathname, shell.bootstrapStatus, shell.onboardingCompleted]);
 
   useEffect(() => {
     if (routeStack.current.length === 0) {

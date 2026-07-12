@@ -1,5 +1,7 @@
 # Linkin History
 
+> Historical verification log. For current instructions and architecture, read `../README.md` and `current-architecture.md`. Evidence below predates the 2026-07-12 storage audit and must be rerun for new builds.
+
 Do not delete this file. Update it while checking each page.
 
 Overview status values: `BROKEN`, `PARTIAL`, `WORKING`, `NOT VERIFIED`.
@@ -28,7 +30,7 @@ Per-check status values: `WORKING GOOD`, `BROKEN`, `STATUS SAVED BROKEN`, `VALUE
 
 | Area | Status | Evidence |
 |---|---|---|
-| Store bootstrap | WORKING | `Pray.web/src/state/appStore.ts` loads `localStorage` before React render, applies `html dir/lang`, dark class, accent, and text scale synchronously. |
+| Store bootstrap | WORKING | React starts from bundled English labels and memory-only defaults, then atomically installs `app.bootstrap`; durable domain state is not loaded from React localStorage. |
 | Language proxy | WORKING | `languageProxy` is created once and reads through a mutable `languageTarget`; `setLanguageObject` repoints the target without recreating the proxy. |
 | Field sync contract | WORKING | Frontend calls `settings.setField` and verifies `{ section, field, value }`; retry-on-mismatch path is implemented. |
 | Backend RPCs | WORKING | Windows build succeeded with `app.getLanguageObject` and `settings.setField` in `WebAppRpcHandler.cs`. |

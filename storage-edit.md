@@ -432,7 +432,7 @@ Exit gates:
 
 ### Phase 4: Backend application services and repositories
 
-**Status: DONE (2026-07-12)**
+**Status: PARTIAL — runtime audit reopened (2026-07-12)**
 
 - [x] All native commands cross a serialized application coordinator boundary with command-ID replay protection and expected-revision validation.
 - [x] The coordinator owns transaction commit/rollback, revision advancement, and post-commit event publication ordering.
@@ -462,7 +462,7 @@ Exit gates:
 
 ### Phase 5: Remove ViewModels from backend paths
 
-**Status: DONE (2026-07-12)**
+**Status: PARTIAL — runtime audit reopened (2026-07-12)**
 
 - [x] Native RPC handlers depend on application projection ports rather than concrete ViewModel types or UI namespaces.
 - [x] Today, Calendar, Qibla, and Tasbih expose the same query/command surfaces to React and XAML through typed ports.
@@ -488,7 +488,7 @@ Exit gates:
 
 ### Phase 6: Unified browser backend
 
-**Status: DONE (2026-07-12)**
+**Status: PARTIAL — runtime audit reopened (2026-07-12)**
 
 - [x] `BrowserAppBackend` is the browser runtime's single dispatch, serialization, and persistence boundary.
 - [x] Browser authoritative state is hydrated from and committed to an IndexedDB repository transaction.
@@ -517,7 +517,7 @@ Exit gates:
 
 ### Phase 7: Persistence and cache consolidation
 
-**Status: DONE (2026-07-12)**
+**Status: PARTIAL — runtime audit reopened (2026-07-12)**
 
 - [x] React confirmed, optimistic, request, and sync projections are memory-only and never written as domain data.
 - [x] Both legacy localStorage documents import once into the browser repository and are then removed.
@@ -546,7 +546,7 @@ Exit gates:
 
 ### Phase 8: Legacy removal and enforcement
 
-**Status: DONE (2026-07-12)**
+**Status: PARTIAL — runtime audit reopened (2026-07-12)**
 
 - [x] UI routes, components, and snapshot hooks no longer import the transport; all domain access crosses the client boundary.
 - [x] Legacy snapshot hooks are memory-only adapters over `AppClient` and the centralized confirmed store, not data owners.
@@ -554,6 +554,8 @@ Exit gates:
 - [x] Browser persistence is isolated from WASM and React, and old storage keys are migration-only.
 - [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
 - [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
+
+Audit note: the checked items above describe boundaries added during the first pass, but they do not satisfy every phase exit gate. `WebAppRpcHandler` still contains domain workflows; projection ports are still implemented by ViewModels; browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. These phases must not be called complete until that compatibility debt is removed and native/browser runtime parity tests pass.
 
 Remove when unused:
 

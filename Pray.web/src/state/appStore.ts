@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { mauiCall } from "@/client/legacyClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
+import bundledEnglishLabels from "../../../PrayAdFree/Resources/Raw/i18n/en.json";
 
 export type Direction = "rtl" | "ltr";
 export type SyncStatus = "clean" | "dirty" | "syncing" | "saved" | "error";
@@ -21,6 +22,7 @@ export type FieldSync = {
 export type AppState = {
   schemaVersion: 1;
   source: "default" | "storage";
+  bootstrapStatus: "idle" | "ready" | "error";
   languageObject: LanguageObject;
   language: string;
   direction: Direction;
@@ -57,13 +59,14 @@ type ConfirmedField<T = unknown> = {
 const defaultLanguageObject: LanguageObject = {
   code: "en",
   direction: "ltr",
-  labels: {},
+  labels: bundledEnglishLabels,
   updatedAt: 0,
 };
 
 const defaultState: AppState = {
   schemaVersion: 1,
   source: "default",
+  bootstrapStatus: "idle",
   languageObject: defaultLanguageObject,
   language: defaultLanguageObject.code,
   direction: defaultLanguageObject.direction,
@@ -113,12 +116,7 @@ export function useAppStore<T>(selector: (state: AppState) => T): T {
 }
 
 export function getLabel(key: string) {
-  const label = languageTarget.labels[key];
-  if (label === undefined) {
-    throw new Error(`Missing app label: ${key}`);
-  }
-
-  return label;
+  return languageTarget.labels[key] ?? bundledEnglishLabels[key as keyof typeof bundledEnglishLabels] ?? key;
 }
 
 export function setLanguageObject(languageObject: LanguageObject) {
@@ -137,7 +135,13 @@ export function bootstrapAppState(): Promise<void> {
 async function performBootstrap() {
   const response = await appClient.bootstrap<BootstrapResult>({ domain: "app", projectionKey: "app.bootstrap" });
   if (!response.ok) {
-    markField("shell.bootstrap", "error", response.error.message);
+    updateState({
+      bootstrapStatus: "error",
+      fieldSync: {
+        ...state.fieldSync,
+        "shell.bootstrap": { status: "error", updatedAt: Date.now(), error: response.error.message },
+      },
+    });
     return;
   }
 
@@ -151,6 +155,7 @@ async function performBootstrap() {
 
   updateState({
     source: "storage",
+    bootstrapStatus: "ready",
     languageObject: backendLanguage,
     themeMode: backend.themeMode,
     accentColor: backend.accentColor ?? state.accentColor,

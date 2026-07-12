@@ -106,12 +106,21 @@ export async function getSelectedBackendKind(): Promise<BackendKind> {
 async function selectBackend(): Promise<SelectedBackend> {
   if (selectedBackend) return selectedBackend;
   backendSelection ??= (async () => {
-    const bridge = await withBridgeTimeout(resolveBridge(), 2500, "backend.select", "resolveBridge").catch(() => undefined);
+    const expectsNative = shouldWaitForBridge();
+    const bridge = await withBridgeTimeout(resolveBridge(), expectsNative ? 10000 : 2500, "backend.select", "resolveBridge").catch(() => undefined);
+    if (expectsNative && (!bridge || !hasNativeTransport())) {
+      throw new Error("Native host detected, but the MAUI bridge did not become available.");
+    }
     selectedBackend = bridge && hasNativeTransport() ? { kind: "maui", bridge } : { kind: "browser" };
     logBridge("backend-selected", { backend: selectedBackend.kind });
     return selectedBackend;
   })();
-  return backendSelection;
+  try {
+    return await backendSelection;
+  } catch (error) {
+    backendSelection = undefined;
+    throw error;
+  }
 }
 
 async function resolveBridge(): Promise<Window["mauiWebber"] | undefined> {
@@ -128,7 +137,7 @@ async function resolveBridge(): Promise<Window["mauiWebber"] | undefined> {
   }
 
   await new Promise<void>((resolve) => {
-    const timeout = window.setTimeout(done, 1500);
+    const timeout = window.setTimeout(done, 8000);
 
     function done() {
       window.clearTimeout(timeout);
