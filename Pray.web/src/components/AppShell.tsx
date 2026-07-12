@@ -234,8 +234,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           key={pathname}
           className={cn(
-            "safe-top min-h-0 flex-1 px-4 pt-3 pb-24 animate-in fade-in duration-150 md:px-8",
-            pathname === "/calendar" ? "overflow-hidden" : "overflow-y-auto",
+			  "safe-top min-h-0 flex-1 px-4 pt-3 pb-24 animate-in fade-in duration-150 md:px-8 overflow-y-auto overflow-x-clip"
           )}
           data-selector-name={`route:${pathname}`}
         >

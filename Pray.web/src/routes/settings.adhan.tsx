@@ -89,15 +89,7 @@ function AdhanPage() {
           className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground"
         >
           {t("addCustomSound")}
-        </button>
-        <button
-          type="button"
-          onClick={() => void mauiCall("settings.invoke", { action: "testNotification", payload: { id: selectedSound } })}
-          data-selector-name="adhan:test-notification"
-          className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground"
-        >
-          {t("testNotification")}
-        </button>
+			  </button>
         <div className="space-y-2">
           {data.sounds.map((sound) => (
             <div key={sound.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 rounded-md border border-border bg-background p-2 text-sm">

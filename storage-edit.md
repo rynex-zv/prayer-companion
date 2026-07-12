@@ -1,0 +1,581 @@
+# Centralized Application Data Architecture Migration
+
+## Purpose
+
+This is the implementation brief for migrating Prayer Companion from duplicated, multi-owner state to one consistent application-wide architecture. Use it as the primary context in a new Codex chat and execute the migration one phase at a time.
+
+This is not a plan for fixing Adhan, Tasbih, calendar, language, GPS, alarms, or individual pages separately. They are examples of a repository-wide ownership problem. The architecture must apply to every current and future domain.
+
+## Required outcomes
+
+1. One authoritative owner for every durable domain datum.
+2. One typed client API and store model for React.
+3. MAUI as the native offline backend/API.
+4. A browser backend with identical public contracts.
+5. WASM/Core for shared rules and calculations, not unrelated mutable state.
+6. No competition between backend persistence and browser storage.
+7. No ViewModels acting as backend/domain services.
+8. Normally one command for one user intent.
+9. Successful commands return authoritative resulting state.
+10. Useful grouped snapshots instead of many small reads.
+11. As few startup calls as possible, normally one bootstrap query.
+12. Structured events/invalidation for background changes.
+13. Identical native/browser semantics despite platform-specific internals.
+14. Explicit separation of durable, cached, confirmed, optimistic, draft, and UI-only state.
+15. A model that supports all future domains.
+
+---
+
+## Repository boundaries
+
+| Role | Path | Current responsibility |
+| --- | --- | --- |
+| Shared Core | `PrayAdFree.Core/` | Models, calculations, defaults, catalogs, generated-contract inputs, browser RPC behavior |
+| React client | `Pray.web/` | Routes, components, hooks, client state, runtime calls |
+| MAUI host/backend | `PrayAdFree/` | Native host, persistence, services, platform behavior, ViewModels, RPC |
+| Browser bridge | `PrayAdFree.WebBridge/` | Loads Core/WASM and dispatches browser calls |
+| Tests | `PrayAdFree.Tests/` | Core, contract, cache, scheduling, integration tests |
+
+## Real current flows
+
+### Native
+
+```text
+React
+  -> useSnapshot/useStoredSnapshot/appStore
+  -> mauiCall
+  -> MauiWebber
+  -> WebAppRpcHandler
+  -> ViewModel and/or service
+  -> SettingsService / PrayerDataService / platform services
+  -> JSON persistence, caches, notifications, alarms, GPS, audio
+  -> RPC response
+  -> page state and sometimes React localStorage
+```
+
+### Browser
+
+```text
+React
+  -> page state and appStore
+  -> mauiCall fallback
+  -> webPlatformAdapter and/or WASM bridge
+  -> mutable WebCoreRpcDispatcher.WebState
+  -> full-state export to localStorage
+  -> response copied into React and another localStorage document
+```
+
+### Repository evidence
+
+- `Pray.web/src/state/appStore.ts` persists React state under `prayer-companion:app-state:v1`.
+- `Pray.web/src/native/wasmCoreClient.ts` persists a second state document under `pray.web.core.state` and exports all WASM state after mutations.
+- `Pray.web/src/native/webPlatformAdapter.ts` can perform snapshot -> set -> snapshot -> set -> snapshot for one browser GPS action.
+- `Pray.web/src/hooks/useSnapshot.ts` fetches isolated state on component mount.
+- `Pray.web/src/hooks/useStoredSnapshot.ts` displays stored data but still requests the backend on mount.
+- `PrayAdFree/Services/WebAppRpcHandler.cs` depends directly on Calendar, Qibla, and Tasbih ViewModels.
+- `PrayAdFree/Services/TodayWebRpcHandler.cs` builds backend responses from `HomeViewModel` and owns another memory/disk snapshot.
+- `PrayAdFree/Services/PrayerDataService.cs` writes settings and broadcasts complete `AppSettings` instances.
+- `PrayAdFree/ViewModels/SettingsViewModel.cs` has many property-change paths that schedule complete settings saves.
+- `PrayAdFree.Core/Services/WebCoreRpcDispatcher.cs` owns mutable browser `WebState`.
+- Startup work is spread across React shell mounting, route hooks, Today preload, MAUI lifecycle callbacks, notification bootstrap, and widget refresh.
+
+These are architectural symptoms. Do not patch only the cited files or examples.
+
+## Current duplicated owners
+
+| State | Current owners/copies |
+| --- | --- |
+| Settings | `app_settings.json`, loaded `AppSettings`, Settings ViewModel, other ViewModels, React store, WASM state |
+| Language | Settings, LocalizationManager, .NET culture, generated contract, shell snapshot, React language object, WASM |
+| Theme | Settings, ThemeManager, MAUI resources, React store, DOM state, localStorage |
+| Location | Settings, ViewModels, React page/stored snapshots, WASM, GPS/geocoder intermediates |
+| Prayer data | API response, prayer cache, PrayerDataService, ViewModels, Today memory/disk snapshots, React |
+| Tasbih | Settings, Tasbih ViewModel, React snapshots/cache, WASM |
+| Qibla | Settings, ViewModel, RPC-handler fields, React, WASM, sensor observations |
+| Permissions | Operating system, permission services, snapshots, React state |
+| Alarm/schedule | Platform queues, playback, scheduler, settings, presentation snapshots, React |
+| Sync metadata | React `fieldSync`, currently persisted with application copies |
+
+For every migrated value, name one authority and classify all other forms as projection, cache, platform observation, optimistic overlay, draft, or UI-only state.
+
+---
+
+## Target architecture
+
+```text
+React components
+  -> selectors/actions
+  -> centralized Client Store
+  -> typed AppClient
+  -> selected AppBackend
+       -> MauiAppBackend (native)
+       -> BrowserAppBackend (browser)
+  -> application command/query handlers
+  -> domain services and pure Core/WASM functions
+  -> authoritative repositories
+  -> derived caches and platform ports
+  -> revisioned results/events
+  -> Client Store
+```
+
+Centralized means centralized authority and coordination, not one giant mutable object. Domain modules remain separated while following one ownership and contract model.
+
+## Responsibilities
+
+### React
+
+Own rendering, navigation presentation, form drafts, focus, open/closed state, animations, and temporary validation. React must not own durable settings, calculations, scheduling, permissions, background workflows, or authoritative snapshots. Components must not import `mauiCall` directly.
+
+### Client Store
+
+Owns the latest backend-confirmed projections plus separate optimistic, request, and UI state:
+
+```ts
+type ClientState = {
+  confirmed: Record<DomainName, unknown>;
+  revisions: {
+    global: number;
+    domains: Record<DomainName, number>;
+    eventSequence: number;
+  };
+  optimistic: Record<string, OptimisticOperation>;
+  requests: Record<string, RequestState>;
+  ui: UiOnlyState;
+};
+```
+
+The confirmed partition is a replaceable read model, not another database. Request, sync, optimistic, and UI metadata must not be persisted as domain state.
+
+### AppClient
+
+React uses one API:
+
+```ts
+interface AppClient {
+  bootstrap(request: BootstrapRequest): Promise<BootstrapResult>;
+  query<T>(query: AppQuery<T>): Promise<QueryResult<T>>;
+  command<T>(command: AppCommand<T>): Promise<CommandResult<T>>;
+  subscribe(listener: (event: AppEvent) => void): () => void;
+}
+```
+
+It owns serialization, timeouts, cancellation, request IDs, logging, contract negotiation, and subscriptions. It does not implement domain workflows.
+
+### Transport
+
+Native and browser transports carry the same envelopes. Transport must not merge settings, perform GPS workflows, persist state, or decide which methods are mutations.
+
+### MAUI backend
+
+MAUI is the native offline backend/API. It owns repository lifetime, commands, queries, transactions, platform ports, cross-domain effects, background work, scheduling reconciliation, bootstrap projections, and post-commit events. RPC handlers map transport messages to application operations; they never depend on ViewModels.
+
+### Browser backend
+
+The browser implements the same commands, queries, results, errors, revisions, and events. It should use IndexedDB for authoritative structured data and browser APIs as platform ports. A workflow such as location refresh is one backend command even if it internally requests GPS, geocodes, persists, recalculates, and emits events.
+
+### Core/WASM
+
+Core/WASM owns deterministic validation, normalization, prayer/Qibla/Tasbih/calendar calculations, schedule planning, migrations, cache keys, and projection helpers. Inputs and outputs are explicit. It must not act as an extra mutable database.
+
+### Persistence
+
+Persistence is accessed only through backend repositories. Native may initially retain JSON; browser should move to IndexedDB. Repositories are schema-versioned, transactional where possible, complete persistence before command success, and contain no UI/request/sync metadata.
+
+Candidate logical repositories:
+
+```text
+SettingsRepository
+TasbihRepository
+PrayerDataRepository
+ScheduleRepository
+AppMetadataRepository
+```
+
+### Domain services
+
+Perform typed intent-named operations such as `ChangeTheme`, `UpdateLocation`, `IncrementTasbih`, `SaveNotificationPreferences`, and `CompleteOnboarding`. They do not depend on React or ViewModels.
+
+### Caches
+
+Caches are reconstructable and safely deletable. Every cache defines its authoritative input key, calculation/schema version, freshness, invalidation, and recovery behavior.
+
+### Platform services
+
+GPS, permissions, notifications, alarms, sensors, audio, files, lifecycle, and network are backend ports. They return observations or execution results and do not patch repositories directly. Background callbacks enter the same application coordinator used by foreground commands.
+
+### ViewModels
+
+ViewModels are presentation adapters for XAML only. They select projections, expose bindable state, send application commands, and hold UI-only state. They are never repositories, domain services, or RPC dependencies.
+
+---
+
+## Request, result, and event contracts
+
+### Command
+
+```json
+{
+  "contractVersion": 2,
+  "requestId": "uuid",
+  "commandId": "uuid",
+  "name": "location.refresh",
+  "expectedRevision": 41,
+  "payload": {}
+}
+```
+
+`commandId` supports idempotent retries.
+
+### Command result
+
+```json
+{
+  "ok": true,
+  "requestId": "uuid",
+  "revision": 42,
+  "changedDomains": ["settings", "location", "today", "schedule"],
+  "data": {
+    "location": {},
+    "today": {},
+    "scheduleStatus": {}
+  },
+  "events": [
+    {
+      "sequence": 918,
+      "eventId": "uuid",
+      "type": "location.changed",
+      "domain": "location",
+      "revision": 42,
+      "causeRequestId": "uuid"
+    }
+  ]
+}
+```
+
+The client applies `data` immediately and does not issue a follow-up snapshot for included state.
+
+### Query
+
+```json
+{
+  "contractVersion": 2,
+  "requestId": "uuid",
+  "name": "settings.snapshot",
+  "ifRevision": 42,
+  "payload": {
+    "sections": ["location", "notifications"]
+  }
+}
+```
+
+A query may return a full projection, delta, or `notModified`.
+
+### Events
+
+Every event contains sequence, event ID, timestamp, domain, type, revision, cause request ID, and either a payload or invalidation key.
+
+Suggested vocabulary:
+
+- `domain.changed`
+- `domain.invalidated`
+- `platform.permissionChanged`
+- `alarm.started`, `alarm.updated`, `alarm.stopped`
+- `schedule.reconciled`
+- `time.boundaryCrossed`
+- `backend.resumed`
+- `backend.reset`
+
+Events are emitted only after commit. Clients ignore old/duplicate revisions and sequences. High-frequency clock and sensor observations use throttled ephemeral streams, not persistent domain events.
+
+---
+
+## Bootstrap
+
+Add one `app.bootstrap` query returning:
+
+- Contract and persistence schema versions.
+- Global and per-domain revisions.
+- Shell preferences and startup route/intent.
+- Active-language labels or localization version.
+- Today/home projection.
+- Active alarm summary.
+- Onboarding state.
+- Essential permission summary.
+- Platform capability summary.
+- Optional small likely-next projections.
+
+Do not include every country, sound, calendar month, or settings catalog. Static catalogs should be bundled/versioned separately or loaded lazily.
+
+Desired startup:
+
+```text
+1. Render the shell from bundled defaults or a disposable cached projection.
+2. Establish the selected backend and event channel.
+3. Send one app.bootstrap query.
+4. Atomically install confirmed projections in the store.
+5. Routes select existing store data.
+6. Query only missing or stale non-bootstrap projections.
+```
+
+Backend work triggered by startup, resume, preload, settings, widget refresh, and scheduling must be coalesced by operation key and authoritative input revision.
+
+---
+
+## Migration phases
+
+Work only on the requested phase unless the user explicitly expands scope. Preserve compatibility needed by later phases.
+
+### Phase 1: Contracts and observability
+
+Objective: establish the shared protocol and measurements without changing feature behavior.
+
+Work:
+
+- Define versioned command, query, result, error, revision, and event envelopes.
+- Establish generation/shared fixtures for matching C# and TypeScript contracts.
+- Add request/command IDs, durations, response sizes, persistence-write counts, cache outcomes, and correlation logging.
+- Classify every existing RPC as command, query, platform operation, compatibility adapter, or obsolete.
+- Detect command-then-refresh sequences and duplicate in-flight queries.
+- Baseline startup calls and representative interaction calls/writes.
+- Keep all old RPCs working.
+
+Exit gates:
+
+- Native and browser pass identical envelope serialization fixtures.
+- Existing behavior remains operational.
+- One action can be traced across UI, transport, backend, persistence, and scheduling.
+- Contract/version/error tests exist.
+
+### Phase 2: Unified React client and store
+
+Objective: give React one access path and one confirmed read model while legacy RPC remains underneath.
+
+Work:
+
+- Implement `AppClient` over existing transports.
+- Create confirmed, revision, optimistic, request, and UI store partitions.
+- Add typed selectors/actions, in-flight query deduplication, and cancellation.
+- Apply command results directly.
+- Wrap legacy RPC behind compatibility methods.
+- Incrementally migrate components away from direct `mauiCall`.
+- Retain legacy hooks until consumers migrate.
+
+Exit gates:
+
+- New UI code cannot import `mauiCall`; enforce this.
+- Migrated commands do not immediately refresh returned state.
+- Confirmed projections survive route remounts in the shared store.
+- Optimistic/request state is separate from confirmed data.
+
+### Phase 3: Bootstrap and event channel
+
+Objective: reduce startup calls and push/invalidate background changes.
+
+Work:
+
+- Implement identical `app.bootstrap` behavior in both runtimes.
+- Replace shell plus initial-route reads with bootstrap projections.
+- Add structured events over MauiWebber.
+- Add browser/in-process events and optional BroadcastChannel synchronization.
+- Apply event patches or invalidate exact projection keys.
+- Add revision-aware queries and `notModified`.
+- Coalesce preload/warmup tasks.
+
+Exit gates:
+
+- Initial shell/home normally requires one application query.
+- Background changes reach React without polling loops.
+- Duplicate/out-of-order events are harmless.
+- Route remounts do not reread valid bootstrap projections.
+
+### Phase 4: Backend application services and repositories
+
+Objective: put authoritative use cases behind one backend application layer.
+
+Work:
+
+- Introduce an application command/query coordinator.
+- Add typed repositories and transaction boundaries.
+- Move workflows out of `WebAppRpcHandler`.
+- Adapt old RPC methods to new handlers.
+- Return authoritative relevant projections from every successful command.
+- Publish events after persistence.
+- Add idempotency and revision checks.
+- Coalesce recalculation, scheduling, and widget invalidation.
+
+Exit gates:
+
+- Migrated use cases have one command handler and persistence boundary.
+- RPC handlers contain transport mapping, not domain workflows.
+- Successful commands render without follow-up reads.
+- Tests verify commit-before-event and failure atomicity.
+
+### Phase 5: Remove ViewModels from backend paths
+
+Objective: make ViewModels presentation-only.
+
+Work:
+
+- Replace `TodayWebRpcHandler -> HomeViewModel` with application queries/projections.
+- Remove Calendar, Qibla, and Tasbih ViewModels from RPC dependencies.
+- Make XAML ViewModels consume the same backend use cases as React.
+- Remove ViewModel persistence and scheduling responsibilities.
+- Correct event subscription lifetimes.
+
+Exit gates:
+
+- No RPC handler accepts a ViewModel.
+- Domain tests run without UI/main-thread objects.
+- React and XAML use the same commands and queries.
+- ViewModels contain presentation adaptation only.
+
+### Phase 6: Unified browser backend
+
+Objective: replace React + adapter + mutable WASM state with a real browser backend.
+
+Work:
+
+- Implement `BrowserAppBackend` with the MAUI contract.
+- Move authoritative browser records to IndexedDB.
+- Convert geolocation, notifications, permissions, and geocoding into platform ports.
+- Execute each workflow as one backend command.
+- Replace mutable `WebCoreRpcDispatcher.WebState` with repositories and pure Core/WASM functions.
+- Import old localStorage records during migration.
+
+Exit gates:
+
+- One contract suite passes against native and browser.
+- Browser location refresh is one client command.
+- WASM behavior has explicit deterministic inputs/outputs.
+- Browser data survives reload through one authoritative repository model.
+
+### Phase 7: Persistence and cache consolidation
+
+Objective: remove duplicate durable state and formalize caches.
+
+Work:
+
+- Stop persisting React confirmed, sync, request, and optimistic state as domain data.
+- Import and retire `prayer-companion:app-state:v1`.
+- Import and retire `pray.web.core.state`.
+- Add schema-versioned migrations and recovery tests.
+- Convert Today, prayer, and geo snapshots into revision-keyed derived caches.
+- Track scheduling reconciliation against authoritative input revisions.
+- Make caches safely deletable.
+
+Exit gates:
+
+- Each durable datum has one documented repository.
+- Cache deletion loses no user-authored data.
+- Old storage keys migrate once and are no longer written.
+- Cache invalidation covers every authoritative input.
+
+### Phase 8: Legacy removal and enforcement
+
+Remove when unused:
+
+- Direct route/component `mauiCall`.
+- `useSnapshot` and `useStoredSnapshot` as data owners.
+- React localStorage as a domain database.
+- Full WASM export after mutations and mutable WASM state.
+- `settings.invoke` action multiplexing.
+- Generic `settings.setField` for meaningful domain operations.
+- RPC-to-ViewModel dependencies.
+- Command-then-refresh code.
+- Whole-app `SettingsChanged` broadcasts.
+- Property-change-driven complete settings saves.
+- Handler-owned domain state.
+- Duplicate lifecycle work.
+- Static catalogs embedded repeatedly in dynamic snapshots.
+
+Add enforcement:
+
+- Forbidden-dependency/import architecture tests.
+- Native/browser contract parity tests.
+- One-command interaction tests.
+- Startup call-budget tests.
+- Persistence ownership and event ordering/idempotency tests.
+
+---
+
+## Mandatory rules
+
+1. Every durable datum has one named authoritative repository.
+2. Every runtime has exactly one active backend.
+3. React uses only AppClient and the client store for domain data.
+4. Components never call transports directly.
+5. Durable changes use typed intent-named commands.
+6. One user intent normally sends one command.
+7. Successful commands return authoritative relevant state.
+8. The client does not reread state returned by a command.
+9. Queries are read-only, grouped, deduplicated, and revision-aware.
+10. Events are post-commit and revisioned/sequenced.
+11. Background work enters through the same application layer.
+12. Platform services do not own domain records.
+13. Core/WASM functions are deterministic from explicit inputs.
+14. ViewModels are presentation adapters only.
+15. Durable, cached, confirmed, optimistic, draft, observation, and UI state are distinct.
+16. Caches are safely deletable.
+17. Static catalogs and live state have separate contracts.
+18. Native/browser semantics and typed errors match.
+19. Unsupported capabilities return explicit typed results.
+20. Full-app snapshots are limited to bootstrap, recovery, backup/export, and diagnostics.
+21. Commands are idempotent or command-ID protected.
+22. Cross-domain effects are coordinated once in the backend.
+23. Lifecycle work is coalesced by key and input revision.
+24. Domain modules never depend on React, pages, or ViewModels.
+25. Architecture tests prevent regression.
+
+## State classification
+
+| Class | Meaning | Storage |
+| --- | --- | --- |
+| Authoritative domain state | User/system state that cannot be reconstructed | Backend repository only |
+| Derived cache | Reconstructable result of authoritative inputs | Backend cache with key/version |
+| Confirmed projection | Latest backend-confirmed rendering model | Client memory; optional disposable cache |
+| Optimistic overlay | Temporary pending-command representation | Client memory only |
+| Draft | Incomplete uncommitted input | Component/UI store only |
+| Platform observation | Current external fact such as permission/sensor | Backend stream; persist only if domain requires |
+| UI-only state | Pure presentation state | Component/UI store only |
+
+If one model fits multiple rows, split its responsibilities before migrating it.
+
+---
+
+## Working method for every new phase chat
+
+1. Read this file completely.
+2. Inspect the current worktree and relevant code; do not assume earlier phases are unchanged.
+3. State the selected phase and its exit gates.
+4. Trace affected calls end-to-end before editing.
+5. Preserve unrelated user changes.
+6. Implement only the selected phase or one clearly bounded slice.
+7. Add/update contract and architecture tests.
+8. Run relevant .NET tests, TypeScript checks, and web builds.
+9. Report call/write behavior before and after when instrumentation exists.
+10. Update this document only when an approved architectural decision changes.
+
+Do not begin with page-specific patches, create another permanent state copy, move mutable state into WASM and call it centralization, persist React state to hide latency, or remove compatibility before all callers migrate.
+
+## New-chat prompt
+
+```text
+Read storage-edit.md completely and implement Phase N.
+
+Treat storage-edit.md as the architectural source for this task. Inspect the current repository first and verify what previous phases have implemented. Then state the Phase N exit gates and create a focused implementation plan.
+
+Do not solve individual pages independently or advance into later phases unless a safe interface boundary requires it. Preserve compatibility needed by unmigrated code. Implement the phase, add architecture/contract tests, run relevant .NET and React checks, and update storage-edit.md only if an approved implementation decision changes the architecture.
+
+At completion report:
+- files and boundaries changed;
+- old and new request/state flow;
+- tests and builds run;
+- exit gates satisfied or still open;
+- compatibility code intentionally retained;
+- recommended next bounded step.
+```
+
+## Definition of completion
+
+The migration is complete only when React has one typed client/store, MAUI and browser implement the same backend contracts, every durable datum has one repository, Core/WASM has no extra mutable database role, commands eliminate normal follow-up snapshots, startup normally uses bootstrap plus genuinely lazy reads, background changes use events/invalidation, ViewModels are absent from backend dependencies, old browser state copies are retired, caches are reconstructable, and tests enforce these boundaries.
+
