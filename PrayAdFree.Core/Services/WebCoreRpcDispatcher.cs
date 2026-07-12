@@ -139,11 +139,11 @@ public sealed class WebCoreRpcDispatcher {
     };
 
     private object LanguageObject(string? language) {
-        _state.Language = WebCatalog.NormalizeLanguage(language);
+        var normalized = WebCatalog.NormalizeLanguage(language);
         return new {
-            code = _state.Language,
-            direction = WebCatalog.IsRtl(_state.Language) ? "rtl" : "ltr",
-            labels = Labels(),
+            code = normalized,
+            direction = WebCatalog.IsRtl(normalized) ? "rtl" : "ltr",
+            labels = WebCatalog.Labels(normalized),
             updatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
     }

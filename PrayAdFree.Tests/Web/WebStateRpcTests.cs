@@ -41,6 +41,17 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
+    public void Language_object_query_is_pure_and_does_not_replace_authoritative_language() {
+        var initial = WebCoreExecutionEngine.Execute(null, "app.setLanguage", JsonSerializer.SerializeToElement(new { language = "en" }));
+        var query = WebCoreExecutionEngine.Execute(initial.State, "app.getLanguageObject", JsonSerializer.SerializeToElement(new { language = "fr" }));
+        var shell = WebCoreExecutionEngine.Execute(query.State, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
+
+        Assert.Equal("fr", JsonSerializer.SerializeToElement(query.Data).GetProperty("code").GetString());
+        Assert.Equal("en", JsonSerializer.SerializeToElement(shell.Data).GetProperty("language").GetString());
+        Assert.Equal(initial.State, query.State);
+    }
+
+    [Fact]
     public void ImportStateAcceptsThePublicStateProperty() {
         var source = new WebCoreRpcDispatcher();
         Dispatch(source, "app.setLanguage", new { language = "ar" });
