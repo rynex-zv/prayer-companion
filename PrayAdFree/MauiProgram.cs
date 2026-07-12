@@ -208,6 +208,10 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<SettingsViewModel>();
             builder.Services.AddTransient<AboutViewModel>();
             builder.Services.AddTransient<TasbihViewModel>();
+            builder.Services.AddTransient<ITodayProjectionSource>(sp => sp.GetRequiredService<HomeViewModel>());
+            builder.Services.AddTransient<ICalendarProjectionSource>(sp => sp.GetRequiredService<CalendarViewModel>());
+            builder.Services.AddTransient<IQiblaProjectionSource>(sp => sp.GetRequiredService<QiblaViewModel>());
+            builder.Services.AddTransient<ITasbihProjectionSource>(sp => sp.GetRequiredService<TasbihViewModel>());
             builder.Services.AddTransient<LanguageSelectionViewModel>();
             builder.Services.AddTransient<AlarmRemindersViewModel>();
             builder.Services.AddTransient<AppPermissionsViewModel>();

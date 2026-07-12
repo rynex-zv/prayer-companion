@@ -5,15 +5,14 @@ using System.Text.Json.Nodes;
 using MauiWebber;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
-using Pray_Ad_Free.ViewModels;
 
 namespace Pray_Ad_Free.Services;
 
 public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly TodayWebRpcHandler _today;
-    private readonly CalendarViewModel _calendar;
-    private readonly QiblaViewModel _qibla;
-    private readonly TasbihViewModel _tasbih;
+    private readonly ICalendarProjectionSource _calendar;
+    private readonly IQiblaProjectionSource _qibla;
+    private readonly ITasbihProjectionSource _tasbih;
     private readonly ISettingsRepository _settingsService;
     private readonly PrayerDataService _dataService;
     private readonly IAppPermissionCenterService _permissionCenter;
@@ -33,9 +32,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
     public WebAppRpcHandler(
         TodayWebRpcHandler today,
-        CalendarViewModel calendar,
-        QiblaViewModel qibla,
-        TasbihViewModel tasbih,
+        ICalendarProjectionSource calendar,
+        IQiblaProjectionSource qibla,
+        ITasbihProjectionSource tasbih,
         ISettingsRepository settingsService,
         PrayerDataService dataService,
         IAppPermissionCenterService permissionCenter,
@@ -115,8 +114,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "qibla.setDisplayMode" => await SetQiblaDisplayModeAsync(payload).ConfigureAwait(false),
             "qibla.setVisualFilter" => await SetQiblaVisualFilterAsync(payload).ConfigureAwait(false),
             "tasbih.getSnapshot" => BuildTasbihSnapshot(),
-            "tasbih.increment" => RunTasbihCommand(_tasbih.IncrementCommand),
-            "tasbih.reset" => RunTasbihCommand(_tasbih.ResetCommand),
+            "tasbih.increment" => RunTasbihCommand(_tasbih.Increment),
+            "tasbih.reset" => RunTasbihCommand(_tasbih.Reset),
             "tasbih.selectPreset" => SelectTasbihPreset(payload),
             "alarm.getSnapshot" => await GetAlarmSnapshotAsync().ConfigureAwait(false),
             "alarm.snooze" => await SnoozeAlarmAsync(payload).ConfigureAwait(false),
@@ -557,21 +556,14 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return await GetQiblaAsync().ConfigureAwait(false);
     }
 
-    private object RunTasbihCommand(Command command) {
-        if (command.CanExecute(null)) {
-            command.Execute(null);
-        }
-
+    private object RunTasbihCommand(Action command) {
+        command();
         return BuildTasbihSnapshot();
     }
 
     private object SelectTasbihPreset(JsonElement payload) {
         var id = ReadString(payload, "id");
-        var preset = _tasbih.Presets.Select((item, index) => new { item, index })
-            .FirstOrDefault(item => string.Equals(item.index.ToString(CultureInfo.InvariantCulture), id, StringComparison.Ordinal));
-        if (preset?.item != null) {
-            _tasbih.SelectedPreset = preset.item;
-        }
+        if (int.TryParse(id, CultureInfo.InvariantCulture, out var index)) _tasbih.SelectPreset(index);
 
         return BuildTasbihSnapshot();
     }
@@ -582,7 +574,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             currentPhrase = _tasbih.CurrentPhrase,
             progressText = _tasbih.ProgressText,
             isPresetSelectionEnabled = _tasbih.IsPresetSelectionEnabled,
-            selectedPresetId = Math.Max(0, _tasbih.Presets.IndexOf(_tasbih.SelectedPreset!)).ToString(CultureInfo.InvariantCulture),
+            selectedPresetId = Math.Max(0, _tasbih.Presets.ToList().IndexOf(_tasbih.SelectedPreset!)).ToString(CultureInfo.InvariantCulture),
             presets = _tasbih.Presets.Select((preset, index) => new {
                 id = index.ToString(CultureInfo.InvariantCulture),
                 name = preset.Name,

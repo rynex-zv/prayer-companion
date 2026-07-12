@@ -8,7 +8,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.ViewModels;
 
-public sealed class HomeViewModel : ViewModelBase {
+public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
     private readonly WidgetSnapshotFactory _widgetSnapshotFactory = new();
@@ -49,6 +49,7 @@ public sealed class HomeViewModel : ViewModelBase {
     }
 
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }
+    IEnumerable<PrayerTimeRow> ITodayProjectionSource.TodayTimings => TodayTimings;
     public PrayerId NextPrayerId => _nextPrayerId;
     public string NextPrayerDayId => _nextPrayerTime.Date > DateTime.Now.Date ? "tomorrow" : "today";
     public Command RefreshCommand { get; }

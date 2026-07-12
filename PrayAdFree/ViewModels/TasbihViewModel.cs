@@ -8,7 +8,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.ViewModels;
 
-public sealed class TasbihViewModel : ViewModelBase {
+public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
     private readonly TasbihProgressCalculator _progressCalculator = new();
@@ -76,7 +76,7 @@ public sealed class TasbihViewModel : ViewModelBase {
         }
     }
 
-    private void Increment() {
+    public void Increment() {
         if (SelectedPreset == null) {
             return;
         }
@@ -93,7 +93,7 @@ public sealed class TasbihViewModel : ViewModelBase {
         UpdateCurrentPhrase();
     }
 
-    private void Reset() {
+    public void Reset() {
         Count = 0;
         TryVibrateReset();
 #if DEBUG
@@ -101,6 +101,12 @@ public sealed class TasbihViewModel : ViewModelBase {
 #endif
         UpdateCurrentPhrase();
     }
+
+    public void SelectPreset(int index) {
+        if (index >= 0 && index < Presets.Count) SelectedPreset = Presets[index];
+    }
+
+    IReadOnlyList<TasbihPresetItem> ITasbihProjectionSource.Presets => Presets;
 
     private void LoadPresets() {
         _settings = _dataService.LoadSettings();

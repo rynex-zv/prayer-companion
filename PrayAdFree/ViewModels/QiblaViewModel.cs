@@ -6,7 +6,7 @@ using System.Collections.ObjectModel;
 
 namespace Pray_Ad_Free.ViewModels;
 
-public sealed class QiblaViewModel : ViewModelBase {
+public sealed class QiblaViewModel : ViewModelBase, IQiblaProjectionSource {
     private readonly PrayerDataService _dataService;
     private double _bearing;
     private double _heading;
@@ -55,6 +55,7 @@ public sealed class QiblaViewModel : ViewModelBase {
     }
 
     public ObservableCollection<OptionItem<QiblaHeadingMode>> HeadingModes { get; }
+    IEnumerable<OptionItem<QiblaHeadingMode>> IQiblaProjectionSource.HeadingModes => HeadingModes;
     public ObservableCollection<OptionItem<QiblaReadingMode>> ReadingModes { get; }
     public ObservableCollection<OptionItem<QiblaFilterMode>> FilterModes { get; }
     public Command<OptionItem<QiblaHeadingMode>> SelectHeadingModeCommand {

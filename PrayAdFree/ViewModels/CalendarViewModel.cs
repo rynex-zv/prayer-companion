@@ -6,7 +6,7 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.ViewModels;
 
-public sealed class CalendarViewModel : ViewModelBase {
+public sealed class CalendarViewModel : ViewModelBase, ICalendarProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly CalendarMonthPresenter _presenter = new();
     private DateTime _selectedMonth;
@@ -36,6 +36,7 @@ public sealed class CalendarViewModel : ViewModelBase {
     }
 
     public ObservableCollection<CalendarDayRow> Days { get; }
+    IReadOnlyList<CalendarDayRow> ICalendarProjectionSource.Days => Days;
     public Command LoadCommand { get; }
     public Command PreviousMonthCommand { get; }
     public Command NextMonthCommand { get; }

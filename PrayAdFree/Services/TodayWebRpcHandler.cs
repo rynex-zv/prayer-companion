@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 using MauiWebber;
 using PrayAdFree.Core.Services;
-using Pray_Ad_Free.ViewModels;
 
 namespace Pray_Ad_Free.Services;
 
@@ -11,7 +10,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         WriteIndented = true
     };
 
-    private readonly HomeViewModel _viewModel;
+    private readonly ITodayProjectionSource _viewModel;
     private readonly IAppLogger _logger;
     private readonly object _sync = new();
     private readonly string _snapshotPath;
@@ -20,7 +19,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     private bool _backgroundRefreshRunning;
     private bool _cacheWarmupStarted;
 
-    public TodayWebRpcHandler(HomeViewModel viewModel, IAppLogger logger) {
+    public TodayWebRpcHandler(ITodayProjectionSource viewModel, IAppLogger logger) {
         _viewModel = viewModel;
         _logger = logger;
         _snapshotPath = Path.Combine(FileSystem.AppDataDirectory, "MauiWebber", "today-snapshot.json");

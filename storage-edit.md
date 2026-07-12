@@ -462,6 +462,13 @@ Exit gates:
 
 ### Phase 5: Remove ViewModels from backend paths
 
+**Status: DONE (2026-07-12)**
+
+- [x] Native RPC handlers depend on application projection ports rather than concrete ViewModel types or UI namespaces.
+- [x] Today, Calendar, Qibla, and Tasbih expose the same query/command surfaces to React and XAML through typed ports.
+- [x] Tasbih transport dispatch invokes intent methods instead of MAUI `Command` presentation objects.
+- [x] An architecture test prevents RPC-to-ViewModel dependencies from returning.
+
 Objective: make ViewModels presentation-only.
 
 Work:
