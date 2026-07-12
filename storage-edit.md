@@ -498,7 +498,7 @@ Exit gates:
 
 ### Phase 6: Unified browser backend
 
-**Status: PARTIAL — runtime audit reopened (2026-07-12)**
+**Status: DONE — deterministic browser backend and runtime persistence verified (2026-07-12)**
 
 - [x] `BrowserAppBackend` is the browser runtime's single dispatch, serialization, and persistence boundary.
 - [x] Browser authoritative state is hydrated from and committed to an IndexedDB repository transaction.
@@ -506,6 +506,13 @@ Exit gates:
 - [x] WASM no longer reads or writes browser storage; it is invoked as the calculation/contract engine.
 - [x] GPS refresh performs one read and one authoritative write, returning the resulting location without a follow-up snapshot.
 - [x] Architecture checks prevent WASM persistence and snapshot-set-snapshot browser workflows from returning.
+- [x] Browser Core execution is explicit and deterministic: persisted state plus an operation returns data, events, revisions, and replacement state.
+- [x] The WASM bridge has no process-global dispatcher; IndexedDB is the only long-lived browser authority and serializes every top-level operation.
+- [x] Global/domain revisions survive reload in the repository execution envelope, including revision-aware `notModified` queries.
+- [x] Browser platform workflows execute inside one repository transaction and commit once; reverse geocoding no longer performs a follow-up snapshot.
+- [x] Legacy raw `WebState` and both retired localStorage documents migrate into schema version 3 without `app.importState`/`app.exportState` persistence calls.
+- [x] Fresh-origin and reload tests verified isolated defaults, durable language mutation, no leaked WASM state, and zero browser console errors.
+- [x] Release WASM publish, phone bundle, and Windows MAUI build/runtime passed; native bootstrap rendered with an empty exception log.
 
 Objective: replace React + adapter + mutable WASM state with a real browser backend.
 
@@ -565,7 +572,7 @@ Exit gates:
 - [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
 - [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
 
-Audit note: Phases 4 and 5 are complete. Later-phase debt remains: browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. Do not use Phase 4/5 completion to describe those later phases as complete.
+Audit note: Phases 4, 5, and 6 are complete. `WebCoreRpcDispatcher` remains an ephemeral compatibility implementation inside deterministic `WebCoreExecutionEngine` calls, but it has no process-global or durable authority. Later-phase debt remains: public `app.importState`/`app.exportState` compatibility methods, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField`. Do not use Phase 4–6 completion to describe those later phases as complete.
 
 Remove when unused:
 

@@ -38,9 +38,9 @@ public sealed class IslamicOccasionCatalog {
         using var reader = new StreamReader(stream);
         var json = reader.ReadToEnd();
         if (string.IsNullOrWhiteSpace(json)) return Array.Empty<IslamicOccasion>();
-        var items = JsonSerializer.Deserialize<List<Entry>>(json, new JsonSerializerOptions {
-            PropertyNameCaseInsensitive = true
-        }) ?? new();
+        var typeInfo = CoreJsonContext.Default.GetTypeInfo(typeof(List<Entry>))
+            ?? throw new InvalidOperationException("Islamic occasion JSON metadata is unavailable.");
+        var items = (List<Entry>?)JsonSerializer.Deserialize(json, typeInfo) ?? new();
         return items.Select(e => new IslamicOccasion {
             Id = e.Id ?? "",
             HijriMonth = e.HijriMonth,
@@ -54,7 +54,7 @@ public sealed class IslamicOccasionCatalog {
 
     
 
-    private sealed class Entry {
+    internal sealed class Entry {
         public string? Id { get; set; }
         public int HijriMonth { get; set; }
         public int HijriDay { get; set; }

@@ -1,5 +1,6 @@
 import type { BridgeResponse } from "./mauiWebberClient";
-import { tryCallWasmCore } from "./wasmCoreClient";
+
+export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
 type SettingsInvokePayload = {
   action?: string;
@@ -27,6 +28,7 @@ type WebLabels = Record<string, string>;
 export async function tryHandleWebPlatformCall<T = unknown>(
   method: string,
   payload?: unknown,
+  coreCall?: BrowserCoreCall,
 ): Promise<BridgeResponse<T> | undefined> {
   if (typeof window === "undefined" || method !== "settings.invoke") {
     return undefined;
@@ -43,25 +45,26 @@ export async function tryHandleWebPlatformCall<T = unknown>(
     return undefined;
   }
 
-  const labels = await loadWebLabels();
+  if (!coreCall) throw new Error("Browser Core transaction is unavailable.");
+  const labels = await loadWebLabels(coreCall);
 
   if (action === "requestPermission" && permissionId === "notifications") {
     return requestBrowserNotifications<T>(labels);
   }
 
   if (action === "requestAllPermissions") {
-    return requestAllBrowserPermissions<T>(labels);
+    return requestAllBrowserPermissions<T>(labels, coreCall);
   }
 
   if (
     action === "refreshGps" ||
     (action === "requestPermission" && (!permissionId || permissionId === "location"))
   ) {
-    return refreshBrowserGps<T>(labels);
+    return refreshBrowserGps<T>(labels, coreCall);
   }
 
   if (action === "reverseGeocode") {
-    return reverseGeocodeBrowserLocation<T>(labels, request?.payload?.latitude, request?.payload?.longitude);
+    return reverseGeocodeBrowserLocation<T>(labels, coreCall, request?.payload?.latitude, request?.payload?.longitude);
   }
 
   return undefined;
@@ -83,13 +86,13 @@ async function requestBrowserNotifications<T>(labels: WebLabels): Promise<Bridge
   };
 }
 
-async function refreshBrowserGps<T>(labels: WebLabels): Promise<BridgeResponse<T>> {
+async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
   if (!navigator.geolocation) {
     return { ok: false, error: label(labels, "webGeolocationUnavailable") };
   }
 
   const position = await getCurrentBrowserPosition(labels);
-  const current = await tryCallWasmCore<LocationSettings>("settings.getSnapshot", { section: "locations" });
+  const current = await coreCall<LocationSettings>("settings.getSnapshot", { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
   }
@@ -111,7 +114,7 @@ async function refreshBrowserGps<T>(labels: WebLabels): Promise<BridgeResponse<T
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await tryCallWasmCore<LocationSettings>("settings.setField", {
+  const saved = await coreCall<LocationSettings>("settings.setField", {
     section: "locations",
     field: "value",
     value: finalLocation,
@@ -131,12 +134,12 @@ async function refreshBrowserGps<T>(labels: WebLabels): Promise<BridgeResponse<T
   };
 }
 
-async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, latitude?: number, longitude?: number): Promise<BridgeResponse<T>> {
+async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: BrowserCoreCall, latitude?: number, longitude?: number): Promise<BridgeResponse<T>> {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return { ok: false, error: label(labels, "webInvalidCoordinates") };
   }
 
-  const current = await tryCallWasmCore<LocationSettings>("settings.getSnapshot", { section: "locations" });
+  const current = await coreCall<LocationSettings>("settings.getSnapshot", { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
   }
@@ -151,15 +154,12 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, latitude?: nu
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await tryCallWasmCore("settings.setField", { section: "locations", field: "value", value: next });
+  const saved = await coreCall<LocationSettings>("settings.setField", { section: "locations", field: "value", value: next });
   if (!saved?.ok) {
     return { ok: false, error: saved?.error ?? label(labels, "webLocationSaveFailed") };
   }
 
-  const refreshed = await tryCallWasmCore<LocationSettings>("settings.getSnapshot", { section: "locations" });
-  return refreshed?.ok
-    ? { ok: true, data: refreshed.data as T }
-    : { ok: false, error: refreshed?.error ?? label(labels, "webLocationRefreshFailed") };
+  return { ok: true, data: (saved.data ?? next) as T };
 }
 
 async function reverseAddress(latitude: number, longitude: number): Promise<{ city: string; country: string; countryCode: string } | null> {
@@ -187,11 +187,11 @@ async function reverseAddress(latitude: number, longitude: number): Promise<{ ci
   }
 }
 
-async function requestAllBrowserPermissions<T>(labels: WebLabels): Promise<BridgeResponse<T>> {
+async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
   const results: string[] = [];
   let ok = true;
 
-  const location = await refreshBrowserGps<unknown>(labels);
+  const location = await refreshBrowserGps<unknown>(labels, coreCall);
   if (location.ok) {
     results.push(label(labels, "webLocationPermissionReady"));
   } else {
@@ -275,8 +275,8 @@ function cleanGeolocationError(error: GeolocationPositionError, labels: WebLabel
   return label(labels, "webGpsTimedOut");
 }
 
-async function loadWebLabels(): Promise<WebLabels> {
-  const response = await tryCallWasmCore<WebLabels>("app.getLocalization", {});
+async function loadWebLabels(coreCall: BrowserCoreCall): Promise<WebLabels> {
+  const response = await coreCall<WebLabels>("app.getLocalization", {});
   if (!response?.ok) {
     throw new Error(response?.error);
   }

@@ -37,8 +37,17 @@ if (wasmClient.includes("localStorage") || wasmClient.includes("persistState")) 
   console.error("WASM is a deterministic engine and must not own browser persistence.");
   process.exit(1);
 }
-if ((platformAdapter.match(/settings\.getSnapshot/g) ?? []).length > 3) {
-  console.error("Browser platform workflows must not use snapshot-set-snapshot chains.");
+const browserBackend = fs.readFileSync(path.join(src, "native/browserAppBackend.ts"), "utf8");
+if (browserBackend.includes("app.importState") || browserBackend.includes("app.exportState")) {
+  console.error("Browser authority must pass explicit state through the deterministic WASM boundary.");
+  process.exit(1);
+}
+if (!wasmClient.includes("CallWithState") || wasmClient.includes("tryCallWasmCore")) {
+  console.error("WASM calls must use the explicit state-in/state-out execution contract.");
+  process.exit(1);
+}
+if ((platformAdapter.match(/settings\.getSnapshot/g) ?? []).length > 2) {
+  console.error("Browser platform workflows must execute as one repository transaction without follow-up snapshots.");
   process.exit(1);
 }
 console.log("Client architecture boundary passed.");

@@ -10,6 +10,8 @@ namespace PrayAdFree.Core.Services;
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(PrayerMonth))]
 [JsonSerializable(typeof(WebState))]
+[JsonSerializable(typeof(WebExecutionState))]
+[JsonSerializable(typeof(List<IslamicOccasionCatalog.Entry>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(TasbihWidgetStorePayload))]
 [JsonSerializable(typeof(AladhanPrayerTimesClient.AladhanCalendarResponse))]

@@ -11,26 +11,24 @@ type DotnetModule = {
   };
 };
 
-type WasmCall = (method: string, payloadJson: string) => string;
+type StatefulWasmCall = (stateJson: string, method: string, payloadJson: string) => string;
 
-let loadPromise: Promise<WasmCall | undefined> | undefined;
+export type WasmExecutionResponse<T> = BridgeResponse<T> & { state?: string };
+
+let loadPromise: Promise<StatefulWasmCall | undefined> | undefined;
 let lastLoadError = "";
 
-export async function tryCallWasmCore<T = unknown>(
+export async function executeWasmCore<T = unknown>(
+  state: string | undefined,
   method: string,
   payload?: unknown,
-): Promise<BridgeResponse<T> | undefined> {
+): Promise<WasmExecutionResponse<T> | undefined> {
   const call = await loadWasmCore();
-  if (!call) {
-    return undefined;
-  }
-
-  const raw = call(method, JSON.stringify(payload ?? {}));
-  const response = JSON.parse(raw) as BridgeResponse<T>;
-  return response;
+  if (!call) return undefined;
+  return JSON.parse(call(state ?? "", method, JSON.stringify(payload ?? {}))) as WasmExecutionResponse<T>;
 }
 
-async function loadWasmCore(): Promise<WasmCall | undefined> {
+async function loadWasmCore(): Promise<StatefulWasmCall | undefined> {
   if (typeof window === "undefined") {
     return undefined;
   }
@@ -43,7 +41,7 @@ async function loadWasmCore(): Promise<WasmCall | undefined> {
       const config = runtime.getConfig();
       const exports = await runtime.getAssemblyExports(config.mainAssemblyName);
       const bridge = (((exports.PrayAdFree as Record<string, unknown>)?.WebBridge as Record<string, unknown>)?.WebRpcBridge as Record<string, unknown>);
-      const call = bridge?.Call as WasmCall | undefined;
+      const call = bridge?.CallWithState as StatefulWasmCall | undefined;
       if (typeof call !== "function") {
         return undefined;
       }

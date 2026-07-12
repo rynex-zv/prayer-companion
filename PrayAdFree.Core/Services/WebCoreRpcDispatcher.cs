@@ -11,8 +11,17 @@ public sealed class WebCoreRpcDispatcher {
     private readonly TasbihProgressCalculator _tasbihCalculator = new();
     private readonly WebPrayerMonthFactory _prayerMonthFactory = new();
     private readonly IslamicOccasionCatalog _occasions = new();
-    private readonly AppRevisionCoordinator _revisions = new();
+    private readonly AppRevisionCoordinator _revisions;
     private WebState _state = WebState.Default();
+
+    public WebCoreRpcDispatcher(WebState? state = null, AppRevision? revision = null) {
+        _state = state ?? WebState.Default();
+        _state.EnsureDefaults();
+        _revisions = new AppRevisionCoordinator(revision);
+    }
+
+    public WebState CaptureState() => _state;
+    public AppRevision CaptureRevision() => _revisions.Snapshot();
 
     private static readonly string[] HijriMonthNames = {
         "Muharram", "Safar", "Rabi al-awwal", "Rabi al-thani",

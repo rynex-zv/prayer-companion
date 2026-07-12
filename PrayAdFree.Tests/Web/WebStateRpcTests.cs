@@ -1,9 +1,45 @@
 using System.Text.Json;
+using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 
 namespace PrayAdFree.Tests.Web;
 
 public sealed class WebStateRpcTests {
+    [Fact]
+    public void Deterministic_engine_persists_state_and_revision_only_through_explicit_output() {
+        var commandPayload = JsonSerializer.SerializeToElement(new {
+            language = "ar",
+            _rpc = new { requestId = "request-1", domain = "app" }
+        });
+        var changed = WebCoreExecutionEngine.Execute(null, "app.setLanguage", commandPayload);
+        var shell = WebCoreExecutionEngine.Execute(changed.State, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
+        var untouched = WebCoreExecutionEngine.Execute(null, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
+
+        Assert.Equal("ar", JsonSerializer.SerializeToElement(shell.Data).GetProperty("language").GetString());
+        Assert.Equal("en", JsonSerializer.SerializeToElement(untouched.Data).GetProperty("language").GetString());
+        Assert.Single(changed.Events);
+        Assert.Equal(1, changed.Events[0].Revision);
+
+        var notModified = WebCoreExecutionEngine.Execute(changed.State, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new {
+            _rpc = new { domain = "app" },
+            _query = new { ifRevision = 1 }
+        }));
+        Assert.True(JsonSerializer.SerializeToElement(notModified.Data).GetProperty("notModified").GetBoolean());
+    }
+
+    [Fact]
+    public void Deterministic_engine_imports_legacy_web_state_without_global_dispatcher_state() {
+        var legacy = WebState.Default();
+        legacy.Language = "tr";
+        var state = JsonSerializer.Serialize(legacy);
+
+        var result = WebCoreExecutionEngine.Execute(state, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
+
+        Assert.Equal("tr", JsonSerializer.SerializeToElement(result.Data).GetProperty("language").GetString());
+        Assert.Contains("\"State\"", result.State, StringComparison.Ordinal);
+        Assert.Contains("\"Revision\"", result.State, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ImportStateAcceptsThePublicStateProperty() {
         var source = new WebCoreRpcDispatcher();

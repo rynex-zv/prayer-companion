@@ -1,6 +1,6 @@
 # Current application architecture and verification instructions
 
-Updated: 2026-07-12 after Phase 5 production verification.
+Updated: 2026-07-12 after Phase 6 production verification.
 
 ## Runtime boundaries
 
@@ -19,6 +19,11 @@ Updated: 2026-07-12 after Phase 5 production verification.
 - `HomeViewModel`, `CalendarViewModel`, `QiblaViewModel`, and `TasbihViewModel` are XAML-only adapters over the same application service classes. Keep domain work, persistence, scheduling, and location updates in the services.
 - Application projection services must remain usable without `MainThread`, MAUI `Command`, vibration, or other device APIs. Singleton services own app-lifetime subscriptions; transient XAML adapters opt out of those subscriptions.
 - Today preload, warmup, bootstrap refresh, and snapshot-file writes share a serialized refresh gate. Preserve it when changing startup concurrency.
+- Browser authority is the schema-versioned IndexedDB `repositories/core-state` record. Each top-level browser operation is serialized, reads repository state, and commits at most one replacement record.
+- WASM is invoked only through `CallWithState`: explicit state and operation in; data, events, persisted revisions, and replacement state out. It must not regain a process-global dispatcher.
+- `WebCoreRpcDispatcher` is an ephemeral compatibility implementation created per `WebCoreExecutionEngine.Execute`; it is not a repository or runtime singleton.
+- Browser geolocation, notification, and geocoding adapters execute inside the current browser repository transaction through an injected Core callback. Do not call WASM independently from a platform adapter.
+- Raw legacy `WebState`, `pray.web.core.state`, and `prayer-companion:app-state:v1` are migration inputs only. Current browser persistence uses schema version 3 and retires both localStorage keys.
 
 ## Startup invariants
 

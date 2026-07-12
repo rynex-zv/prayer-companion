@@ -81,6 +81,22 @@ public sealed class BackendArchitectureTests {
         Assert.Contains("removeItem(\"pray.web.core.state\")", backend, StringComparison.Ordinal);
         Assert.Contains("removeItem(\"prayer-companion:app-state:v1\")", backend, StringComparison.Ordinal);
         Assert.Contains("SCHEMA_VERSION", backend, StringComparison.Ordinal);
+        Assert.DoesNotContain("app.importState", backend, StringComparison.Ordinal);
+        Assert.DoesNotContain("app.exportState", backend, StringComparison.Ordinal);
+        Assert.Contains("executeWasmCore(state", backend, StringComparison.Ordinal);
+        Assert.Contains("operationQueue", backend, StringComparison.Ordinal);
+        Assert.Contains("CallWithState", wasm, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Browser_wasm_bridge_is_deterministic_and_has_no_process_global_dispatcher() {
+        var root = FindRepoRoot();
+        var bridge = File.ReadAllText(Path.Combine(root, "PrayAdFree.WebBridge", "WebRpcBridge.cs"));
+        var engine = File.ReadAllText(Path.Combine(root, "PrayAdFree.Core", "Services", "WebCoreExecutionEngine.cs"));
+        Assert.DoesNotContain("static readonly WebCoreRpcDispatcher", bridge, StringComparison.Ordinal);
+        Assert.Contains("CallWithState", bridge, StringComparison.Ordinal);
+        Assert.Contains("new WebCoreRpcDispatcher(persisted.State, persisted.Revision)", engine, StringComparison.Ordinal);
+        Assert.Contains("WebExecutionResult", engine, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -9,6 +9,13 @@ public sealed class AppRevisionCoordinator {
     private long _global;
     private long _sequence;
 
+    public AppRevisionCoordinator(AppRevision? initial = null) {
+        if (initial is null) return;
+        _global = initial.Global;
+        _sequence = initial.EventSequence;
+        foreach (var pair in initial.Domains) _domains[pair.Key] = pair.Value;
+    }
+
     public AppRevision Snapshot() {
         lock (_gate) return new AppRevision(_global, new Dictionary<string, long>(_domains), _sequence);
     }
