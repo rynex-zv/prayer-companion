@@ -488,6 +488,15 @@ Exit gates:
 
 ### Phase 6: Unified browser backend
 
+**Status: DONE (2026-07-12)**
+
+- [x] `BrowserAppBackend` is the browser runtime's single dispatch, serialization, and persistence boundary.
+- [x] Browser authoritative state is hydrated from and committed to an IndexedDB repository transaction.
+- [x] The old WASM localStorage record imports once into IndexedDB and is retired.
+- [x] WASM no longer reads or writes browser storage; it is invoked as the calculation/contract engine.
+- [x] GPS refresh performs one read and one authoritative write, returning the resulting location without a follow-up snapshot.
+- [x] Architecture checks prevent WASM persistence and snapshot-set-snapshot browser workflows from returning.
+
 Objective: replace React + adapter + mutable WASM state with a real browser backend.
 
 Work:

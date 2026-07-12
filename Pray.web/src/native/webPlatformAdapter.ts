@@ -104,38 +104,20 @@ async function refreshBrowserGps<T>(labels: WebLabels): Promise<BridgeResponse<T
     countryName: "",
   };
 
-  const saved = await tryCallWasmCore("settings.setField", {
+  const address = await reverseAddress(position.coords.latitude, position.coords.longitude);
+  const finalLocation = {
+    ...next,
+    city: address?.city ?? "",
+    country: address?.countryCode ?? "",
+    countryName: address?.country ?? "",
+  };
+  const saved = await tryCallWasmCore<LocationSettings>("settings.setField", {
     section: "locations",
     field: "value",
-    value: next,
+    value: finalLocation,
   });
   if (!saved?.ok) {
     return { ok: false, error: saved?.error ?? label(labels, "webLocationSaveFailed") };
-  }
-
-  const address = await reverseAddress(position.coords.latitude, position.coords.longitude);
-  if (address) {
-    const calculated = await tryCallWasmCore<LocationSettings>("settings.getSnapshot", { section: "locations" });
-    if (calculated?.ok) {
-      await tryCallWasmCore("settings.setField", {
-        section: "locations",
-        field: "value",
-        value: {
-          ...calculated.data,
-          useGps: true,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          city: address.city,
-          country: address.countryCode,
-          countryName: address.country,
-        },
-      });
-    }
-  }
-
-  const refreshed = await tryCallWasmCore<LocationSettings>("settings.getSnapshot", { section: "locations" });
-  if (!refreshed?.ok) {
-    return { ok: false, error: refreshed?.error ?? label(labels, "webLocationRefreshFailed") };
   }
 
   return {
@@ -144,7 +126,7 @@ async function refreshBrowserGps<T>(labels: WebLabels): Promise<BridgeResponse<T
       ok: true,
       action: "refreshGps",
       platform: "web",
-      location: refreshed.data,
+      location: saved.data ?? finalLocation,
     } as T,
   };
 }

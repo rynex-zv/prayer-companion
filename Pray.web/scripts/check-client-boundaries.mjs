@@ -36,6 +36,16 @@ if (!appStore.includes("appClient.bootstrap") || appStore.includes('mauiCall<She
   console.error("Shell startup must use the single grouped app.bootstrap query.");
   process.exit(1);
 }
+const wasmClient = fs.readFileSync(path.join(src, "native/wasmCoreClient.ts"), "utf8");
+const platformAdapter = fs.readFileSync(path.join(src, "native/webPlatformAdapter.ts"), "utf8");
+if (wasmClient.includes("localStorage") || wasmClient.includes("persistState")) {
+  console.error("WASM is a deterministic engine and must not own browser persistence.");
+  process.exit(1);
+}
+if ((platformAdapter.match(/settings\.getSnapshot/g) ?? []).length > 3) {
+  console.error("Browser platform workflows must not use snapshot-set-snapshot chains.");
+  process.exit(1);
+}
 console.log("Client architecture boundary passed.");
 
 function* walk(directory) {

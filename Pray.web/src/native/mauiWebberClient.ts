@@ -1,5 +1,4 @@
-import { tryHandleWebPlatformCall } from "./webPlatformAdapter";
-import { getLastWasmCoreLoadError, tryCallWasmCore } from "./wasmCoreClient";
+import { callBrowserBackend, getLastWasmCoreLoadError } from "./browserAppBackend";
 import { coreContract } from "../generated/core-contract";
 
 export type BridgeResponse<T = unknown> =
@@ -62,16 +61,10 @@ export async function mauiCall<T = unknown>(
 
     // Browser platform operations and WASM belong to one selected browser backend.
     // Never enter this path after a native failure: that could execute a command twice.
-    const webPlatform = await withBridgeTimeout(tryHandleWebPlatformCall<T>(method, correlatedPayload), timeoutMs, method, "web-platform");
-    if (webPlatform) {
-      logBridge(webPlatform.ok ? "success" : "failure", { callId, method, source: "web-platform", elapsedMs: elapsed(started), error: webPlatform.ok ? undefined : webPlatform.error });
-      return webPlatform;
-    }
-
-    const wasm = await withBridgeTimeout(tryCallWasmCore<T>(method, correlatedPayload), timeoutMs, method, "wasm");
-    if (wasm) {
-      logBridge(wasm.ok ? "success" : "failure", { callId, method, source: "wasm", elapsedMs: elapsed(started), error: wasm.ok ? undefined : wasm.error });
-      return wasm;
+    const browser = await withBridgeTimeout(callBrowserBackend<T>(method, correlatedPayload), timeoutMs, method, "browser");
+    if (browser) {
+      logBridge(browser.ok ? "success" : "failure", { callId, method, source: "browser", elapsedMs: elapsed(started), error: browser.ok ? undefined : browser.error });
+      return browser;
     }
 
     const detail = getLastWasmCoreLoadError();
