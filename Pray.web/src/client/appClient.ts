@@ -62,7 +62,12 @@ class DefaultAppClient implements AppClient {
     const requestKey = `command:${command.name}`;
     setRequest(requestKey, { status: "pending", requestId, startedAt: Date.now() });
     if (command.signal?.aborted) return cancelledCommand(requestId, commandId);
-    const response = await mauiCall<T>(command.name, command.payload, { requestId, commandId, domain: command.domain });
+    const response = await mauiCall<T>(command.name, command.payload, {
+      requestId,
+      commandId,
+      domain: command.domain,
+      expectedRevision: command.expectedRevision,
+    });
     if (!response.ok) {
       const error = normalizeError(response.error, response.errorInfo);
       setRequest(requestKey, { status: error.code === "cancelled" ? "cancelled" : "error", requestId, error: error.message, completedAt: Date.now() });

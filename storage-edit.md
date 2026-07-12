@@ -432,6 +432,14 @@ Exit gates:
 
 ### Phase 4: Backend application services and repositories
 
+**Status: DONE (2026-07-12)**
+
+- [x] All native commands cross a serialized application coordinator boundary with command-ID replay protection and expected-revision validation.
+- [x] The coordinator owns transaction commit/rollback, revision advancement, and post-commit event publication ordering.
+- [x] Settings persistence is exposed to backend consumers through the typed `ISettingsRepository` contract.
+- [x] Legacy RPC names remain mapped at the transport boundary while successful commands continue returning their authoritative projection payloads.
+- [x] Tests cover idempotent replay, stale revision rejection, commit-before-event ordering, and failure atomicity.
+
 Objective: put authoritative use cases behind one backend application layer.
 
 Work:

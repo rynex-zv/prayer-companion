@@ -23,13 +23,13 @@ type SelectedBackend =
 export async function mauiCall<T = unknown>(
   method: string,
   payload?: unknown,
-  options?: { requestId?: string; commandId?: string; domain?: string },
+  options?: { requestId?: string; commandId?: string; domain?: string; expectedRevision?: number },
 ): Promise<BridgeResponse<T>> {
   const callId = nextCallId();
   const requestId = options?.requestId ?? createId();
   const kind = classify(method);
   const commandId = options?.commandId ?? (kind === "command" || kind === "compatibilityAdapter" ? createId() : undefined);
-  const correlatedPayload = addCorrelation(payload, requestId, commandId, options?.domain);
+  const correlatedPayload = addCorrelation(payload, requestId, commandId, options?.domain, options?.expectedRevision);
   const started = now();
   const timeoutMs = bridgeTimeoutFor(method);
   observeSequence(method, kind, requestId);
@@ -288,9 +288,9 @@ function observeSequence(method: string, kind: OperationKind, requestId: string)
   }, bridgeTimeoutFor(method));
 }
 
-function addCorrelation(payload: unknown, requestId: string, commandId?: string, domain?: string): unknown {
+function addCorrelation(payload: unknown, requestId: string, commandId?: string, domain?: string, expectedRevision?: number): unknown {
   const body = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
-  return { ...body, _rpc: { contractVersion: coreContract.contractVersion, requestId, commandId, domain } };
+  return { ...body, _rpc: { contractVersion: coreContract.contractVersion, requestId, commandId, domain, expectedRevision } };
 }
 
 function createId(): string {

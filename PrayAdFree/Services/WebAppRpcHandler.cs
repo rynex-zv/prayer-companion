@@ -14,7 +14,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly CalendarViewModel _calendar;
     private readonly QiblaViewModel _qibla;
     private readonly TasbihViewModel _tasbih;
-    private readonly SettingsService _settingsService;
+    private readonly ISettingsRepository _settingsService;
     private readonly PrayerDataService _dataService;
     private readonly IAppPermissionCenterService _permissionCenter;
     private readonly IGeoLookupService _geoLookupService;
@@ -24,6 +24,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly MauiWebberUpdater _webUpdater;
     private readonly IAppLogger _logger;
     private readonly AppRevisionCoordinator _revisions = new();
+    private readonly ApplicationCoordinator _application;
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
@@ -35,7 +36,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         CalendarViewModel calendar,
         QiblaViewModel qibla,
         TasbihViewModel tasbih,
-        SettingsService settingsService,
+        ISettingsRepository settingsService,
         PrayerDataService dataService,
         IAppPermissionCenterService permissionCenter,
         IGeoLookupService geoLookupService,
@@ -57,6 +58,13 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _alarmCapability = alarmCapability;
         _webUpdater = webUpdater;
         _logger = logger;
+        _application = new ApplicationCoordinator(
+            new ImmediateApplicationTransactionFactory(),
+            _revisions,
+            (appEvent, _) => {
+                MauiWebberEventHub.Publish(appEvent);
+                return Task.CompletedTask;
+            });
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         App.AppResumed += OnAppResumed;
     }
@@ -84,7 +92,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
                 currentRevision.Domains.TryGetValue(domain, out var domainRevision) && domainRevision == ifRevision) {
                 return new { notModified = true, revision = domainRevision };
             }
-            var result = method switch {
+            var execute = new Func<Task<object?>>(async () => method switch {
             "app.bootstrap" => await BuildBootstrapAsync(cancellationToken).ConfigureAwait(false),
             "today.getSnapshot" or "today.refresh" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
             "mauiWebber.trace" => new { ok = true },
@@ -120,10 +128,21 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
                 _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
-            };
+            });
+            object? result;
             if (operationKind is PrayAdFree.Core.Contracts.RpcOperationKind.Command or PrayAdFree.Core.Contracts.RpcOperationKind.CompatibilityAdapter) {
-                var appEvent = _revisions.Changed(domain, requestId, invalidationKey: $"{domain}.*");
-                MauiWebberEventHub.Publish(appEvent);
+                var coordinated = await _application.CommandAsync(
+                    new ApplicationCommandRequest(
+                        requestId,
+                        commandId ?? requestId,
+                        method,
+                        domain,
+                        ReadExpectedRevision(payload)),
+                    _ => execute(),
+                    cancellationToken).ConfigureAwait(false);
+                result = coordinated.Data;
+            } else {
+                result = await execute().ConfigureAwait(false);
             }
             stopwatch.Stop();
             var metrics = RpcObservability.Capture();
@@ -181,6 +200,13 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("_query", out var query) &&
             query.ValueKind == JsonValueKind.Object && query.TryGetProperty("ifRevision", out var value) && value.TryGetInt64(out var revision)) return revision;
         return 0;
+    }
+
+    private static long? ReadExpectedRevision(JsonElement payload) {
+        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("_rpc", out var metadata) &&
+            metadata.ValueKind == JsonValueKind.Object && metadata.TryGetProperty("expectedRevision", out var value) &&
+            value.TryGetInt64(out var revision)) return revision;
+        return null;
     }
 
     private object BuildShellSnapshot() {

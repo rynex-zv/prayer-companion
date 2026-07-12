@@ -3,7 +3,12 @@ using PrayAdFree.Core.Models;
 
 namespace PrayAdFree.Core.Services;
 
-public sealed class SettingsService {
+public interface ISettingsRepository {
+    AppSettings Load();
+    void Save(AppSettings settings);
+}
+
+public sealed class SettingsService : ISettingsRepository {
     private const string SettingsKey = "app_settings";
     private readonly ISettingsStore _store;
     public SettingsService(ISettingsStore store) {

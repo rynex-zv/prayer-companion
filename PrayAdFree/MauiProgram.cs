@@ -140,6 +140,7 @@ namespace Pray_Ad_Free {
                     "PrayAdFree",
                     "app_settings.json")));
             builder.Services.AddSingleton<SettingsService>();
+            builder.Services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<SettingsService>());
             builder.Services.AddHttpClient<PhotonGeoProvider>(client => {
                 client.BaseAddress = new Uri("https://photon.komoot.io/");
             });
