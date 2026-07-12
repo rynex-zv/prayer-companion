@@ -534,13 +534,32 @@ Exit gates:
 
 ### Phase 7: Persistence and cache consolidation
 
-**Status: PARTIAL — runtime audit reopened (2026-07-12)**
+**Status: DONE — ownership, migrations, cache eviction, and reconciliation verified (2026-07-12)**
 
 - [x] React confirmed, optimistic, request, and sync projections are memory-only and never written as domain data.
 - [x] Both legacy localStorage documents import once into the browser repository and are then removed.
 - [x] Browser repository records carry an explicit persistence schema version and recover safely from absent/old records.
 - [x] Prayer-time derived cache keys include schema/calculation version plus every authoritative calculation input.
 - [x] Architecture and migration tests enforce storage ownership and retirement of both legacy keys.
+- [x] Browser schema version 4 upgrades old raw/schema records, rejects newer unknown schemas, and rewrites recoverable corrupt state deterministically.
+- [x] Calendar view/mode and all React request/confirmed/optimistic state are memory-only.
+- [x] Cache clearing removes only reconstructable service-worker, Cache Storage, session, and platform disk-cache data; it preserves IndexedDB, native repositories, cookies, and user-authored state.
+- [x] Prayer cache v3 keys exact coordinates, timezone, method, madhhab, high-latitude rule, offsets, angles, and calculation version.
+- [x] Today snapshot schema 2 keys date, prayer inputs, language, and clock format; geo cache schema 1 validates expiry; both discard incompatible records.
+- [x] Notification schedule reconciliation v2 keys settings, timezone, permission requests, alarm capability/permission state, and custom sound identity.
+- [x] Browser reload/cache-eviction, release builds, 144 tests, and the rebuilt Windows runtime were verified without console or exception-log errors.
+
+Durable ownership and derived-data inventory:
+
+| Datum | Single authority | Deletion/rebuild rule |
+|---|---|---|
+| Native settings, location, reminders, tasbih, onboarding | `ISettingsRepository` / `SettingsService` JSON transaction | User-authored; cache clearing must preserve it. |
+| Browser settings, location, reminders, tasbih, onboarding, persisted revisions | IndexedDB `prayer-companion/repositories/core-state`, schema 4 | User-authored; legacy localStorage is import-only and then removed. |
+| Prayer month calculations | `PrayerTimesCache/v3` | Derived; safely regenerated from its complete input key. |
+| Today snapshot | Today cache envelope schema 2 | Derived; accepted only when its complete input key matches. |
+| Geocoding response | Geo cache document schema 1 | Derived; safely removed when expired, incompatible, or corrupt. |
+| Platform notification schedule | OS projection plus reconciliation signature v2 | Derived from authoritative settings and current platform capability; safely reconciled. |
+| Calendar view/mode and React projections/requests | Process memory | UI-only; intentionally lost on reload. |
 
 Objective: remove duplicate durable state and formalize caches.
 

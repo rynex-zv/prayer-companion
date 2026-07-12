@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { mauiCall } from "@/client/legacyClient";
 import { Card } from "@/components/Card";
@@ -45,19 +45,14 @@ type Snapshot = {
 type ViewMode = "year" | "month" | "week" | "day";
 type CalendarMode = "gregorian" | "hijri";
 
-const VIEW_KEY = "prayadfree:calendarView";
-const MODE_KEY = "prayadfree:calendarMode";
-
 function CalendarPage() {
   usePageLog("calendar");
   const t = useAppLabels();
   const { data, refresh, setData } = useSnapshot<Snapshot>("calendar.getSnapshot");
 
-  const [view, setView] = useState<ViewMode>(() => (localStorage.getItem(VIEW_KEY) as ViewMode) || "month");
-  const [mode, setMode] = useState<CalendarMode>(() => (localStorage.getItem(MODE_KEY) as CalendarMode) || "gregorian");
+  const [view, setView] = useState<ViewMode>("month");
+  const [mode, setMode] = useState<CalendarMode>("gregorian");
   const [selectedIso, setSelectedIso] = useState<string | null>(null);
-  useEffect(() => { localStorage.setItem(VIEW_KEY, view); }, [view]);
-  useEffect(() => { localStorage.setItem(MODE_KEY, mode); }, [mode]);
 
   if (!data) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
   const snapshot = data;

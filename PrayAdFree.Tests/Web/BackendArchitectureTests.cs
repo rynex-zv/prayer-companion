@@ -100,6 +100,40 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Cache_eviction_preserves_authoritative_browser_repository_and_ui_state_is_memory_only() {
+        var root = FindRepoRoot();
+        var reset = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "lib", "siteDataReset.ts"));
+        var calendar = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "routes", "calendar.tsx"));
+        var nativeHost = File.ReadAllText(Path.Combine(root, "MauiWebber", "MauiWebberPage.cs"));
+        Assert.DoesNotContain("indexedDB", reset, StringComparison.Ordinal);
+        Assert.DoesNotContain("localStorage", reset, StringComparison.Ordinal);
+        Assert.DoesNotContain("clearIndexedDb", reset, StringComparison.Ordinal);
+        Assert.DoesNotContain("localStorage", calendar, StringComparison.Ordinal);
+        Assert.Contains("clearCacheStorage", reset, StringComparison.Ordinal);
+        Assert.DoesNotContain("DeleteAllData", nativeHost, StringComparison.Ordinal);
+        Assert.DoesNotContain("AllWebsiteDataTypes", nativeHost, StringComparison.Ordinal);
+        Assert.DoesNotContain("RemoveAllCookies", nativeHost, StringComparison.Ordinal);
+        Assert.Contains("CoreWebView2BrowsingDataKinds.DiskCache", nativeHost, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Native_derived_caches_are_versioned_and_input_keyed() {
+        var root = FindRepoRoot();
+        var prayer = File.ReadAllText(Path.Combine(root, "PrayAdFree.Core", "Services", "PrayerTimesService.cs"));
+        var today = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "TodayWebRpcHandler.cs"));
+        var geo = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "GeoService.cs"));
+        var scheduling = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "LocalNotificationScheduler.cs"));
+        Assert.Contains("CalculationVersion", prayer, StringComparison.Ordinal);
+        Assert.Contains("ToString(\"R\"", prayer, StringComparison.Ordinal);
+        Assert.Contains("SnapshotCacheSchemaVersion", today, StringComparison.Ordinal);
+        Assert.Contains("BuildSnapshotInputKey", today, StringComparison.Ordinal);
+        Assert.Contains("GeoCacheDocument", geo, StringComparison.Ordinal);
+        Assert.Contains("ScheduleReconciliationVersion", scheduling, StringComparison.Ordinal);
+        Assert.Contains("requestPermissions", scheduling, StringComparison.Ordinal);
+        Assert.Contains("alarmDecision.Permissions", scheduling, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Cold_start_has_bundled_labels_and_cannot_throw_before_bootstrap() {
         var root = FindRepoRoot();
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));

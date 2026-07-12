@@ -5,7 +5,8 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public sealed class PrayerTimesService {
-    public const int CacheSchemaVersion = 2;
+    public const int CacheSchemaVersion = 3;
+    public const int CalculationVersion = 1;
     private readonly IPrayerTimesClient _client;
     private readonly PrayerTimesCache _cache;
 
@@ -38,7 +39,18 @@ public sealed class PrayerTimesService {
         var method = settings.Method == CalculationMethod.Auto
             ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
             : settings.Method;
-        var raw = $"v{CacheSchemaVersion}-{year}-{month}-{settings.Location.Latitude:F4}-{settings.Location.Longitude:F4}-{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{OffsetsKey(settings.Offsets)}-{SunAnglesKey(settings.SunAngles)}";
+        var raw = string.Join('|',
+            $"schema:{CacheSchemaVersion}",
+            $"calculation:{CalculationVersion}",
+            $"period:{year:D4}-{month:D2}",
+            $"latitude:{settings.Location.Latitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}",
+            $"longitude:{settings.Location.Longitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}",
+            $"timezone:{settings.Location.TimeZoneId}",
+            $"method:{method}",
+            $"madhhab:{settings.Madhhab}",
+            $"highLatitude:{settings.HighLatitudeRule}",
+            $"offsets:{OffsetsKey(settings.Offsets)}",
+            $"sunAngles:{SunAnglesKey(settings.SunAngles)}");
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
@@ -49,6 +61,6 @@ public sealed class PrayerTimesService {
     }
 
     private static string SunAnglesKey(SunAngleSettings sunAngles) {
-        return $"{sunAngles.Fajr:0.##},{sunAngles.Isha:0.##}";
+        return $"{sunAngles.Fajr.ToString("R", System.Globalization.CultureInfo.InvariantCulture)},{sunAngles.Isha.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}";
     }
 }

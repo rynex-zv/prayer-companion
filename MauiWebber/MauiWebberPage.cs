@@ -9,10 +9,6 @@ using Java.Interop;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 #endif
-#if IOS || MACCATALYST
-using Foundation;
-using WebKit;
-#endif
 
 namespace MauiWebber;
 
@@ -541,30 +537,22 @@ public class MauiWebberPage : ContentPage {
                 androidWebView.ClearCache(true);
                 androidWebView.ClearHistory();
             }
-
-            Android.Webkit.CookieManager.Instance?.RemoveAllCookies(null);
-            Android.Webkit.CookieManager.Instance?.Flush();
-            Android.Webkit.WebStorage.Instance?.DeleteAllData();
         }).ConfigureAwait(false);
 #elif WINDOWS
         await MainThread.InvokeOnMainThreadAsync(async () => {
             if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
-                await windowsWebView.CoreWebView2.Profile.ClearBrowsingDataAsync();
+                await windowsWebView.CoreWebView2.Profile.ClearBrowsingDataAsync(
+                    CoreWebView2BrowsingDataKinds.DiskCache);
             }
         }).ConfigureAwait(false);
 #elif IOS || MACCATALYST
-        var cleared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await MainThread.InvokeOnMainThreadAsync(() => {
-            WKWebsiteDataStore.DefaultDataStore.RemoveDataOfTypes(
-                WKWebsiteDataStore.AllWebsiteDataTypes,
-                NSDate.DistantPast,
-                () => cleared.TrySetResult(true));
-        }).ConfigureAwait(false);
-        await cleared.Task.ConfigureAwait(false);
+        // Cache Storage and service workers are cleared by the web client. Do not
+        // invoke broad website-data deletion because it removes authoritative storage.
+        await Task.CompletedTask;
 #else
         await Task.CompletedTask;
 #endif
-        _logger.Log("WebView.SiteDataCleared", "all");
+        _logger.Log("WebView.SiteDataCleared", "reconstructable-cache-only");
     }
 
     private static string ToSourceUrl(string startupFile) {

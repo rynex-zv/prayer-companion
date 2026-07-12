@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DatabaseZap } from "lucide-react";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { clearApplicationSiteData } from "@/lib/siteDataReset";
+import { clearApplicationCaches } from "@/lib/siteDataReset";
 
 const REQUIRED_SHAKES = 5;
 const SHAKE_THRESHOLD = 24;
@@ -52,7 +52,7 @@ export function ShakeDataResetButton() {
     if (clearing) return;
     setClearing(true);
     try {
-      await clearApplicationSiteData("backend");
+      await clearApplicationCaches();
     } catch (error) {
       console.error("[pray.cache] shake reset failed", error);
       setClearing(false);

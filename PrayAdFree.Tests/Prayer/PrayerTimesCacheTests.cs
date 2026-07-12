@@ -35,8 +35,10 @@ public class PrayerTimesCacheTests {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         try {
-            await File.WriteAllTextAsync(Path.Combine(tempDir, "broken.json"), "{ not-json");
             var cache = new PrayerTimesCache(tempDir);
+            var path = CachePath(tempDir, "broken");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, "{ not-json");
 
             var loaded = await cache.TryReadAsync("broken", CancellationToken.None);
 
@@ -64,7 +66,7 @@ public class PrayerTimesCacheTests {
             };
             await cache.WriteAsync("locked", original, CancellationToken.None);
 
-            var path = Path.Combine(tempDir, "locked.json");
+            var path = CachePath(tempDir, "locked");
             await using var lockStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
 
             var updated = new PrayerMonth {
@@ -88,4 +90,26 @@ public class PrayerTimesCacheTests {
             }
         }
     }
+
+    [Fact]
+    public async Task ClearAsync_RemovesOnlyReconstructablePrayerCache() {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try {
+            var authoritative = Path.Combine(tempDir, "app_settings.json");
+            Directory.CreateDirectory(tempDir);
+            await File.WriteAllTextAsync(authoritative, "user-data");
+            var cache = new PrayerTimesCache(tempDir);
+            await cache.WriteAsync("key", new PrayerMonth { Year = 2025, Month = 1, FetchedOnUtc = DateTime.UtcNow }, default);
+
+            await cache.ClearAsync();
+
+            Assert.Null(await cache.TryReadAsync("key", default));
+            Assert.Equal("user-data", await File.ReadAllTextAsync(authoritative));
+        } finally {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    private static string CachePath(string root, string key) =>
+        Path.Combine(root, "PrayerTimesCache", $"v{PrayerTimesService.CacheSchemaVersion}", $"{key}.json");
 }

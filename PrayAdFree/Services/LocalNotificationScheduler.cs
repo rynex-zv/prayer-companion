@@ -12,6 +12,7 @@ using PrayAdFree.Core.Services;
 namespace Pray_Ad_Free.Services;
 
 public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
+    private const int ScheduleReconciliationVersion = 2;
     public const string PrayerNotificationChannelId = "prayer_notification_v3";
     public const string PrayerRuntimeMediaChannelId = "prayer_runtime_media_v3";
     public const string PrayerSilentChannelId = "prayer_silent_v3";
@@ -41,11 +42,12 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         var dayList = days?
             .OrderBy(item => item.Date)
             .ToList() ?? new List<PrayerDay>();
-        var scheduleSignature = BuildScheduleSignature(dayList, settings);
         var now = DateTime.Now;
 
         await _scheduleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
+            var alarmDecision = await _alarmCapabilityService.GetCurrentDecisionAsync().ConfigureAwait(false);
+            var scheduleSignature = BuildScheduleSignature(dayList, settings, requestPermissions, alarmDecision);
             if (string.Equals(_lastScheduleSignature, scheduleSignature, StringComparison.Ordinal) &&
                 DateTime.UtcNow - _lastScheduleAppliedUtc < ScheduleReuseWindow) {
                 _logger.LogEvent("NotificationScheduleSkipped", "signature_match");
@@ -70,7 +72,6 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
 
             await CancelAsyncCore().ConfigureAwait(false);
 
-            var alarmDecision = await _alarmCapabilityService.GetCurrentDecisionAsync().ConfigureAwait(false);
             _logger.LogEvent("AlarmFallbackDecision", $"source=schedule;{AndroidAlarmCapabilityService.BuildLogDetails(alarmDecision)}");
 
             var requests = new List<NotificationRequest>();
@@ -795,13 +796,18 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             : nextNativeTime;
     }
 
-    private static string BuildScheduleSignature(IReadOnlyList<PrayerDay> days, AppSettings settings) {
+    private static string BuildScheduleSignature(
+        IReadOnlyList<PrayerDay> days,
+        AppSettings settings,
+        bool requestPermissions,
+        AndroidAlarmCapabilityDecision alarmDecision) {
         var overrides = settings.Notifications.PrayerOverrides ?? [];
         var reminderItems = settings.Notifications.ReminderItems ?? [];
         var reminderOffsets = settings.Notifications.ReminderOffsetsMinutes ?? [];
         var imsakReminders = settings.FastingReminders.ImsakRemindersMinutes ?? [];
         var iftarReminders = settings.FastingReminders.IftarRemindersMinutes ?? [];
         var deferredReminder = settings.Notifications.PendingDeferredReminder;
+        var customSounds = settings.Notifications.CustomSounds ?? [];
 
         var daysKey = string.Join(',', days.Select(item =>
             $"{item.Date:yyyyMMdd}:{item.Timings.Fajr:HHmm}:{item.Timings.Dhuhr:HHmm}:{item.Timings.Asr:HHmm}:{item.Timings.Maghrib:HHmm}:{item.Timings.Isha:HHmm}:{item.Timings.Imsak:HHmm}"));
@@ -819,9 +825,17 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             ? string.Empty
             : $"{deferredReminder.NotifyTime:O}:{deferredReminder.BasePrayerTime:O}:{(int)deferredReminder.Prayer}:{deferredReminder.SoundKey}:{deferredReminder.OpenAlarmScreen}";
 
+        var customSoundKey = string.Join(',', customSounds
+            .OrderBy(item => item.Key, StringComparer.Ordinal)
+            .Select(item => $"{item.Key}:{item.FileName}"));
+
         return string.Join('|',
+            $"reconciliation:{ScheduleReconciliationVersion}",
+            $"requestPermissions:{requestPermissions}",
+            $"alarm:{alarmDecision.SchedulingMode}:{alarmDecision.PresentationMode}:{alarmDecision.SupportStatus}:{alarmDecision.Permissions.NotificationsGranted}:{alarmDecision.Permissions.ExactAlarmsGranted}:{alarmDecision.Permissions.FullScreenIntentsGranted}:{alarmDecision.Permissions.DisplayOverAppsGranted}:{alarmDecision.ScreenOnAndUnlocked}",
             settings.Location.Latitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture),
             settings.Location.Longitude.ToString("F4", System.Globalization.CultureInfo.InvariantCulture),
+            settings.Location.TimeZoneId,
             settings.Method,
             settings.Madhhab,
             settings.HighLatitudeRule,
@@ -829,6 +843,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             settings.Notifications.MobilePrimaryAdhanType,
             settings.Notifications.MinutesBefore,
             settings.Notifications.SoundKey,
+            customSoundKey,
             settings.Notifications.EnableVibration,
             settings.Notifications.VibrationStrength,
             settings.Notifications.VibrationPattern,

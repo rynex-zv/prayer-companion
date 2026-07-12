@@ -7,6 +7,7 @@ using System.Threading;
 namespace Pray_Ad_Free.Services;
 
 public sealed class GeoService : IGeoLookupService {
+    private const int CacheSchemaVersion = 1;
     private const double DefaultRadiusKm = 20;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(30);
     private static readonly TimeSpan MinRequestInterval = TimeSpan.FromSeconds(1);
@@ -160,20 +161,28 @@ public sealed class GeoService : IGeoLookupService {
             }
 
             var json = File.ReadAllText(_cachePath);
-            var entries = JsonSerializer.Deserialize<List<GeoCacheEntry>>(json);
-            if (entries != null) {
+            var document = JsonSerializer.Deserialize<GeoCacheDocument>(json);
+            if (document?.SchemaVersion == CacheSchemaVersion) {
                 _cacheEntries.Clear();
-                _cacheEntries.AddRange(entries);
+                _cacheEntries.AddRange(document.Entries.Where(entry =>
+                    (DateTime.UtcNow - entry.TimestampUtc) <= CacheTtl));
+            } else {
+                TryDeleteCache();
             }
         } catch {
-            // ignore corrupted cache
+            TryDeleteCache();
         }
     }
 
     private Task SaveCacheAsync() {
         try {
-            var json = JsonSerializer.Serialize(_cacheEntries, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_cachePath, json);
+            var directory = Path.GetDirectoryName(_cachePath);
+            if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+            var document = new GeoCacheDocument(CacheSchemaVersion, _cacheEntries);
+            var json = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+            var tempPath = _cachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, _cachePath, overwrite: true);
         } catch {
             // ignore write failures
         }
@@ -194,6 +203,10 @@ public sealed class GeoService : IGeoLookupService {
 
     private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
 
+    private void TryDeleteCache() {
+        try { if (File.Exists(_cachePath)) File.Delete(_cachePath); } catch { }
+    }
+
     private static readonly (string country, string countryCode, string city, double latitude, double longitude)[] DefaultPlaces = [
         ("Netherlands", "NL", "Amsterdam", 52.3676, 4.9041),
         ("Netherlands", "NL", "Rotterdam", 51.9244, 4.4777),
@@ -212,4 +225,6 @@ public sealed class GeoService : IGeoLookupService {
         public double RadiusKm { get; set; }
         public DateTime TimestampUtc { get; set; }
     }
+
+    private sealed record GeoCacheDocument(int SchemaVersion, List<GeoCacheEntry> Entries);
 }

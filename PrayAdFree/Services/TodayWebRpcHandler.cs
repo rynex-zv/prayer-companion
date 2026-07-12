@@ -2,16 +2,19 @@ using System.Globalization;
 using System.Text.Json;
 using MauiWebber;
 using PrayAdFree.Core.Services;
+using PrayAdFree.Core.Models;
 
 namespace Pray_Ad_Free.Services;
 
 public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
+    private const int SnapshotCacheSchemaVersion = 2;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
     };
 
     private readonly ITodayProjectionSource _source;
     private readonly IAppLogger _logger;
+    private readonly ISettingsRepository _settings;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly string _snapshotPath;
@@ -20,8 +23,9 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     private bool _backgroundRefreshRunning;
     private bool _cacheWarmupStarted;
 
-    public TodayWebRpcHandler(ITodayProjectionSource source, IAppLogger logger) {
+    public TodayWebRpcHandler(ITodayProjectionSource source, ISettingsRepository settings, IAppLogger logger) {
         _source = source;
+        _settings = settings;
         _logger = logger;
         _snapshotPath = Path.Combine(FileSystem.AppDataDirectory, "MauiWebber", "today-snapshot.json");
         _lastSnapshot = LoadCachedSnapshot();
@@ -200,9 +204,16 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
                 return null;
             }
 
-            return JsonSerializer.Deserialize<TodayWebSnapshot>(File.ReadAllText(_snapshotPath), JsonOptions);
+            var envelope = JsonSerializer.Deserialize<TodaySnapshotCacheEnvelope>(File.ReadAllText(_snapshotPath), JsonOptions);
+            if (envelope?.SchemaVersion != SnapshotCacheSchemaVersion ||
+                !string.Equals(envelope.InputKey, BuildSnapshotInputKey(), StringComparison.Ordinal)) {
+                TryDeleteSnapshotCache();
+                return null;
+            }
+            return envelope.Snapshot;
         } catch (Exception ex) {
             _logger.LogException(ex, "TodayWebRpcHandler.LoadCachedSnapshot");
+            TryDeleteSnapshotCache();
             return null;
         }
     }
@@ -210,12 +221,31 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     private void SaveSnapshot(TodayWebSnapshot snapshot) {
         try {
             Directory.CreateDirectory(Path.GetDirectoryName(_snapshotPath)!);
-            File.WriteAllText(_snapshotPath, JsonSerializer.Serialize(snapshot, JsonOptions));
+            var envelope = new TodaySnapshotCacheEnvelope(SnapshotCacheSchemaVersion, BuildSnapshotInputKey(), snapshot);
+            var tempPath = _snapshotPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(tempPath, JsonSerializer.Serialize(envelope, JsonOptions));
+            File.Move(tempPath, _snapshotPath, overwrite: true);
         } catch (Exception ex) {
             _logger.LogException(ex, "TodayWebRpcHandler.SaveSnapshot");
         }
     }
+
+    private string BuildSnapshotInputKey() {
+        var settings = _settings.Load();
+        var prayerInput = PrayerTimesService.BuildCacheKey(settings, DateTime.Today.Year, DateTime.Today.Month);
+        return string.Join('|',
+            $"date:{DateOnly.FromDateTime(DateTime.Today):yyyy-MM-dd}",
+            $"prayer:{prayerInput}",
+            $"language:{LocalizationManager.CurrentLanguage}",
+            $"clock:{settings.ClockFormat}");
+    }
+
+    private void TryDeleteSnapshotCache() {
+        try { if (File.Exists(_snapshotPath)) File.Delete(_snapshotPath); } catch { }
+    }
 }
+
+public sealed record TodaySnapshotCacheEnvelope(int SchemaVersion, string InputKey, TodayWebSnapshot Snapshot);
 
 public sealed record TodayWebSnapshot(
     string LocationTitle,

@@ -14,8 +14,15 @@ public sealed class PrayerTimesCache {
 
     private readonly string _cacheDirectory;
     public PrayerTimesCache(string cacheDirectory) {
-        _cacheDirectory = cacheDirectory;
+        _cacheDirectory = Path.Combine(cacheDirectory, "PrayerTimesCache", $"v{PrayerTimesService.CacheSchemaVersion}");
         Directory.CreateDirectory(_cacheDirectory);
+    }
+
+    public Task ClearAsync(CancellationToken cancellationToken = default) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Directory.Exists(_cacheDirectory)) Directory.Delete(_cacheDirectory, recursive: true);
+        Directory.CreateDirectory(_cacheDirectory);
+        return Task.CompletedTask;
     }
 
     public async Task<PrayerMonth?> TryReadAsync(string cacheKey, CancellationToken cancellationToken) {

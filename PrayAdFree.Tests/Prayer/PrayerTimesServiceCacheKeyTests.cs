@@ -32,4 +32,21 @@ public class PrayerTimesServiceCacheKeyTests {
 
         Assert.NotEqual(baseKey, updatedKey);
     }
+
+    [Fact]
+    public void BuildCacheKey_ChangesForSubFourDecimalCoordinateAndTimezoneInputs() {
+        var baseline = new AppSettings {
+            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, TimeZoneId = "Europe/Amsterdam" }
+        };
+        var coordinate = new AppSettings {
+            Location = new LocationSettings { Latitude = 52.36760002, Longitude = 4.9041, TimeZoneId = "Europe/Amsterdam" }
+        };
+        var timezone = new AppSettings {
+            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, TimeZoneId = "UTC" }
+        };
+
+        var key = PrayerTimesService.BuildCacheKey(baseline, 2026, 7);
+        Assert.NotEqual(key, PrayerTimesService.BuildCacheKey(coordinate, 2026, 7));
+        Assert.NotEqual(key, PrayerTimesService.BuildCacheKey(timezone, 2026, 7));
+    }
 }

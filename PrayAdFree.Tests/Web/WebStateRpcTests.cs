@@ -52,6 +52,17 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
+    public void Corrupt_persisted_browser_state_recovers_to_a_valid_default_repository_document() {
+        var result = WebCoreExecutionEngine.Execute("{ definitely-not-json", "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
+        var shell = JsonSerializer.SerializeToElement(result.Data);
+
+        Assert.Equal("en", shell.GetProperty("language").GetString());
+        var restored = JsonSerializer.Deserialize<WebExecutionState>(result.State);
+        Assert.NotNull(restored);
+        Assert.Equal(0, restored!.Revision.Global);
+    }
+
+    [Fact]
     public void ImportStateAcceptsThePublicStateProperty() {
         var source = new WebCoreRpcDispatcher();
         Dispatch(source, "app.setLanguage", new { language = "ar" });

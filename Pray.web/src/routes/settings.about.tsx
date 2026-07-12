@@ -7,8 +7,7 @@ import { Mail, Phone, Globe, Bug, DownloadCloud, DatabaseZap } from "lucide-reac
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { Toggle } from "@/components/Toggle";
-import { clearApplicationSiteData } from "@/lib/siteDataReset";
+import { clearApplicationCaches } from "@/lib/siteDataReset";
 
 export const Route = createFileRoute("/settings/about")({
   component: AboutPage,
@@ -21,7 +20,6 @@ function AboutPage() {
   const [pullStatus, setPullStatus] = useState("");
   const [isPullingRemote, setIsPullingRemote] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
-  const [restoreLocalData, setRestoreLocalData] = useState(true);
   const [isClearingData, setIsClearingData] = useState(false);
 
   const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
@@ -103,7 +101,7 @@ function AboutPage() {
     setIsClearingData(true);
     setPullStatus(t("clearingAppData"));
     try {
-      await clearApplicationSiteData(restoreLocalData ? "localStorage" : "backend");
+      await clearApplicationCaches();
     } catch (error) {
       console.error("[pray.about] clear site data failed", error);
       setPullStatus(error instanceof Error ? error.message : t("clearAppDataFailed"));
@@ -140,14 +138,8 @@ function AboutPage() {
             <div className="text-sm font-semibold">{t("appStorage")}</div>
             <p className="mt-1 text-xs text-muted-foreground">{t("clearAppDataDescription")}</p>
           </div>
-          <Toggle
-            checked={restoreLocalData}
-            onChange={setRestoreLocalData}
-            label={t("restoreDataFromLocalStorage")}
-            selectorName="about:restore-local-data"
-          />
           <p className="text-xs text-muted-foreground">
-            {restoreLocalData ? t("localStorageRestoreHint") : t("backendRestoreHint")}
+            {t("backendRestoreHint")}
           </p>
           <button
             type="button"

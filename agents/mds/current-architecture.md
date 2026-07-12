@@ -1,6 +1,6 @@
 # Current application architecture and verification instructions
 
-Updated: 2026-07-12 after Phase 6 production verification.
+Updated: 2026-07-12 after Phase 7 production verification.
 
 ## Runtime boundaries
 
@@ -23,7 +23,10 @@ Updated: 2026-07-12 after Phase 6 production verification.
 - WASM is invoked only through `CallWithState`: explicit state and operation in; data, events, persisted revisions, and replacement state out. It must not regain a process-global dispatcher.
 - `WebCoreRpcDispatcher` is an ephemeral compatibility implementation created per `WebCoreExecutionEngine.Execute`; it is not a repository or runtime singleton.
 - Browser geolocation, notification, and geocoding adapters execute inside the current browser repository transaction through an injected Core callback. Do not call WASM independently from a platform adapter.
-- Raw legacy `WebState`, `pray.web.core.state`, and `prayer-companion:app-state:v1` are migration inputs only. Current browser persistence uses schema version 3 and retires both localStorage keys.
+- Raw legacy `WebState`, `pray.web.core.state`, and `prayer-companion:app-state:v1` are migration inputs only. Current browser persistence uses schema version 4, upgrades older records on the next successful operation, rejects unknown future schemas, and retires both localStorage keys.
+- Cache clearing is eviction of reconstructable data, never a factory reset. It may remove service workers, Cache Storage, session state, and native disk caches; it must preserve IndexedDB, native settings repositories, cookies, location, reminders, and other user-authored data.
+- Derived storage is explicitly versioned: prayer calculations use cache v3 with exact calculation inputs, Today uses envelope v2 keyed by date/prayer/language/clock, and geo uses document v1 with expiry. Notification scheduling is a platform projection reconciled with signature v2 over settings, timezone, permission request, alarm capability, and custom sound inputs.
+- Calendar view/mode and React confirmed, optimistic, request, sync, and UI projections are memory-only.
 
 ## Startup invariants
 

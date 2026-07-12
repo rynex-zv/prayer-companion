@@ -6,10 +6,11 @@ import { coreContract } from "../generated/core-contract";
 const DATABASE = "prayer-companion";
 const STORE = "repositories";
 const STATE_KEY = "core-state";
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 let ready: Promise<void> | undefined;
 let operationQueue = Promise.resolve();
 let volatileState: string | undefined;
+let repositoryNeedsUpgrade = false;
 const kinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
 
 export async function callBrowserBackend<T>(method: string, payload?: unknown): Promise<BridgeResponse<T> | undefined> {
@@ -40,8 +41,9 @@ async function executeOperation<T>(method: string, payload?: unknown): Promise<B
   const response = platform ?? await coreCall<T>(method, payload);
   if (!response) return undefined;
 
-  if (response.ok && state && (stateChanged || isMutation(method))) {
+  if (response.ok && state && (stateChanged || isMutation(method) || repositoryNeedsUpgrade)) {
     await writeRecord(state);
+    repositoryNeedsUpgrade = false;
     console.info(`[pray.storage] committed method=${method} bytes=${state.length}`);
   }
   return response.ok && events.length > 0 ? { ...response, events } : response;
@@ -106,6 +108,8 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+class RepositorySchemaError extends Error {}
+
 async function readRecord(): Promise<string | undefined> {
   try {
     const db = await openDatabase();
@@ -113,13 +117,22 @@ async function readRecord(): Promise<string | undefined> {
       const request = db.transaction(STORE, "readonly").objectStore(STORE).get(STATE_KEY);
       request.onsuccess = () => {
         const value = request.result as string | { schemaVersion?: number; data?: string } | undefined;
-        if (typeof value === "string") resolve(value);
-        else if (typeof value?.data === "string" && (value.schemaVersion ?? 1) <= SCHEMA_VERSION) resolve(value.data);
-        else resolve(undefined);
+        if (typeof value === "string") {
+          repositoryNeedsUpgrade = true;
+          resolve(value);
+        } else if (typeof value?.data === "string" && (value.schemaVersion ?? 1) <= SCHEMA_VERSION) {
+          repositoryNeedsUpgrade ||= value.schemaVersion !== SCHEMA_VERSION;
+          resolve(value.data);
+        } else if ((value?.schemaVersion ?? 0) > SCHEMA_VERSION) {
+          reject(new RepositorySchemaError(`Browser repository schema ${value?.schemaVersion} is newer than supported schema ${SCHEMA_VERSION}.`));
+        } else {
+          resolve(undefined);
+        }
       };
       request.onerror = () => reject(request.error);
     }).finally(() => db.close());
   } catch (error) {
+    if (error instanceof RepositorySchemaError) throw error;
     console.warn("Browser repository is using volatile storage because IndexedDB is unavailable.", error);
     return volatileState;
   }
