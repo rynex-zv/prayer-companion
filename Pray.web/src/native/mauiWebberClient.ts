@@ -3,7 +3,7 @@ import { getLastWasmCoreLoadError, tryCallWasmCore } from "./wasmCoreClient";
 import { coreContract } from "../generated/core-contract";
 
 export type BridgeResponse<T = unknown> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; events?: unknown[] }
   | { ok: false; error: string; errorInfo?: TransportError };
 type BridgeFailure = Extract<BridgeResponse<never>, { ok: false }>;
 
@@ -23,13 +23,13 @@ type SelectedBackend =
 export async function mauiCall<T = unknown>(
   method: string,
   payload?: unknown,
-  options?: { requestId?: string; commandId?: string },
+  options?: { requestId?: string; commandId?: string; domain?: string },
 ): Promise<BridgeResponse<T>> {
   const callId = nextCallId();
   const requestId = options?.requestId ?? createId();
   const kind = classify(method);
   const commandId = options?.commandId ?? (kind === "command" || kind === "compatibilityAdapter" ? createId() : undefined);
-  const correlatedPayload = addCorrelation(payload, requestId, commandId);
+  const correlatedPayload = addCorrelation(payload, requestId, commandId, options?.domain);
   const started = now();
   const timeoutMs = bridgeTimeoutFor(method);
   observeSequence(method, kind, requestId);
@@ -288,9 +288,9 @@ function observeSequence(method: string, kind: OperationKind, requestId: string)
   }, bridgeTimeoutFor(method));
 }
 
-function addCorrelation(payload: unknown, requestId: string, commandId?: string): unknown {
+function addCorrelation(payload: unknown, requestId: string, commandId?: string, domain?: string): unknown {
   const body = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
-  return { ...body, _rpc: { contractVersion: coreContract.contractVersion, requestId, commandId } };
+  return { ...body, _rpc: { contractVersion: coreContract.contractVersion, requestId, commandId, domain } };
 }
 
 function createId(): string {

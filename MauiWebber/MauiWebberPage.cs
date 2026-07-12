@@ -52,6 +52,22 @@ public class MauiWebberPage : ContentPage {
         _webView.HandlerChanged += OnWebViewHandlerChanged;
         _webView.Navigating += OnNavigating;
         _webView.Navigated += OnNavigated;
+        MauiWebberEventHub.Published += OnApplicationEvent;
+        Unloaded += (_, _) => MauiWebberEventHub.Published -= OnApplicationEvent;
+    }
+
+    private void OnApplicationEvent(object? sender, object value) {
+        _ = PublishApplicationEventAsync(value);
+    }
+
+    private async Task PublishApplicationEventAsync(object value) {
+        try {
+            var json = JsonSerializer.Serialize(value, JsonOptions);
+            var script = $"window.dispatchEvent(new CustomEvent('mauiwebber:app-event',{{detail:{json}}}));";
+            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.PublishApplicationEvent");
+        }
     }
 
     public Task<bool> TryHandleBackNavigationAsync() {

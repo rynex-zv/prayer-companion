@@ -46,4 +46,36 @@ public sealed class AppProtocolContractTests {
         Assert.Equal(2, AppProtocol.ContractVersion);
         Assert.True(AppProtocol.PersistenceSchemaVersion >= 1);
     }
+
+    [Fact]
+    public void Browser_bootstrap_contains_grouped_startup_projections() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        using var payload = JsonDocument.Parse("{}");
+        var json = JsonSerializer.SerializeToElement(dispatcher.Dispatch("app.bootstrap", payload.RootElement), JsonOptions);
+
+        Assert.Equal(AppProtocol.ContractVersion, json.GetProperty("contractVersion").GetInt32());
+        Assert.True(json.GetProperty("projections").TryGetProperty("shell", out _));
+        Assert.True(json.GetProperty("projections").TryGetProperty("today", out _));
+        Assert.True(json.GetProperty("projections").TryGetProperty("alarm", out _));
+        Assert.True(json.GetProperty("projections").TryGetProperty("onboarding", out _));
+        Assert.True(json.GetProperty("projections").TryGetProperty("permissions", out _));
+        Assert.True(json.GetProperty("projections").TryGetProperty("capabilities", out _));
+    }
+
+    [Fact]
+    public void Browser_events_are_sequenced_and_queries_are_revision_aware() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        using var commandPayload = JsonDocument.Parse("{\"theme\":\"dark\",\"_rpc\":{\"requestId\":\"request-7\"}}");
+        dispatcher.Dispatch("app.setTheme", commandPayload.RootElement);
+        var events = dispatcher.DrainEvents();
+        var appEvent = Assert.Single(events);
+        Assert.Equal(1, appEvent.Sequence);
+        Assert.Equal("request-7", appEvent.CauseRequestId);
+        Assert.Equal("app", appEvent.Domain);
+
+        using var queryPayload = JsonDocument.Parse($"{{\"_query\":{{\"ifRevision\":{appEvent.Revision}}}}}");
+        var result = JsonSerializer.SerializeToElement(dispatcher.Dispatch("app.getShellSnapshot", queryPayload.RootElement), JsonOptions);
+        Assert.True(result.GetProperty("notModified").GetBoolean());
+        Assert.Equal(appEvent.Revision, result.GetProperty("revision").GetInt64());
+    }
 }

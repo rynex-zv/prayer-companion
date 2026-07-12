@@ -23,6 +23,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private readonly MauiWebberUpdater _webUpdater;
     private readonly IAppLogger _logger;
+    private readonly AppRevisionCoordinator _revisions = new();
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
@@ -57,6 +58,12 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _webUpdater = webUpdater;
         _logger = logger;
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        App.AppResumed += OnAppResumed;
+    }
+
+    private void OnAppResumed(object? sender, EventArgs args) {
+        MauiWebberEventHub.Publish(_revisions.Changed("app", null, "backend.resumed", invalidationKey: "app.*"));
+        MauiWebberEventHub.Publish(_revisions.Changed("today", null, "domain.invalidated", invalidationKey: "today.snapshot"));
     }
 
     public Task PreloadAsync() {
@@ -69,7 +76,16 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         var stopwatch = Stopwatch.StartNew();
         using var metricsScope = RpcObservability.Begin();
         try {
+            var operationKind = WebContractExporter.Classify(method);
+            var domain = ReadCorrelationId(payload, "domain") ?? method.Split('.')[0];
+            var ifRevision = ReadIfRevision(payload);
+            var currentRevision = _revisions.Snapshot();
+            if (method != "app.bootstrap" && operationKind == PrayAdFree.Core.Contracts.RpcOperationKind.Query && ifRevision > 0 &&
+                currentRevision.Domains.TryGetValue(domain, out var domainRevision) && domainRevision == ifRevision) {
+                return new { notModified = true, revision = domainRevision };
+            }
             var result = method switch {
+            "app.bootstrap" => await BuildBootstrapAsync(cancellationToken).ConfigureAwait(false),
             "today.getSnapshot" or "today.refresh" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
             "mauiWebber.trace" => new { ok = true },
             "app.getShellSnapshot" => BuildShellSnapshot(),
@@ -105,6 +121,10 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "onboarding.complete" => CompleteOnboarding(),
                 _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
             };
+            if (operationKind is PrayAdFree.Core.Contracts.RpcOperationKind.Command or PrayAdFree.Core.Contracts.RpcOperationKind.CompatibilityAdapter) {
+                var appEvent = _revisions.Changed(domain, requestId, invalidationKey: $"{domain}.*");
+                MauiWebberEventHub.Publish(appEvent);
+            }
             stopwatch.Stop();
             var metrics = RpcObservability.Capture();
             var responseBytes = JsonSerializer.SerializeToUtf8Bytes(result).Length;
@@ -127,12 +147,40 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         }
     }
 
+    private async Task<object> BuildBootstrapAsync(CancellationToken cancellationToken) {
+        var today = await _today.HandleAsync("today.getSnapshot", default, cancellationToken).ConfigureAwait(false);
+        var alarm = await GetAlarmSnapshotAsync().ConfigureAwait(false);
+        var onboarding = await BuildOnboardingSnapshotAsync().ConfigureAwait(false);
+        var permissionsPayload = JsonSerializer.SerializeToElement(new { section = "permissions" });
+        var permissions = await GetSettingsSnapshotAsync(permissionsPayload).ConfigureAwait(false);
+        return new {
+            contractVersion = PrayAdFree.Core.Contracts.AppProtocol.ContractVersion,
+            persistenceSchemaVersion = PrayAdFree.Core.Contracts.AppProtocol.PersistenceSchemaVersion,
+            revisions = _revisions.Snapshot(),
+            startup = new { route = "/", intent = (string?)null },
+            projections = new {
+                shell = BuildShellSnapshot(),
+                today,
+                alarm,
+                onboarding,
+                permissions,
+                capabilities = new { platform = DeviceInfo.Platform.ToString().ToLowerInvariant(), native = true, events = true }
+            }
+        };
+    }
+
     private static string? ReadCorrelationId(JsonElement payload, string name) {
         if (payload.ValueKind != JsonValueKind.Object ||
             !payload.TryGetProperty("_rpc", out var metadata) ||
             metadata.ValueKind != JsonValueKind.Object ||
             !metadata.TryGetProperty(name, out var value)) return null;
         return value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    }
+
+    private static long ReadIfRevision(JsonElement payload) {
+        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("_query", out var query) &&
+            query.ValueKind == JsonValueKind.Object && query.TryGetProperty("ifRevision", out var value) && value.TryGetInt64(out var revision)) return revision;
+        return 0;
     }
 
     private object BuildShellSnapshot() {

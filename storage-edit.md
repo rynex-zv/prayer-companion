@@ -399,6 +399,18 @@ Exit gates:
 
 ### Phase 3: Bootstrap and event channel
 
+**Status: DONE (2026-07-12)**
+
+- [x] Native and browser implement the same grouped `app.bootstrap` query with contract/schema versions, revisions, startup intent, shell, Today, alarm, onboarding, permissions, and capabilities.
+- [x] Shell and initial Today rendering share one deduplicated bootstrap promise; the initial route no longer issues `today.getSnapshot`.
+- [x] Bootstrap projections and revision metadata install atomically in the centralized confirmed store.
+- [x] Native structured events are pushed through MauiWebber; browser command events flow in-process and through `BroadcastChannel` for tab synchronization.
+- [x] Events carry sequence, ID, timestamp, domain, type, revision, cause request ID, and invalidation key; duplicate, old, and out-of-order events are ignored.
+- [x] Revision-aware queries send `ifRevision` only for installed projections and support `notModified` results.
+- [x] Native resume publishes `backend.resumed` and a targeted Today invalidation; Today refreshes from invalidation instead of a 30-second backend polling loop.
+- [x] Static startup call-budget enforcement prevents restoring separate shell or initial Today reads.
+- [x] Legacy RPCs and route hooks remain available for domains not yet migrated.
+
 Objective: reduce startup calls and push/invalidate background changes.
 
 Work:

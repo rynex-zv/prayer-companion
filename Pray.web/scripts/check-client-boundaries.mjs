@@ -6,7 +6,7 @@ const src = path.join(root, "src");
 const legacyAllowlist = new Set([
   "components/AppShell.tsx", "components/BottomTabs.tsx", "components/SettingsHeader.tsx",
   "hooks/useSnapshot.ts", "hooks/useStoredSnapshot.ts", "lib/siteDataReset.ts",
-  "routes/__root.tsx", "routes/alarm.tsx", "routes/calendar.tsx", "routes/index.tsx",
+  "routes/__root.tsx", "routes/alarm.tsx", "routes/calendar.tsx",
   "routes/onboarding.tsx", "routes/qibla.tsx", "routes/settings.about.tsx",
   "routes/settings.adhan.tsx", "routes/settings.locations.tsx", "routes/settings.notifications.tsx",
   "routes/settings.permissions.tsx", "routes/settings.tsx", "state/appStore.ts",
@@ -18,12 +18,22 @@ for (const file of walk(src)) {
   const relative = path.relative(src, file).replaceAll("\\", "/");
   const source = fs.readFileSync(file, "utf8");
   if (!source.includes("native/mauiWebberClient")) continue;
-  if (relative === "client/appClient.ts" || legacyAllowlist.has(relative)) continue;
+  if (relative === "client/appClient.ts" || relative === "client/telemetry.ts" || legacyAllowlist.has(relative)) continue;
   violations.push(relative);
 }
 
 if (violations.length) {
   console.error("New UI/domain code must use AppClient, not mauiWebberClient:\n" + violations.map((file) => ` - ${file}`).join("\n"));
+  process.exit(1);
+}
+const todayRoute = fs.readFileSync(path.join(src, "routes/index.tsx"), "utf8");
+const appStore = fs.readFileSync(path.join(src, "state/appStore.ts"), "utf8");
+if (todayRoute.includes("today.getSnapshot") || todayRoute.includes("mauiCall(")) {
+  console.error("The initial Today route must render from app.bootstrap, not issue a route snapshot call.");
+  process.exit(1);
+}
+if (!appStore.includes("appClient.bootstrap") || appStore.includes('mauiCall<ShellSnapshot>("app.getShellSnapshot")')) {
+  console.error("Shell startup must use the single grouped app.bootstrap query.");
   process.exit(1);
 }
 console.log("Client architecture boundary passed.");

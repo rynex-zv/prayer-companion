@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall, mauiTrace } from "@/native/mauiWebberClient";
+import { traceClient } from "@/client/telemetry";
+import { useToday } from "@/domains/today/todayClient";
 import { Card, CardTitle } from "@/components/Card";
 import { RefreshCw, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,27 +15,13 @@ export const Route = createFileRoute("/")({
   component: TodayPage,
 });
 
-type Timing = { id: string; time: string; baseTime?: string; isNext: boolean };
-type Today = {
-  locationTitle: string; hijriDate: string; gregorianDate: string;
-  currentTime?: string;
-  nextPrayerId: string; nextPrayerClock: string; nextPrayerBaseClock: string;
-  showNextPrayerBaseClock: boolean; nextPrayerDayId: string;
-  countdown: string; statusMessage: string;
-  imsakTime: string; iftarTime: string;
-  isImsakNext: boolean; isIftarNext: boolean;
-  nextFastingCountdown: string;
-  isRtl: boolean; labels: Record<string, string>;
-  todayTimings: Timing[];
-};
-
 function Time({ children }: { children: string }) {
   return <span dir="ltr" className="font-medium tabular-nums">{children}</span>;
 }
 
 function TodayPage() {
   usePageLog("today");
-  const { data, refresh, loading } = useSnapshot<Today>("today.getSnapshot");
+  const { data, refresh, loading } = useToday();
   const [now, setNow] = useState(() => new Date());
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
@@ -49,21 +35,13 @@ function TodayPage() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      void refresh(true);
-    }, 30000);
-
-    return () => window.clearInterval(timer);
-  }, [refresh]);
-
-  useEffect(() => {
     if (!data || renderTraceSent.current) {
       return;
     }
 
     renderTraceSent.current = true;
     requestAnimationFrame(() => {
-      mauiTrace("renderComplete", { route: "today", timingCount: data.todayTimings.length });
+      traceClient("renderComplete", { route: "today", timingCount: data.todayTimings.length });
     });
   }, [data]);
 
@@ -99,7 +77,7 @@ function TodayPage() {
             </div>
           ) : null}
           <button
-            onClick={() => { mauiCall("today.refresh").then(refresh); }}
+            onClick={() => { void refresh(); }}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
             aria-label={L.refresh}
           >

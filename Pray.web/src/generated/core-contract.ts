@@ -9,6 +9,7 @@ export const coreContract = {
   "generatedFrom": "PrayAdFree.Core",
   "rpcMethods": [
     "app.getShellSnapshot",
+    "app.bootstrap",
     "app.getLocalization",
     "app.getLanguageObject",
     "app.setLanguage",
@@ -53,6 +54,11 @@ export const coreContract = {
   "rpcContracts": [
     {
       "name": "app.getShellSnapshot",
+      "kind": "query",
+      "domain": "app"
+    },
+    {
+      "name": "app.bootstrap",
       "kind": "query",
       "domain": "app"
     },

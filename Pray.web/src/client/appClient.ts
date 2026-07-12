@@ -1,10 +1,17 @@
 import { mauiCall, type TransportError } from "@/native/mauiWebberClient";
-import { installConfirmed, setRequest } from "./clientStore";
+import { applyAppEvent, getClientState, installBootstrap, installConfirmed, setRequest } from "./clientStore";
 
 export type AppError = { code: string; message: string; retryable: boolean; details?: unknown };
 export type QueryResult<T> = { ok: true; requestId: string; revision: number; data: T; notModified?: boolean } | { ok: false; requestId: string; error: AppError };
 export type CommandResult<T> = { ok: true; requestId: string; commandId: string; revision: number; changedDomains: string[]; data: T } | { ok: false; requestId: string; commandId: string; error: AppError };
 export type AppEvent = { sequence: number; eventId: string; timestamp: string; domain: string; type: string; revision: number; causeRequestId?: string; payload?: unknown; invalidationKey?: string };
+export type BootstrapResult = {
+  contractVersion: number;
+  persistenceSchemaVersion: number;
+  revisions: { global: number; domains: Record<string, number>; eventSequence: number };
+  startup: { route: string; intent?: string };
+  projections: Record<string, unknown>;
+};
 
 export type AppQuery<T> = { name: string; payload?: unknown; domain: string; projectionKey: string; ifRevision?: number; signal?: AbortSignal };
 export type AppCommand<T> = { name: string; payload?: unknown; domain: string; projectionKey?: string; expectedRevision?: number; signal?: AbortSignal };
@@ -20,16 +27,29 @@ const inFlightQueries = new Map<string, Promise<QueryResult<unknown>>>();
 const eventListeners = new Set<(event: AppEvent) => void>();
 
 class DefaultAppClient implements AppClient {
+  private readonly broadcast = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("prayer-companion:app-events:v2") : undefined;
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("mauiwebber:app-event", (event) => this.acceptEvent((event as CustomEvent<AppEvent>).detail));
+    }
+    if (this.broadcast) this.broadcast.onmessage = (message) => this.acceptEvent(message.data as AppEvent);
+  }
+
   bootstrap<T>(request: Omit<AppQuery<T>, "name">): Promise<QueryResult<T>> {
-    // Phase 2 compatibility mapping; Phase 3 replaces this with app.bootstrap.
-    return this.query({ ...request, name: "app.getShellSnapshot" });
+    return this.query({ ...request, name: "app.bootstrap" });
   }
 
   query<T>(query: AppQuery<T>): Promise<QueryResult<T>> {
-    const key = queryIdentity(query.name, query.payload, query.ifRevision);
+    const current = getClientState();
+    const effectiveQuery = {
+      ...query,
+      ifRevision: query.ifRevision ?? (current.confirmed[query.projectionKey] !== undefined ? current.revisions.domains[query.domain] : undefined),
+    };
+    const key = queryIdentity(effectiveQuery.name, effectiveQuery.payload, effectiveQuery.ifRevision);
     let shared = inFlightQueries.get(key) as Promise<QueryResult<T>> | undefined;
     if (!shared) {
-      shared = this.executeQuery(query, key);
+      shared = this.executeQuery(effectiveQuery, key);
       inFlightQueries.set(key, shared as Promise<QueryResult<unknown>>);
       void shared.finally(() => inFlightQueries.delete(key));
     }
@@ -42,12 +62,13 @@ class DefaultAppClient implements AppClient {
     const requestKey = `command:${command.name}`;
     setRequest(requestKey, { status: "pending", requestId, startedAt: Date.now() });
     if (command.signal?.aborted) return cancelledCommand(requestId, commandId);
-    const response = await mauiCall<T>(command.name, command.payload, { requestId, commandId });
+    const response = await mauiCall<T>(command.name, command.payload, { requestId, commandId, domain: command.domain });
     if (!response.ok) {
       const error = normalizeError(response.error, response.errorInfo);
       setRequest(requestKey, { status: error.code === "cancelled" ? "cancelled" : "error", requestId, error: error.message, completedAt: Date.now() });
       return { ok: false, requestId, commandId, error };
     }
+    this.acceptEvents(response.events);
     const revision = command.projectionKey ? installConfirmed(command.projectionKey, command.domain, response.data) : installConfirmed(`command:${command.name}`, command.domain, response.data);
     setRequest(requestKey, { status: "success", requestId, completedAt: Date.now() });
     return { ok: true, requestId, commandId, revision, changedDomains: [command.domain], data: response.data };
@@ -62,15 +83,41 @@ class DefaultAppClient implements AppClient {
     const requestId = createId();
     const requestKey = `query:${key}`;
     setRequest(requestKey, { status: "pending", requestId, startedAt: Date.now() });
-    const response = await mauiCall<T>(query.name, query.payload, { requestId });
+    const payload = addQueryMetadata(query.payload, query.ifRevision);
+    const response = await mauiCall<T>(query.name, payload, { requestId, domain: query.domain });
     if (!response.ok) {
       const error = normalizeError(response.error, response.errorInfo);
       setRequest(requestKey, { status: "error", requestId, error: error.message, completedAt: Date.now() });
       return { ok: false, requestId, error };
     }
-    const revision = installConfirmed(query.projectionKey, query.domain, response.data);
+    this.acceptEvents(response.events);
+    if (isNotModified(response.data)) {
+      setRequest(requestKey, { status: "success", requestId, completedAt: Date.now() });
+      return { ok: true, requestId, revision: response.data.revision, data: undefined as T, notModified: true };
+    }
+    let revision: number;
+    if (query.name === "app.bootstrap") {
+      const bootstrap = response.data as BootstrapResult;
+      installBootstrap(bootstrap.projections, bootstrap.revisions);
+      revision = bootstrap.revisions.global;
+    } else {
+      revision = installConfirmed(query.projectionKey, query.domain, response.data);
+    }
     setRequest(requestKey, { status: "success", requestId, completedAt: Date.now() });
     return { ok: true, requestId, revision, data: response.data };
+  }
+
+  private acceptEvents(events?: unknown[]): void {
+    for (const value of events ?? []) {
+      const event = value as AppEvent;
+      this.acceptEvent(event);
+      this.broadcast?.postMessage(event);
+    }
+  }
+
+  private acceptEvent(event: AppEvent): void {
+    if (!event || !applyAppEvent(event)) return;
+    eventListeners.forEach((listener) => listener(event));
   }
 }
 
@@ -105,4 +152,13 @@ function withCancellation<T>(promise: Promise<QueryResult<T>>, signal?: AbortSig
 
 function cancelledCommand<T>(requestId: string, commandId: string): CommandResult<T> {
   return { ok: false, requestId, commandId, error: { code: "cancelled", message: "Request cancelled.", retryable: false } };
+}
+
+function addQueryMetadata(payload: unknown, ifRevision?: number): unknown {
+  const body = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  return { ...body, _query: { ifRevision } };
+}
+
+function isNotModified(value: unknown): value is { notModified: true; revision: number } {
+  return typeof value === "object" && value !== null && (value as { notModified?: unknown }).notModified === true;
 }

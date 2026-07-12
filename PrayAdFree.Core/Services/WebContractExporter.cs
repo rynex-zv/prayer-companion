@@ -23,6 +23,7 @@ public static class WebContractExporter {
 
     public static IReadOnlyList<string> RpcMethods { get; } = new[] {
         "app.getShellSnapshot",
+        "app.bootstrap",
         "app.getLocalization",
         "app.getLanguageObject",
         "app.setLanguage",
@@ -70,7 +71,7 @@ public static class WebContractExporter {
         .ToArray();
 
     public static RpcOperationKind Classify(string name) => name switch {
-        "app.getShellSnapshot" or "app.getLocalization" or "app.getLanguageObject" or
+        "app.bootstrap" or "app.getShellSnapshot" or "app.getLocalization" or "app.getLanguageObject" or
         "today.getSnapshot" or "calendar.getSnapshot" or "qibla.getSnapshot" or
         "tasbih.getSnapshot" or "alarm.getSnapshot" or "settings.getSnapshot" or
         "onboarding.getSnapshot" or "mauiWebber.getRemoteUrl" => RpcOperationKind.Query,

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using PrayAdFree.Core.Models;
+using PrayAdFree.Core.Contracts;
 
 namespace PrayAdFree.Core.Services;
 
@@ -10,6 +11,7 @@ public sealed class WebCoreRpcDispatcher {
     private readonly TasbihProgressCalculator _tasbihCalculator = new();
     private readonly WebPrayerMonthFactory _prayerMonthFactory = new();
     private readonly IslamicOccasionCatalog _occasions = new();
+    private readonly AppRevisionCoordinator _revisions = new();
     private WebState _state = WebState.Default();
 
     private static readonly string[] HijriMonthNames = {
@@ -25,7 +27,16 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     public object? Dispatch(string method, JsonElement payload) {
-        return method switch {
+        var operationKind = WebContractExporter.Classify(method);
+        var domain = ReadNestedString(payload, "_rpc", "domain") ?? method.Split('.')[0];
+        var ifRevision = ReadNestedLong(payload, "_query", "ifRevision");
+        var current = _revisions.Snapshot();
+        if (method != "app.bootstrap" && operationKind == RpcOperationKind.Query && ifRevision > 0 &&
+            current.Domains.TryGetValue(domain, out var domainRevision) && domainRevision == ifRevision) {
+            return new { notModified = true, revision = domainRevision };
+        }
+        var result = method switch {
+            "app.bootstrap" => Bootstrap(),
             "app.getShellSnapshot" => ShellSnapshot(),
             "app.getLocalization" => Labels(),
             "app.getLanguageObject" => LanguageObject(GetString(payload, "language", _state.Language)),
@@ -71,6 +82,37 @@ public sealed class WebCoreRpcDispatcher {
             "mauiWebber.useEmbedded" => BrowserUnavailable(T("webEmbeddedResetUnavailable")),
             _ => throw new InvalidOperationException($"No web core handler for \"{method}\".")
         };
+        if (operationKind is RpcOperationKind.Command or RpcOperationKind.CompatibilityAdapter) {
+            _revisions.Changed(domain, ReadNestedString(payload, "_rpc", "requestId"), invalidationKey: $"{domain}.*");
+        }
+        return result;
+    }
+
+    public IReadOnlyList<AppEvent> DrainEvents() => _revisions.DrainEvents();
+
+    private object Bootstrap() => new {
+        contractVersion = AppProtocol.ContractVersion,
+        persistenceSchemaVersion = AppProtocol.PersistenceSchemaVersion,
+        revisions = _revisions.Snapshot(),
+        startup = new { route = "/", intent = (string?)null },
+        projections = new {
+            shell = ShellSnapshot(),
+            today = TodaySnapshot(),
+            alarm = AlarmSnapshot(),
+            onboarding = OnboardingSnapshot(),
+            permissions = SettingsSnapshot("permissions"),
+            capabilities = new { platform = "browser", native = false, events = true }
+        }
+    };
+
+    private static long ReadNestedLong(JsonElement payload, string parent, string name) {
+        return payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(parent, out var node) && node.ValueKind == JsonValueKind.Object &&
+            node.TryGetProperty(name, out var value) && value.TryGetInt64(out var result) ? result : 0;
+    }
+
+    private static string? ReadNestedString(JsonElement payload, string parent, string name) {
+        return payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(parent, out var node) && node.ValueKind == JsonValueKind.Object &&
+            node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     }
 
     private object ShellSnapshot() => new {

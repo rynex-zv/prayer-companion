@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { mauiCall } from "@/native/mauiWebberClient";
+import { appClient, type BootstrapResult } from "@/client/appClient";
 
 export type Direction = "rtl" | "ltr";
 export type SyncStatus = "clean" | "dirty" | "syncing" | "saved" | "error";
@@ -128,14 +129,21 @@ export function setLanguageObject(languageObject: LanguageObject) {
   });
 }
 
-export async function bootstrapAppState() {
-  const response = await mauiCall<ShellSnapshot>("app.getShellSnapshot");
+let bootstrapPromise: Promise<void> | undefined;
+
+export function bootstrapAppState(): Promise<void> {
+  bootstrapPromise ??= performBootstrap();
+  return bootstrapPromise;
+}
+
+async function performBootstrap() {
+  const response = await appClient.bootstrap<BootstrapResult>({ domain: "app", projectionKey: "app.bootstrap" });
   if (!response.ok) {
-    markField("shell.bootstrap", "error", response.error);
+    markField("shell.bootstrap", "error", response.error.message);
     return;
   }
 
-  const backend = response.data;
+  const backend = response.data.projections.shell as ShellSnapshot;
   const backendLanguage = normalizeLanguageObject(backend.languageObject ?? {
     code: backend.language,
     direction: backend.isRtl ? "rtl" : "ltr",

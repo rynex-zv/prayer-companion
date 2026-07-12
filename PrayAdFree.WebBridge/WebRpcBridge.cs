@@ -17,7 +17,8 @@ public static partial class WebRpcBridge {
         try {
             using var payloadDocument = JsonDocument.Parse(string.IsNullOrWhiteSpace(payloadJson) ? "{}" : payloadJson);
             var data = Dispatcher.Dispatch(method, payloadDocument.RootElement);
-            return JsonSerializer.Serialize(new { ok = true, data }, JsonOptions);
+            var events = Dispatcher.DrainEvents();
+            return JsonSerializer.Serialize(new { ok = true, data, events }, JsonOptions);
         } catch (Exception ex) {
             return JsonSerializer.Serialize(new { ok = false, error = WebRpcErrorFormatter.Clean(ex.Message) }, JsonOptions);
         }
