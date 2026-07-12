@@ -1,5 +1,7 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
+  "contractVersion": 2,
+  "persistenceSchemaVersion": 1,
   "generatedFrom": "PrayAdFree.Core",
   "rpcMethods": [
     "app.getShellSnapshot",
@@ -38,9 +40,217 @@
     "onboarding.getSnapshot",
     "onboarding.complete",
     "mauiWebber.getRemoteUrl",
+    "mauiWebber.trace",
     "mauiWebber.setRemoteUrl",
     "mauiWebber.clearSiteData",
     "mauiWebber.pullRemote",
     "mauiWebber.useEmbedded"
+  ],
+  "rpcContracts": [
+    {
+      "name": "app.getShellSnapshot",
+      "kind": "query",
+      "domain": "app"
+    },
+    {
+      "name": "app.getLocalization",
+      "kind": "query",
+      "domain": "app"
+    },
+    {
+      "name": "app.getLanguageObject",
+      "kind": "query",
+      "domain": "app"
+    },
+    {
+      "name": "app.setLanguage",
+      "kind": "command",
+      "domain": "app"
+    },
+    {
+      "name": "app.setTheme",
+      "kind": "command",
+      "domain": "app"
+    },
+    {
+      "name": "app.navigate",
+      "kind": "obsolete",
+      "domain": "app"
+    },
+    {
+      "name": "app.importState",
+      "kind": "compatibilityAdapter",
+      "domain": "app"
+    },
+    {
+      "name": "app.exportState",
+      "kind": "compatibilityAdapter",
+      "domain": "app"
+    },
+    {
+      "name": "today.getSnapshot",
+      "kind": "query",
+      "domain": "today"
+    },
+    {
+      "name": "today.refresh",
+      "kind": "command",
+      "domain": "today"
+    },
+    {
+      "name": "calendar.getSnapshot",
+      "kind": "query",
+      "domain": "calendar"
+    },
+    {
+      "name": "calendar.setMonth",
+      "kind": "command",
+      "domain": "calendar"
+    },
+    {
+      "name": "calendar.today",
+      "kind": "command",
+      "domain": "calendar"
+    },
+    {
+      "name": "calendar.nextMonth",
+      "kind": "command",
+      "domain": "calendar"
+    },
+    {
+      "name": "calendar.previousMonth",
+      "kind": "command",
+      "domain": "calendar"
+    },
+    {
+      "name": "qibla.getSnapshot",
+      "kind": "query",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.updateHeading",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.setHeadingMode",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.adjustManualHeading",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.commitManualHeading",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.setDisplayMode",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.setVisualFilter",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "tasbih.getSnapshot",
+      "kind": "query",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.increment",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.reset",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.selectPreset",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "alarm.getSnapshot",
+      "kind": "query",
+      "domain": "alarm"
+    },
+    {
+      "name": "alarm.snooze",
+      "kind": "command",
+      "domain": "alarm"
+    },
+    {
+      "name": "alarm.stop",
+      "kind": "command",
+      "domain": "alarm"
+    },
+    {
+      "name": "settings.getSnapshot",
+      "kind": "query",
+      "domain": "settings"
+    },
+    {
+      "name": "settings.setField",
+      "kind": "compatibilityAdapter",
+      "domain": "settings"
+    },
+    {
+      "name": "settings.patch",
+      "kind": "compatibilityAdapter",
+      "domain": "settings"
+    },
+    {
+      "name": "settings.invoke",
+      "kind": "compatibilityAdapter",
+      "domain": "settings"
+    },
+    {
+      "name": "onboarding.getSnapshot",
+      "kind": "query",
+      "domain": "onboarding"
+    },
+    {
+      "name": "onboarding.complete",
+      "kind": "command",
+      "domain": "onboarding"
+    },
+    {
+      "name": "mauiWebber.getRemoteUrl",
+      "kind": "query",
+      "domain": "mauiWebber"
+    },
+    {
+      "name": "mauiWebber.trace",
+      "kind": "platformOperation",
+      "domain": "mauiWebber"
+    },
+    {
+      "name": "mauiWebber.setRemoteUrl",
+      "kind": "command",
+      "domain": "mauiWebber"
+    },
+    {
+      "name": "mauiWebber.clearSiteData",
+      "kind": "platformOperation",
+      "domain": "mauiWebber"
+    },
+    {
+      "name": "mauiWebber.pullRemote",
+      "kind": "platformOperation",
+      "domain": "mauiWebber"
+    },
+    {
+      "name": "mauiWebber.useEmbedded",
+      "kind": "platformOperation",
+      "domain": "mauiWebber"
+    }
   ]
 }

@@ -327,6 +327,18 @@ Work only on the requested phase unless the user explicitly expands scope. Prese
 
 ### Phase 1: Contracts and observability
 
+**Status: DONE (2026-07-12)**
+
+- [x] Versioned command, query, result, typed error, revision, and event envelopes are defined in Shared Core.
+- [x] The generated web contract publishes contract/schema versions and the complete RPC classification registry to TypeScript.
+- [x] Legacy calls carry UUID request IDs and command IDs without changing existing method responses.
+- [x] Client/native correlation logs include operation kind, duration, response size, persistence-write count, and cache outcomes.
+- [x] Client instrumentation reports duplicate in-flight queries and command-then-refresh sequences.
+- [x] Existing RPCs remain available; compatibility adapters and obsolete calls are explicitly identified in the generated registry.
+- [x] Contract serialization, version, typed-error, and classification tests are included in the .NET suite; generated fixtures are type-checked by the web build.
+
+Phase 1 baseline: startup and interaction call counts are now emitted as structured `[pray.bridge]` records, while native completions are emitted as correlated `rpc.completed`/`rpc.failed` records. This preserves the current behavior and provides the measurement source for Phase 2/3 call-budget comparisons.
+
 Objective: establish the shared protocol and measurements without changing feature behavior.
 
 Work:
@@ -578,4 +590,3 @@ At completion report:
 ## Definition of completion
 
 The migration is complete only when React has one typed client/store, MAUI and browser implement the same backend contracts, every durable datum has one repository, Core/WASM has no extra mutable database role, commands eliminate normal follow-up snapshots, startup normally uses bootstrap plus genuinely lazy reads, background changes use events/invalidation, ViewModels are absent from backend dependencies, old browser state copies are retired, caches are reconstructable, and tests enforce these boundaries.
-

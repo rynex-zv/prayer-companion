@@ -40,6 +40,7 @@ public sealed class FileSettingsStore : ISettingsStore {
                 File.Delete(_path);
             }
             File.Move(tempPath, _path);
+            RpcObservability.RecordPersistenceWrite();
         } finally {
             if (File.Exists(tempPath)) {
                 try {

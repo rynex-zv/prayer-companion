@@ -1,5 +1,6 @@
 import { tryHandleWebPlatformCall } from "./webPlatformAdapter";
 import { getLastWasmCoreLoadError, tryCallWasmCore } from "./wasmCoreClient";
+import { coreContract } from "../generated/core-contract";
 
 export type BridgeResponse<T = unknown> =
   | { ok: true; data: T }
@@ -10,16 +11,21 @@ export async function mauiCall<T = unknown>(
   payload?: unknown,
 ): Promise<BridgeResponse<T>> {
   const callId = nextCallId();
+  const requestId = createId();
+  const kind = classify(method);
+  const commandId = kind === "command" || kind === "compatibilityAdapter" ? createId() : undefined;
+  const correlatedPayload = addCorrelation(payload, requestId, commandId);
   const started = now();
   const timeoutMs = bridgeTimeoutFor(method);
-  logBridge("start", { callId, method, payload, timeoutMs });
+  observeSequence(method, kind, requestId);
+  logBridge("start", { callId, requestId, commandId, method, kind, payload, timeoutMs });
 
   try {
     const bridge = await withBridgeTimeout(resolveBridge(), 2500, method, "resolveBridge");
     if (bridge) {
       try {
-        const res = await withBridgeTimeout(bridge.call(method, payload), mauiTimeoutFor(method, timeoutMs), method, "maui");
-        logBridge("success", { callId, method, source: "maui", elapsedMs: elapsed(started) });
+        const res = await withBridgeTimeout(bridge.call(method, correlatedPayload), mauiTimeoutFor(method, timeoutMs), method, "maui");
+        logBridge("success", { callId, requestId, commandId, method, source: "maui", elapsedMs: elapsed(started), responseBytes: byteSize(res) });
         if (res && typeof res === "object" && "ok" in res) {
           return res as BridgeResponse<T>;
         }
@@ -35,13 +41,13 @@ export async function mauiCall<T = unknown>(
       }
     }
 
-    const webPlatform = await withBridgeTimeout(tryHandleWebPlatformCall<T>(method, payload), timeoutMs, method, "web-platform");
+    const webPlatform = await withBridgeTimeout(tryHandleWebPlatformCall<T>(method, correlatedPayload), timeoutMs, method, "web-platform");
     if (webPlatform) {
       logBridge(webPlatform.ok ? "success" : "failure", { callId, method, source: "web-platform", elapsedMs: elapsed(started), error: webPlatform.ok ? undefined : webPlatform.error });
       return webPlatform;
     }
 
-    const wasm = await withBridgeTimeout(tryCallWasmCore<T>(method, payload), timeoutMs, method, "wasm");
+    const wasm = await withBridgeTimeout(tryCallWasmCore<T>(method, correlatedPayload), timeoutMs, method, "wasm");
     if (wasm) {
       logBridge(wasm.ok ? "success" : "failure", { callId, method, source: "wasm", elapsedMs: elapsed(started), error: wasm.ok ? undefined : wasm.error });
       return wasm;
@@ -224,4 +230,46 @@ function logBridge(event: string, detail: Record<string, unknown>): void {
   if (event !== "start") {
     mauiTrace(`bridge.${event}`, payload);
   }
+}
+
+type OperationKind = "command" | "query" | "platformOperation" | "compatibilityAdapter" | "obsolete";
+const rpcKinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
+const inFlightQueries = new Map<string, { count: number; requestId: string }>();
+const lastCommandByDomain = new Map<string, { method: string; at: number; requestId: string }>();
+
+function classify(method: string): OperationKind {
+  return (rpcKinds.get(method) as OperationKind | undefined) ?? "compatibilityAdapter";
+}
+
+function observeSequence(method: string, kind: OperationKind, requestId: string): void {
+  const domain = method.split(".", 1)[0];
+  if (kind === "command" || kind === "compatibilityAdapter") {
+    lastCommandByDomain.set(domain, { method, at: now(), requestId });
+    return;
+  }
+  if (kind !== "query") return;
+  const active = inFlightQueries.get(method);
+  if (active) logBridge("duplicate-query", { method, requestId, originalRequestId: active.requestId, duplicateCount: active.count + 1 });
+  inFlightQueries.set(method, { count: (active?.count ?? 0) + 1, requestId: active?.requestId ?? requestId });
+  const command = lastCommandByDomain.get(domain);
+  if (command && now() - command.at < 2000) logBridge("command-then-refresh", { method, requestId, commandMethod: command.method, commandRequestId: command.requestId });
+  window.setTimeout(() => {
+    const current = inFlightQueries.get(method);
+    if (!current) return;
+    if (current.count <= 1) inFlightQueries.delete(method);
+    else inFlightQueries.set(method, { ...current, count: current.count - 1 });
+  }, bridgeTimeoutFor(method));
+}
+
+function addCorrelation(payload: unknown, requestId: string, commandId?: string): unknown {
+  const body = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, unknown> : {};
+  return { ...body, _rpc: { contractVersion: coreContract.contractVersion, requestId, commandId } };
+}
+
+function createId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function byteSize(value: unknown): number {
+  try { return new TextEncoder().encode(JSON.stringify(value)).length; } catch { return 0; }
 }

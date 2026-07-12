@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MauiWebber;
@@ -21,6 +22,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly INotificationBootstrapper _notificationBootstrapper;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
     private readonly MauiWebberUpdater _webUpdater;
+    private readonly IAppLogger _logger;
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
@@ -39,7 +41,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         IAdhanPlaybackService adhanPlaybackService,
         INotificationBootstrapper notificationBootstrapper,
         AndroidAlarmCapabilityService alarmCapability,
-        MauiWebberUpdater webUpdater) {
+        MauiWebberUpdater webUpdater,
+        IAppLogger logger) {
         _today = today;
         _calendar = calendar;
         _qibla = qibla;
@@ -52,6 +55,7 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _notificationBootstrapper = notificationBootstrapper;
         _alarmCapability = alarmCapability;
         _webUpdater = webUpdater;
+        _logger = logger;
         _calendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
     }
 
@@ -60,7 +64,12 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     }
 
     public async Task<object?> HandleAsync(string method, JsonElement payload, CancellationToken cancellationToken) {
-        return method switch {
+        var requestId = ReadCorrelationId(payload, "requestId") ?? Guid.NewGuid().ToString("D");
+        var commandId = ReadCorrelationId(payload, "commandId");
+        var stopwatch = Stopwatch.StartNew();
+        using var metricsScope = RpcObservability.Begin();
+        try {
+            var result = method switch {
             "today.getSnapshot" or "today.refresh" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
             "mauiWebber.trace" => new { ok = true },
             "app.getShellSnapshot" => BuildShellSnapshot(),
@@ -94,8 +103,36 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "settings.invoke" => await InvokeSettingsAsync(payload).ConfigureAwait(false),
             "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
-            _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
-        };
+                _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
+            };
+            stopwatch.Stop();
+            var metrics = RpcObservability.Capture();
+            var responseBytes = JsonSerializer.SerializeToUtf8Bytes(result).Length;
+            _logger.LogEvent("rpc.completed", JsonSerializer.Serialize(new {
+                requestId, commandId, method,
+                kind = WebContractExporter.Classify(method).ToString(),
+                durationMs = stopwatch.ElapsedMilliseconds,
+                responseBytes,
+                metrics.PersistenceWrites,
+                cache = new { hits = metrics.CacheHits, misses = metrics.CacheMisses }
+            }));
+            return result;
+        } catch (Exception exception) {
+            stopwatch.Stop();
+            _logger.LogEvent("rpc.failed", JsonSerializer.Serialize(new {
+                requestId, commandId, method, durationMs = stopwatch.ElapsedMilliseconds,
+                errorType = exception.GetType().Name
+            }));
+            throw;
+        }
+    }
+
+    private static string? ReadCorrelationId(JsonElement payload, string name) {
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty("_rpc", out var metadata) ||
+            metadata.ValueKind != JsonValueKind.Object ||
+            !metadata.TryGetProperty(name, out var value)) return null;
+        return value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     }
 
     private object BuildShellSnapshot() {
