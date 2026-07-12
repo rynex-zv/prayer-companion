@@ -6,6 +6,7 @@ import { coreContract } from "../generated/core-contract";
 const DATABASE = "prayer-companion";
 const STORE = "repositories";
 const STATE_KEY = "core-state";
+const SCHEMA_VERSION = 2;
 let ready: Promise<void> | undefined;
 let mutationQueue = Promise.resolve();
 const kinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
@@ -37,6 +38,20 @@ async function hydrate(): Promise<void> {
     }
   }
   if (state) await tryCallWasmCore("app.importState", { state });
+  const legacyAppState = localStorage.getItem("prayer-companion:app-state:v1");
+  if (legacyAppState) {
+    try {
+      const legacy = JSON.parse(legacyAppState) as { language?: string; themeMode?: string; accentColor?: string; textSize?: number; onboardingCompleted?: boolean };
+      if (legacy.language) await tryCallWasmCore("app.setLanguage", { language: legacy.language });
+      if (legacy.themeMode) await tryCallWasmCore("app.setTheme", { theme: legacy.themeMode });
+      if (legacy.accentColor !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "accentColor", value: legacy.accentColor });
+      if (legacy.textSize !== undefined) await tryCallWasmCore("settings.setField", { section: "theme", field: "textSize", value: legacy.textSize });
+      if (legacy.onboardingCompleted) await tryCallWasmCore("onboarding.complete", {});
+      await persist();
+    } finally {
+      localStorage.removeItem("prayer-companion:app-state:v1");
+    }
+  }
 }
 
 async function persist(): Promise<void> {
@@ -64,7 +79,11 @@ async function readRecord(): Promise<string | undefined> {
   const db = await openDatabase();
   return new Promise<string | undefined>((resolve, reject) => {
     const request = db.transaction(STORE, "readonly").objectStore(STORE).get(STATE_KEY);
-    request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : undefined);
+    request.onsuccess = () => {
+      const value = request.result as string | { schemaVersion?: number; data?: string } | undefined;
+      if (typeof value === "string") resolve(value);
+      else resolve(value?.schemaVersion === SCHEMA_VERSION ? value.data : undefined);
+    };
     request.onerror = () => reject(request.error);
   }).finally(() => db.close());
 }
@@ -73,7 +92,7 @@ async function writeRecord(value: string): Promise<void> {
   const db = await openDatabase();
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(STORE, "readwrite");
-    transaction.objectStore(STORE).put(value, STATE_KEY);
+    transaction.objectStore(STORE).put({ schemaVersion: SCHEMA_VERSION, data: value }, STATE_KEY);
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);

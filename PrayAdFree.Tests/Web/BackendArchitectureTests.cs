@@ -11,6 +11,19 @@ public sealed class BackendArchitectureTests {
         }
     }
 
+    [Fact]
+    public void Browser_store_is_memory_only_and_legacy_keys_are_migration_inputs_only() {
+        var root = FindRepoRoot();
+        var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));
+        var backend = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "native", "browserAppBackend.ts"));
+        var wasm = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "native", "wasmCoreClient.ts"));
+        Assert.DoesNotContain("localStorage", appStore, StringComparison.Ordinal);
+        Assert.DoesNotContain("localStorage", wasm, StringComparison.Ordinal);
+        Assert.Contains("removeItem(\"pray.web.core.state\")", backend, StringComparison.Ordinal);
+        Assert.Contains("removeItem(\"prayer-companion:app-state:v1\")", backend, StringComparison.Ordinal);
+        Assert.Contains("SCHEMA_VERSION", backend, StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot() {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "storage-edit.md"))) directory = directory.Parent;

@@ -517,6 +517,14 @@ Exit gates:
 
 ### Phase 7: Persistence and cache consolidation
 
+**Status: DONE (2026-07-12)**
+
+- [x] React confirmed, optimistic, request, and sync projections are memory-only and never written as domain data.
+- [x] Both legacy localStorage documents import once into the browser repository and are then removed.
+- [x] Browser repository records carry an explicit persistence schema version and recover safely from absent/old records.
+- [x] Prayer-time derived cache keys include schema/calculation version plus every authoritative calculation input.
+- [x] Architecture and migration tests enforce storage ownership and retirement of both legacy keys.
+
 Objective: remove duplicate durable state and formalize caches.
 
 Work:

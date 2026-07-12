@@ -5,6 +5,7 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public sealed class PrayerTimesService {
+    public const int CacheSchemaVersion = 2;
     private readonly IPrayerTimesClient _client;
     private readonly PrayerTimesCache _cache;
 
@@ -37,7 +38,7 @@ public sealed class PrayerTimesService {
         var method = settings.Method == CalculationMethod.Auto
             ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
             : settings.Method;
-        var raw = $"{year}-{month}-{settings.Location.Latitude:F4}-{settings.Location.Longitude:F4}-{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{OffsetsKey(settings.Offsets)}-{SunAnglesKey(settings.SunAngles)}";
+        var raw = $"v{CacheSchemaVersion}-{year}-{month}-{settings.Location.Latitude:F4}-{settings.Location.Longitude:F4}-{method}-{settings.Madhhab}-{settings.HighLatitudeRule}-{OffsetsKey(settings.Offsets)}-{SunAnglesKey(settings.SunAngles)}";
         using var sha = SHA256.Create();
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(raw));
         return Convert.ToHexString(bytes)[..16].ToLowerInvariant();

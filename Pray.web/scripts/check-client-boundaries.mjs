@@ -36,6 +36,10 @@ if (!appStore.includes("appClient.bootstrap") || appStore.includes('mauiCall<She
   console.error("Shell startup must use the single grouped app.bootstrap query.");
   process.exit(1);
 }
+if (appStore.includes("localStorage") || appStore.includes("saveState(") || appStore.includes("loadState(")) {
+  console.error("React confirmed/request/sync state must remain memory-only.");
+  process.exit(1);
+}
 const wasmClient = fs.readFileSync(path.join(src, "native/wasmCoreClient.ts"), "utf8");
 const platformAdapter = fs.readFileSync(path.join(src, "native/webPlatformAdapter.ts"), "utf8");
 if (wasmClient.includes("localStorage") || wasmClient.includes("persistState")) {

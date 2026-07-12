@@ -54,8 +54,6 @@ type ConfirmedField<T = unknown> = {
   error?: string;
 };
 
-const STORAGE_KEY = "prayer-companion:app-state:v1";
-
 const defaultLanguageObject: LanguageObject = {
   code: "en",
   direction: "ltr",
@@ -78,7 +76,7 @@ const defaultState: AppState = {
   fieldSync: {},
 };
 
-let state = loadState();
+let state = defaultState;
 const listeners = new Set<() => void>();
 let languageTarget = state.languageObject;
 let systemThemeListenerAttached = false;
@@ -240,7 +238,7 @@ function markField(key: string, status: SyncStatus, error?: string) {
   });
 }
 
-function updateState(patch: Partial<AppState>, persist = true) {
+function updateState(patch: Partial<AppState>) {
   const nextLanguageObject = patch.languageObject ? normalizeLanguageObject(patch.languageObject) : state.languageObject;
   state = {
     ...state,
@@ -251,9 +249,6 @@ function updateState(patch: Partial<AppState>, persist = true) {
   };
   languageTarget = state.languageObject;
   applyDocumentState(state);
-  if (persist) {
-    saveState(state);
-  }
   listeners.forEach((listener) => listener());
 }
 
@@ -264,43 +259,6 @@ function normalizeLanguageObject(value: LanguageObject): LanguageObject {
     labels: value.labels ?? {},
     updatedAt: value.updatedAt || Date.now(),
   };
-}
-
-function loadState(): AppState {
-  if (typeof window === "undefined") {
-    return defaultState;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return defaultState;
-    }
-
-    const parsed = JSON.parse(raw) as Partial<AppState>;
-    if (parsed.schemaVersion !== 1 || !parsed.languageObject) {
-      return defaultState;
-    }
-
-    return {
-      ...defaultState,
-      ...parsed,
-      source: "storage",
-      languageObject: normalizeLanguageObject(parsed.languageObject),
-      fieldSync: parsed.fieldSync ?? {},
-      settings: parsed.settings ?? {},
-    };
-  } catch {
-    return defaultState;
-  }
-}
-
-function saveState(value: AppState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...value, source: "storage" }));
 }
 
 function applyDocumentState(value: AppState) {
