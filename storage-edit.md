@@ -547,7 +547,7 @@ Exit gates:
 - [x] Prayer cache v3 keys exact coordinates, timezone, method, madhhab, high-latitude rule, offsets, angles, and calculation version.
 - [x] Today snapshot schema 2 keys date, prayer inputs, language, and clock format; geo cache schema 1 validates expiry; both discard incompatible records.
 - [x] Notification schedule reconciliation v2 keys settings, timezone, permission requests, alarm capability/permission state, and custom sound identity.
-- [x] Browser reload/cache-eviction, release builds, 144 tests, and the rebuilt Windows runtime were verified without console or exception-log errors.
+- [x] Browser reload/cache-eviction, release builds, 145 tests, and the rebuilt Windows runtime were verified without console or exception-log errors.
 - [x] Onboarding commits its visible default language before completion, preventing older repository language state from producing mixed-language projections.
 
 Durable ownership and derived-data inventory:
