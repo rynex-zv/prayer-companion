@@ -27,6 +27,7 @@ Updated: 2026-07-12 after Phase 7 production verification.
 - Cache clearing is eviction of reconstructable data, never a factory reset. It may remove service workers, Cache Storage, session state, and native disk caches; it must preserve IndexedDB, native settings repositories, cookies, location, reminders, and other user-authored data.
 - Derived storage is explicitly versioned: prayer calculations use cache v3 with exact calculation inputs, Today uses envelope v2 keyed by date/prayer/language/clock, and geo uses document v1 with expiry. Notification scheduling is a platform projection reconciled with signature v2 over settings, timezone, permission request, alarm capability, and custom sound inputs.
 - Calendar view/mode and React confirmed, optimistic, request, sync, and UI projections are memory-only.
+- Onboarding must persist the language displayed as selected before completion, including when the user accepts the default without clicking its button.
 
 ## Startup invariants
 

@@ -134,6 +134,17 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Onboarding_commits_the_visible_default_language_before_completion() {
+        var root = FindRepoRoot();
+        var onboarding = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "routes", "onboarding.tsx"));
+        Assert.Contains("const selectedLanguage = language || data.language || \"en\"", onboarding, StringComparison.Ordinal);
+        Assert.Contains("await setLanguage(selectedLanguage)", onboarding, StringComparison.Ordinal);
+        Assert.True(
+            onboarding.IndexOf("await setLanguage(selectedLanguage)", StringComparison.Ordinal) <
+            onboarding.IndexOf("onboarding.complete", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Cold_start_has_bundled_labels_and_cannot_throw_before_bootstrap() {
         var root = FindRepoRoot();
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));

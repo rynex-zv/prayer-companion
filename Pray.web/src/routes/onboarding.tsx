@@ -68,6 +68,7 @@ function OnboardingPage() {
   const cur = steps[step];
   const locationVpnWarning = data.vpnWarning ?? data.location?.vpnWarning ?? false;
   const languageOptions = languages.length ? languages : (data.languages ?? []);
+  const selectedLanguage = language || data.language || "en";
   const permissionItems = Array.isArray(data.permissions) ? data.permissions : (data.permissions?.items ?? []);
   const permissionSummary = permissionItems.length
     ? `${permissionItems.filter((permission) => permission.isGranted === true).length} / ${permissionItems.length}`
@@ -194,10 +195,10 @@ function OnboardingPage() {
                 <button
                   key={l.code}
                   type="button"
-                  aria-checked={(language || data.language) === l.code}
+                  aria-checked={selectedLanguage === l.code}
                   onClick={() => void setLanguage(l.code).then(() => refresh())}
                   data-selector-name={`onboarding:language:${l.code}`}
-                  className={`rounded-md border px-3 py-3 text-sm font-medium ${(language || data.language) === l.code ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}
+                  className={`rounded-md border px-3 py-3 text-sm font-medium ${selectedLanguage === l.code ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}
                 >
                   {l.name}
                 </button>
@@ -343,6 +344,10 @@ function OnboardingPage() {
               setFinishError(t("onboardingLocationInvalid"));
               return;
             }
+
+            // The visible default is a real user choice too. Persist it even when
+            // the language button was never clicked, so old repository state cannot win.
+            await setLanguage(selectedLanguage);
 
             if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationPermissionGranted })) {
               return;
