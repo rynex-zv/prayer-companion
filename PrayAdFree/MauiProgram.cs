@@ -141,6 +141,8 @@ namespace Pray_Ad_Free {
                     "app_settings.json")));
             builder.Services.AddSingleton<SettingsService>();
             builder.Services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<SettingsService>());
+            builder.Services.AddSingleton<IApplicationTransactionFactory>(sp => sp.GetRequiredService<SettingsService>());
+            builder.Services.AddSingleton<ApplicationOperationCoalescer>();
             builder.Services.AddHttpClient<PhotonGeoProvider>(client => {
                 client.BaseAddress = new Uri("https://photon.komoot.io/");
             });
@@ -200,6 +202,7 @@ namespace Pray_Ad_Free {
                 CreateMauiWebberHttpClient(),
                 sp.GetRequiredService<IMauiWebberLogger>()));
             builder.Services.AddTransient<TodayWebRpcHandler>();
+            builder.Services.AddTransient<NativeAppBackend>();
             builder.Services.AddTransient<WebAppRpcHandler>();
 
             builder.Services.AddTransient<HomeViewModel>();

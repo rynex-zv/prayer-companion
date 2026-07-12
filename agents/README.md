@@ -9,3 +9,5 @@ Read these files in order before changing application state, transport, storage,
 The files `mds/old.md`, `mds/new.md`, and `mds/newer.md` are historical UI inventories. They are not current implementation instructions.
 
 Never call a change production-ready from compilation alone. For storage/startup changes, test a cold browser origin, a reload with IndexedDB state, `https://pray.rynex.nl/`, and a freshly rebuilt Windows MAUI executable. Record the exact bundle hash and console/runtime errors.
+
+Phase 4 is complete. Preserve the native boundary documented in `mds/current-architecture.md`: transport metadata stays in `WebAppRpcHandler`, workflows stay in `NativeAppBackend`, durable mutations use `ApplicationCoordinator` plus the repository transaction, and external effects/events occur after commit.

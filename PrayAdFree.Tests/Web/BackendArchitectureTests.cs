@@ -12,6 +12,20 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Web_rpc_handler_is_transport_only() {
+        var root = FindRepoRoot();
+        var transport = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "WebAppTransportRpcHandler.cs"));
+        var application = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "WebAppRpcHandler.cs"));
+        Assert.Contains("NativeAppBackend", transport, StringComparison.Ordinal);
+        Assert.DoesNotContain("SettingsRepository", transport, StringComparison.Ordinal);
+        Assert.DoesNotContain("PrayerDataService", transport, StringComparison.Ordinal);
+        Assert.DoesNotContain("switch", transport, StringComparison.Ordinal);
+        Assert.Contains("public sealed class NativeAppBackend", application, StringComparison.Ordinal);
+        Assert.DoesNotContain("public sealed class WebAppRpcHandler", application, StringComparison.Ordinal);
+        Assert.DoesNotContain("ImmediateApplicationTransactionFactory", application, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Browser_store_is_memory_only_and_legacy_keys_are_migration_inputs_only() {
         var root = FindRepoRoot();
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));

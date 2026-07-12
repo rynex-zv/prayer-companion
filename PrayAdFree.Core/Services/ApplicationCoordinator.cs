@@ -24,6 +24,10 @@ public sealed record ApplicationCommandResult(
     IReadOnlyList<AppEvent> Events,
     bool Replayed);
 
+public sealed record ApplicationCommandExecution(
+    object? Data,
+    IReadOnlyList<Func<CancellationToken, Task>> AfterCommit);
+
 public sealed class ApplicationRevisionConflictException(long expected, long actual)
     : Exception($"Expected revision {expected}, but the current revision is {actual}.") {
     public long Expected { get; } = expected;
@@ -32,10 +36,12 @@ public sealed class ApplicationRevisionConflictException(long expected, long act
 
 /// <summary>Coordinates the persistence, revision, event, and idempotency boundary for application commands.</summary>
 public sealed class ApplicationCoordinator {
+    private const int MaxCompletedCommands = 512;
     private readonly IApplicationTransactionFactory _transactions;
     private readonly AppRevisionCoordinator _revisions;
     private readonly Func<AppEvent, CancellationToken, Task> _publish;
     private readonly Dictionary<string, ApplicationCommandResult> _completed = new(StringComparer.Ordinal);
+    private readonly Queue<string> _completionOrder = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public ApplicationCoordinator(
@@ -79,10 +85,21 @@ public sealed class ApplicationCoordinator {
                 throw;
             }
 
-            // Revision and events are created only after durable commit succeeds.
+            if (data is ApplicationCommandExecution execution) {
+                data = execution.Data;
+                foreach (var effect in execution.AfterCommit) {
+                    await effect(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+
+            // Revision and events are created only after durable commit and coordinated effects succeed.
             var appEvent = _revisions.Changed(request.Domain, request.RequestId, invalidationKey: $"{request.Domain}.*");
             var result = new ApplicationCommandResult(data, _revisions.Snapshot(), [appEvent], false);
             _completed[request.CommandId] = result;
+            _completionOrder.Enqueue(request.CommandId);
+            while (_completionOrder.Count > MaxCompletedCommands) {
+                _completed.Remove(_completionOrder.Dequeue());
+            }
             await _publish(appEvent, cancellationToken).ConfigureAwait(false);
             return result;
         } finally {

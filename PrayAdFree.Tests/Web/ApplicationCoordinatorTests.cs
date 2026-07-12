@@ -61,6 +61,99 @@ public sealed class ApplicationCoordinatorTests {
         Assert.Equal(1, error.Actual);
     }
 
+    [Fact]
+    public async Task Settings_repository_stages_writes_until_commit_and_discards_rollback() {
+        var store = new MemorySettingsStore();
+        var repository = new SettingsService(store);
+        var committed = 0;
+        repository.Committed += (_, _) => committed++;
+        repository.Save(new PrayAdFree.Core.Models.AppSettings { Language = "en" });
+        Assert.Equal(1, committed);
+
+        var rollback = await repository.BeginAsync(default);
+        repository.Save(new PrayAdFree.Core.Models.AppSettings { Language = "ar" });
+        Assert.Equal("ar", repository.Load().Language);
+        Assert.Equal(1, store.WriteCount);
+        await rollback.RollbackAsync(default);
+        Assert.Equal("en", repository.Load().Language);
+        Assert.Equal(1, store.WriteCount);
+        Assert.Equal(1, committed);
+
+        var commit = await repository.BeginAsync(default);
+        repository.Save(new PrayAdFree.Core.Models.AppSettings { Language = "tr" });
+        Assert.Equal(1, store.WriteCount);
+        await commit.CommitAsync(default);
+        Assert.Equal("tr", repository.Load().Language);
+        Assert.Equal(2, store.WriteCount);
+        Assert.Equal(2, committed);
+    }
+
+    [Fact]
+    public async Task Failed_application_command_never_persists_staged_settings_or_publishes() {
+        var store = new MemorySettingsStore();
+        var repository = new SettingsService(store);
+        repository.Save(new PrayAdFree.Core.Models.AppSettings { Language = "en" });
+        var published = 0;
+        var coordinator = new ApplicationCoordinator(
+            repository,
+            new AppRevisionCoordinator(),
+            (_, _) => { published++; return Task.CompletedTask; });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.CommandAsync(
+            new("request", "command", "settings.setLanguage", "settings", null),
+            _ => {
+                repository.Save(new PrayAdFree.Core.Models.AppSettings { Language = "ar" });
+                throw new InvalidOperationException("simulate workflow failure");
+            },
+            default));
+
+        Assert.Equal("en", repository.Load().Language);
+        Assert.Equal(1, store.WriteCount);
+        Assert.Equal(0, published);
+    }
+
+    [Fact]
+    public async Task Runs_coordinated_effects_after_commit_and_before_event() {
+        var order = new List<string>();
+        var coordinator = new ApplicationCoordinator(
+            new RecordingFactory(new RecordingTransaction(order)),
+            new AppRevisionCoordinator(),
+            (_, _) => { order.Add("publish"); return Task.CompletedTask; });
+
+        var result = await coordinator.CommandAsync(
+            new("request", "command", "settings.save", "settings", 0),
+            _ => Task.FromResult<object?>(new ApplicationCommandExecution(
+                new { saved = true },
+                [_ => { order.Add("effect"); return Task.CompletedTask; }])),
+            default);
+
+        Assert.Equal(["commit", "effect", "publish"], order);
+        Assert.NotNull(result.Data);
+    }
+
+    [Fact]
+    public async Task Coalescer_shares_work_only_for_the_same_key_and_revision() {
+        var coalescer = new ApplicationOperationCoalescer();
+        var executions = 0;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<object?> Work(CancellationToken _) {
+            Interlocked.Increment(ref executions);
+            return CompleteAsync();
+        }
+        async Task<object?> CompleteAsync() { await release.Task; return "result"; }
+
+        var first = coalescer.RunAsync("today.bootstrap", 7, Work, default);
+        var duplicate = coalescer.RunAsync("today.bootstrap", 7, Work, default);
+        await Task.Yield();
+        Assert.Equal(1, executions);
+        release.SetResult();
+        Assert.Equal("result", await first);
+        Assert.Equal("result", await duplicate);
+
+        await coalescer.RunAsync("today.bootstrap", 8, _ => { executions++; return Task.FromResult<object?>("new"); }, default);
+        Assert.Equal(2, executions);
+    }
+
     private sealed class RecordingFactory(IApplicationTransaction transaction) : IApplicationTransactionFactory {
         public ValueTask<IApplicationTransaction> BeginAsync(CancellationToken cancellationToken) => ValueTask.FromResult(transaction);
     }
@@ -72,5 +165,12 @@ public sealed class ApplicationCoordinatorTests {
     private sealed class RecordingTransaction(List<string> order) : IApplicationTransaction {
         public Task CommitAsync(CancellationToken cancellationToken) { order.Add("commit"); return Task.CompletedTask; }
         public Task RollbackAsync(CancellationToken cancellationToken) { order.Add("rollback"); return Task.CompletedTask; }
+    }
+
+    private sealed class MemorySettingsStore : ISettingsStore {
+        private string _value = "";
+        public int WriteCount { get; private set; }
+        public T Get<T>(string key, T defaultValue) => string.IsNullOrEmpty(_value) ? defaultValue : (T)(object)_value;
+        public void Set<T>(string key, T value) { _value = (string)(object)value!; WriteCount++; }
     }
 }

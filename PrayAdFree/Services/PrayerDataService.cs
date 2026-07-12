@@ -32,12 +32,16 @@ public sealed class PrayerDataService {
         _prayerTimesService = prayerTimesService;
         _notificationScheduler = notificationScheduler;
         _logger = logger;
+        _settingsService.Committed += OnSettingsCommitted;
     }
 
     public AppSettings LoadSettings() => _settingsService.Load();
 
     public void SaveSettings(AppSettings settings) {
         _settingsService.Save(settings);
+    }
+
+    private void OnSettingsCommitted(object? sender, EventArgs args) {
         SettingsChanged?.Invoke(this, EventArgs.Empty);
 #if ANDROID
         WidgetUpdateCoordinator.RequestImmediateRefresh("SettingsSaved");

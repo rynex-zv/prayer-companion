@@ -1,6 +1,6 @@
 # Current application architecture and verification instructions
 
-Updated: 2026-07-12 after the centralized-storage runtime audit.
+Updated: 2026-07-12 after Phase 4 production verification.
 
 ## Runtime boundaries
 
@@ -10,7 +10,11 @@ Updated: 2026-07-12 after the centralized-storage runtime audit.
 - React confirmed, request, optimistic, and UI state is memory-only.
 - The old keys `pray.web.core.state` and `prayer-companion:app-state:v1` are migration inputs only. Newer IndexedDB authority always wins; stale React state must not overwrite it.
 - Core/WASM still supplies the compatibility state serializer during migration. Do not describe it as fully stateless until `app.importState`/`app.exportState` and mutable `WebState` are actually removed.
-- Native durable settings are owned by `ISettingsRepository`/`SettingsService`. RPC handlers depend on application ports, not concrete ViewModels.
+- Native durable settings are owned by `ISettingsRepository`/`SettingsService`. `SettingsService` also supplies the application transaction: writes remain staged until commit and disappear on rollback.
+- `WebAppRpcHandler` is a transport adapter only. It parses RPC/query metadata, measures the call, and delegates a `NativeAppOperation` to `NativeAppBackend`.
+- `NativeAppBackend` owns native application dispatch. Mutating operations cross `ApplicationCoordinator`, which checks expected revisions, deduplicates command IDs with a bounded replay cache, commits before effects/events, and returns authoritative projections.
+- Settings scheduling and `PrayerDataService.SettingsChanged`/widget invalidation are post-commit behavior. Never move them back into repository `Save` before transaction completion.
+- Equivalent native queries are coalesced by normalized input plus the current authoritative revision.
 
 ## Startup invariants
 

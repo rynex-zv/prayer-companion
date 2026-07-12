@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MauiWebber;
@@ -8,7 +7,7 @@ using PrayAdFree.Core.Services;
 
 namespace Pray_Ad_Free.Services;
 
-public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
+public sealed class NativeAppBackend {
     private readonly TodayWebRpcHandler _today;
     private readonly ICalendarProjectionSource _calendar;
     private readonly IQiblaProjectionSource _qibla;
@@ -24,13 +23,14 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
     private readonly IAppLogger _logger;
     private readonly AppRevisionCoordinator _revisions = new();
     private readonly ApplicationCoordinator _application;
+    private readonly ApplicationOperationCoalescer _operations;
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
     private string _qiblaDisplayMode = "compass";
     private string _qiblaVisualFilter = "none";
 
-    public WebAppRpcHandler(
+    public NativeAppBackend(
         TodayWebRpcHandler today,
         ICalendarProjectionSource calendar,
         IQiblaProjectionSource qibla,
@@ -43,6 +43,8 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         INotificationBootstrapper notificationBootstrapper,
         AndroidAlarmCapabilityService alarmCapability,
         MauiWebberUpdater webUpdater,
+        IApplicationTransactionFactory transactionFactory,
+        ApplicationOperationCoalescer operations,
         IAppLogger logger) {
         _today = today;
         _calendar = calendar;
@@ -57,8 +59,9 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         _alarmCapability = alarmCapability;
         _webUpdater = webUpdater;
         _logger = logger;
+        _operations = operations;
         _application = new ApplicationCoordinator(
-            new ImmediateApplicationTransactionFactory(),
+            transactionFactory,
             _revisions,
             (appEvent, _) => {
                 MauiWebberEventHub.Publish(appEvent);
@@ -77,18 +80,11 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         return _today.PreloadAsync();
     }
 
-    public async Task<object?> HandleAsync(string method, JsonElement payload, CancellationToken cancellationToken) {
-        var requestId = ReadCorrelationId(payload, "requestId") ?? Guid.NewGuid().ToString("D");
-        var commandId = ReadCorrelationId(payload, "commandId");
-        var stopwatch = Stopwatch.StartNew();
-        using var metricsScope = RpcObservability.Begin();
-        try {
-            var operationKind = WebContractExporter.Classify(method);
-            var domain = ReadCorrelationId(payload, "domain") ?? method.Split('.')[0];
-            var ifRevision = ReadIfRevision(payload);
+    public async Task<object?> HandleAsync(NativeAppOperation operation, JsonElement payload, CancellationToken cancellationToken) {
+            var method = operation.Method;
             var currentRevision = _revisions.Snapshot();
-            if (method != "app.bootstrap" && operationKind == PrayAdFree.Core.Contracts.RpcOperationKind.Query && ifRevision > 0 &&
-                currentRevision.Domains.TryGetValue(domain, out var domainRevision) && domainRevision == ifRevision) {
+            if (method != "app.bootstrap" && operation.Kind == PrayAdFree.Core.Contracts.RpcOperationKind.Query && operation.IfRevision > 0 &&
+                currentRevision.Domains.TryGetValue(operation.Domain, out var domainRevision) && domainRevision == operation.IfRevision) {
                 return new { notModified = true, revision = domainRevision };
             }
             var execute = new Func<Task<object?>>(async () => method switch {
@@ -128,41 +124,24 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             "onboarding.complete" => CompleteOnboarding(),
                 _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
             });
-            object? result;
-            if (operationKind is PrayAdFree.Core.Contracts.RpcOperationKind.Command or PrayAdFree.Core.Contracts.RpcOperationKind.CompatibilityAdapter) {
+            if (operation.Kind is PrayAdFree.Core.Contracts.RpcOperationKind.Command or PrayAdFree.Core.Contracts.RpcOperationKind.CompatibilityAdapter) {
                 var coordinated = await _application.CommandAsync(
                     new ApplicationCommandRequest(
-                        requestId,
-                        commandId ?? requestId,
+                        operation.RequestId,
+                        operation.CommandId ?? operation.RequestId,
                         method,
-                        domain,
-                        ReadExpectedRevision(payload)),
+                        operation.Domain,
+                        operation.ExpectedRevision),
                     _ => execute(),
                     cancellationToken).ConfigureAwait(false);
-                result = coordinated.Data;
+                return coordinated.Data;
             } else {
-                result = await execute().ConfigureAwait(false);
+                return await _operations.RunAsync(
+                    BuildOperationKey(method, payload),
+                    currentRevision.Global,
+                    _ => execute(),
+                    cancellationToken).ConfigureAwait(false);
             }
-            stopwatch.Stop();
-            var metrics = RpcObservability.Capture();
-            var responseBytes = JsonSerializer.SerializeToUtf8Bytes(result).Length;
-            _logger.LogEvent("rpc.completed", JsonSerializer.Serialize(new {
-                requestId, commandId, method,
-                kind = WebContractExporter.Classify(method).ToString(),
-                durationMs = stopwatch.ElapsedMilliseconds,
-                responseBytes,
-                metrics.PersistenceWrites,
-                cache = new { hits = metrics.CacheHits, misses = metrics.CacheMisses }
-            }));
-            return result;
-        } catch (Exception exception) {
-            stopwatch.Stop();
-            _logger.LogEvent("rpc.failed", JsonSerializer.Serialize(new {
-                requestId, commandId, method, durationMs = stopwatch.ElapsedMilliseconds,
-                errorType = exception.GetType().Name
-            }));
-            throw;
-        }
     }
 
     private async Task<object> BuildBootstrapAsync(CancellationToken cancellationToken) {
@@ -187,25 +166,12 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         };
     }
 
-    private static string? ReadCorrelationId(JsonElement payload, string name) {
-        if (payload.ValueKind != JsonValueKind.Object ||
-            !payload.TryGetProperty("_rpc", out var metadata) ||
-            metadata.ValueKind != JsonValueKind.Object ||
-            !metadata.TryGetProperty(name, out var value)) return null;
-        return value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-    }
-
-    private static long ReadIfRevision(JsonElement payload) {
-        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("_query", out var query) &&
-            query.ValueKind == JsonValueKind.Object && query.TryGetProperty("ifRevision", out var value) && value.TryGetInt64(out var revision)) return revision;
-        return 0;
-    }
-
-    private static long? ReadExpectedRevision(JsonElement payload) {
-        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("_rpc", out var metadata) &&
-            metadata.ValueKind == JsonValueKind.Object && metadata.TryGetProperty("expectedRevision", out var value) &&
-            value.TryGetInt64(out var revision)) return revision;
-        return null;
+    private static string BuildOperationKey(string method, JsonElement payload) {
+        if (payload.ValueKind != JsonValueKind.Object) return method;
+        var body = JsonNode.Parse(payload.GetRawText()) as JsonObject;
+        body?.Remove("_rpc");
+        body?.Remove("_query");
+        return body is null || body.Count == 0 ? method : $"{method}|{body.ToJsonString()}";
     }
 
     private object BuildShellSnapshot() {
@@ -256,13 +222,13 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             await CloseAlarmHostAsync().ConfigureAwait(false);
         }
 
-        return new { ok = scheduled };
+        return await GetAlarmSnapshotAsync().ConfigureAwait(false);
     }
 
     private async Task<object> StopAlarmAsync() {
         await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
         await CloseAlarmHostAsync().ConfigureAwait(false);
-        return new { ok = true };
+        return await GetAlarmSnapshotAsync().ConfigureAwait(false);
     }
 
     private static Task CloseAlarmHostAsync() => MainThread.InvokeOnMainThreadAsync(async () => {
@@ -672,12 +638,19 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
 
         SaveSettings(next);
         ThemeManager.ApplyTheme(next);
-        if (changedSection is "notifications" or "adhan" or "locations") {
-            _ = _notificationBootstrapper.EnsureScheduledAsync($"WebSettings:{changedSection}", requestPermissions: false, force: true);
-        }
-        return changedSection == null
+        var snapshot = changedSection == null
             ? await GetSettingsSnapshotAsync(payload).ConfigureAwait(false)
             : await GetSettingsSnapshotAsync(BuildSectionPayload(changedSection)).ConfigureAwait(false);
+        if (changedSection is not ("notifications" or "adhan" or "locations")) return snapshot;
+        return new ApplicationCommandExecution(snapshot, [async _ => {
+            try {
+                await _notificationBootstrapper
+                    .EnsureScheduledAsync($"WebSettings:{changedSection}", requestPermissions: false, force: true)
+                    .ConfigureAwait(false);
+            } catch (Exception exception) {
+                _logger.LogException(exception, $"NativeAppBackend.Reconcile.{changedSection}");
+            }
+        }]);
     }
 
     private async Task<object> SetSettingsFieldAsync(JsonElement payload) {
@@ -695,12 +668,12 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
             var root = new JsonObject {
                 ["theme"] = themeNode
             };
-            await PatchSettingsAsync(JsonSerializer.SerializeToElement(root)).ConfigureAwait(false);
+            var patchResult = await PatchSettingsAsync(JsonSerializer.SerializeToElement(root)).ConfigureAwait(false);
             if (string.Equals(field, "language", StringComparison.OrdinalIgnoreCase)) {
-                return new { ok = true, section, field, value = value.GetString(), languageObject = BuildLanguageObject(value.GetString()) };
+                return PreserveAfterCommit(patchResult, new { ok = true, section, field, value = value.GetString(), languageObject = BuildLanguageObject(value.GetString()) });
             }
 
-            return new { ok = true, section, field, value };
+            return PreserveAfterCommit(patchResult, new { ok = true, section, field, value });
         }
 
         var patchSection = PatchSectionName(section);
@@ -716,12 +689,17 @@ public sealed class WebAppRpcHandler : IMauiWebberRpcHandler {
         var payloadNode = new JsonObject {
             [patchSection] = sectionNode
         };
-        await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
+        var sectionPatchResult = await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
         var calculated = string.Equals(section, "locations", StringComparison.OrdinalIgnoreCase)
             ? BuildLocationsSettings(_settingsService.Load())
             : null;
-        return new { ok = true, section, field, value, calculated };
+        return PreserveAfterCommit(sectionPatchResult, new { ok = true, section, field, value, calculated });
     }
+
+    private static object PreserveAfterCommit(object? execution, object data) =>
+        execution is ApplicationCommandExecution coordinated
+            ? new ApplicationCommandExecution(data, coordinated.AfterCommit)
+            : data;
 
     private static string PatchSectionName(string section) {
         return section switch {

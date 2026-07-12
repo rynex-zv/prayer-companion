@@ -432,13 +432,18 @@ Exit gates:
 
 ### Phase 4: Backend application services and repositories
 
-**Status: PARTIAL — runtime audit reopened (2026-07-12)**
+**Status: DONE — transaction, platform build, and native runtime verified (2026-07-12)**
 
 - [x] All native commands cross a serialized application coordinator boundary with command-ID replay protection and expected-revision validation.
 - [x] The coordinator owns transaction commit/rollback, revision advancement, and post-commit event publication ordering.
 - [x] Settings persistence is exposed to backend consumers through the typed `ISettingsRepository` contract.
 - [x] Legacy RPC names remain mapped at the transport boundary while successful commands continue returning their authoritative projection payloads.
 - [x] Tests cover idempotent replay, stale revision rejection, commit-before-event ordering, and failure atomicity.
+- [x] `WebAppRpcHandler` is transport-only; `NativeAppBackend` owns application dispatch and workflow orchestration.
+- [x] `SettingsService` is the native application transaction factory: writes are staged, committed once, and discarded on rollback.
+- [x] Scheduling and settings/widget notifications run only after durable commit.
+- [x] Equivalent in-flight queries are coalesced by normalized operation input and authoritative revision; completed command replay is bounded.
+- [x] Windows MAUI runtime selected the native backend, completed bootstrap, rendered Today, and logged no startup exception.
 
 Objective: put authoritative use cases behind one backend application layer.
 
@@ -555,7 +560,7 @@ Exit gates:
 - [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
 - [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
 
-Audit note: the checked items above describe boundaries added during the first pass, but they do not satisfy every phase exit gate. `WebAppRpcHandler` still contains domain workflows; projection ports are still implemented by ViewModels; browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. These phases must not be called complete until that compatibility debt is removed and native/browser runtime parity tests pass.
+Audit note: Phase 4's native application/transaction boundary is complete. Later-phase debt remains: projection ports are still implemented by ViewModels; browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. Do not use Phase 4 completion to describe those later phases as complete.
 
 Remove when unused:
 
