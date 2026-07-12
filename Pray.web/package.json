@@ -16,7 +16,8 @@
     "build:all:dev": "node scripts/build-all.mjs --dev",
     "build:all:phone": "node scripts/build-all.mjs --phone",
     "preview": "vite preview --host 0.0.0.0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:architecture": "node scripts/check-client-boundaries.mjs"
   },
   "dependencies": {
     "@fontsource/amiri": "^5.2.8",

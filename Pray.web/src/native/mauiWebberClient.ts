@@ -4,16 +4,31 @@ import { coreContract } from "../generated/core-contract";
 
 export type BridgeResponse<T = unknown> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; errorInfo?: TransportError };
+type BridgeFailure = Extract<BridgeResponse<never>, { ok: false }>;
+
+export type TransportErrorCode = "timeout" | "unavailable" | "transport" | "contract" | "cancelled";
+export type TransportError = {
+  code: TransportErrorCode;
+  message: string;
+  retryable: boolean;
+  backend: BackendKind | "unselected";
+};
+export type BackendKind = "maui" | "browser";
+
+type SelectedBackend =
+  | { kind: "maui"; bridge: NonNullable<Window["mauiWebber"]> }
+  | { kind: "browser" };
 
 export async function mauiCall<T = unknown>(
   method: string,
   payload?: unknown,
+  options?: { requestId?: string; commandId?: string },
 ): Promise<BridgeResponse<T>> {
   const callId = nextCallId();
-  const requestId = createId();
+  const requestId = options?.requestId ?? createId();
   const kind = classify(method);
-  const commandId = kind === "command" || kind === "compatibilityAdapter" ? createId() : undefined;
+  const commandId = options?.commandId ?? (kind === "command" || kind === "compatibilityAdapter" ? createId() : undefined);
   const correlatedPayload = addCorrelation(payload, requestId, commandId);
   const started = now();
   const timeoutMs = bridgeTimeoutFor(method);
@@ -21,26 +36,32 @@ export async function mauiCall<T = unknown>(
   logBridge("start", { callId, requestId, commandId, method, kind, payload, timeoutMs });
 
   try {
-    const bridge = await withBridgeTimeout(resolveBridge(), 2500, method, "resolveBridge");
-    if (bridge) {
+    const backend = await selectBackend();
+    if (backend.kind === "maui") {
       try {
-        const res = await withBridgeTimeout(bridge.call(method, correlatedPayload), mauiTimeoutFor(method, timeoutMs), method, "maui");
+        const res = await withBridgeTimeout(backend.bridge.call(method, correlatedPayload), timeoutMs, method, "maui");
         logBridge("success", { callId, requestId, commandId, method, source: "maui", elapsedMs: elapsed(started), responseBytes: byteSize(res) });
         if (res && typeof res === "object" && "ok" in res) {
           return res as BridgeResponse<T>;
         }
         return { ok: true, data: res as T };
       } catch (error) {
+        const failure = transportFailure(error, "maui");
         logBridge("failure", {
           callId,
+          requestId,
+          commandId,
           method,
           source: "maui",
           elapsedMs: elapsed(started),
-          error: error instanceof Error ? error.message : String(error),
+          errorCode: failure.errorInfo?.code,
         });
+        return failure;
       }
     }
 
+    // Browser platform operations and WASM belong to one selected browser backend.
+    // Never enter this path after a native failure: that could execute a command twice.
     const webPlatform = await withBridgeTimeout(tryHandleWebPlatformCall<T>(method, correlatedPayload), timeoutMs, method, "web-platform");
     if (webPlatform) {
       logBridge(webPlatform.ok ? "success" : "failure", { callId, method, source: "web-platform", elapsedMs: elapsed(started), error: webPlatform.ok ? undefined : webPlatform.error });
@@ -55,14 +76,11 @@ export async function mauiCall<T = unknown>(
 
     const detail = getLastWasmCoreLoadError();
     logBridge("failure", { callId, method, source: "none", elapsedMs: elapsed(started), error: detail ?? "Web Core failed to load." });
-    return {
-      ok: false,
-      error: detail ? `Web Core failed to load: ${detail}` : "Web Core failed to load.",
-    };
+    return failure("unavailable", detail ? `Web Core failed to load: ${detail}` : "Web Core failed to load.", "browser", true);
   } catch (e) {
-    const error = e instanceof Error ? e.message : String(e);
-    logBridge("error", { callId, method, elapsedMs: elapsed(started), error });
-    return { ok: false, error };
+    const result = transportFailure(e, selectedBackend?.kind ?? "unselected");
+    logBridge("error", { callId, requestId, commandId, method, elapsedMs: elapsed(started), errorCode: result.errorInfo?.code });
+    return result;
   }
 }
 
@@ -82,8 +100,26 @@ export function mauiTrace(name: string, detail: Record<string, unknown> = {}): v
   }).catch(() => undefined);
 }
 
-export const BRIDGE_MODE: "maui" | "wasm" =
-  typeof window !== "undefined" && window.mauiWebber ? "maui" : "wasm";
+/** @deprecated Backend selection is asynchronous. Use getSelectedBackendKind for diagnostics. */
+export const BRIDGE_MODE: "maui" | "wasm" = typeof window !== "undefined" && window.mauiWebber ? "maui" : "wasm";
+
+let selectedBackend: SelectedBackend | undefined;
+let backendSelection: Promise<SelectedBackend> | undefined;
+
+export async function getSelectedBackendKind(): Promise<BackendKind> {
+  return (await selectBackend()).kind;
+}
+
+async function selectBackend(): Promise<SelectedBackend> {
+  if (selectedBackend) return selectedBackend;
+  backendSelection ??= (async () => {
+    const bridge = await withBridgeTimeout(resolveBridge(), 2500, "backend.select", "resolveBridge").catch(() => undefined);
+    selectedBackend = bridge && hasNativeTransport() ? { kind: "maui", bridge } : { kind: "browser" };
+    logBridge("backend-selected", { backend: selectedBackend.kind });
+    return selectedBackend;
+  })();
+  return backendSelection;
+}
 
 async function resolveBridge(): Promise<Window["mauiWebber"] | undefined> {
   if (typeof window === "undefined") {
@@ -159,33 +195,6 @@ function bridgeTimeoutFor(method: string): number {
   return 15000;
 }
 
-function mauiTimeoutFor(method: string, defaultTimeoutMs: number): number {
-  if (!isImplicitPhoneBridgeWithoutNativeTransport()) {
-    return defaultTimeoutMs;
-  }
-
-  if (method === "mauiWebber.pullRemote") {
-    return 2500;
-  }
-
-  return 800;
-}
-
-function isImplicitPhoneBridgeWithoutNativeTransport(): boolean {
-  if (typeof window === "undefined" || import.meta.env.MODE !== "phone") {
-    return false;
-  }
-
-  const nativeWindow = window as Window & {
-    chrome?: { webview?: { postMessage?: unknown } };
-    mauiWebberNative?: { postMessage?: unknown };
-  };
-
-  return window.location.protocol !== "file:" &&
-    !nativeWindow.mauiWebberNative?.postMessage &&
-    !nativeWindow.chrome?.webview?.postMessage;
-}
-
 function withBridgeTimeout<T>(promise: Promise<T>, timeoutMs: number, method: string, source: string): Promise<T> {
   if (typeof window === "undefined") {
     return promise;
@@ -225,11 +234,28 @@ function elapsed(started: number): number {
 }
 
 function logBridge(event: string, detail: Record<string, unknown>): void {
-  const payload = { event, ...detail };
+  const payload = { event, ...redact(detail) };
   console.info(`[pray.bridge] ${JSON.stringify(payload)}`);
   if (event !== "start") {
     mauiTrace(`bridge.${event}`, payload);
   }
+}
+
+function redact(detail: Record<string, unknown>): Record<string, unknown> {
+  const safe = { ...detail };
+  delete safe.payload;
+  delete safe.data;
+  return safe;
+}
+
+function transportFailure(error: unknown, backend: BackendKind | "unselected"): BridgeFailure {
+  const message = error instanceof Error ? error.message : String(error);
+  const code: TransportErrorCode = /timed out/i.test(message) ? "timeout" : "transport";
+  return failure(code, message, backend, code === "timeout");
+}
+
+function failure(code: TransportErrorCode, message: string, backend: BackendKind | "unselected", retryable: boolean): BridgeFailure {
+  return { ok: false, error: message, errorInfo: { code, message, retryable, backend } };
 }
 
 type OperationKind = "command" | "query" | "platformOperation" | "compatibilityAdapter" | "obsolete";
@@ -253,6 +279,7 @@ function observeSequence(method: string, kind: OperationKind, requestId: string)
   inFlightQueries.set(method, { count: (active?.count ?? 0) + 1, requestId: active?.requestId ?? requestId });
   const command = lastCommandByDomain.get(domain);
   if (command && now() - command.at < 2000) logBridge("command-then-refresh", { method, requestId, commandMethod: command.method, commandRequestId: command.requestId });
+  if (typeof window === "undefined") return;
   window.setTimeout(() => {
     const current = inFlightQueries.get(method);
     if (!current) return;

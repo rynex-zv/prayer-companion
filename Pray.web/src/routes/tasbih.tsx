@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { type PointerEvent, useMemo, useRef, useState } from "react";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { useTasbih } from "@/domains/tasbih/tasbihClient";
 import { Card } from "@/components/Card";
 import { Picker } from "@/components/Picker";
 import { RotateCcw } from "lucide-react";
@@ -16,25 +15,6 @@ export const Route = createFileRoute("/tasbih")({
   }),
   component: TasbihPage,
 });
-
-type Preset = {
-  id: string;
-  name: string;
-  repeatMode: string;
-  items: {
-    text: string;
-    targetCount: number;
-  }[];
-};
-
-type Snapshot = {
-  count: number;
-  currentPhrase: string;
-  progressText: string;
-  isPresetSelectionEnabled: boolean;
-  selectedPresetId: string;
-  presets: Preset[];
-};
 
 type TasbihRingProps = {
   count: number;
@@ -292,7 +272,7 @@ function TasbihPage() {
   usePageLog("tasbih");
 
   const t = useAppLabels();
-  const { data, refresh } = useSnapshot<Snapshot>("tasbih.getSnapshot");
+  const { data, increment, reset, selectPreset } = useTasbih();
 
   if (!data) {
     return <div className="h-80 animate-pulse rounded-xl bg-muted" />;
@@ -314,11 +294,11 @@ function TasbihPage() {
           currentPhrase={data.currentPhrase}
           progressText={data.progressText}
           beadCount={33}
-          onIncrement={() => mauiCall("tasbih.increment").then(refresh)}
+          onIncrement={increment}
         />
 
         <button
-          onClick={() => mauiCall("tasbih.reset").then(refresh)}
+          onClick={reset}
           className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
         >
           <RotateCcw className="h-4 w-4" />
@@ -331,9 +311,7 @@ function TasbihPage() {
 
         <Picker
           value={data.selectedPresetId}
-          onChange={(id) =>
-            mauiCall("tasbih.selectPreset", { id }).then(refresh)
-          }
+          onChange={selectPreset}
         >
           {data.presets.map((p) => (
             <option

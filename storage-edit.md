@@ -360,6 +360,24 @@ Exit gates:
 
 ### Phase 2: Unified React client and store
 
+**Status: DONE (2026-07-12)**
+
+Phase 1.5 safety boundary completed before Phase 2:
+
+- [x] A runtime selects MAUI or browser once per session; failed/timed-out native calls never replay against WASM.
+- [x] Transport failures have typed codes and retryability, and diagnostic payloads are redacted.
+- [x] Request/command IDs created by `AppClient` flow through the compatibility transport and native correlation logs.
+
+Phase 2 implementation:
+
+- [x] `AppClient` provides bootstrap compatibility, query, command, subscription, cancellation, and normalized result/error contracts over the legacy transport.
+- [x] The centralized client store separates confirmed projections, revisions, optimistic operations, request state, and UI-only state; it is memory-only.
+- [x] Queries deduplicate by method, normalized payload, and revision while allowing individual subscribers to cancel their wait.
+- [x] Successful command data is installed directly into confirmed projections.
+- [x] Tasbih and Tasbih Settings use the same `tasbih.snapshot` projection; increment, reset, preset selection, and settings edits no longer issue follow-up reads.
+- [x] An architecture check prevents new UI/domain code from importing `mauiWebberClient`; existing unmigrated consumers are an explicit shrinking compatibility allowlist.
+- [x] Legacy hooks, the old app store, and old RPC methods remain intentionally available for unmigrated domains.
+
 Objective: give React one access path and one confirmed read model while legacy RPC remains underneath.
 
 Work:

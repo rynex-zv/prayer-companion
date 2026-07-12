@@ -3,31 +3,18 @@ import { useEffect, useState } from "react";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { OptionButtons, SectionBlock, StatusLine } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { useTasbih } from "@/domains/tasbih/tasbihClient";
 import { Picker } from "@/components/Picker";
 
 export const Route = createFileRoute("/settings/tasbih")({
   component: TasbihSettingsPage,
 });
 
-type TasbihPreset = {
-  id: string;
-  name: string;
-  repeatMode: string;
-  items: { text: string; targetCount: number }[];
-};
-
-type TasbihSnapshot = {
-  selectedPresetId: string;
-  presets: TasbihPreset[];
-};
-
 const repeatModes = ["Continue", "Reset", "None"];
 
 function TasbihSettingsPage() {
   const t = useAppLabels();
-  const { data, refresh, setData } = useStoredSnapshot<TasbihSnapshot>("tasbih.getSnapshot", undefined, "settings.tasbih");
+  const { data, invokeSettings, selectPreset } = useTasbih();
   const [status, setStatus] = useState("ready");
   const [newPresetName, setNewPresetName] = useState("");
   const [newItemText, setNewItemText] = useState("");
@@ -36,14 +23,7 @@ function TasbihSettingsPage() {
 
   const invoke = (action: string, payload: unknown) => {
     setStatus("saving");
-    void mauiCall("settings.invoke", { action, payload }).then((res) => {
-      setStatus(res.ok ? "saved" : "error");
-      if (res.ok) {
-        setData(res.data as TasbihSnapshot);
-      } else {
-        void refresh(true);
-      }
-    });
+    void invokeSettings(action, payload).then((ok) => setStatus(ok ? "saved" : "error"));
   };
 
   return (
@@ -72,7 +52,7 @@ function TasbihSettingsPage() {
             {t("add")}
           </button>
         </div>
-        <Picker value={data.selectedPresetId} onChange={(id) => void mauiCall("tasbih.selectPreset", { id }).then((res) => res.ok ? setData(res.data as TasbihSnapshot) : refresh(true))}>
+        <Picker value={data.selectedPresetId} onChange={selectPreset}>
           {data.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
         </Picker>
       </SectionBlock>
