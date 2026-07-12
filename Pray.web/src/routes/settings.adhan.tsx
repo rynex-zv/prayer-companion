@@ -5,7 +5,7 @@ import { EditableSetting, OptionButtons, SectionBlock, StatusLine } from "@/comp
 import { Picker } from "@/components/Picker";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/adhan")({

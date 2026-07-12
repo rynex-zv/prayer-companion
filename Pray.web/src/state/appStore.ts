@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
 
 export type Direction = "rtl" | "ltr";

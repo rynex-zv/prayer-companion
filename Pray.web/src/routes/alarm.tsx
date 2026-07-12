@@ -5,7 +5,7 @@ import { AlarmClock, Minus, Plus } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 
 export const Route = createFileRoute("/alarm")({
   head: () => ({ meta: [] }),

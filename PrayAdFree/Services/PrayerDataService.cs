@@ -19,7 +19,7 @@ public sealed class PrayerDataService {
     private readonly SemaphoreSlim _locationUpdateGate = new(1, 1);
     private DateTime _lastGpsRefreshUtc = DateTime.MinValue;
 
-    public event EventHandler<AppSettings>? SettingsChanged;
+    public event EventHandler? SettingsChanged;
 
     public PrayerDataService(
         SettingsService settingsService,
@@ -38,7 +38,7 @@ public sealed class PrayerDataService {
 
     public void SaveSettings(AppSettings settings) {
         _settingsService.Save(settings);
-        SettingsChanged?.Invoke(this, settings);
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
 #if ANDROID
         WidgetUpdateCoordinator.RequestImmediateRefresh("SettingsSaved");
 #endif

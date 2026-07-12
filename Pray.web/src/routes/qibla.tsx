@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { Card, CardTitle } from "@/components/Card";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { QiblaCompass } from "@/components/QiblaCompass";

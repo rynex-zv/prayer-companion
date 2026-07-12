@@ -218,10 +218,10 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
         _dataService.SaveSettings(_settings);
     }
 
-    private void OnSettingsChanged(object? sender, AppSettings settings) {
+    private void OnSettingsChanged(object? sender, EventArgs args) {
         if (_suppressReload) {
             _suppressReload = false;
-            _settings = settings;
+            _settings = _dataService.LoadSettings();
             return;
         }
 

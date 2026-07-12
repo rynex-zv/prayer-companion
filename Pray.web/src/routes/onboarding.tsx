@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { Card } from "@/components/Card";
 import { CoordinateInput } from "@/components/CoordinateInput";
 import { Field } from "@/components/Field";

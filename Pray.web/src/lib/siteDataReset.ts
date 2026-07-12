@@ -1,4 +1,4 @@
-import { isBridgeReady, mauiCall } from "@/native/mauiWebberClient";
+import { isBridgeReady, mauiCall } from "@/client/legacyClient";
 
 export type DataRestoreSource = "localStorage" | "backend";
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BottomTabs } from "./BottomTabs";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
 import { ShakeDataResetButton } from "./ShakeDataResetButton";

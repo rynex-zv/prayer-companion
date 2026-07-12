@@ -546,6 +546,15 @@ Exit gates:
 
 ### Phase 8: Legacy removal and enforcement
 
+**Status: DONE (2026-07-12)**
+
+- [x] UI routes, components, and snapshot hooks no longer import the transport; all domain access crosses the client boundary.
+- [x] Legacy snapshot hooks are memory-only adapters over `AppClient` and the centralized confirmed store, not data owners.
+- [x] Whole-application `AppSettings` instances are no longer broadcast to subscribers.
+- [x] Browser persistence is isolated from WASM and React, and old storage keys are migration-only.
+- [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
+- [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
+
 Remove when unused:
 
 - Direct route/component `mauiCall`.

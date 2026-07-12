@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { Card } from "@/components/Card";
 import { ChevronLeft, ChevronRight, CalendarDays, X, Star } from "lucide-react";
 import { cn } from "@/lib/utils";

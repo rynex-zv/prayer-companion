@@ -3,7 +3,7 @@ import { Card } from "@/components/Card";
 import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/appStore";

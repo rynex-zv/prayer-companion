@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { Mail, Phone, Globe, Bug, DownloadCloud, DatabaseZap } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";

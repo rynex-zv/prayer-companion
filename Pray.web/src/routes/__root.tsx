@@ -16,7 +16,7 @@ import "@fontsource/amiri/700.css";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "../components/AppShell";
-import { mauiTrace } from "@/native/mauiWebberClient";
+import { mauiTrace } from "@/client/legacyClient";
 import { getLabel } from "@/state/appStore";
 
 function NotFoundComponent() {

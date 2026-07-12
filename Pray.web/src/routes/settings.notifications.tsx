@@ -4,7 +4,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/notifications")({

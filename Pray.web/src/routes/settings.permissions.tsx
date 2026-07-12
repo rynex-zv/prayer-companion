@@ -3,7 +3,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { SectionBlock } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 
 export const Route = createFileRoute("/settings/permissions")({
   component: PermissionsPage,

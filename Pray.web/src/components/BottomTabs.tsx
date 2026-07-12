@@ -1,7 +1,7 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mauiCall } from "@/native/mauiWebberClient";
+import { mauiCall } from "@/client/legacyClient";
 import { useAppStore } from "@/state/appStore";
 
 const tabs = [
