@@ -51,9 +51,6 @@ public sealed class WebCoreRpcDispatcher {
             "app.getLanguageObject" => LanguageObject(GetString(payload, "language", _state.Language)),
             "app.setLanguage" => SetLanguage(GetString(payload, "language", _state.Language)),
             "app.setTheme" => SetTheme(GetString(payload, "theme", _state.ThemeMode)),
-            "app.navigate" => new { navigatedTo = GetString(payload, "route", "/") },
-            "app.importState" => ImportState(GetString(payload, "state", GetString(payload, "_state", ""))),
-            "app.exportState" => ExportState(),
 
             "today.getSnapshot" or "today.refresh" => TodaySnapshot(),
 
@@ -75,13 +72,30 @@ public sealed class WebCoreRpcDispatcher {
             "tasbih.increment" => IncrementTasbih(),
             "tasbih.reset" => ResetTasbih(),
             "tasbih.selectPreset" => SelectTasbihPreset(GetString(payload, "id", _state.SelectedTasbihPresetId)),
+            "tasbih.addPreset" => AddTasbihPreset(GetString(payload, "name", T("newPresetName"))),
+            "tasbih.updatePreset" => UpdateTasbihPreset(payload),
+            "tasbih.addItem" => AddTasbihItem(payload),
+            "tasbih.updateItem" => UpdateTasbihItem(payload),
+            "tasbih.moveItem" => MoveTasbihItem(payload),
+            "tasbih.removeItem" => RemoveTasbihItem(payload),
 
             "alarm.getSnapshot" or "alarm.snooze" or "alarm.stop" => AlarmSnapshot(),
+            "alarm.test" => NativeAction("testAlarm", ok: false),
+            "notification.test" => NativeAction("testNotification", ok: false),
+            "permissions.request" => NativeAction("requestPermission", ok: true),
+            "permissions.requestAll" => NativeAction("requestAllPermissions", ok: true),
+            "location.refresh" => NativeAction("refreshGps", ok: false),
+            "location.reverseGeocode" => NativeAction("reverseGeocode", ok: false),
+            "adhan.sound.addCustom" => NativeAction("addCustomAdhanSound", ok: false),
+            "adhan.sound.preview" => NativeAction("previewSound", ok: false),
+            "adhan.sound.removeCustom" => NativeAction("removeCustomAdhanSound", ok: false),
+            "external.openUrl" => new { ok = true, action = "openUrl", platform = "web", intent = CloneJsonValue(payload) },
+            "external.openEmail" => new { ok = true, action = "openEmail", platform = "web", intent = CloneJsonValue(payload) },
+            "external.call" => new { ok = true, action = "call", platform = "web", intent = CloneJsonValue(payload) },
+            "external.reportIssue" => NativeAction("reportIssue", ok: false),
 
             "settings.getSnapshot" => SettingsSnapshot(GetString(payload, "section", "")),
-            "settings.setField" => SetSettingsField(payload),
-            "settings.patch" => new { ok = true },
-            "settings.invoke" => InvokeSetting(GetString(payload, "action", "") ?? "", payload.TryGetProperty("payload", out var actionPayload) ? actionPayload : default),
+            "settings.update" => SetSettingsField(payload),
 
             "onboarding.getSnapshot" => OnboardingSnapshot(),
             "onboarding.complete" => CompleteOnboarding(),
@@ -474,23 +488,6 @@ public sealed class WebCoreRpcDispatcher {
         };
     }
 
-    private object InvokeSetting(string action, JsonElement payload) {
-        return action switch {
-            "requestPermission" => NativeAction(action, ok: true),
-            "requestAllPermissions" => NativeAction(action, ok: true),
-            "refreshGps" => NativeAction(action, ok: false),
-            "openUrl" or "openEmail" or "call" => new { ok = true, action, platform = "web", intent = CloneJsonValue(payload) },
-            "addTasbihPreset" => AddTasbihPreset(GetString(payload, "name", T("newPresetName"))),
-            "updateTasbihPreset" => UpdateTasbihPreset(payload),
-            "addTasbihItem" => AddTasbihItem(payload),
-            "updateTasbihItem" => UpdateTasbihItem(payload),
-            "moveTasbihItem" => MoveTasbihItem(payload),
-            "removeTasbihItem" => RemoveTasbihItem(payload),
-            "addCustomAdhanSound" or "testNotification" or "previewSound" or "removeCustomAdhanSound" => NativeAction(action, ok: false),
-            _ => NativeAction(action, ok: false)
-        };
-    }
-
     private object NativeAction(string action, bool ok) {
         var messageKey = WebCatalog.NativeActionMessageKey(action);
         return new { ok, action, platform = "web", message = T(messageKey), messageKey };
@@ -649,17 +646,6 @@ public sealed class WebCoreRpcDispatcher {
         _state.OnboardingCompleted = true;
         return new { ok = true };
     }
-
-    private object ImportState(string? stateJson) {
-        if (!string.IsNullOrWhiteSpace(stateJson)) {
-            _state = JsonSerializer.Deserialize(stateJson, CoreJsonContext.Default.WebState) ?? WebState.Default();
-            _state.EnsureDefaults();
-        }
-
-        return new { ok = true };
-    }
-
-    private object ExportState() => JsonSerializer.Serialize(_state, CoreJsonContext.Default.WebState);
 
     private AppSettings BuildSettings() {
         return new AppSettings {

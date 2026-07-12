@@ -190,10 +190,6 @@ function bridgeTimeoutFor(method: string): number {
     return 5000;
   }
 
-  if (method === "settings.invoke") {
-    return 20000;
-  }
-
   return 15000;
 }
 

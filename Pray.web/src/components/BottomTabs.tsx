@@ -1,7 +1,6 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Sun, Calendar, Compass, Circle, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mauiCall } from "@/client/legacyClient";
 import { useAppStore } from "@/state/appStore";
 
 const tabs = [
@@ -34,7 +33,6 @@ export function BottomTabs({ labels }: { labels: Record<string, string> }) {
                 type="button"
                 onClick={() => {
                   void navigate({ to: t.to });
-                  void mauiCall("app.navigate", { route: t.to });
                 }}
                 data-selector-name={`tab:${t.key}`}
                 className={cn(

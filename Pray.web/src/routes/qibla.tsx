@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { executeCommand, platformIntents } from "@/client/applicationClient";
 import { Card, CardTitle } from "@/components/Card";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { QiblaCompass } from "@/components/QiblaCompass";
@@ -33,11 +33,11 @@ type Snapshot = {
 
 function QiblaPage() {
   usePageLog("qibla");
-  const { data, setData } = useSnapshot<Snapshot>("qibla.getSnapshot");
+  const { data, setData } = useProjection<Snapshot>("qibla.getSnapshot");
   const lastSensorSent = useRef(0);
 
   const applyQibla = useCallback(async (method: string, payload?: unknown) => {
-    const res = await mauiCall<Snapshot>(method, payload);
+    const res = await executeCommand<Snapshot>(method, payload);
     if (res.ok) {
       setData(res.data);
     }
@@ -125,7 +125,7 @@ function QiblaPage() {
         <Card className="text-center">
           <div className="font-semibold">{L.permissionMissing}</div>
           <button
-            onClick={() => mauiCall("settings.invoke", { action: "requestPermission", payload: { id: "location" } })}
+            onClick={() => platformIntents.requestPermission("location")}
             className="mt-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             {L.grantPermission}

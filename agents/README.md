@@ -17,3 +17,5 @@ Phase 5 is complete. Backend projection ports must resolve to application servic
 Phase 6 is complete. The browser must load repository state, call `CallWithState`, and commit the returned replacement state. Never restore a static WASM dispatcher, browser `app.importState`/`app.exportState` persistence, or platform snapshot-set-snapshot workflows.
 
 Phase 7 is complete. Browser authority is IndexedDB schema 4 and native authority is the settings repository transaction. Cache clearing must preserve both. Treat prayer v3, Today v2, geo v1, and the platform notification schedule as reconstructable projections with complete input keys; do not persist React/calendar UI state or add new localStorage writers.
+
+Phase 8 is complete. UI code uses `AppClient`, `applicationClient`, domain clients, and `useProjection`; never recreate `legacyClient`, `useSnapshot`, or `useStoredSnapshot`. Obsolete state import/export/navigation and settings action/field multiplexers are removed from the public contract. Add new behavior as an intent-named command implemented with native/browser parity, and apply authoritative command results without a follow-up query.

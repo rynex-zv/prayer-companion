@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/Card";
 import { SettingsHeader } from "@/components/SettingsHeader";
-import { mauiCall } from "@/client/legacyClient";
+import { executeCommand, platformIntents } from "@/client/applicationClient";
 import { Mail, Phone, Globe, Bug, DownloadCloud, DatabaseZap } from "lucide-react";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useSnapshot } from "@/hooks/useSnapshot";
+import { useProjection } from "@/hooks/useProjection";
 import { clearApplicationCaches } from "@/lib/siteDataReset";
 
 export const Route = createFileRoute("/settings/about")({
@@ -16,16 +16,15 @@ export const Route = createFileRoute("/settings/about")({
 function AboutPage() {
   usePageLog("settings.about");
   const t = useAppLabels();
-  const { data: info } = useSnapshot<AboutSnapshot>("settings.getSnapshot", { section: "about" });
+  const { data: info } = useProjection<AboutSnapshot>("settings.getSnapshot", { section: "about" });
   const [pullStatus, setPullStatus] = useState("");
   const [isPullingRemote, setIsPullingRemote] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [isClearingData, setIsClearingData] = useState(false);
 
-  const action = (a: string, p?: unknown) => mauiCall("settings.invoke", { action: a, payload: p });
   useEffect(() => {
     console.info("[pray.about] mounted");
-    void mauiCall<{ url?: string }>("mauiWebber.getRemoteUrl").then((res) => {
+    void executeCommand<{ url?: string }>("mauiWebber.getRemoteUrl").then((res) => {
       console.info("[pray.about] getRemoteUrl result", res);
       if (res.ok && res.data.url) {
         setRemoteUrl(res.data.url);
@@ -42,7 +41,7 @@ function AboutPage() {
   const saveRemoteUrl = async (url: string) => {
     console.info("[pray.about] saveRemoteUrl start", { url });
     setPullStatus(t("savingRemoteWebUrl"));
-    const res = await mauiCall<{ url?: string }>("mauiWebber.setRemoteUrl", { url });
+    const res = await executeCommand<{ url?: string }>("mauiWebber.setRemoteUrl", { url });
     console.info("[pray.about] saveRemoteUrl result", res);
     if (!res.ok) {
       setPullStatus(res.error || t("invalidRemoteWebUrl"));
@@ -67,7 +66,7 @@ function AboutPage() {
       }
 
       console.info("[pray.about] pullRemote callNative start");
-      const res = await withTimeout(mauiCall<{
+      const res = await withTimeout(executeCommand<{
         status?: string;
         version?: string;
         lastPulledVersion?: string;
@@ -153,10 +152,10 @@ function AboutPage() {
           </button>
         </Card>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => action("openEmail", { to: info.email })} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("emailRynex")}</button>
-          <button onClick={() => action("call", { number: info.phone })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("callRynex")} {info.phone}</button>
-          <button onClick={() => action("openUrl", { url: info.website })} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("openWebsite")}</button>
-          <button onClick={() => action("reportIssue")} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
+          <button onClick={() => platformIntents.openEmail(info.email)} className="flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><Mail className="h-4 w-4" /> {t("emailRynex")}</button>
+          <button onClick={() => platformIntents.call(info.phone)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("callRynex")} {info.phone}</button>
+          <button onClick={() => platformIntents.openUrl(info.website)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("openWebsite")}</button>
+          <button onClick={() => platformIntents.reportIssue()} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
           <button onClick={pullRemote} disabled={isPullingRemote} data-selector-name="about:pull-remote-web" className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"><DownloadCloud className="h-4 w-4" /> {isPullingRemote ? t("pulling") : t("pullLatestWebVersion")}</button>
         </div>
         <div className="grid gap-2">

@@ -3,7 +3,6 @@ import { Card } from "@/components/Card";
 import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
-import { mauiCall } from "@/client/legacyClient";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/appStore";
@@ -60,7 +59,6 @@ function SettingsIndex() {
                 type="button"
                 onClick={() => {
                   void navigate({ to: it.to });
-                  void mauiCall("app.navigate", { route: it.to });
                 }}
                 data-selector-name={`settings:row:${it.titleKey}`}
                 className={cn(

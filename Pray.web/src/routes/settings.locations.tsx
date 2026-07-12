@@ -4,8 +4,8 @@ import { CoordinateInput } from "@/components/CoordinateInput";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { platformIntents, updateSettingsSection } from "@/client/applicationClient";
 
 export const Route = createFileRoute("/settings/locations")({
   component: LocationsPage,
@@ -32,7 +32,7 @@ type LocationConfirmation = { value: LocationSettings; calculated?: LocationSett
 
 function LocationsPage() {
   const t = useAppLabels();
-  const { data, setData, refresh } = useStoredSnapshot<LocationSettings>("settings.getSnapshot", { section: "locations" }, "settings.locations");
+  const { data, setData, refresh } = useProjection<LocationSettings>("settings.getSnapshot", { section: "locations" }, "settings.locations");
   const [status, setStatus] = useState("ready");
   const [gpsMessage, setGpsMessage] = useState("");
   const [isRefreshingGps, setIsRefreshingGps] = useState(false);
@@ -43,7 +43,7 @@ function LocationsPage() {
   const patch = async (next: LocationSettings, resolveCoordinates = false) => {
     setData(next);
     setStatus("saving");
-    const response = await mauiCall<LocationConfirmation>("settings.setField", { section: "locations", field: "value", value: next });
+    const response = await updateSettingsSection<LocationConfirmation, LocationSettings>("locations", next);
     if (!response.ok) {
       setStatus("error");
       return false;
@@ -52,10 +52,7 @@ function LocationsPage() {
     const confirmed = response.data.calculated ?? next;
     setData(confirmed);
     if (resolveCoordinates) {
-      const resolved = await mauiCall<LocationSettings>("settings.invoke", {
-        action: "reverseGeocode",
-        payload: { latitude: next.latitude, longitude: next.longitude },
-      });
+      const resolved = await platformIntents.reverseGeocode<LocationSettings>(next.latitude, next.longitude);
       if (resolved.ok) {
         setData(resolved.data);
       }
@@ -97,7 +94,7 @@ function LocationsPage() {
     setIsRefreshingGps(true);
     setGpsMessage("");
     setStatus("refreshing");
-    void mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" }).then((res) => {
+    void platformIntents.refreshLocation<LocationSettings | { location?: LocationSettings }>().then((res) => {
       setStatus(res.ok ? "saved" : "error");
       if (!res.ok) {
         setGpsMessage(res.error);

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { executeCommand } from "@/client/applicationClient";
 import { Card } from "@/components/Card";
 import { ChevronLeft, ChevronRight, CalendarDays, X, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ type CalendarMode = "gregorian" | "hijri";
 function CalendarPage() {
   usePageLog("calendar");
   const t = useAppLabels();
-  const { data, refresh, setData } = useSnapshot<Snapshot>("calendar.getSnapshot");
+  const { data, refresh, setData } = useProjection<Snapshot>("calendar.getSnapshot");
 
   const [view, setView] = useState<ViewMode>("month");
   const [mode, setMode] = useState<CalendarMode>("gregorian");
@@ -62,7 +62,7 @@ function CalendarPage() {
 
   async function navigate(direction: -1 | 1) {
     if (view === "month") {
-      const result = await mauiCall<Snapshot>(direction < 0 ? "calendar.previousMonth" : "calendar.nextMonth");
+      const result = await executeCommand<Snapshot>(direction < 0 ? "calendar.previousMonth" : "calendar.nextMonth");
       if (result.ok) setData(result.data);
       setSelectedIso(null);
       return;
@@ -71,7 +71,7 @@ function CalendarPage() {
     if (view === "year") {
       const target = new Date(snapshot.yearNumber + direction, snapshot.monthNumber - 1, 1);
       const month = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}`;
-      const result = await mauiCall<Snapshot>("calendar.setMonth", { month });
+      const result = await executeCommand<Snapshot>("calendar.setMonth", { month });
       if (result.ok) setData(result.data);
       setSelectedIso(null);
       return;
@@ -84,7 +84,7 @@ function CalendarPage() {
     const iso = target.toISOString().slice(0, 10);
     const month = iso.slice(0, 7);
     if (month !== snapshot.selectedMonthValue) {
-      const result = await mauiCall<Snapshot>("calendar.setMonth", { month });
+      const result = await executeCommand<Snapshot>("calendar.setMonth", { month });
       if (result.ok) setData(result.data);
     }
     setSelectedIso(iso);
@@ -142,7 +142,7 @@ function CalendarPage() {
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={async () => {
-              const result = await mauiCall<Snapshot>("calendar.today");
+              const result = await executeCommand<Snapshot>("calendar.today");
               if (result.ok) setData(result.data);
               setSelectedIso(new Date().toISOString().slice(0, 10));
             }}
@@ -168,7 +168,11 @@ function CalendarPage() {
       </Card>
 
       {view === "year" && (
-        <YearView data={data} mode={mode} onPickMonth={(monthValue) => mauiCall("calendar.setMonth", { month: monthValue }).then(() => { refresh(); setView("month"); })} />
+        <YearView data={data} mode={mode} onPickMonth={async (monthValue) => {
+          const result = await executeCommand<Snapshot>("calendar.setMonth", { month: monthValue });
+          if (result.ok) setData(result.data);
+          setView("month");
+        }} />
       )}
       {view === "month" && (
         <MonthView data={data} mode={mode} onSelect={(iso) => setSelectedIso(iso)} />

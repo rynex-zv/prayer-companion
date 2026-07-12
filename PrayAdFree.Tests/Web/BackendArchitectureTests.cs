@@ -145,6 +145,23 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Phase_eight_retired_ui_compatibility_surfaces_cannot_return() {
+        var root = FindRepoRoot();
+        Assert.False(File.Exists(Path.Combine(root, "Pray.web", "src", "client", "legacyClient.ts")));
+        Assert.False(File.Exists(Path.Combine(root, "Pray.web", "src", "hooks", "useSnapshot.ts")));
+        Assert.False(File.Exists(Path.Combine(root, "Pray.web", "src", "hooks", "useStoredSnapshot.ts")));
+
+        foreach (var directory in new[] { "routes", "components" }) {
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "Pray.web", "src", directory), "*.tsx", SearchOption.AllDirectories)) {
+                var source = File.ReadAllText(file);
+                Assert.DoesNotContain("legacyClient", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("settings.invoke", source, StringComparison.Ordinal);
+                Assert.DoesNotContain("settings.setField", source, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
     public void Cold_start_has_bundled_labels_and_cannot_throw_before_bootstrap() {
         var root = FindRepoRoot();
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));

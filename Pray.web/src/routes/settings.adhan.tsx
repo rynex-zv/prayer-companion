@@ -4,8 +4,8 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, OptionButtons, SectionBlock, StatusLine } from "@/components/SettingsFormControls";
 import { Picker } from "@/components/Picker";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { platformIntents } from "@/client/applicationClient";
 import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/adhan")({
@@ -46,7 +46,7 @@ const prayers = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha", "imsak"];
 
 function AdhanPage() {
   const t = useAppLabels();
-  const { data, setData, refresh } = useStoredSnapshot<AdhanSettings>("settings.getSnapshot", { section: "adhan" }, "settings.adhan");
+  const { data, setData, refresh } = useProjection<AdhanSettings>("settings.getSnapshot", { section: "adhan" }, "settings.adhan");
   const [status, setStatus] = useState("ready");
   useEffect(() => {
     if (!data) return;
@@ -84,7 +84,7 @@ function AdhanPage() {
       <SectionBlock title={t("adhanSound")}>
         <button
           type="button"
-          onClick={() => void mauiCall("settings.invoke", { action: "addCustomAdhanSound" })}
+          onClick={() => void platformIntents.addCustomAdhanSound()}
           data-selector-name="adhan:add-custom-sound"
           className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground"
         >
@@ -97,11 +97,11 @@ function AdhanPage() {
               <button type="button" onClick={() => patch({ ...data, sounds: data.sounds.map((item) => ({ ...item, selected: item.id === sound.id })) })} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-select:${sound.id}`}>
                 {sound.selected ? t("selected") : t("select")}
               </button>
-              <button type="button" disabled={sound.canPreview === false} onClick={() => void mauiCall("settings.invoke", { action: "previewSound", payload: { id: sound.id } })} className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40" data-selector-name={`adhan:sound-play:${sound.id}`}>
+              <button type="button" disabled={sound.canPreview === false} onClick={() => void platformIntents.previewAdhanSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40" data-selector-name={`adhan:sound-play:${sound.id}`}>
                 {t("play")}
               </button>
               {sound.isCustom ? (
-                <button type="button" onClick={() => void mauiCall("settings.invoke", { action: "removeCustomAdhanSound", payload: { id: sound.id } })} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-remove:${sound.id}`}>
+                <button type="button" onClick={() => void platformIntents.removeCustomAdhanSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-remove:${sound.id}`}>
                   {t("remove")}
                 </button>
               ) : <span />}

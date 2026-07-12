@@ -1,6 +1,6 @@
 # Current application architecture and verification instructions
 
-Updated: 2026-07-12 after Phase 7 production verification.
+Updated: 2026-07-12 after Phase 8 production verification.
 
 ## Runtime boundaries
 
@@ -9,7 +9,7 @@ Updated: 2026-07-12 after Phase 7 production verification.
 - The browser backend owns browser persistence in IndexedDB database `prayer-companion`, store `repositories`. If IndexedDB is unavailable it may continue with explicitly logged volatile state.
 - React confirmed, request, optimistic, and UI state is memory-only.
 - The old keys `pray.web.core.state` and `prayer-companion:app-state:v1` are migration inputs only. Newer IndexedDB authority always wins; stale React state must not overwrite it.
-- Core/WASM still supplies the compatibility state serializer during migration. Do not describe it as fully stateless until `app.importState`/`app.exportState` and mutable `WebState` are actually removed.
+- Core/WASM receives repository state and an operation explicitly and returns replacement state. Repository serialization is internal to `WebCoreExecutionEngine`; public state import/export RPCs no longer exist.
 - Native durable settings are owned by `ISettingsRepository`/`SettingsService`. `SettingsService` also supplies the application transaction: writes remain staged until commit and disappear on rollback.
 - `WebAppRpcHandler` is a transport adapter only. It parses RPC/query metadata, measures the call, and delegates a `NativeAppOperation` to `NativeAppBackend`.
 - `NativeAppBackend` owns native application dispatch. Mutating operations cross `ApplicationCoordinator`, which checks expected revisions, deduplicates command IDs with a bounded replay cache, commits before effects/events, and returns authoritative projections.
@@ -46,7 +46,10 @@ Updated: 2026-07-12 after Phase 7 production verification.
 6. `npm run build:phone`, rebuild Windows MAUI with the frontend build disabled only after assets are synced, launch the executable, and inspect `Desktop/PrayAdFreeLogs` for `console.error`, `window.error`, `unhandledrejection`, backend selection, bootstrap completion, and runtime health.
 7. Do not reuse old screenshots or logs as current proof.
 
-## Known compatibility debt
+## Phase 8 enforcement
 
-- `legacyClient.ts`, `settings.invoke`, generic `settings.setField`, snapshot-hook names, mutable browser `WebState`, and full state import/export remain compatibility debt.
-- The migration document previously marked these boundaries complete too aggressively. Remove each only with runtime parity and migration tests.
+- Routes and components cannot import the transport or use action/field multiplexers.
+- `legacyClient.ts`, `useSnapshot`, and `useStoredSnapshot` are retired and architecture-tested as absent.
+- Public `app.navigate`, state import/export, `settings.invoke`, `settings.setField`, and `settings.patch` operations are retired.
+- Permission, location, adhan, notification, alarm, external, and tasbih mutations use intent-named commands with native/browser contract parity.
+- `useProjection` reads the centralized confirmed store, deduplicates through `AppClient`, and queries only missing or explicitly refreshed data.

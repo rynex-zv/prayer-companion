@@ -63,24 +63,9 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
-    public void ImportStateAcceptsThePublicStateProperty() {
-        var source = new WebCoreRpcDispatcher();
-        Dispatch(source, "app.setLanguage", new { language = "ar" });
-        Dispatch(source, "app.setTheme", new { theme = "dark" });
-        var exported = JsonSerializer.SerializeToElement(Dispatch(source, "app.exportState", new { })).GetString();
-
-        var restored = new WebCoreRpcDispatcher();
-        Dispatch(restored, "app.importState", new { state = exported });
-        var shell = JsonSerializer.SerializeToElement(Dispatch(restored, "app.getShellSnapshot", new { }));
-
-        Assert.Equal("ar", shell.GetProperty("language").GetString());
-        Assert.Equal("dark", shell.GetProperty("themeMode").GetString());
-    }
-
-    [Fact]
     public void ManualCoordinatesDoNotKeepAnUnrelatedPlaceName() {
         var dispatcher = new WebCoreRpcDispatcher();
-        var result = Dispatch(dispatcher, "settings.setField", new {
+        var result = Dispatch(dispatcher, "settings.update", new {
             section = "locations",
             field = "value",
             value = new {

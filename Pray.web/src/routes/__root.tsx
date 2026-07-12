@@ -16,7 +16,7 @@ import "@fontsource/amiri/700.css";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "../components/AppShell";
-import { mauiTrace } from "@/client/legacyClient";
+import { traceClientEvent } from "@/client/applicationClient";
 import { getLabel } from "@/state/appStore";
 
 function NotFoundComponent() {
@@ -68,7 +68,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
-      mauiTrace("window.error", {
+      traceClientEvent("window.error", {
         message: event.message,
         filename: event.filename,
         lineno: event.lineno,
@@ -78,7 +78,7 @@ function RootComponent() {
     };
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      mauiTrace("window.unhandledrejection", {
+      traceClientEvent("window.unhandledrejection", {
         message: reason instanceof Error ? reason.message : String(reason),
         stack: reason instanceof Error ? reason.stack : undefined,
       });

@@ -1,9 +1,9 @@
-import { isBridgeReady, mauiCall } from "@/client/legacyClient";
+import { executeCommand, nativeBackendReady } from "@/client/applicationClient";
 
 /** Clears only reconstructable web/native caches. Authoritative IndexedDB and settings are deliberately preserved. */
 export async function clearApplicationCaches(): Promise<void> {
-  if (isBridgeReady()) {
-    const nativeResult = await mauiCall("mauiWebber.clearSiteData");
+  if (nativeBackendReady()) {
+    const nativeResult = await executeCommand("mauiWebber.clearSiteData");
     if (!nativeResult.ok) throw new Error(nativeResult.error);
   }
 

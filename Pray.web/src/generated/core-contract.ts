@@ -3,7 +3,7 @@
 // dotnet run --project tools/generate-web-contracts/GenerateWebContracts.csproj
 
 export const coreContract = {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "contractVersion": 2,
   "persistenceSchemaVersion": 1,
   "generatedFrom": "PrayAdFree.Core",
@@ -14,9 +14,6 @@ export const coreContract = {
     "app.getLanguageObject",
     "app.setLanguage",
     "app.setTheme",
-    "app.navigate",
-    "app.importState",
-    "app.exportState",
     "today.getSnapshot",
     "today.refresh",
     "calendar.getSnapshot",
@@ -35,13 +32,30 @@ export const coreContract = {
     "tasbih.increment",
     "tasbih.reset",
     "tasbih.selectPreset",
+    "tasbih.addPreset",
+    "tasbih.updatePreset",
+    "tasbih.addItem",
+    "tasbih.updateItem",
+    "tasbih.moveItem",
+    "tasbih.removeItem",
     "alarm.getSnapshot",
     "alarm.snooze",
     "alarm.stop",
+    "alarm.test",
+    "notification.test",
+    "permissions.request",
+    "permissions.requestAll",
+    "location.refresh",
+    "location.reverseGeocode",
+    "adhan.sound.addCustom",
+    "adhan.sound.preview",
+    "adhan.sound.removeCustom",
+    "external.openEmail",
+    "external.call",
+    "external.openUrl",
+    "external.reportIssue",
     "settings.getSnapshot",
-    "settings.setField",
-    "settings.patch",
-    "settings.invoke",
+    "settings.update",
     "onboarding.getSnapshot",
     "onboarding.complete",
     "mauiWebber.getRemoteUrl",
@@ -80,21 +94,6 @@ export const coreContract = {
     {
       "name": "app.setTheme",
       "kind": "command",
-      "domain": "app"
-    },
-    {
-      "name": "app.navigate",
-      "kind": "obsolete",
-      "domain": "app"
-    },
-    {
-      "name": "app.importState",
-      "kind": "compatibilityAdapter",
-      "domain": "app"
-    },
-    {
-      "name": "app.exportState",
-      "kind": "compatibilityAdapter",
       "domain": "app"
     },
     {
@@ -188,6 +187,36 @@ export const coreContract = {
       "domain": "tasbih"
     },
     {
+      "name": "tasbih.addPreset",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.updatePreset",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.addItem",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.updateItem",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.moveItem",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
+      "name": "tasbih.removeItem",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
       "name": "alarm.getSnapshot",
       "kind": "query",
       "domain": "alarm"
@@ -203,23 +232,78 @@ export const coreContract = {
       "domain": "alarm"
     },
     {
+      "name": "alarm.test",
+      "kind": "command",
+      "domain": "alarm"
+    },
+    {
+      "name": "notification.test",
+      "kind": "command",
+      "domain": "notification"
+    },
+    {
+      "name": "permissions.request",
+      "kind": "command",
+      "domain": "permissions"
+    },
+    {
+      "name": "permissions.requestAll",
+      "kind": "command",
+      "domain": "permissions"
+    },
+    {
+      "name": "location.refresh",
+      "kind": "command",
+      "domain": "location"
+    },
+    {
+      "name": "location.reverseGeocode",
+      "kind": "command",
+      "domain": "location"
+    },
+    {
+      "name": "adhan.sound.addCustom",
+      "kind": "command",
+      "domain": "adhan"
+    },
+    {
+      "name": "adhan.sound.preview",
+      "kind": "command",
+      "domain": "adhan"
+    },
+    {
+      "name": "adhan.sound.removeCustom",
+      "kind": "command",
+      "domain": "adhan"
+    },
+    {
+      "name": "external.openEmail",
+      "kind": "command",
+      "domain": "external"
+    },
+    {
+      "name": "external.call",
+      "kind": "command",
+      "domain": "external"
+    },
+    {
+      "name": "external.openUrl",
+      "kind": "command",
+      "domain": "external"
+    },
+    {
+      "name": "external.reportIssue",
+      "kind": "command",
+      "domain": "external"
+    },
+    {
       "name": "settings.getSnapshot",
       "kind": "query",
       "domain": "settings"
     },
     {
-      "name": "settings.setField",
-      "kind": "compatibilityAdapter",
-      "domain": "settings"
-    },
-    {
-      "name": "settings.patch",
-      "kind": "compatibilityAdapter",
-      "domain": "settings"
-    },
-    {
-      "name": "settings.invoke",
-      "kind": "compatibilityAdapter",
+      "name": "settings.update",
+      "kind": "command",
       "domain": "settings"
     },
     {

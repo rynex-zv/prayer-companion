@@ -1,7 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BottomTabs } from "./BottomTabs";
-import { mauiCall } from "@/client/legacyClient";
 import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
 import { ShakeDataResetButton } from "./ShakeDataResetButton";
@@ -39,7 +38,6 @@ declare global {
       };
       click: (selectorName: string) => boolean;
       setValue: (selectorName: string, value: string | number | boolean) => boolean;
-      call: typeof mauiCall;
     };
   }
 }
@@ -216,7 +214,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
         return true;
       },
-      call: mauiCall,
     };
 
     return () => {

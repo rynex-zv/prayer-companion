@@ -4,7 +4,7 @@ using PrayAdFree.Core.Contracts;
 namespace PrayAdFree.Core.Services;
 
 public static class WebContractExporter {
-    public const int SchemaVersion = 4;
+    public const int SchemaVersion = 5;
 
     public static object Export() {
         return new {
@@ -28,9 +28,6 @@ public static class WebContractExporter {
         "app.getLanguageObject",
         "app.setLanguage",
         "app.setTheme",
-        "app.navigate",
-        "app.importState",
-        "app.exportState",
         "today.getSnapshot",
         "today.refresh",
         "calendar.getSnapshot",
@@ -49,13 +46,30 @@ public static class WebContractExporter {
         "tasbih.increment",
         "tasbih.reset",
         "tasbih.selectPreset",
+        "tasbih.addPreset",
+        "tasbih.updatePreset",
+        "tasbih.addItem",
+        "tasbih.updateItem",
+        "tasbih.moveItem",
+        "tasbih.removeItem",
         "alarm.getSnapshot",
         "alarm.snooze",
         "alarm.stop",
+        "alarm.test",
+        "notification.test",
+        "permissions.request",
+        "permissions.requestAll",
+        "location.refresh",
+        "location.reverseGeocode",
+        "adhan.sound.addCustom",
+        "adhan.sound.preview",
+        "adhan.sound.removeCustom",
+        "external.openEmail",
+        "external.call",
+        "external.openUrl",
+        "external.reportIssue",
         "settings.getSnapshot",
-        "settings.setField",
-        "settings.patch",
-        "settings.invoke",
+        "settings.update",
         "onboarding.getSnapshot",
         "onboarding.complete",
         "mauiWebber.getRemoteUrl",
@@ -76,8 +90,6 @@ public static class WebContractExporter {
         "tasbih.getSnapshot" or "alarm.getSnapshot" or "settings.getSnapshot" or
         "onboarding.getSnapshot" or "mauiWebber.getRemoteUrl" => RpcOperationKind.Query,
         "mauiWebber.trace" or "mauiWebber.pullRemote" or "mauiWebber.useEmbedded" or "mauiWebber.clearSiteData" => RpcOperationKind.PlatformOperation,
-        "app.importState" or "app.exportState" or "settings.invoke" or "settings.setField" or "settings.patch" => RpcOperationKind.CompatibilityAdapter,
-        "app.navigate" => RpcOperationKind.Obsolete,
         _ => RpcOperationKind.Command
     };
 }

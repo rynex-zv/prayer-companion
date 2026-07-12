@@ -583,7 +583,7 @@ Exit gates:
 
 ### Phase 8: Legacy removal and enforcement
 
-**Status: PARTIAL — runtime audit reopened (2026-07-12)**
+**Status: DONE — legacy surfaces removed and enforced (2026-07-12)**
 
 - [x] UI routes, components, and snapshot hooks no longer import the transport; all domain access crosses the client boundary.
 - [x] Legacy snapshot hooks are memory-only adapters over `AppClient` and the centralized confirmed store, not data owners.
@@ -591,8 +591,14 @@ Exit gates:
 - [x] Browser persistence is isolated from WASM and React, and old storage keys are migration-only.
 - [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
 - [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
+- [x] Deleted `legacyClient.ts`, `useSnapshot`, and `useStoredSnapshot`; `useProjection` now selects the confirmed store and queries only missing or explicitly refreshed data.
+- [x] Removed obsolete `app.navigate`, public `app.importState`/`app.exportState`, `settings.invoke`, `settings.setField`, and unused `settings.patch` from native, browser, Core, and generated contracts.
+- [x] Permission, location, adhan, notification, alarm, external-action, and tasbih intents have explicit command names shared by native and browser backends.
+- [x] Alarm and Calendar commands apply their returned authoritative projection without command-then-refresh reads.
+- [x] Architecture enforcement rejects retired files, direct transport ownership, multiplexed UI operations, localStorage ownership, startup call regressions, and destructive cache eviction.
+- [x] Fresh-origin onboarding, route projection, one-command Calendar, settings persistence, release builds, live deployment, and rebuilt Windows runtime were verified for the Phase 8 bundle.
 
-Audit note: Phases 4, 5, and 6 are complete. `WebCoreRpcDispatcher` remains an ephemeral compatibility implementation inside deterministic `WebCoreExecutionEngine` calls, but it has no process-global or durable authority. Later-phase debt remains: public `app.importState`/`app.exportState` compatibility methods, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField`. Do not use Phase 4–6 completion to describe those later phases as complete.
+Audit note: Phases 4 through 8 are complete. `WebCoreRpcDispatcher` remains an ephemeral calculation/compatibility implementation inside deterministic `WebCoreExecutionEngine` calls, but it has no process-global or durable authority. Browser repository migration remains state-in/state-out through `WebCoreExecutionEngine`; it is not exposed as an RPC.
 
 Remove when unused:
 

@@ -2,10 +2,7 @@ import type { BridgeResponse } from "./mauiWebberClient";
 
 export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
-type SettingsInvokePayload = {
-  action?: string;
-  payload?: { id?: string; latitude?: number; longitude?: number };
-};
+type PlatformPayload = { id?: string; latitude?: number; longitude?: number };
 
 type LocationSettings = {
   useGps: boolean;
@@ -30,17 +27,16 @@ export async function tryHandleWebPlatformCall<T = unknown>(
   payload?: unknown,
   coreCall?: BrowserCoreCall,
 ): Promise<BridgeResponse<T> | undefined> {
-  if (typeof window === "undefined" || method !== "settings.invoke") {
+  if (typeof window === "undefined") {
     return undefined;
   }
 
-  const request = payload as SettingsInvokePayload | undefined;
-  const action = request?.action;
-  const permissionId = request?.payload?.id?.toLowerCase();
-  const handlesAction = action === "requestAllPermissions" ||
-    action === "refreshGps" ||
-    action === "reverseGeocode" ||
-    (action === "requestPermission" && (!permissionId || permissionId === "location" || permissionId === "notifications"));
+  const request = payload as PlatformPayload | undefined;
+  const permissionId = request?.id?.toLowerCase();
+  const handlesAction = method === "permissions.requestAll" ||
+    method === "location.refresh" ||
+    method === "location.reverseGeocode" ||
+    (method === "permissions.request" && (!permissionId || permissionId === "location" || permissionId === "notifications"));
   if (!handlesAction) {
     return undefined;
   }
@@ -48,23 +44,23 @@ export async function tryHandleWebPlatformCall<T = unknown>(
   if (!coreCall) throw new Error("Browser Core transaction is unavailable.");
   const labels = await loadWebLabels(coreCall);
 
-  if (action === "requestPermission" && permissionId === "notifications") {
+  if (method === "permissions.request" && permissionId === "notifications") {
     return requestBrowserNotifications<T>(labels);
   }
 
-  if (action === "requestAllPermissions") {
+  if (method === "permissions.requestAll") {
     return requestAllBrowserPermissions<T>(labels, coreCall);
   }
 
   if (
-    action === "refreshGps" ||
-    (action === "requestPermission" && (!permissionId || permissionId === "location"))
+    method === "location.refresh" ||
+    (method === "permissions.request" && (!permissionId || permissionId === "location"))
   ) {
     return refreshBrowserGps<T>(labels, coreCall);
   }
 
-  if (action === "reverseGeocode") {
-    return reverseGeocodeBrowserLocation<T>(labels, coreCall, request?.payload?.latitude, request?.payload?.longitude);
+  if (method === "location.reverseGeocode") {
+    return reverseGeocodeBrowserLocation<T>(labels, coreCall, request?.latitude, request?.longitude);
   }
 
   return undefined;
@@ -114,7 +110,7 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await coreCall<LocationSettings>("settings.setField", {
+  const saved = await coreCall<LocationSettings>("settings.update", {
     section: "locations",
     field: "value",
     value: finalLocation,
@@ -154,7 +150,7 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: Bro
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await coreCall<LocationSettings>("settings.setField", { section: "locations", field: "value", value: next });
+  const saved = await coreCall<LocationSettings>("settings.update", { section: "locations", field: "value", value: next });
   if (!saved?.ok) {
     return { ok: false, error: saved?.error ?? label(labels, "webLocationSaveFailed") };
   }

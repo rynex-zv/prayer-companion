@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { SectionBlock } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { platformIntents } from "@/client/applicationClient";
 
 export const Route = createFileRoute("/settings/permissions")({
   component: PermissionsPage,
@@ -16,11 +16,11 @@ type PermissionsSnapshot = {
 
 function PermissionsPage() {
   const t = useAppLabels();
-  const { data, refresh } = useStoredSnapshot<PermissionsSnapshot>("settings.getSnapshot", { section: "permissions" }, "settings.permissions");
+  const { data, refresh } = useProjection<PermissionsSnapshot>("settings.getSnapshot", { section: "permissions" }, "settings.permissions");
   if (!data) return null;
 
   const request = (id: string) => {
-    void mauiCall("settings.invoke", { action: "requestPermission", payload: { id } }).then(() => refresh(true));
+    void platformIntents.requestPermission(id).then(() => refresh(true));
   };
 
   return (

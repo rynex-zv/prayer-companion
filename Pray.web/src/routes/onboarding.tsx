@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { executeCommand, platformIntents, updateSettingsSection } from "@/client/applicationClient";
 import { Card } from "@/components/Card";
 import { CoordinateInput } from "@/components/CoordinateInput";
 import { Field } from "@/components/Field";
@@ -55,7 +55,7 @@ type LocationConfirmation = { value: LocationSettings; calculated?: LocationSett
 
 function OnboardingPage() {
   const t = useAppLabels();
-  const { data, refresh, setData } = useSnapshot<Snapshot>("onboarding.getSnapshot");
+  const { data, refresh, setData } = useProjection<Snapshot>("onboarding.getSnapshot");
   const [step, setStep] = useState(0);
   const [finishError, setFinishError] = useState("");
   const navigate = useNavigate();
@@ -78,11 +78,7 @@ function OnboardingPage() {
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
   const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
     setData({ ...data, location });
-    const response = await mauiCall<LocationConfirmation>("settings.setField", {
-      section: "locations",
-      field: "value",
-      value: location,
-    });
+    const response = await updateSettingsSection<LocationConfirmation, LocationSettings>("locations", location);
     if (!response.ok) {
       setFinishError(t("status_error"));
       return false;
@@ -91,10 +87,7 @@ function OnboardingPage() {
     const confirmed = response.data.calculated ?? location;
     setData({ ...data, location: confirmed });
     if (resolveCoordinates) {
-      const resolved = await mauiCall<LocationSettings>("settings.invoke", {
-        action: "reverseGeocode",
-        payload: { latitude: location.latitude, longitude: location.longitude },
-      });
+      const resolved = await platformIntents.reverseGeocode<LocationSettings>(location.latitude!, location.longitude!);
       if (resolved.ok) {
         setData({ ...data, location: resolved.data });
       }
@@ -103,7 +96,7 @@ function OnboardingPage() {
     return true;
   };
   const refreshGpsFromNative = async () => {
-    const response = await mauiCall<LocationSettings | { location?: LocationSettings }>("settings.invoke", { action: "refreshGps" });
+    const response = await platformIntents.refreshLocation<LocationSettings | { location?: LocationSettings }>();
     if (!response.ok) {
       setFinishError(response.error);
       return false;
@@ -119,7 +112,7 @@ function OnboardingPage() {
     return true;
   };
   const requestLocationPermission = async () => {
-    const response = await mauiCall("settings.invoke", { action: "requestPermission", payload: { id: "Location" } });
+    const response = await platformIntents.requestPermission("Location");
     if (!response.ok) {
       setFinishError(response.error);
       return false;
@@ -223,7 +216,7 @@ function OnboardingPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => mauiCall("settings.invoke", { action: "requestPermission", payload: { id: permission.id } }).then(() => refresh())}
+                      onClick={() => platformIntents.requestPermission(permission.id ?? "").then(() => refresh())}
                       data-selector-name={`onboarding:permission-request:${permission.id ?? index}`}
                       className="mt-3 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium"
                     >
@@ -241,7 +234,7 @@ function OnboardingPage() {
             <div className="rounded-lg bg-muted/60 p-3 text-sm" data-selector-name="onboarding:permissions-summary">
               {t("permissionStatus")}: <span className="font-medium">{permissionSummary}</span>
             </div>
-            <button type="button" data-selector-name="onboarding:permissions-request-all" onClick={() => mauiCall("settings.invoke", { action: "requestAllPermissions" }).then(() => refresh())} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t("grantPermissions")}</button>
+            <button type="button" data-selector-name="onboarding:permissions-request-all" onClick={() => platformIntents.requestAllPermissions().then(() => refresh())} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t("grantPermissions")}</button>
           </div>
         )}
 
@@ -353,7 +346,7 @@ function OnboardingPage() {
               return;
             }
 
-            const completed = await mauiCall("onboarding.complete");
+            const completed = await executeCommand("onboarding.complete");
             if (!completed.ok) {
               setFinishError(t("status_error"));
               return;
@@ -362,7 +355,6 @@ function OnboardingPage() {
             setData({ ...data, completed: true });
             setOnboardingCompleted(true);
             await navigate({ to: "/", replace: true });
-            void mauiCall("app.navigate", { route: "/" });
           }}
           className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
         >

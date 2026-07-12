@@ -3,8 +3,8 @@ import { useState } from "react";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { platformIntents } from "@/client/applicationClient";
 import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/notifications")({
@@ -43,7 +43,7 @@ const vibrationPatterns = ["Default", "Pulse", "Heartbeat"];
 
 function NotificationsPage() {
   const t = useAppLabels();
-  const { data, setData } = useStoredSnapshot<NotificationSettings>("settings.getSnapshot", { section: "notifications" }, "settings.notifications");
+  const { data, setData } = useProjection<NotificationSettings>("settings.getSnapshot", { section: "notifications" }, "settings.notifications");
   const [status, setStatus] = useState("ready");
   if (!data) return null;
 
@@ -53,9 +53,10 @@ function NotificationsPage() {
     void syncField("notifications", "value", next).then((ok) => setStatus(ok ? "saved" : "error"));
   };
 
-  const invoke = (action: string) => {
+  const invoke = (action: "testAlarm" | "testNotification") => {
     setStatus(action);
-    void mauiCall("settings.invoke", { action }).then((res) => setStatus(res.ok ? "ready" : "error"));
+    const command = action === "testAlarm" ? platformIntents.testAlarm() : platformIntents.testNotification();
+    void command.then((res) => setStatus(res.ok ? "ready" : "error"));
   };
 
   return (

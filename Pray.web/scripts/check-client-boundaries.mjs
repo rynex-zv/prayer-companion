@@ -13,8 +13,20 @@ for (const file of walk(src)) {
     continue;
   }
   if (!source.includes("native/mauiWebberClient")) continue;
-  if (relative === "client/appClient.ts" || relative === "client/legacyClient.ts" || relative === "client/telemetry.ts") continue;
+  if (relative === "client/appClient.ts" || relative === "client/applicationClient.ts" || relative === "client/telemetry.ts") continue;
   violations.push(relative);
+}
+for (const retired of ["client/legacyClient.ts", "hooks/useSnapshot.ts", "hooks/useStoredSnapshot.ts"]) {
+  if (fs.existsSync(path.join(src, retired))) violations.push(`${retired} (retired compatibility surface)`);
+}
+for (const directory of ["routes", "components"]) {
+  for (const file of walk(path.join(src, directory))) {
+    if (!/\.(ts|tsx)$/.test(file)) continue;
+    const source = fs.readFileSync(file, "utf8");
+    if (source.includes("settings.invoke") || source.includes("settings.setField")) {
+      violations.push(`${path.relative(src, file).replaceAll("\\", "/")} (multiplexed settings operation)`);
+    }
+  }
 }
 if (violations.length) {
   console.error("New UI/domain code must use AppClient, not mauiWebberClient:\n" + violations.map((file) => ` - ${file}`).join("\n"));

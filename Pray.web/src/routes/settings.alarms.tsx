@@ -3,7 +3,7 @@ import { useState } from "react";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { useStoredSnapshot } from "@/hooks/useStoredSnapshot";
+import { useProjection } from "@/hooks/useProjection";
 import { syncField } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/alarms")({
@@ -19,7 +19,7 @@ type AlarmRemindersSettings = {
 
 function AlarmsPage() {
   const t = useAppLabels();
-  const { data, setData } = useStoredSnapshot<AlarmRemindersSettings>("settings.getSnapshot", { section: "alarmReminders" }, "settings.alarmReminders");
+  const { data, setData } = useProjection<AlarmRemindersSettings>("settings.getSnapshot", { section: "alarmReminders" }, "settings.alarmReminders");
   const [status, setStatus] = useState("ready");
   const [newReminderText, setNewReminderText] = useState("");
   if (!data) return null;

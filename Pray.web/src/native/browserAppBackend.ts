@@ -74,8 +74,8 @@ async function migrateLegacyState(): Promise<void> {
       };
       if (legacy.language) await apply("app.setLanguage", { language: legacy.language });
       if (legacy.themeMode) await apply("app.setTheme", { theme: legacy.themeMode });
-      if (legacy.accentColor !== undefined) await apply("settings.setField", { section: "theme", field: "accentColor", value: legacy.accentColor });
-      if (legacy.textSize !== undefined) await apply("settings.setField", { section: "theme", field: "textSize", value: legacy.textSize });
+      if (legacy.accentColor !== undefined) await apply("settings.update", { section: "theme", field: "accentColor", value: legacy.accentColor });
+      if (legacy.textSize !== undefined) await apply("settings.update", { section: "theme", field: "textSize", value: legacy.textSize });
       if (legacy.onboardingCompleted) await apply("onboarding.complete", {});
     } else if (state) {
       const normalized = await executeWasmCore(state, "app.getShellSnapshot", {});

@@ -1,6 +1,6 @@
 # Linkin History
 
-> Historical verification log. For current instructions and architecture, read `../README.md` and `current-architecture.md`. Evidence below predates the 2026-07-12 storage audit and must be rerun for new builds.
+> Historical verification log. For current instructions and architecture, read `../README.md` and `current-architecture.md`. Phase 8 was reverified on 2026-07-12 with fresh-origin onboarding, Today, Calendar, Qibla, About, authoritative settings mutation, and zero browser console warnings/errors; older page-level details remain historical.
 
 Do not delete this file. Update it while checking each page.
 
@@ -32,8 +32,8 @@ Per-check status values: `WORKING GOOD`, `BROKEN`, `STATUS SAVED BROKEN`, `VALUE
 |---|---|---|
 | Store bootstrap | WORKING | React starts from bundled English labels and memory-only defaults, then atomically installs `app.bootstrap`; durable domain state is not loaded from React localStorage. |
 | Language proxy | WORKING | `languageProxy` is created once and reads through a mutable `languageTarget`; `setLanguageObject` repoints the target without recreating the proxy. |
-| Field sync contract | WORKING | Frontend calls `settings.setField` and verifies `{ section, field, value }`; retry-on-mismatch path is implemented. |
-| Backend RPCs | WORKING | Windows build succeeded with `app.getLanguageObject` and `settings.setField` in `WebAppRpcHandler.cs`. |
+| Field sync contract | WORKING | Frontend sends the intent-named `settings.update` command and installs its authoritative result; the retired field multiplexer is absent. |
+| Backend RPCs | WORKING | Native and browser contracts expose `settings.update` plus intent-named permission/location/adhan/notification/alarm/external/tasbih commands. |
 | Windows launch | WORKING | Windows app launched after build; WebView navigated successfully and logs show no frontend `window.error`/`unhandledrejection`. |
 | Known native data issue | PARTIAL | Native log still reports missing/invalid location in `HomeViewModel.RefreshAsync`; this is backend/location state, not a frontend blank-screen crash. |
 

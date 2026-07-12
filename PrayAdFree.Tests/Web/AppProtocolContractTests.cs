@@ -37,8 +37,15 @@ public sealed class AppProtocolContractTests {
     public void Every_legacy_rpc_has_an_explicit_classification() {
         Assert.Equal(WebContractExporter.RpcMethods.Count, WebContractExporter.RpcContracts.Count);
         Assert.All(WebContractExporter.RpcContracts, item => Assert.False(string.IsNullOrWhiteSpace(item.Domain)));
-        Assert.Equal(RpcOperationKind.Obsolete, WebContractExporter.Classify("app.navigate"));
-        Assert.Equal(RpcOperationKind.CompatibilityAdapter, WebContractExporter.Classify("settings.invoke"));
+        Assert.DoesNotContain("app.navigate", WebContractExporter.RpcMethods);
+        Assert.DoesNotContain("app.importState", WebContractExporter.RpcMethods);
+        Assert.DoesNotContain("app.exportState", WebContractExporter.RpcMethods);
+        Assert.DoesNotContain("settings.invoke", WebContractExporter.RpcMethods);
+        Assert.DoesNotContain("settings.setField", WebContractExporter.RpcMethods);
+        Assert.DoesNotContain("settings.patch", WebContractExporter.RpcMethods);
+        Assert.Contains("permissions.request", WebContractExporter.RpcMethods);
+        Assert.Contains("location.refresh", WebContractExporter.RpcMethods);
+        Assert.Contains("tasbih.updateItem", WebContractExporter.RpcMethods);
     }
 
     [Fact]

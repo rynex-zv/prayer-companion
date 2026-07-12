@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { mauiCall } from "@/client/legacyClient";
+import { executeCommand } from "@/client/applicationClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
 import bundledEnglishLabels from "../../../PrayAdFree/Resources/Raw/i18n/en.json";
 
@@ -171,7 +171,7 @@ async function performBootstrap() {
 
 export async function setLanguage(code: string) {
   markField("theme.language", "dirty");
-  const response = await mauiCall<LanguageObject>("app.getLanguageObject", { language: code });
+  const response = await executeCommand<LanguageObject>("app.getLanguageObject", { language: code });
   if (!response.ok) {
     markField("theme.language", "error", response.error);
     return;
@@ -202,7 +202,7 @@ export function setOnboardingCompleted(onboardingCompleted: boolean) {
 export async function syncField<T>(section: string, field: string, value: T, retry = true) {
   const key = `${section}.${field}`;
   markField(key, "syncing");
-  const response = await mauiCall<ConfirmedField<T>>("settings.setField", { section, field, value });
+  const response = await executeCommand<ConfirmedField<T>>("settings.update", { section, field, value });
   if (!response.ok) {
     markField(key, "error", response.error);
     return false;

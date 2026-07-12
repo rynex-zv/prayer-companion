@@ -4,8 +4,8 @@ import { AlarmClock, Minus, Plus } from "lucide-react";
 
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
-import { useSnapshot } from "@/hooks/useSnapshot";
-import { mauiCall } from "@/client/legacyClient";
+import { useProjection } from "@/hooks/useProjection";
+import { executeCommand } from "@/client/applicationClient";
 
 export const Route = createFileRoute("/alarm")({
   head: () => ({ meta: [] }),
@@ -35,7 +35,7 @@ type AlarmSnapshot = {
 
 function AlarmPage() {
   usePageLog("alarm");
-  const { data, refresh } = useSnapshot<AlarmSnapshot>("alarm.getSnapshot");
+  const { data, refresh, setData } = useProjection<AlarmSnapshot>("alarm.getSnapshot");
   const [delayMinutes, setDelayMinutes] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,8 +65,8 @@ function AlarmPage() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await mauiCall(method, payload);
-      await refresh(true);
+      const result = await executeCommand<AlarmSnapshot>(method, payload);
+      if (result.ok) setData(result.data);
     } finally {
       setSubmitting(false);
     }

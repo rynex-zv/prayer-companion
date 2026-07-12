@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { PageLog } from "@/components/PageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { mauiCall } from "@/client/legacyClient";
 import { useAppStore } from "@/state/appStore";
 
 export function SettingsHeader({ title, logPage, children }: { title: string; logPage?: string; children?: ReactNode }) {
@@ -17,7 +16,6 @@ export function SettingsHeader({ title, logPage, children }: { title: string; lo
         type="button"
         onClick={() => {
           void navigate({ to: "/settings" });
-          void mauiCall("app.navigate", { route: "/settings" });
         }}
         data-selector-name="settings:back"
         className="rounded-full p-2 hover:bg-muted"

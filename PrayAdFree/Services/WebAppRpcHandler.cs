@@ -96,7 +96,6 @@ public sealed class NativeAppBackend {
             "app.getLanguageObject" => BuildLanguageObject(ReadString(payload, "language")),
             "app.setLanguage" => SetLanguage(payload),
             "app.setTheme" => SetTheme(payload),
-            "app.navigate" => new { ok = true },
             "calendar.getSnapshot" => await GetCalendarAsync(payload).ConfigureAwait(false),
             "calendar.setMonth" => await SetCalendarMonthAsync(payload).ConfigureAwait(false),
             "calendar.today" => await MoveCalendarAsync(0, today: true).ConfigureAwait(false),
@@ -113,13 +112,25 @@ public sealed class NativeAppBackend {
             "tasbih.increment" => RunTasbihCommand(_tasbih.Increment),
             "tasbih.reset" => RunTasbihCommand(_tasbih.Reset),
             "tasbih.selectPreset" => SelectTasbihPreset(payload),
+            "tasbih.addPreset" => PatchTasbihAndSnapshot("addTasbihPreset", payload),
+            "tasbih.updatePreset" => PatchTasbihAndSnapshot("updateTasbihPreset", payload),
+            "tasbih.addItem" => PatchTasbihAndSnapshot("addTasbihItem", payload),
+            "tasbih.updateItem" => PatchTasbihAndSnapshot("updateTasbihItem", payload),
+            "tasbih.moveItem" => PatchTasbihAndSnapshot("moveTasbihItem", payload),
+            "tasbih.removeItem" => PatchTasbihAndSnapshot("removeTasbihItem", payload),
             "alarm.getSnapshot" => await GetAlarmSnapshotAsync().ConfigureAwait(false),
             "alarm.snooze" => await SnoozeAlarmAsync(payload).ConfigureAwait(false),
             "alarm.stop" => await StopAlarmAsync().ConfigureAwait(false),
+            "alarm.test" => await TestAdhanAlarmAsync(payload).ConfigureAwait(false),
+            "notification.test" => await TestAdhanNotificationAsync(payload).ConfigureAwait(false),
+            "permissions.request" => await RequestPermissionAsync(payload).ConfigureAwait(false),
+            "permissions.requestAll" => await RequestAllPermissionsAsync().ConfigureAwait(false),
+            "location.refresh" => await RefreshGpsLocationAsync().ConfigureAwait(false),
+            "location.reverseGeocode" => await ReverseGeocodeLocationAsync(payload).ConfigureAwait(false),
+            "adhan.sound.preview" => await PreviewAdhanSoundAsync(payload).ConfigureAwait(false),
+            "adhan.sound.addCustom" or "adhan.sound.removeCustom" or "external.openEmail" or "external.call" or "external.openUrl" or "external.reportIssue" => new { ok = true },
             "settings.getSnapshot" => await GetSettingsSnapshotAsync(payload).ConfigureAwait(false),
-            "settings.setField" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
-            "settings.patch" => await PatchSettingsAsync(payload).ConfigureAwait(false),
-            "settings.invoke" => await InvokeSettingsAsync(payload).ConfigureAwait(false),
+            "settings.update" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
             "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
                 _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
@@ -712,41 +723,19 @@ public sealed class NativeAppBackend {
         };
     }
 
-    private async Task<object?> InvokeSettingsAsync(JsonElement payload) {
-        var action = ReadString(payload, "action") ?? "";
-        var actionPayload = TryGetObject(payload, "payload", out var p) ? p : default;
+    private object PatchTasbihAndSnapshot(string action, JsonElement payload) {
+        PatchTasbih(action, payload);
+        return BuildTasbihSnapshot();
+    }
 
-        switch (action) {
-            case "addTasbihPreset":
-            case "updateTasbihPreset":
-            case "addTasbihItem":
-            case "updateTasbihItem":
-            case "moveTasbihItem":
-            case "removeTasbihItem":
-                PatchTasbih(action, actionPayload);
-                return BuildTasbihSnapshot();
-            case "requestAllPermissions":
-                await ResolveAllPermissionsAsync().ConfigureAwait(false);
-                return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
-            case "requestPermission":
-                await ResolvePermissionAsync(actionPayload).ConfigureAwait(false);
-                return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
-            case "refreshGps":
-                return await RefreshGpsLocationAsync().ConfigureAwait(false);
-            case "reverseGeocode":
-                return await ReverseGeocodeLocationAsync(actionPayload).ConfigureAwait(false);
-            case "previewSound":
-                return await PreviewAdhanSoundAsync(actionPayload).ConfigureAwait(false);
-            case "stopPreviewSound":
-                await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
-                return new { ok = true, action };
-            case "testAlarm":
-                return await TestAdhanAlarmAsync(actionPayload).ConfigureAwait(false);
-            case "testNotification":
-                return await TestAdhanNotificationAsync(actionPayload).ConfigureAwait(false);
-            default:
-                return new { ok = true, action };
-        }
+    private async Task<object> RequestAllPermissionsAsync() {
+        await ResolveAllPermissionsAsync().ConfigureAwait(false);
+        return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+    }
+
+    private async Task<object> RequestPermissionAsync(JsonElement payload) {
+        await ResolvePermissionAsync(payload).ConfigureAwait(false);
+        return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
     }
 
     private async Task<object> PreviewAdhanSoundAsync(JsonElement payload) {

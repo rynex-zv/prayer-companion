@@ -45,7 +45,15 @@ export function useTasbih(): {
     reset: () => run("tasbih.reset"),
     selectPreset: (id) => run("tasbih.selectPreset", { id }),
     invokeSettings: async (action, payload) => {
-      const result = await appClient.command<TasbihSnapshot>({ name: "settings.invoke", payload: { action, payload }, domain: "tasbih", projectionKey: PROJECTION });
+      const methods: Record<string, string> = {
+        addTasbihPreset: "tasbih.addPreset",
+        updateTasbihPreset: "tasbih.updatePreset",
+        addTasbihItem: "tasbih.addItem",
+        updateTasbihItem: "tasbih.updateItem",
+        moveTasbihItem: "tasbih.moveItem",
+        removeTasbihItem: "tasbih.removeItem",
+      };
+      const result = await appClient.command<TasbihSnapshot>({ name: methods[action] ?? action, payload, domain: "tasbih", projectionKey: PROJECTION });
       return result.ok;
     },
   };
