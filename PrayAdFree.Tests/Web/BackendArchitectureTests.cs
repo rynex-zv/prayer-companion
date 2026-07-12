@@ -26,6 +26,51 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Native_projection_ports_resolve_to_application_services_not_viewmodels() {
+        var root = FindRepoRoot();
+        var registrations = File.ReadAllText(Path.Combine(root, "PrayAdFree", "MauiProgram.cs"));
+        foreach (var mapping in new[] {
+            "ITodayProjectionSource>(sp => sp.GetRequiredService<TodayApplicationService>())",
+            "ICalendarProjectionSource>(sp => sp.GetRequiredService<CalendarApplicationService>())",
+            "IQiblaProjectionSource>(sp => sp.GetRequiredService<QiblaApplicationService>())",
+            "ITasbihProjectionSource>(sp => sp.GetRequiredService<TasbihApplicationService>())"
+        }) Assert.Contains(mapping, registrations, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("ITodayProjectionSource>(sp => sp.GetRequiredService<HomeViewModel>())", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICalendarProjectionSource>(sp => sp.GetRequiredService<CalendarViewModel>())", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("IQiblaProjectionSource>(sp => sp.GetRequiredService<QiblaViewModel>())", registrations, StringComparison.Ordinal);
+        Assert.DoesNotContain("ITasbihProjectionSource>(sp => sp.GetRequiredService<TasbihViewModel>())", registrations, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Application_projection_services_have_no_ui_thread_or_device_dependencies() {
+        var root = FindRepoRoot();
+        foreach (var name in new[] { "TodayApplicationService.cs", "CalendarApplicationService.cs", "QiblaApplicationService.cs", "TasbihApplicationService.cs" }) {
+            var source = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", name));
+            Assert.Contains("ApplicationService", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("MainThread", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("new Command", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Vibration.Default", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Microsoft.Maui.ApplicationModel", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Microsoft.Maui.Devices", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Xaml_projection_viewmodels_only_adapt_commands_and_device_feedback() {
+        var root = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(root, "PrayAdFree", "ViewModels", "ProjectionViewModels.cs"));
+        Assert.Contains("HomeViewModel : TodayApplicationService", source, StringComparison.Ordinal);
+        Assert.Contains("CalendarViewModel : CalendarApplicationService", source, StringComparison.Ordinal);
+        Assert.Contains("QiblaViewModel : QiblaApplicationService", source, StringComparison.Ordinal);
+        Assert.Contains("TasbihViewModel : TasbihApplicationService", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SaveSettings", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetMonthAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("UpdateLocationAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ScheduleNotificationsAsync", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Browser_store_is_memory_only_and_legacy_keys_are_migration_inputs_only() {
         var root = FindRepoRoot();
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));

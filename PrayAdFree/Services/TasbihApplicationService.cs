@@ -1,14 +1,12 @@
 using System.Collections.ObjectModel;
-using Microsoft.Maui.ApplicationModel;
-using Microsoft.Maui.Devices;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
 
-namespace Pray_Ad_Free.ViewModels;
+namespace Pray_Ad_Free.Services;
 
-public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
+public class TasbihApplicationService : ObservableApplicationService, ITasbihProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
     private readonly TasbihProgressCalculator _progressCalculator = new();
@@ -21,22 +19,22 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
     private bool _suspendSelectionSave;
     private bool _suppressReload;
 
-    public TasbihViewModel(PrayerDataService dataService, IAppLogger logger) {
+    public TasbihApplicationService(PrayerDataService dataService, IAppLogger logger) : this(dataService, logger, true) { }
+
+    protected TasbihApplicationService(PrayerDataService dataService, IAppLogger logger, bool observeAppChanges) {
         _dataService = dataService;
         _logger = logger;
         Presets = new ObservableCollection<TasbihPresetItem>();
         PresetItems = new ObservableCollection<TasbihPresetItemEntry>();
-        IncrementCommand = new Command(Increment);
-        ResetCommand = new Command(Reset);
         LoadPresets();
-        LocalizationManager.LanguageChanged += (_, _) => RunOnMainThread(LoadPresets);
-        _dataService.SettingsChanged += OnSettingsChanged;
+        if (observeAppChanges) {
+            LocalizationManager.LanguageChanged += OnLanguageChanged;
+            _dataService.SettingsChanged += OnSettingsChanged;
+        }
     }
 
     public ObservableCollection<TasbihPresetItem> Presets { get; }
     public ObservableCollection<TasbihPresetItemEntry> PresetItems { get; }
-    public Command IncrementCommand { get; }
-    public Command ResetCommand { get; }
 
     public int Count {
         get => _count;
@@ -95,7 +93,6 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
 
     public void Reset() {
         Count = 0;
-        TryVibrateReset();
 #if DEBUG
         _logger.LogEvent("TasbihReset", SelectedPreset?.Name ?? "None");
 #endif
@@ -225,11 +222,13 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
             return;
         }
 
-        RunOnMainThread(LoadPresets);
+        LoadPresets();
     }
 
+    private void OnLanguageChanged(object? sender, EventArgs args) => LoadPresets();
+
     private void ApplyPresets(IReadOnlyList<TasbihPresetItem> presets, int selectedIndex) {
-        RunOnMainThread(() => {
+        {
             _suspendSelectionSave = true;
             try {
                 Presets.Clear();
@@ -242,7 +241,7 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
             } finally {
                 _suspendSelectionSave = false;
             }
-        });
+        }
     }
 
     private static string TranslateValue(string value) {
@@ -262,19 +261,4 @@ public sealed class TasbihViewModel : ViewModelBase, ITasbihProjectionSource {
         };
     }
 
-    private static void RunOnMainThread(Action action) {
-        if (MainThread.IsMainThread) {
-            action();
-        } else {
-            MainThread.BeginInvokeOnMainThread(action);
-        }
-    }
-
-    private static void TryVibrateReset() {
-        try {
-            Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(80));
-        } catch (FeatureNotSupportedException) {
-        } catch (Exception) {
-        }
-    }
 }

@@ -11,3 +11,5 @@ The files `mds/old.md`, `mds/new.md`, and `mds/newer.md` are historical UI inven
 Never call a change production-ready from compilation alone. For storage/startup changes, test a cold browser origin, a reload with IndexedDB state, `https://pray.rynex.nl/`, and a freshly rebuilt Windows MAUI executable. Record the exact bundle hash and console/runtime errors.
 
 Phase 4 is complete. Preserve the native boundary documented in `mds/current-architecture.md`: transport metadata stays in `WebAppRpcHandler`, workflows stay in `NativeAppBackend`, durable mutations use `ApplicationCoordinator` plus the repository transaction, and external effects/events occur after commit.
+
+Phase 5 is complete. Backend projection ports must resolve to application services under `Services/`, never classes under `ViewModels/`. XAML ViewModels may adapt commands, binding, and device feedback only; do not put persistence, scheduling, location acquisition, calculations, or app-lifetime subscriptions back into them.

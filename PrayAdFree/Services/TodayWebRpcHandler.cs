@@ -10,17 +10,18 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         WriteIndented = true
     };
 
-    private readonly ITodayProjectionSource _viewModel;
+    private readonly ITodayProjectionSource _source;
     private readonly IAppLogger _logger;
     private readonly object _sync = new();
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly string _snapshotPath;
     private Task? _preloadTask;
     private TodayWebSnapshot? _lastSnapshot;
     private bool _backgroundRefreshRunning;
     private bool _cacheWarmupStarted;
 
-    public TodayWebRpcHandler(ITodayProjectionSource viewModel, IAppLogger logger) {
-        _viewModel = viewModel;
+    public TodayWebRpcHandler(ITodayProjectionSource source, IAppLogger logger) {
+        _source = source;
         _logger = logger;
         _snapshotPath = Path.Combine(FileSystem.AppDataDirectory, "MauiWebber", "today-snapshot.json");
         _lastSnapshot = LoadCachedSnapshot();
@@ -48,8 +49,8 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
 
         if (_lastSnapshot != null) {
             StartCacheWarmup();
-            if (!string.IsNullOrWhiteSpace(_viewModel.LocationTitle)) {
-                await MainThread.InvokeOnMainThreadAsync(() => _viewModel.UpdateCountdown(DateTime.Now));
+            if (!string.IsNullOrWhiteSpace(_source.LocationTitle)) {
+                _source.UpdateCountdown(DateTime.Now);
                 _lastSnapshot = BuildSnapshot();
             }
 
@@ -87,41 +88,45 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     }
 
     private async Task<TodayWebSnapshot> RefreshAndCacheAsync(bool force) {
-        if (force || string.IsNullOrWhiteSpace(_viewModel.LocationTitle)) {
-            await _viewModel.RefreshAsync().ConfigureAwait(false);
+        await _refreshGate.WaitAsync().ConfigureAwait(false);
+        try {
+            if (force || string.IsNullOrWhiteSpace(_source.LocationTitle)) {
+                await _source.RefreshAsync().ConfigureAwait(false);
+            }
+
+            _source.UpdateCountdown(DateTime.Now);
+            var snapshot = BuildSnapshot();
+            _lastSnapshot = snapshot;
+            SaveSnapshot(snapshot);
+            return snapshot;
+        } finally {
+            _refreshGate.Release();
         }
-
-        await MainThread.InvokeOnMainThreadAsync(() => _viewModel.UpdateCountdown(DateTime.Now));
-
-        var snapshot = BuildSnapshot();
-        _lastSnapshot = snapshot;
-        SaveSnapshot(snapshot);
-        return snapshot;
     }
 
     private TodayWebSnapshot BuildSnapshot() {
         var isRtl = string.Equals(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, "ar", StringComparison.OrdinalIgnoreCase);
 
         return new TodayWebSnapshot(
-            LocationTitle: _viewModel.LocationTitle,
-            HijriDate: LocalizeHijriDate(_viewModel.HijriDate),
-            GregorianDate: _viewModel.GregorianDate,
-            CurrentTime: FormatLiveClock(DateTime.Now, _viewModel.CurrentClockFormat),
-            NextPrayerId: _viewModel.NextPrayerId.ToString(),
-            NextPrayerClock: _viewModel.NextPrayerClock,
-            NextPrayerBaseClock: _viewModel.NextPrayerBaseClock,
-            ShowNextPrayerBaseClock: _viewModel.ShowNextPrayerBaseClock,
-            NextPrayerDayId: _viewModel.NextPrayerDayId,
-            Countdown: _viewModel.Countdown,
-            StatusMessage: BuildStatusMessage(_viewModel.StatusMessage),
-            ImsakTime: _viewModel.ImsakTime,
-            IftarTime: _viewModel.IftarTime,
-            IsImsakNext: _viewModel.IsImsakNext,
-            IsIftarNext: _viewModel.IsIftarNext,
-            NextFastingCountdown: _viewModel.NextFastingCountdown,
+            LocationTitle: _source.LocationTitle,
+            HijriDate: LocalizeHijriDate(_source.HijriDate),
+            GregorianDate: _source.GregorianDate,
+            CurrentTime: FormatLiveClock(DateTime.Now, _source.CurrentClockFormat),
+            NextPrayerId: _source.NextPrayerId.ToString(),
+            NextPrayerClock: _source.NextPrayerClock,
+            NextPrayerBaseClock: _source.NextPrayerBaseClock,
+            ShowNextPrayerBaseClock: _source.ShowNextPrayerBaseClock,
+            NextPrayerDayId: _source.NextPrayerDayId,
+            Countdown: _source.Countdown,
+            StatusMessage: BuildStatusMessage(_source.StatusMessage),
+            ImsakTime: _source.ImsakTime,
+            IftarTime: _source.IftarTime,
+            IsImsakNext: _source.IsImsakNext,
+            IsIftarNext: _source.IsIftarNext,
+            NextFastingCountdown: _source.NextFastingCountdown,
             IsRtl: isRtl,
             Labels: WebCatalog.Labels(LocalizationManager.CurrentLanguage),
-            TodayTimings: _viewModel.TodayTimings.Select(row => new TodayWebTiming(
+            TodayTimings: _source.TodayTimings.Select(row => new TodayWebTiming(
                 Id: row.Id.ToString(),
                 Time: row.Time,
                 BaseTime: row.BaseTime,

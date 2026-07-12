@@ -4,9 +4,9 @@ using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
 using System.Collections.ObjectModel;
 
-namespace Pray_Ad_Free.ViewModels;
+namespace Pray_Ad_Free.Services;
 
-public sealed class QiblaViewModel : ViewModelBase, IQiblaProjectionSource {
+public class QiblaApplicationService : ObservableApplicationService, IQiblaProjectionSource {
     private readonly PrayerDataService _dataService;
     private double _bearing;
     private double _heading;
@@ -21,57 +21,22 @@ public sealed class QiblaViewModel : ViewModelBase, IQiblaProjectionSource {
     private OptionItem<QiblaReadingMode>? _selectedReadingMode;
     private OptionItem<QiblaFilterMode>? _selectedFilterMode;
     private bool _suspendPreferenceSave;
-    private Command<OptionItem<QiblaHeadingMode>>? _selectHeadingModeCommand;
-    private Command<OptionItem<QiblaReadingMode>>? _selectReadingModeCommand;
-    private Command<OptionItem<QiblaFilterMode>>? _selectFilterModeCommand;
+    public QiblaApplicationService(PrayerDataService dataService) : this(dataService, true) { }
 
-    public QiblaViewModel(PrayerDataService dataService) {
+    protected QiblaApplicationService(PrayerDataService dataService, bool observeAppChanges) {
         _dataService = dataService;
         HeadingModes = new ObservableCollection<OptionItem<QiblaHeadingMode>>();
         ReadingModes = new ObservableCollection<OptionItem<QiblaReadingMode>>();
         FilterModes = new ObservableCollection<OptionItem<QiblaFilterMode>>();
         BuildOptions();
-        SelectHeadingModeCommand = new Command<OptionItem<QiblaHeadingMode>>(item => {
-            if (item != null) {
-                SelectedHeadingMode = item;
-            }
-        });
-        SelectReadingModeCommand = new Command<OptionItem<QiblaReadingMode>>(item => {
-            if (item != null) {
-                SelectedReadingMode = item;
-            }
-        });
-        SelectFilterModeCommand = new Command<OptionItem<QiblaFilterMode>>(item => {
-            if (item != null) {
-                SelectedFilterMode = item;
-            }
-        });
         LoadPreferences();
-        LocalizationManager.LanguageChanged += (_, _) => {
-            BuildOptions();
-            LoadPreferences();
-            DirectionLabel = ResolveDirectionLabel(Bearing);
-        };
+        if (observeAppChanges) LocalizationManager.LanguageChanged += OnLanguageChanged;
     }
 
     public ObservableCollection<OptionItem<QiblaHeadingMode>> HeadingModes { get; }
     IEnumerable<OptionItem<QiblaHeadingMode>> IQiblaProjectionSource.HeadingModes => HeadingModes;
     public ObservableCollection<OptionItem<QiblaReadingMode>> ReadingModes { get; }
     public ObservableCollection<OptionItem<QiblaFilterMode>> FilterModes { get; }
-    public Command<OptionItem<QiblaHeadingMode>> SelectHeadingModeCommand {
-        get => _selectHeadingModeCommand!;
-        private set => _selectHeadingModeCommand = value;
-    }
-
-    public Command<OptionItem<QiblaReadingMode>> SelectReadingModeCommand {
-        get => _selectReadingModeCommand!;
-        private set => _selectReadingModeCommand = value;
-    }
-
-    public Command<OptionItem<QiblaFilterMode>> SelectFilterModeCommand {
-        get => _selectFilterModeCommand!;
-        private set => _selectFilterModeCommand = value;
-    }
 
     public OptionItem<QiblaHeadingMode>? SelectedHeadingMode {
         get => _selectedHeadingMode;
@@ -296,5 +261,11 @@ public sealed class QiblaViewModel : ViewModelBase, IQiblaProjectionSource {
     private static double NormalizeHeading(double heading) {
         var normalized = heading % 360d;
         return normalized < 0 ? normalized + 360d : normalized;
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs args) {
+        BuildOptions();
+        LoadPreferences();
+        DirectionLabel = ResolveDirectionLabel(Bearing);
     }
 }

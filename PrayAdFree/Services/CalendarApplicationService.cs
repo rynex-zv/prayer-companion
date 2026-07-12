@@ -1,12 +1,11 @@
 using System.Collections.ObjectModel;
-using Microsoft.Maui.ApplicationModel;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Services;
 
-namespace Pray_Ad_Free.ViewModels;
+namespace Pray_Ad_Free.Services;
 
-public sealed class CalendarViewModel : ViewModelBase, ICalendarProjectionSource {
+public class CalendarApplicationService : ObservableApplicationService, ICalendarProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly CalendarMonthPresenter _presenter = new();
     private DateTime _selectedMonth;
@@ -14,33 +13,17 @@ public sealed class CalendarViewModel : ViewModelBase, ICalendarProjectionSource
     private bool _reloadPending;
     private string _statusMessage = "";
 
-    public CalendarViewModel(PrayerDataService dataService) {
+    public CalendarApplicationService(PrayerDataService dataService) : this(dataService, true) { }
+
+    protected CalendarApplicationService(PrayerDataService dataService, bool observeAppChanges) {
         _dataService = dataService;
         _selectedMonth = _presenter.NormalizeMonth(DateTime.Today);
-        LoadCommand = new Command(QueueReload);
-        PreviousMonthCommand = new Command(() => SelectedMonth = _presenter.MoveMonth(SelectedMonth, -1));
-        NextMonthCommand = new Command(() => SelectedMonth = _presenter.MoveMonth(SelectedMonth, 1));
-        TodayCommand = new Command(() => {
-            var todayMonth = _presenter.NormalizeMonth(DateTime.Today);
-            if (todayMonth == SelectedMonth) {
-                QueueReload();
-                return;
-            }
-
-            SelectedMonth = todayMonth;
-        });
         Days = new ObservableCollection<CalendarDayRow>();
-        _dataService.SettingsChanged += (_, _) => {
-            MainThread.BeginInvokeOnMainThread(QueueReload);
-        };
+        if (observeAppChanges) _dataService.SettingsChanged += OnSettingsChanged;
     }
 
     public ObservableCollection<CalendarDayRow> Days { get; }
     IReadOnlyList<CalendarDayRow> ICalendarProjectionSource.Days => Days;
-    public Command LoadCommand { get; }
-    public Command PreviousMonthCommand { get; }
-    public Command NextMonthCommand { get; }
-    public Command TodayCommand { get; }
 
     public DateTime SelectedMonth {
         get => _selectedMonth;
@@ -92,6 +75,8 @@ public sealed class CalendarViewModel : ViewModelBase, ICalendarProjectionSource
             }
         } while (_reloadPending);
     }
+
+    private void OnSettingsChanged(object? sender, EventArgs args) => QueueReload();
 
     private void QueueReload() {
         _reloadPending = true;

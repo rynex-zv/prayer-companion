@@ -6,9 +6,9 @@ using PrayAdFree.Core.Services;
 using Pray_Ad_Free.Models;
 using Pray_Ad_Free.Services;
 
-namespace Pray_Ad_Free.ViewModels;
+namespace Pray_Ad_Free.Services;
 
-public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
+public class TodayApplicationService : ObservableApplicationService, ITodayProjectionSource {
     private readonly PrayerDataService _dataService;
     private readonly IAppLogger _logger;
     private readonly WidgetSnapshotFactory _widgetSnapshotFactory = new();
@@ -39,20 +39,22 @@ public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
     private DateTime _iftarDateTime;
     private DateTime _tomorrowImsakDateTime;
 
-    public HomeViewModel(PrayerDataService dataService, IAppLogger logger) {
+    public TodayApplicationService(PrayerDataService dataService, IAppLogger logger) : this(dataService, logger, true) { }
+
+    protected TodayApplicationService(PrayerDataService dataService, IAppLogger logger, bool observeAppChanges) {
         _dataService = dataService;
         _logger = logger;
-        RefreshCommand = new Command(async () => await RefreshAsync());
         TodayTimings = new ObservableCollection<PrayerTimeRow>();
-        LocalizationManager.LanguageChanged += (_, _) => RefreshLocalization();
-        _dataService.SettingsChanged += (_, _) => MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
+        if (observeAppChanges) {
+            LocalizationManager.LanguageChanged += OnLanguageChanged;
+            _dataService.SettingsChanged += OnSettingsChanged;
+        }
     }
 
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }
     IEnumerable<PrayerTimeRow> ITodayProjectionSource.TodayTimings => TodayTimings;
     public PrayerId NextPrayerId => _nextPrayerId;
     public string NextPrayerDayId => _nextPrayerTime.Date > DateTime.Now.Date ? "tomorrow" : "today";
-    public Command RefreshCommand { get; }
     public ClockFormat CurrentClockFormat => _settings.ClockFormat;
 
     public string LocationTitle {
@@ -166,13 +168,13 @@ public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
                 try {
                     await _dataService.ScheduleNotificationsAsync(_settings, month, CancellationToken.None, requestPermissions: false);
                 } catch (Exception ex) {
-                    _logger.LogException(ex, "HomeViewModel.ScheduleNotifications");
+                    _logger.LogException(ex, "TodayApplicationService.ScheduleNotifications");
                     StatusMessage = "Notifications update failed.";
                 }
             }
             StatusMessage = $"Last updated {DateTime.Now:t}";
         } catch (Exception ex) {
-            _logger.LogException(ex, "HomeViewModel.RefreshAsync");
+            _logger.LogException(ex, "TodayApplicationService.RefreshAsync");
             StatusMessage = "Update failed.";
         } finally {
             IsBusy = false;
@@ -181,7 +183,7 @@ public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
             }
 
             if (_refreshPending) {
-                _ = MainThread.InvokeOnMainThreadAsync(async () => await RefreshAsync());
+                _ = RefreshAsync();
             }
         }
     }
@@ -242,7 +244,7 @@ public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
         }
 
 #if DEBUG
-        _logger.LogEvent("HomeRows",
+        _logger.LogEvent("TodayRows",
             $"count={TodayTimings.Count};next={_nextPrayerId};rows={string.Join(",", TodayTimings.Select(row => $"{row.Id}:{row.Time}"))}");
 #endif
     }
@@ -367,6 +369,10 @@ public sealed class HomeViewModel : ViewModelBase, ITodayProjectionSource {
 
         ApplySnapshots(DateTime.Now);
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs args) => RefreshLocalization();
+
+    private void OnSettingsChanged(object? sender, EventArgs args) => _ = RefreshAsync();
 
     private static string BuildLocation(LocationSettings location) {
         if (!string.IsNullOrWhiteSpace(location.City) && !string.IsNullOrWhiteSpace(location.Country)) {

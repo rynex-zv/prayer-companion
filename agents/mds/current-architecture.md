@@ -1,6 +1,6 @@
 # Current application architecture and verification instructions
 
-Updated: 2026-07-12 after Phase 4 production verification.
+Updated: 2026-07-12 after Phase 5 production verification.
 
 ## Runtime boundaries
 
@@ -15,6 +15,10 @@ Updated: 2026-07-12 after Phase 4 production verification.
 - `NativeAppBackend` owns native application dispatch. Mutating operations cross `ApplicationCoordinator`, which checks expected revisions, deduplicates command IDs with a bounded replay cache, commits before effects/events, and returns authoritative projections.
 - Settings scheduling and `PrayerDataService.SettingsChanged`/widget invalidation are post-commit behavior. Never move them back into repository `Save` before transaction completion.
 - Equivalent native queries are coalesced by normalized input plus the current authoritative revision.
+- `ITodayProjectionSource`, `ICalendarProjectionSource`, `IQiblaProjectionSource`, and `ITasbihProjectionSource` resolve to singleton application services. They must never resolve to ViewModels.
+- `HomeViewModel`, `CalendarViewModel`, `QiblaViewModel`, and `TasbihViewModel` are XAML-only adapters over the same application service classes. Keep domain work, persistence, scheduling, and location updates in the services.
+- Application projection services must remain usable without `MainThread`, MAUI `Command`, vibration, or other device APIs. Singleton services own app-lifetime subscriptions; transient XAML adapters opt out of those subscriptions.
+- Today preload, warmup, bootstrap refresh, and snapshot-file writes share a serialized refresh gate. Preserve it when changing startup concurrency.
 
 ## Startup invariants
 

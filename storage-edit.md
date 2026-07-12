@@ -467,12 +467,17 @@ Exit gates:
 
 ### Phase 5: Remove ViewModels from backend paths
 
-**Status: PARTIAL — runtime audit reopened (2026-07-12)**
+**Status: DONE — shared application services and native runtime verified (2026-07-12)**
 
 - [x] Native RPC handlers depend on application projection ports rather than concrete ViewModel types or UI namespaces.
 - [x] Today, Calendar, Qibla, and Tasbih expose the same query/command surfaces to React and XAML through typed ports.
 - [x] Tasbih transport dispatch invokes intent methods instead of MAUI `Command` presentation objects.
 - [x] An architecture test prevents RPC-to-ViewModel dependencies from returning.
+- [x] Backend projection ports resolve to singleton `Today`, `Calendar`, `Qibla`, and `Tasbih` application services, never ViewModels.
+- [x] XAML ViewModels are command/device-feedback adapters over those same application use-case classes and contain no persistence, scheduling, location, or calculation workflows.
+- [x] Application services contain no `MainThread`, MAUI `Command`, or device API dependency; transient XAML adapters do not attach app-lifetime subscriptions.
+- [x] Today preload/bootstrap refresh and snapshot persistence are serialized, preventing concurrent cache-write failures.
+- [x] Architecture tests enforce DI mappings, UI-independent services, and presentation-only adapters; Windows runtime completed native bootstrap/render with an empty exception log.
 
 Objective: make ViewModels presentation-only.
 
@@ -560,7 +565,7 @@ Exit gates:
 - [x] Architecture tests enforce startup budget, transport dependency, ViewModel boundary, persistence ownership, event ordering, revision checks, and command idempotency.
 - [x] Compatibility RPC names remain only behind the client/backend compatibility facades for platform-specific features; new code cannot access transport directly.
 
-Audit note: Phase 4's native application/transaction boundary is complete. Later-phase debt remains: projection ports are still implemented by ViewModels; browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. Do not use Phase 4 completion to describe those later phases as complete.
+Audit note: Phases 4 and 5 are complete. Later-phase debt remains: browser authority is still serialized through mutable `WebCoreRpcDispatcher.WebState`; full `app.importState`/`app.exportState`, `legacyClient`, snapshot-hook compatibility names, `settings.invoke`, and generic `settings.setField` remain. Do not use Phase 4/5 completion to describe those later phases as complete.
 
 Remove when unused:
 
