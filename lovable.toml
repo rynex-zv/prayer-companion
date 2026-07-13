@@ -3,6 +3,6 @@ paths = ["Pray.web/src"]
 dev_port = 8080
 
 [run]
-dev = "bash -c 'cd Pray.web && npm run dev'"
-build = "bash -c 'cd Pray.web && npm run build:all:love'"
-"build:dev" = "bash -c 'cd Pray.web && npm run build:all:dev:love'"
+dev = "bash -c 'cd Pray.web && bun run dev'"
+build = "bash -c 'cd Pray.web && bun run build:all:love'"
+"build:dev" = "bash -c 'cd Pray.web && bun run build:all:dev:love'"
