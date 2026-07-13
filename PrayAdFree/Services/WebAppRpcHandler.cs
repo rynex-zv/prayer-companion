@@ -779,9 +779,9 @@ public sealed class NativeAppBackend {
             settings,
             location: new LocationSettings {
                 Mode = LocationMode.Gps,
-                City = settings.Location.City,
-                Country = settings.Location.Country,
-                CountryCode = settings.Location.CountryCode,
+                City = string.Empty,
+                Country = string.Empty,
+                CountryCode = string.Empty,
                 Latitude = settings.Location.Latitude,
                 Longitude = settings.Location.Longitude,
                 TimeZoneId = settings.Location.TimeZoneId,

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProjection } from "@/hooks/useProjection";
 import { executeCommand, platformIntents, updateSettingsSection } from "@/client/applicationClient";
 import { Card } from "@/components/Card";
@@ -58,10 +58,19 @@ function OnboardingPage() {
   const { data, refresh, setData } = useProjection<Snapshot>("onboarding.getSnapshot");
   const [step, setStep] = useState(0);
   const [finishError, setFinishError] = useState("");
+  const [finishing, setFinishing] = useState(false);
+  const [requestingPermission, setRequestingPermission] = useState<string | null>(null);
+  const [grantedPermissions, setGrantedPermissions] = useState<Set<string>>(() => new Set());
   const navigate = useNavigate();
   const language = useAppStore((state) => state.language);
   const languages = useAppStore((state) => state.languages);
   const direction = useAppStore((state) => state.direction);
+  useEffect(() => {
+    if (data?.completed) {
+      setOnboardingCompleted(true);
+      void navigate({ to: "/", replace: true });
+    }
+  }, [data?.completed, navigate]);
   if (!data) return null;
 
   const steps = data.steps?.length ? data.steps : [t("language"), t("permissions"), t("locationAndGps")];
@@ -70,11 +79,12 @@ function OnboardingPage() {
   const languageOptions = languages.length ? languages : (data.languages ?? []);
   const selectedLanguage = language || data.language || "en";
   const permissionItems = Array.isArray(data.permissions) ? data.permissions : (data.permissions?.items ?? []);
+  const isPermissionGranted = (permission: PermissionItem) => permission.isGranted === true || grantedPermissions.has(permission.id?.toLowerCase() ?? "");
   const permissionSummary = permissionItems.length
-    ? `${permissionItems.filter((permission) => permission.isGranted === true).length} / ${permissionItems.length}`
+    ? `${permissionItems.filter(isPermissionGranted).length} / ${permissionItems.length}`
     : t("permissionStatus");
   const locationPermission = permissionItems.find((permission) => permission.id?.toLowerCase() === "location");
-  const locationPermissionGranted = locationPermission?.isGranted === true;
+  const locationPermissionGranted = !!locationPermission && isPermissionGranted(locationPermission);
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
   const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
     setData({ ...data, location });
@@ -112,14 +122,12 @@ function OnboardingPage() {
     return true;
   };
   const requestLocationPermission = async () => {
-    const response = await platformIntents.requestPermission("Location");
-    if (!response.ok) {
-      setFinishError(response.error);
-      return false;
-    }
-
-    await refresh();
-    return refreshGpsFromNative();
+    if (requestingPermission) return false;
+    setRequestingPermission("location");
+    const refreshed = await refreshGpsFromNative();
+    if (refreshed) setGrantedPermissions((current) => new Set(current).add("location"));
+    setRequestingPermission(null);
+    return refreshed;
   };
   const refreshGps = async () => {
     if (!locationPermissionGranted) {
@@ -216,9 +224,26 @@ function OnboardingPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => platformIntents.requestPermission(permission.id ?? "").then(() => refresh())}
+                      disabled={requestingPermission !== null || permission.action?.toLowerCase() === "unavailable"}
+                      onClick={async () => {
+                        const id = permission.id?.toLowerCase() ?? "";
+                        if (!id || requestingPermission) return;
+                        if (id === "location") {
+                          await requestLocationPermission();
+                          return;
+                        }
+                        setRequestingPermission(id);
+                        const result = await platformIntents.requestPermission(id);
+                        if (result.ok) {
+                          setGrantedPermissions((current) => new Set(current).add(id));
+                          const confirmed = result.data as { items?: PermissionItem[] };
+                          if (confirmed?.items) setData({ ...data, permissions: confirmed });
+                        }
+                        else setFinishError(result.error);
+                        setRequestingPermission(null);
+                      }}
                       data-selector-name={`onboarding:permission-request:${permission.id ?? index}`}
-                      className="mt-3 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium"
+                      className="mt-3 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium disabled:opacity-50"
                     >
                       {t("grantPermissions")}
                     </button>
@@ -234,7 +259,17 @@ function OnboardingPage() {
             <div className="rounded-lg bg-muted/60 p-3 text-sm" data-selector-name="onboarding:permissions-summary">
               {t("permissionStatus")}: <span className="font-medium">{permissionSummary}</span>
             </div>
-            <button type="button" data-selector-name="onboarding:permissions-request-all" onClick={() => platformIntents.requestAllPermissions().then(() => refresh())} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{t("grantPermissions")}</button>
+            <button type="button" disabled={requestingPermission !== null} data-selector-name="onboarding:permissions-request-all" onClick={async () => {
+              if (requestingPermission) return;
+              setRequestingPermission("all");
+              const result = await platformIntents.requestAllPermissions();
+              if (!result.ok) setFinishError(result.error);
+              else {
+                const confirmed = result.data as { items?: PermissionItem[] };
+                if (confirmed?.items) setData({ ...data, permissions: confirmed });
+              }
+              setRequestingPermission(null);
+            }} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{t("grantPermissions")}</button>
           </div>
         )}
 
@@ -323,6 +358,7 @@ function OnboardingPage() {
         <button type="button" data-selector-name="onboarding:back" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground disabled:opacity-30">{t("back")}</button>
         <button
           type="button"
+          disabled={finishing}
           data-selector-name="onboarding:next"
           onClick={async () => {
             if (step !== steps.length - 1) {
@@ -340,15 +376,23 @@ function OnboardingPage() {
 
             // The visible default is a real user choice too. Persist it even when
             // the language button was never clicked, so old repository state cannot win.
-            await setLanguage(selectedLanguage);
+            setFinishing(true);
+            setFinishError("");
+            if (!await setLanguage(selectedLanguage)) {
+              setFinishError(t("status_error"));
+              setFinishing(false);
+              return;
+            }
 
             if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationPermissionGranted })) {
+              setFinishing(false);
               return;
             }
 
             const completed = await executeCommand("onboarding.complete");
             if (!completed.ok) {
-              setFinishError(t("status_error"));
+              setFinishError(completed.error || t("status_error"));
+              setFinishing(false);
               return;
             }
 
@@ -356,7 +400,7 @@ function OnboardingPage() {
             setOnboardingCompleted(true);
             await navigate({ to: "/", replace: true });
           }}
-          className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
+          className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
         >
           {step === steps.length - 1 ? t("finish") : t("next")} <NextIcon className="h-4 w-4" />
         </button>

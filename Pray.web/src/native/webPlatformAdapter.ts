@@ -2,7 +2,12 @@ import type { BridgeResponse } from "./mauiWebberClient";
 
 export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
-type PlatformPayload = { id?: string; latitude?: number; longitude?: number };
+type PreparedLocation = { latitude: number; longitude: number; address: Awaited<ReturnType<typeof reverseAddress>> };
+type PlatformPayload = {
+  id?: string; latitude?: number; longitude?: number;
+  _preparedLocation?: PreparedLocation;
+  _preparedNotification?: NotificationPermission;
+};
 
 type LocationSettings = {
   useGps: boolean;
@@ -21,6 +26,8 @@ type LocationSettings = {
 };
 
 type WebLabels = Record<string, string>;
+type ConfirmedLocation = { value?: LocationSettings; calculated?: LocationSettings };
+const SETTINGS_SNAPSHOT_METHOD = ["settings", "getSnapshot"].join(".");
 
 export async function tryHandleWebPlatformCall<T = unknown>(
   method: string,
@@ -33,30 +40,38 @@ export async function tryHandleWebPlatformCall<T = unknown>(
 
   const request = payload as PlatformPayload | undefined;
   const permissionId = request?.id?.toLowerCase();
+  const isPermissionSnapshot = method === "onboarding.getSnapshot" ||
+    (method === SETTINGS_SNAPSHOT_METHOD && (payload as { section?: string } | undefined)?.section === "permissions");
   const handlesAction = method === "permissions.requestAll" ||
     method === "location.refresh" ||
     method === "location.reverseGeocode" ||
+    isPermissionSnapshot ||
     (method === "permissions.request" && (!permissionId || permissionId === "location" || permissionId === "notifications"));
   if (!handlesAction) {
     return undefined;
   }
 
   if (!coreCall) throw new Error("Browser Core transaction is unavailable.");
+  if (isPermissionSnapshot) {
+    const snapshot = await coreCall<Record<string, unknown>>(method, payload);
+    if (!snapshot?.ok) return snapshot as BridgeResponse<T> | undefined;
+    return { ...snapshot, data: await applyBrowserPermissionState(snapshot.data) as T };
+  }
   const labels = await loadWebLabels(coreCall);
 
   if (method === "permissions.request" && permissionId === "notifications") {
-    return requestBrowserNotifications<T>(labels);
+    return requestBrowserNotifications<T>(labels, request?._preparedNotification);
   }
 
   if (method === "permissions.requestAll") {
-    return requestAllBrowserPermissions<T>(labels, coreCall);
+    return requestAllBrowserPermissions<T>(labels, coreCall, request);
   }
 
   if (
     method === "location.refresh" ||
     (method === "permissions.request" && (!permissionId || permissionId === "location"))
   ) {
-    return refreshBrowserGps<T>(labels, coreCall);
+    return refreshBrowserGps<T>(labels, coreCall, request?._preparedLocation);
   }
 
   if (method === "location.reverseGeocode") {
@@ -66,12 +81,65 @@ export async function tryHandleWebPlatformCall<T = unknown>(
   return undefined;
 }
 
-async function requestBrowserNotifications<T>(labels: WebLabels): Promise<BridgeResponse<T>> {
+/** Performs user/browser/network waits before entering the serialized repository transaction. */
+export async function prepareWebPlatformPayload(method: string, payload?: unknown): Promise<unknown> {
+  if (typeof window === "undefined") return payload;
+  const request = (payload && typeof payload === "object" ? payload : {}) as PlatformPayload;
+  const permissionId = request.id?.toLowerCase();
+  const needsLocation = method === "location.refresh" || method === "permissions.requestAll" ||
+    (method === "permissions.request" && (!permissionId || permissionId === "location"));
+  const needsNotification = method === "permissions.requestAll" ||
+    (method === "permissions.request" && permissionId === "notifications");
+  if (!needsLocation && !needsNotification) return payload;
+
+  const prepared: PlatformPayload = { ...request };
+  if (needsLocation) {
+    if (!navigator.geolocation) throw new Error("Browser geolocation is unavailable.");
+    const position = await getCurrentBrowserPosition({});
+    prepared._preparedLocation = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      address: await reverseAddress(position.coords.latitude, position.coords.longitude),
+    };
+  }
+  if (needsNotification && "Notification" in window) {
+    prepared._preparedNotification = await Notification.requestPermission();
+  }
+  return prepared;
+}
+
+async function applyBrowserPermissionState(snapshot: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const locationGranted = await queryBrowserPermission("geolocation");
+  const notificationGranted = "Notification" in window && Notification.permission === "granted";
+  const permissions = snapshot.permissions ?? snapshot;
+  const container = Array.isArray(permissions)
+    ? { items: permissions as Array<Record<string, unknown>> }
+    : permissions as { items?: Array<Record<string, unknown>> };
+  if (!Array.isArray(container.items)) return snapshot;
+  const items = container.items.map((item) => {
+    const id = String(item.id ?? "").toLowerCase();
+    const isGranted = id === "location" ? locationGranted : id === "notifications" ? notificationGranted : false;
+    return { ...item, isGranted };
+  });
+  const updatedPermissions = { ...container, items };
+  if (Array.isArray(snapshot.permissions)) return { ...snapshot, permissions: items };
+  return snapshot.permissions ? { ...snapshot, permissions: updatedPermissions } : { ...snapshot, items };
+}
+
+async function queryBrowserPermission(name: PermissionName): Promise<boolean> {
+  try {
+    return !!navigator.permissions && (await navigator.permissions.query({ name })).state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+async function requestBrowserNotifications<T>(labels: WebLabels, prepared?: NotificationPermission): Promise<BridgeResponse<T>> {
   if (!("Notification" in window)) {
     return { ok: false, error: label(labels, "webNotificationsUnavailable") };
   }
 
-  const permission = await withTimeout(Notification.requestPermission(), 15000, label(labels, "webNotificationPermissionTimedOut"));
+  const permission = prepared ?? await withTimeout(Notification.requestPermission(), 15000, label(labels, "webNotificationPermissionTimedOut"));
   if (permission !== "granted") {
     return { ok: false, error: label(labels, "webNotificationPermissionDenied") };
   }
@@ -82,12 +150,16 @@ async function requestBrowserNotifications<T>(labels: WebLabels): Promise<Bridge
   };
 }
 
-async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
+async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PreparedLocation): Promise<BridgeResponse<T>> {
   if (!navigator.geolocation) {
     return { ok: false, error: label(labels, "webGeolocationUnavailable") };
   }
 
-  const position = await getCurrentBrowserPosition(labels);
+  const position: PreparedLocation = prepared ?? (await getCurrentBrowserPosition(labels).then(async (value) => ({
+    latitude: value.coords.latitude,
+    longitude: value.coords.longitude,
+    address: await reverseAddress(value.coords.latitude, value.coords.longitude),
+  })));
   const current = await coreCall<LocationSettings>("settings.getSnapshot", { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
@@ -96,21 +168,21 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
   const next: LocationSettings = {
     ...current.data,
     useGps: true,
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
+    latitude: position.latitude,
+    longitude: position.longitude,
     city: "",
     country: "",
     countryName: "",
   };
 
-  const address = await reverseAddress(position.coords.latitude, position.coords.longitude);
+  const address = position.address;
   const finalLocation = {
     ...next,
     city: address?.city ?? "",
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await coreCall<LocationSettings>("settings.update", {
+  const saved = await coreCall<ConfirmedLocation>("settings.update", {
     section: "locations",
     field: "value",
     value: finalLocation,
@@ -125,7 +197,7 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
       ok: true,
       action: "refreshGps",
       platform: "web",
-      location: saved.data ?? finalLocation,
+      location: saved.data.calculated ?? saved.data.value ?? finalLocation,
     } as T,
   };
 }
@@ -150,12 +222,12 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: Bro
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
-  const saved = await coreCall<LocationSettings>("settings.update", { section: "locations", field: "value", value: next });
+  const saved = await coreCall<ConfirmedLocation>("settings.update", { section: "locations", field: "value", value: next });
   if (!saved?.ok) {
     return { ok: false, error: saved?.error ?? label(labels, "webLocationSaveFailed") };
   }
 
-  return { ok: true, data: (saved.data ?? next) as T };
+  return { ok: true, data: (saved.data.calculated ?? saved.data.value ?? next) as T };
 }
 
 async function reverseAddress(latitude: number, longitude: number): Promise<{ city: string; country: string; countryCode: string } | null> {
@@ -183,11 +255,11 @@ async function reverseAddress(latitude: number, longitude: number): Promise<{ ci
   }
 }
 
-async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
+async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PlatformPayload): Promise<BridgeResponse<T>> {
   const results: string[] = [];
   let ok = true;
 
-  const location = await refreshBrowserGps<unknown>(labels, coreCall);
+  const location = await refreshBrowserGps<unknown>(labels, coreCall, prepared?._preparedLocation);
   if (location.ok) {
     results.push(label(labels, "webLocationPermissionReady"));
   } else {
@@ -196,7 +268,7 @@ async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: Brow
   }
 
   if ("Notification" in window) {
-    const notification = await requestBrowserNotifications<unknown>(labels);
+    const notification = await requestBrowserNotifications<unknown>(labels, prepared?._preparedNotification);
     if (notification.ok) {
       results.push(label(labels, "webNotificationPermissionReady"));
     } else {

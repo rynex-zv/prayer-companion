@@ -1,5 +1,5 @@
 import type { BridgeResponse } from "./mauiWebberClient";
-import { tryHandleWebPlatformCall, type BrowserCoreCall } from "./webPlatformAdapter";
+import { prepareWebPlatformPayload, tryHandleWebPlatformCall, type BrowserCoreCall } from "./webPlatformAdapter";
 import { executeWasmCore, getLastWasmCoreLoadError } from "./wasmCoreClient";
 import { coreContract } from "../generated/core-contract";
 
@@ -15,7 +15,10 @@ const kinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [i
 
 export async function callBrowserBackend<T>(method: string, payload?: unknown): Promise<BridgeResponse<T> | undefined> {
   await (ready ??= migrateLegacyState());
-  const operation = operationQueue.then(() => executeOperation<T>(method, payload), () => executeOperation<T>(method, payload));
+  // Permission dialogs, GPS acquisition, and reverse-geocoding must not hold the
+  // repository lock. Only the deterministic state transition is serialized.
+  const preparedPayload = await prepareWebPlatformPayload(method, payload);
+  const operation = operationQueue.then(() => executeOperation<T>(method, preparedPayload), () => executeOperation<T>(method, preparedPayload));
   operationQueue = operation.then(() => undefined, () => undefined);
   return operation;
 }

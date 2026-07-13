@@ -169,16 +169,16 @@ async function performBootstrap() {
   });
 }
 
-export async function setLanguage(code: string) {
+export async function setLanguage(code: string): Promise<boolean> {
   markField("theme.language", "dirty");
   const response = await executeCommand<LanguageObject>("app.getLanguageObject", { language: code });
   if (!response.ok) {
     markField("theme.language", "error", response.error);
-    return;
+    return false;
   }
 
   setLanguageObject(response.data);
-  await syncField("theme", "language", code);
+  return syncField("theme", "language", code);
 }
 
 export async function setThemeField<T>(field: "themeMode" | "accentColor" | "textSize", value: T) {

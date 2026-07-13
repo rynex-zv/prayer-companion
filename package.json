@@ -2,8 +2,8 @@
   "name": "prayadfree-root",
   "private": true,
   "scripts": {
-    "dev": "cd Pray.web && bun run dev",
-    "build": "cd Pray.web && bun run build",
-    "build:love": "cd Pray.web && bun run build:love"
+	"dev": "cd Pray.web && npm run dev",
+	"build": "cd Pray.web && npm run build",
+	"build:love": "cd Pray.web && npm run build:love"
   }
 }

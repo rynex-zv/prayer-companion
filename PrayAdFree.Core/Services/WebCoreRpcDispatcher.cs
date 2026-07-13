@@ -182,7 +182,7 @@ public sealed class WebCoreRpcDispatcher {
         return new {
             locationTitle = LocationTitle(),
             hijriDate = day.Hijri.Date,
-            gregorianDate = now.ToString("dddd, dd MMMM yyyy", CultureInfo.InvariantCulture),
+            gregorianDate = now.ToString("dddd, dd MMMM yyyy", DisplayCulture()),
             currentTime = FormatLiveClock(now, settings),
             nextPrayerId = snapshot.NextPrayerId.ToString(),
             nextPrayerClock = Format(next, settings),
@@ -206,6 +206,14 @@ public sealed class WebCoreRpcDispatcher {
             }).ToArray()
         };
     }
+
+    private CultureInfo DisplayCulture() => CultureInfo.GetCultureInfo(_state.Language switch {
+        "ar" => "ar-SA",
+        "fr" => "fr-FR",
+        "es" => "es-ES",
+        "tr" => "tr-TR",
+        _ => "en-US"
+    });
 
     private object CalendarSnapshot(string? monthValue = null) {
         if (!string.IsNullOrWhiteSpace(monthValue) && DateTime.TryParseExact(monthValue + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)) {
