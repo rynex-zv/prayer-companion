@@ -46,11 +46,11 @@ public sealed class AppFallbackRejectionTests {
     [Theory]
     [InlineData(CalculationMethod.Jafari)]
     [InlineData(CalculationMethod.Tehran)]
-    public void Methods_requiring_a_Maghrib_angle_are_not_approximated(CalculationMethod method) {
-        Assert.DoesNotContain(method, CalculationMethodPresetCatalog.SupportedMethods);
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new WebPrayerMonthFactory().BuildDay(Settings(method), TestDate));
-        Assert.Contains("not supported", error.Message, StringComparison.OrdinalIgnoreCase);
+    public void Methods_requiring_a_Maghrib_angle_are_supported_without_sunset_substitution(CalculationMethod method) {
+        Assert.Contains(method, CalculationMethodPresetCatalog.SupportedMethods);
+        var day = new WebPrayerMonthFactory().BuildDay(Settings(method), TestDate);
+        Assert.True(day.Timings.Maghrib > day.Timings.Dhuhr);
+        Assert.True(day.Timings.Maghrib < day.Timings.Isha);
     }
 
     [Fact]

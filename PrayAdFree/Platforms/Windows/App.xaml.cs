@@ -34,6 +34,8 @@ namespace Pray_Ad_Free.WinUI {
 
         public App() {
             Trace("WinUI.App.ctor:start");
+            Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility");
+            Trace("WinUI.WebView2.AccessibilityForced");
             InitializeComponent();
             Trace("WinUI.App.ctor:end");
         }

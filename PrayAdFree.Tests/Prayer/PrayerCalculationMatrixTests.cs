@@ -1,5 +1,6 @@
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
+using Batoulapps.Adhan.Internal;
 
 namespace PrayAdFree.Tests.Prayer;
 
@@ -64,6 +65,24 @@ public sealed class PrayerCalculationMatrixTests {
 
         Assert.True(day.Timings.Fajr < day.Timings.Sunrise);
         Assert.True(day.Timings.Maghrib < day.Timings.Isha);
+    }
+
+    [Theory]
+    [InlineData(CalculationMethod.Jafari, 4.0)]
+    [InlineData(CalculationMethod.Tehran, 4.5)]
+    public void Shia_methods_use_their_exact_Maghrib_solar_angle(CalculationMethod method, double angle) {
+        var date = new DateOnly(2026, 8, 6);
+        var settings = Settings(method, "Europe/Amsterdam");
+        var result = _factory.BuildDay(settings, date);
+        var coordinates = new Batoulapps.Adhan.Coordinates(settings.Location.Latitude, settings.Location.Longitude);
+        var utcDate = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var decimalHours = new Batoulapps.Adhan.Internal.SolarTime(utcDate, coordinates)
+            .HourAngle(-angle, afterTransit: true);
+        var expectedUtc = utcDate.AddHours(decimalHours)
+            .Round(TimeSpan.FromMinutes(1));
+        var actualUtc = TimeZoneInfo.ConvertTimeToUtc(result.Timings.Maghrib, TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam"));
+
+        Assert.Equal(expectedUtc, actualUtc);
     }
 
     private static AppSettings Settings(

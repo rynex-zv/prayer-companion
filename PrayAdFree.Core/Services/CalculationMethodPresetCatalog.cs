@@ -4,17 +4,18 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public static class CalculationMethodPresetCatalog {
-    // Only expose methods that this engine can represent completely. Jafari and
-    // Tehran require a Maghrib solar angle, which Adhan .NET 0.9 cannot model.
-    // Hiding them is deliberate: silently calculating Maghrib at sunset would
-    // produce a materially different method under a trusted name.
+    // Every exposed method is represented completely by the shared engine.
+    // Jafari and Tehran use their documented Maghrib solar angles in
+    // WebPrayerMonthFactory instead of approximating Maghrib as sunset.
     public static IReadOnlyList<CalculationMethod> SupportedMethods { get; } = new[] {
         CalculationMethod.Auto,
+        CalculationMethod.Jafari,
         CalculationMethod.Karachi,
         CalculationMethod.Isna,
         CalculationMethod.MuslimWorldLeague,
         CalculationMethod.UmmAlQura,
         CalculationMethod.Egypt,
+        CalculationMethod.Tehran,
         CalculationMethod.Gulf,
         CalculationMethod.Kuwait,
         CalculationMethod.Qatar,

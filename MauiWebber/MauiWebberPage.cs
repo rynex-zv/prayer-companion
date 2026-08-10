@@ -9,7 +9,6 @@ using Java.Interop;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
-using WinRT.Interop;
 #endif
 
 namespace MauiWebber;
@@ -37,10 +36,8 @@ public class MauiWebberPage : ContentPage {
     private AndroidMauiWebberBridge? _androidBridge;
 #endif
 #if WINDOWS
-    private CoreWebView2Controller? _windowsController;
     private CoreWebView2? _windowsCoreWebView2;
     private WebView2? _windowsLayoutView;
-    private Windows.Foundation.Rect _windowsControllerBounds;
 #endif
 
     public MauiWebberPage(
@@ -67,11 +64,10 @@ public class MauiWebberPage : ContentPage {
         _logger.Log("Page.Unloaded", $"ms={_stopwatch.ElapsedMilliseconds}");
         MauiWebberEventHub.Published -= OnApplicationEvent;
 #if WINDOWS
-        if (_windowsLayoutView != null) {
-            _windowsLayoutView.LayoutUpdated -= OnWindowsLayoutUpdated;
+        if (_windowsCoreWebView2 != null) {
+            _windowsCoreWebView2.WebMessageReceived -= OnWindowsWebMessageReceived;
+            _windowsCoreWebView2.NavigationCompleted -= OnWindowsNavigationCompleted;
         }
-        _windowsController?.Close();
-        _windowsController = null;
         _windowsCoreWebView2 = null;
         _windowsLayoutView = null;
 #endif
@@ -124,39 +120,28 @@ public class MauiWebberPage : ContentPage {
 #if WINDOWS
         if (_webView.Handler?.PlatformView is WebView2 windowsWebView) {
             _windowsLayoutView = windowsWebView;
-            windowsWebView.Opacity = 0;
-            windowsWebView.IsHitTestVisible = false;
-            windowsWebView.LayoutUpdated -= OnWindowsLayoutUpdated;
-            windowsWebView.LayoutUpdated += OnWindowsLayoutUpdated;
+            windowsWebView.Opacity = 1;
+            windowsWebView.IsHitTestVisible = true;
         }
 #endif
     }
 
 #if WINDOWS
-    private async Task EnsureWindowsWindowedWebViewAsync() {
-        if (_windowsController != null && _windowsCoreWebView2 != null) {
+    private async Task EnsureWindowsWebViewAsync() {
+        if (_windowsCoreWebView2 != null) {
             return;
         }
 
-        var platformWindow = Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window
-            ?? throw new InvalidOperationException("Windows host window is unavailable.");
-        var hostHwnd = WindowNative.GetWindowHandle(platformWindow);
-        if (hostHwnd == IntPtr.Zero) {
-            throw new InvalidOperationException("Windows host HWND is unavailable.");
-        }
-
-        var environment = await CoreWebView2Environment.CreateAsync();
-        var parentWindow = CoreWebView2ControllerWindowReference.CreateFromWindowHandle(
-            unchecked((ulong)hostHwnd.ToInt64()));
-        _windowsController = await environment.CreateCoreWebView2ControllerAsync(parentWindow);
-        _windowsController.BoundsMode = CoreWebView2BoundsMode.UseRasterizationScale;
-        _windowsCoreWebView2 = _windowsController.CoreWebView2;
+        var windowsWebView = _windowsLayoutView
+            ?? throw new InvalidOperationException("Windows WebView2 handler did not initialize; refusing insecure file: navigation.");
+        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility");
+        await windowsWebView.EnsureCoreWebView2Async();
+        _windowsCoreWebView2 = windowsWebView.CoreWebView2
+            ?? throw new InvalidOperationException("Windows CoreWebView2 did not initialize; refusing insecure file: navigation.");
         _windowsCoreWebView2.WebMessageReceived += OnWindowsWebMessageReceived;
         _windowsCoreWebView2.NavigationCompleted += OnWindowsNavigationCompleted;
         EnableWindowsWebMessages(_windowsCoreWebView2);
-        UpdateWindowsControllerBounds();
-        _windowsController.IsVisible = true;
-        _logger.Log("WebView2.WindowedController.Attached", $"hwnd=0x{hostHwnd.ToInt64():X};ms={_stopwatch.ElapsedMilliseconds}");
+        _logger.Log("WebView2.VisibleHost.Attached", $"ms={_stopwatch.ElapsedMilliseconds}");
     }
 
     private void EnableWindowsWebMessages(CoreWebView2 coreWebView2) {
@@ -183,44 +168,12 @@ public class MauiWebberPage : ContentPage {
         await HandleNavigationCompletedAsync(args.IsSuccess, url).ConfigureAwait(false);
     }
 
-    private void OnWindowsLayoutUpdated(object? sender, object e) => UpdateWindowsControllerBounds();
-
-    private void UpdateWindowsControllerBounds() {
-        if (_windowsController == null || _windowsLayoutView?.XamlRoot?.Content is not UIElement root) {
-            return;
-        }
-
-        // Keep the controller in logical-pixel mode and provide WinUI's exact
-        // rasterization scale. Mixing DIPs with raw-pixel bounds distorts both
-        // rendering and UIA coordinates on scaled displays.
-        _windowsController.RasterizationScale = _windowsLayoutView.XamlRoot.RasterizationScale;
-        var origin = _windowsLayoutView.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(0, 0));
-        var bounds = new Windows.Foundation.Rect(
-            Math.Max(0, origin.X),
-            Math.Max(0, origin.Y),
-            Math.Max(1, _windowsLayoutView.ActualWidth),
-            Math.Max(1, _windowsLayoutView.ActualHeight));
-        if (bounds == _windowsControllerBounds) {
-            return;
-        }
-
-        _windowsControllerBounds = bounds;
-        _windowsController.Bounds = bounds;
-        _windowsController.NotifyParentWindowPositionChanged();
-        _logger.Log("WebView2.Bounds", $"width={bounds.Width};height={bounds.Height};scale={_windowsController.RasterizationScale};ms={_stopwatch.ElapsedMilliseconds}");
-    }
 #endif
 
     protected override async void OnAppearing() {
         base.OnAppearing();
         StartShakeDetection();
         if (_loaded) {
-#if WINDOWS
-            if (_windowsController != null) {
-                UpdateWindowsControllerBounds();
-                _windowsController.IsVisible = true;
-            }
-#endif
             return;
         }
 
@@ -239,7 +192,7 @@ public class MauiWebberPage : ContentPage {
             if (_windowsLayoutView == null) {
                 throw new InvalidOperationException("Windows WebView2 handler did not initialize; refusing insecure file: navigation.");
             }
-            await EnsureWindowsWindowedWebViewAsync();
+            await EnsureWindowsWebViewAsync();
             var sourceUrl = BuildSourceUrl(startupFile);
             _windowsCoreWebView2!.Navigate(sourceUrl);
             _logger.Log("WebView.SourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={sourceUrl}");
@@ -259,11 +212,6 @@ public class MauiWebberPage : ContentPage {
 
     protected override void OnDisappearing() {
         StopShakeDetection();
-#if WINDOWS
-        if (_windowsController != null) {
-            _windowsController.IsVisible = false;
-        }
-#endif
         base.OnDisappearing();
     }
 

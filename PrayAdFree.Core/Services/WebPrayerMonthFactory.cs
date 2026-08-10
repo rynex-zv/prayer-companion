@@ -47,6 +47,11 @@ public sealed class WebPrayerMonthFactory {
             timeZone);
         var baseFajr = Local(calculated.Fajr);
         var resolvedMethod = ResolveMethod(settings);
+        var baseMaghribUtc = resolvedMethod switch {
+            Models.CalculationMethod.Jafari => CalculateAngleTimeUtc(coordinates, date, 4.0),
+            Models.CalculationMethod.Tehran => CalculateAngleTimeUtc(coordinates, date, 4.5),
+            _ => calculated.Maghrib
+        };
         var hijri = BuildHijri(date);
         var ramadanIshaAdjustment = resolvedMethod == Models.CalculationMethod.UmmAlQura && hijri.MonthNumber == 9
             ? 30
@@ -63,7 +68,7 @@ public sealed class WebPrayerMonthFactory {
                 Sunrise = Local(calculated.Sunrise).AddMinutes(settings.Offsets.Sunrise),
                 Dhuhr = Local(calculated.Dhuhr).AddMinutes(settings.Offsets.Dhuhr),
                 Asr = Local(calculated.Asr).AddMinutes(settings.Offsets.Asr),
-                Maghrib = Local(calculated.Maghrib).AddMinutes(settings.Offsets.Maghrib),
+                Maghrib = Local(baseMaghribUtc).AddMinutes(settings.Offsets.Maghrib),
                 Isha = Local(calculated.Isha).AddMinutes(settings.Offsets.Isha + ramadanIshaAdjustment)
             }
         };
@@ -82,6 +87,8 @@ public sealed class WebPrayerMonthFactory {
             Models.CalculationMethod.Singapore => AdhanCalculationMethod.SINGAPORE.GetParameters(),
             Models.CalculationMethod.Moonsighting => AdhanCalculationMethod.MOON_SIGHTING_COMMITTEE.GetParameters(),
             Models.CalculationMethod.Dubai => AdhanCalculationMethod.DUBAI.GetParameters(),
+            Models.CalculationMethod.Jafari => Angles(16, 14),
+            Models.CalculationMethod.Tehran => Angles(17.7, 14),
             Models.CalculationMethod.Custom => new CalculationParameters(settings.SunAngles.Fajr, settings.SunAngles.Isha, AdhanCalculationMethod.OTHER),
             _ => CustomParameters(method)
         };
@@ -122,6 +129,20 @@ public sealed class WebPrayerMonthFactory {
     private static CalculationParameters WithMaghribAdjustment(CalculationParameters parameters, int minutes) {
         parameters.Adjustments.Maghrib = minutes;
         return parameters;
+    }
+
+    private static DateTime CalculateAngleTimeUtc(Coordinates coordinates, DateOnly date, double angleBelowHorizon) {
+        // Adhan .NET 0.9 predates the Maghrib-angle parameter supported by the
+        // other Batoulapps Adhan implementations. SolarTime is the same
+        // astronomical engine used by PrayerTimes, so calculate only the
+        // missing evening hour angle here rather than substituting sunset.
+        var utcDate = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var decimalHours = new SolarTime(utcDate, coordinates).HourAngle(-angleBelowHorizon, afterTransit: true);
+        if (!double.IsFinite(decimalHours)) {
+            throw new InvalidOperationException($"The {angleBelowHorizon:0.##} degree Maghrib angle is not computable for this date and location.");
+        }
+
+        return utcDate.AddHours(decimalHours).Round(TimeSpan.FromMinutes(1));
     }
 
     private static Models.CalculationMethod ResolveMethod(AppSettings settings) =>

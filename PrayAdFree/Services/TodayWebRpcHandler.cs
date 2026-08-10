@@ -7,7 +7,7 @@ using PrayAdFree.Core.Models;
 namespace Pray_Ad_Free.Services;
 
 public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
-    private const int SnapshotCacheSchemaVersion = 5;
+    private const int SnapshotCacheSchemaVersion = 6;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
     };

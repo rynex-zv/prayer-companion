@@ -125,9 +125,11 @@ public sealed class BackendArchitectureTests {
         Assert.DoesNotContain("TryUseFallbackAsync", host, StringComparison.Ordinal);
         Assert.DoesNotContain("ResolveAfterNavigationFailureAsync", host, StringComparison.Ordinal);
         Assert.Contains("WebView.ReleaseBlocker", host, StringComparison.Ordinal);
-        Assert.Contains("CreateCoreWebView2ControllerAsync", host, StringComparison.Ordinal);
-        Assert.Contains("CoreWebView2ControllerWindowReference.CreateFromWindowHandle", host, StringComparison.Ordinal);
-        Assert.Contains("NotifyParentWindowPositionChanged", host, StringComparison.Ordinal);
+        Assert.Contains("EnsureCoreWebView2Async", host, StringComparison.Ordinal);
+        Assert.Contains("--force-renderer-accessibility", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateCoreWebView2ControllerAsync", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("CoreWebView2ControllerWindowReference.CreateFromWindowHandle", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("windowsWebView.Opacity = 0", host, StringComparison.Ordinal);
         var uiaTest = File.ReadAllText(Path.Combine(root, "tools", "Test-WindowsAccessibility.ps1"));
         Assert.Contains("ControlType]::Document", uiaTest, StringComparison.Ordinal);
         Assert.Contains("NamedInteractiveControls", uiaTest, StringComparison.Ordinal);

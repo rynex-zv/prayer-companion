@@ -8,6 +8,7 @@
 ##Tested
 - All seven in-process segmented choices updated the visible Qibla presentation without a crash.
 - Qibla controls now carry React accessible names; Map rendered its zoom controls.
+- The Windows Release UI Automation tree is populated: one document and all 9 observed interactive controls had names.
 
 ##Faild+why
 - `NOT RUN` — the OS location-permission prompt/GPS acquisition is interactive and excluded from the synchronous ceiling.

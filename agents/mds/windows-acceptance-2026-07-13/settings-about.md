@@ -10,6 +10,7 @@
 - Save URL completed through the native typed transport.
 - Windows content loaded from `https://app.prayadfree.local/index.html`; no unsafe `file:` navigation appeared.
 - Browser remote update is represented as unsupported instead of falsely reporting success.
+- External operations now return a fast operation ID and report completion/failure asynchronously; automation scenario 10 passed 40 assertions in 418 ms with zero warnings.
 
 ##Faild+why
 - `NOT RUN` — Clear site data is destructive; external Email/Call/Website/Report intents and remote download were not launched while the user was active.

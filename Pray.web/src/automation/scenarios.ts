@@ -215,6 +215,17 @@ export const automationScenarios: ScenarioDefinition[] = [
         before.todayTimings.every((item, index) => item.time === restored.todayTimings[index]?.time),
         "Prayer times did not return to the original values after restoring the calculation method",
       );
+      for (const method of ["Jafari", "Tehran"]) {
+        const methodOption = Array.from(document.querySelector<HTMLSelectElement>('[data-selector-name="adhan:method"]')?.options ?? [])
+          .find((option) => option.value === method);
+        ctx.assert(methodOption, `${method} is missing from the calculation-method options`);
+        await ctx.setValue("adhan:method", method);
+        const projection = await queryTodayProjection();
+        ctx.assert(projection.calculation.selectedMethod === method, `${method} was not persisted as the selected method`);
+        ctx.assert(projection.todayTimings.length === 6, `${method} returned ${projection.todayTimings.length} prayer times instead of 6`);
+        ctx.assert(projection.todayTimings.every((item) => /^\d{2}:\d{2}$/.test(item.time)), `${method} returned a blank or malformed prayer time`);
+      }
+      await ctx.setValue("adhan:method", originalMethod!);
       await ctx.setAndRestore("adhan:volume", alternateNumeric("adhan:volume"));
       for (const selector of ["adhan:madhhab", "adhan:high-latitude", "adhan:clock-format", "adhan:override-sound:Fajr", "adhan:override-vibration:Fajr"]) {
         if (document.querySelector(`[data-selector-name="${selector}"]`)) await ctx.setAndRestore(selector, alternateOption(selector));
