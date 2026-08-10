@@ -1,14 +1,25 @@
+using AdhanCalculationMethod = Batoulapps.Adhan.CalculationMethod;
+using AdhanHighLatitudeRule = Batoulapps.Adhan.HighLatitudeRule;
+using AdhanMadhab = Batoulapps.Adhan.Madhab;
+using Batoulapps.Adhan;
+using Batoulapps.Adhan.Internal;
 using PrayAdFree.Core.Models;
 
 namespace PrayAdFree.Core.Services;
 
+/// <summary>
+/// The single deterministic prayer-time engine used by WebAssembly, Windows,
+/// Android, and every other host. Keep platform transport out of this class.
+/// </summary>
 public sealed class WebPrayerMonthFactory {
+    public const string EngineId = "SharedCoreAdhan";
+
     public PrayerMonth BuildMonth(AppSettings settings, int year, int month) {
         return new PrayerMonth {
             Year = year,
             Month = month,
             LocationKey = $"{settings.Location.Latitude:F4},{settings.Location.Longitude:F4}",
-            MethodKey = "core-local-solar",
+            MethodKey = $"{EngineId}-{ResolveMethod(settings)}-{settings.Madhhab}-{settings.HighLatitudeRule}",
             FetchedOnUtc = DateTime.UtcNow,
             Days = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
                 .Select(day => BuildDay(settings, new DateOnly(year, month, day)))
@@ -17,78 +28,134 @@ public sealed class WebPrayerMonthFactory {
     }
 
     public PrayerDay BuildDay(AppSettings settings, DateOnly date) {
-        var baseDate = date.ToDateTime(TimeOnly.MinValue);
-        var latitude = settings.Location.Latitude;
-        var longitude = settings.Location.Longitude;
-        var solar = CalculateSolarTimes(date, latitude, longitude);
-        var sunrise = baseDate.Add(solar.Sunrise);
-        var sunset = baseDate.Add(solar.Sunset);
-        var noon = baseDate.Add(solar.Noon);
-        var dayLength = sunset - sunrise;
-        var fajrAngle = settings.SunAngles.Fajr > 0 ? settings.SunAngles.Fajr : 18d;
-        var ishaAngle = settings.SunAngles.Isha > 0 ? settings.SunAngles.Isha : 17d;
-        var fajr = sunrise - TimeSpan.FromMinutes(AngleMinutes(fajrAngle, latitude, date));
-        var isha = sunset + TimeSpan.FromMinutes(AngleMinutes(ishaAngle, latitude, date));
-        var asr = noon + TimeSpan.FromTicks((sunset - noon).Ticks * (settings.Madhhab == Madhhab.Hanafi ? 2 : 1) / 3);
+        if (!IsValidCoordinate(settings.Location.Latitude, settings.Location.Longitude)) {
+            throw new InvalidOperationException("Location is missing or invalid. Enable GPS or set a manual city.");
+        }
 
+        var coordinates = new Coordinates(settings.Location.Latitude, settings.Location.Longitude);
+        var parameters = BuildParameters(settings);
+        var calculated = new Batoulapps.Adhan.PrayerTimes(
+            coordinates,
+            new DateComponents(date.Year, date.Month, date.Day),
+            parameters);
+        var timeZone = ResolveTimeZone(settings.Location.TimeZoneId);
+        // Convert every astronomical instant independently. A single noon
+        // offset is wrong on daylight-saving transition days: Fajr can occur
+        // before the clock change while Dhuhr occurs after it.
+        DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(utc, DateTimeKind.Utc),
+            timeZone);
+        var baseFajr = Local(calculated.Fajr);
+        var resolvedMethod = ResolveMethod(settings);
+        var hijri = BuildHijri(date);
+        var ramadanIshaAdjustment = resolvedMethod == Models.CalculationMethod.UmmAlQura && hijri.MonthNumber == 9
+            ? 30
+            : 0;
         return new PrayerDay {
             Date = date,
-            TimeZoneId = TimeZoneInfo.Local.Id,
-            Hijri = BuildApproximateHijri(date),
-            Timings = new PrayerTimings {
-                Imsak = fajr.AddMinutes(-10 + settings.Offsets.Imsak),
-                Fajr = fajr.AddMinutes(settings.Offsets.Fajr),
-                Sunrise = sunrise.AddMinutes(settings.Offsets.Sunrise),
-                Dhuhr = noon.AddMinutes(settings.Offsets.Dhuhr),
-                Asr = asr.AddMinutes(settings.Offsets.Asr),
-                Maghrib = sunset.AddMinutes(settings.Offsets.Maghrib),
-                Isha = isha.AddMinutes(settings.Offsets.Isha)
+            TimeZoneId = timeZone.Id,
+            Hijri = hijri.Value,
+            Timings = new PrayAdFree.Core.Models.PrayerTimings {
+                // PrayerDay stores the base Imsak clock. The user-configured
+                // fasting advance is applied by FastingSnapshotFactory exactly once.
+                Imsak = baseFajr.AddMinutes(settings.Offsets.Imsak),
+                Fajr = baseFajr.AddMinutes(settings.Offsets.Fajr),
+                Sunrise = Local(calculated.Sunrise).AddMinutes(settings.Offsets.Sunrise),
+                Dhuhr = Local(calculated.Dhuhr).AddMinutes(settings.Offsets.Dhuhr),
+                Asr = Local(calculated.Asr).AddMinutes(settings.Offsets.Asr),
+                Maghrib = Local(calculated.Maghrib).AddMinutes(settings.Offsets.Maghrib),
+                Isha = Local(calculated.Isha).AddMinutes(settings.Offsets.Isha + ramadanIshaAdjustment)
             }
         };
     }
 
-    private static (TimeSpan Sunrise, TimeSpan Noon, TimeSpan Sunset) CalculateSolarTimes(DateOnly date, double latitude, double longitude) {
-        var dayOfYear = date.DayOfYear;
-        var gamma = 2d * Math.PI / 365d * (dayOfYear - 1);
-        var equationOfTime = 229.18d * (0.000075d + 0.001868d * Math.Cos(gamma) - 0.032077d * Math.Sin(gamma) - 0.014615d * Math.Cos(2d * gamma) - 0.040849d * Math.Sin(2d * gamma));
-        var declination = 0.006918d - 0.399912d * Math.Cos(gamma) + 0.070257d * Math.Sin(gamma) - 0.006758d * Math.Cos(2d * gamma) + 0.000907d * Math.Sin(2d * gamma) - 0.002697d * Math.Cos(3d * gamma) + 0.00148d * Math.Sin(3d * gamma);
-        var latRad = DegreesToRadians(latitude);
-        var zenith = DegreesToRadians(90.833d);
-        var hourAngle = Math.Acos(Clamp((Math.Cos(zenith) / (Math.Cos(latRad) * Math.Cos(declination))) - Math.Tan(latRad) * Math.Tan(declination), -1d, 1d));
-        var offsetMinutes = TimeZoneInfo.Local.GetUtcOffset(date.ToDateTime(new TimeOnly(12, 0))).TotalMinutes;
-        var solarNoon = 720d - 4d * longitude - equationOfTime + offsetMinutes;
-        var daylightMinutes = RadiansToDegrees(hourAngle) * 4d;
-        return (
-            TimeSpan.FromMinutes(ClampMinutes(solarNoon - daylightMinutes)),
-            TimeSpan.FromMinutes(ClampMinutes(solarNoon)),
-            TimeSpan.FromMinutes(ClampMinutes(solarNoon + daylightMinutes)));
+    private static CalculationParameters BuildParameters(AppSettings settings) {
+        var method = AppInputContract.RequiredEnum(ResolveMethod(settings), "calculationMethod");
+        var parameters = method switch {
+            Models.CalculationMethod.Karachi => AdhanCalculationMethod.KARACHI.GetParameters(),
+            Models.CalculationMethod.Isna => AdhanCalculationMethod.NORTH_AMERICA.GetParameters(),
+            Models.CalculationMethod.MuslimWorldLeague => AdhanCalculationMethod.MUSLIM_WORLD_LEAGUE.GetParameters(),
+            Models.CalculationMethod.UmmAlQura => AdhanCalculationMethod.UMM_AL_QURA.GetParameters(),
+            Models.CalculationMethod.Egypt => AdhanCalculationMethod.EGYPTIAN.GetParameters(),
+            Models.CalculationMethod.Kuwait => AdhanCalculationMethod.KUWAIT.GetParameters(),
+            Models.CalculationMethod.Qatar => AdhanCalculationMethod.QATAR.GetParameters(),
+            Models.CalculationMethod.Singapore => AdhanCalculationMethod.SINGAPORE.GetParameters(),
+            Models.CalculationMethod.Moonsighting => AdhanCalculationMethod.MOON_SIGHTING_COMMITTEE.GetParameters(),
+            Models.CalculationMethod.Dubai => AdhanCalculationMethod.DUBAI.GetParameters(),
+            Models.CalculationMethod.Custom => new CalculationParameters(settings.SunAngles.Fajr, settings.SunAngles.Isha, AdhanCalculationMethod.OTHER),
+            _ => CustomParameters(method)
+        };
+        parameters.Madhab = settings.Madhhab == Madhhab.Hanafi ? AdhanMadhab.HANAFI : AdhanMadhab.SHAFI;
+        parameters.HighLatitudeRule = AppInputContract.RequiredEnum(settings.HighLatitudeRule, "highLatitudeRule") switch {
+            Models.HighLatitudeRule.SeventhOfTheNight => AdhanHighLatitudeRule.SEVENTH_OF_THE_NIGHT,
+            Models.HighLatitudeRule.TwilightAngle => AdhanHighLatitudeRule.TWILIGHT_ANGLE,
+            Models.HighLatitudeRule.MiddleOfTheNight => AdhanHighLatitudeRule.MIDDLE_OF_THE_NIGHT,
+            _ => throw new InvalidOperationException("Unreachable high-latitude rule.")
+        };
+        return parameters;
     }
 
-    private static double AngleMinutes(double angle, double latitude, DateOnly date) {
-        var seasonal = 1d + Math.Abs(latitude) / 180d + Math.Abs(Math.Sin(2d * Math.PI * date.DayOfYear / 365d)) * 0.25d;
-        return Math.Clamp(angle * 4d * seasonal, 45d, 140d);
-    }
-
-    private static HijriDate BuildApproximateHijri(DateOnly date) {
-        var jd = (int)Math.Floor(date.ToDateTime(TimeOnly.MinValue).ToOADate() + 2415018.5);
-        var islamic = jd - 1948440 + 10632;
-        var n = (int)Math.Floor((islamic - 1) / 10631d);
-        islamic -= 10631 * n;
-        var j = (int)Math.Floor((10985 - islamic) / 5316d) * (int)Math.Floor(50 * islamic / 17719d) + (int)Math.Floor(islamic / 5670d) * (int)Math.Floor(43 * islamic / 15238d);
-        islamic = islamic - (int)Math.Floor((30 - j) / 15d) * (int)Math.Floor(17719 * j / 50d) - (int)Math.Floor(j / 16d) * (int)Math.Floor(15238 * j / 43d) + 29;
-        var month = (int)Math.Floor(24 * islamic / 709d);
-        var day = islamic - (int)Math.Floor(709 * month / 24d);
-        var year = 30 * n + j - 30;
-        string[] monthNames = ["Muharram", "Safar", "Rabi al-awwal", "Rabi al-thani", "Jumada al-awwal", "Jumada al-thani", "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];
-        return new HijriDate {
-            Day = Math.Clamp(day, 1, 30).ToString("00"),
-            Month = monthNames[Math.Clamp(month - 1, 0, monthNames.Length - 1)],
-            Year = year.ToString()
+    private static CalculationParameters CustomParameters(Models.CalculationMethod method) {
+        return method switch {
+            Models.CalculationMethod.Gulf => Interval(19.5, 90),
+            Models.CalculationMethod.France => Angles(12, 12),
+            Models.CalculationMethod.Turkey => Angles(18, 17),
+            Models.CalculationMethod.Russia => Angles(16, 15),
+            Models.CalculationMethod.Jakim => Angles(20, 18),
+            Models.CalculationMethod.Tunisia => Angles(18, 18),
+            Models.CalculationMethod.Algeria => Angles(18, 17),
+            Models.CalculationMethod.Kemenag => Angles(20, 18),
+            Models.CalculationMethod.Morocco => Angles(19, 17),
+            Models.CalculationMethod.Portugal => WithMaghribAdjustment(Interval(18, 77), 3),
+            Models.CalculationMethod.Jordan => WithMaghribAdjustment(Angles(18, 18), 5),
+            _ => throw new ArgumentOutOfRangeException(nameof(method), method,
+                "The selected calculation method is not supported by the shared calculation engine.")
         };
     }
 
-    private static double DegreesToRadians(double value) => value * Math.PI / 180d;
-    private static double RadiansToDegrees(double value) => value * 180d / Math.PI;
-    private static double Clamp(double value, double min, double max) => Math.Min(Math.Max(value, min), max);
-    private static double ClampMinutes(double value) => Clamp(value, 0d, 1439d);
+    private static CalculationParameters Angles(double fajr, double isha) =>
+        new(fajr, isha, AdhanCalculationMethod.OTHER);
+
+    private static CalculationParameters Interval(double fajr, int ishaMinutes) =>
+        new(fajr, ishaMinutes, AdhanCalculationMethod.OTHER);
+
+    private static CalculationParameters WithMaghribAdjustment(CalculationParameters parameters, int minutes) {
+        parameters.Adjustments.Maghrib = minutes;
+        return parameters;
+    }
+
+    private static Models.CalculationMethod ResolveMethod(AppSettings settings) =>
+        settings.Method == Models.CalculationMethod.Auto
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            : settings.Method;
+
+    private static TimeZoneInfo ResolveTimeZone(string id) {
+        if (string.IsNullOrWhiteSpace(id)) {
+            throw new ArgumentException("Location time-zone ID is required; the device time zone will not be substituted.", nameof(id));
+        }
+
+        try {
+            return TimeZoneInfo.FindSystemTimeZoneById(id);
+        } catch (TimeZoneNotFoundException exception) {
+            throw new ArgumentException($"Unknown location time-zone ID '{id}'.", nameof(id), exception);
+        } catch (InvalidTimeZoneException exception) {
+            throw new ArgumentException($"Invalid location time-zone data for '{id}'.", nameof(id), exception);
+        }
+    }
+
+    private static (HijriDate Value, int MonthNumber) BuildHijri(DateOnly date) {
+        var calendar = new System.Globalization.HijriCalendar();
+        var value = date.ToDateTime(TimeOnly.MinValue);
+        var month = calendar.GetMonth(value);
+        string[] names = ["Muharram", "Safar", "Rabi al-awwal", "Rabi al-thani", "Jumada al-awwal", "Jumada al-thani", "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];
+        return (new HijriDate {
+            Day = calendar.GetDayOfMonth(value).ToString("00"),
+            Month = names[Math.Clamp(month - 1, 0, names.Length - 1)],
+            Year = calendar.GetYear(value).ToString()
+        }, month);
+    }
+
+    private static bool IsValidCoordinate(double latitude, double longitude) =>
+        latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180 &&
+        !(Math.Abs(latitude) < 0.000001 && Math.Abs(longitude) < 0.000001);
 }

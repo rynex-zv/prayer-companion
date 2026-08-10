@@ -266,6 +266,7 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle, labels }
         <button
           type="button"
           aria-label={labels.zoomIn}
+          data-selector-name="qibla:map:zoom-in"
           onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1))}
           className="grid h-8 w-8 place-items-center rounded-md bg-card/95 shadow ring-1 ring-border hover:bg-card"
         >
@@ -274,6 +275,7 @@ export function QiblaMap({ latitude, longitude, bearing, locationTitle, labels }
         <button
           type="button"
           aria-label={labels.zoomOut}
+          data-selector-name="qibla:map:zoom-out"
           onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 1))}
           className="grid h-8 w-8 place-items-center rounded-md bg-card/95 shadow ring-1 ring-border hover:bg-card"
         >

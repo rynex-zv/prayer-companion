@@ -156,7 +156,7 @@ function shouldWaitForBridge(): boolean {
     return false;
   }
 
-  return import.meta.env.MODE === "phone" || window.location.protocol === "file:";
+  return import.meta.env.MODE === "phone" || window.location.protocol === "file:" || window.location.hostname === "app.prayadfree.local";
 }
 
 function hasNativeTransport(): boolean {
@@ -173,6 +173,7 @@ function hasNativeTransport(): boolean {
     nativeWindow.mauiWebberNative?.postMessage ||
     nativeWindow.chrome?.webview?.postMessage ||
     window.location.protocol === "file:" ||
+    window.location.hostname === "app.prayadfree.local" ||
     import.meta.env.MODE === "phone",
   );
 }
@@ -234,6 +235,13 @@ function elapsed(started: number): number {
 function logBridge(event: string, detail: Record<string, unknown>): void {
   const payload = { event, ...redact(detail) };
   console.info(`[pray.bridge] ${JSON.stringify(payload)}`);
+  if (typeof window !== "undefined") {
+    const callId = typeof detail.callId === "number" ? detail.callId : undefined;
+    window.__prayRpcPendingCalls ??= new Set<number>();
+    if (event === "start" && callId !== undefined) window.__prayRpcPendingCalls.add(callId);
+    if (["success", "failure", "error"].includes(event) && callId !== undefined) window.__prayRpcPendingCalls.delete(callId);
+    window.dispatchEvent(new CustomEvent("pray:rpc-timing", { detail: payload }));
+  }
   if (event !== "start") {
     mauiTrace(`bridge.${event}`, payload);
   }
@@ -258,7 +266,6 @@ function failure(code: TransportErrorCode, message: string, backend: BackendKind
 
 type OperationKind = "command" | "query" | "platformOperation" | "compatibilityAdapter" | "obsolete";
 const rpcKinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
-const inFlightQueries = new Map<string, { count: number; requestId: string }>();
 const lastCommandByDomain = new Map<string, { method: string; at: number; requestId: string }>();
 
 function classify(method: string): OperationKind {
@@ -272,18 +279,8 @@ function observeSequence(method: string, kind: OperationKind, requestId: string)
     return;
   }
   if (kind !== "query") return;
-  const active = inFlightQueries.get(method);
-  if (active) logBridge("duplicate-query", { method, requestId, originalRequestId: active.requestId, duplicateCount: active.count + 1 });
-  inFlightQueries.set(method, { count: (active?.count ?? 0) + 1, requestId: active?.requestId ?? requestId });
   const command = lastCommandByDomain.get(domain);
   if (command && now() - command.at < 2000) logBridge("command-then-refresh", { method, requestId, commandMethod: command.method, commandRequestId: command.requestId });
-  if (typeof window === "undefined") return;
-  window.setTimeout(() => {
-    const current = inFlightQueries.get(method);
-    if (!current) return;
-    if (current.count <= 1) inFlightQueries.delete(method);
-    else inFlightQueries.set(method, { ...current, count: current.count - 1 });
-  }, bridgeTimeoutFor(method));
 }
 
 function addCorrelation(payload: unknown, requestId: string, commandId?: string, domain?: string, expectedRevision?: number): unknown {

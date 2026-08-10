@@ -1,0 +1,44 @@
+{
+  "runId": "web-2026-08-05T22-26-35-529Z",
+  "platform": "web",
+  "startedAt": "2026-08-05T22:26:35.529Z",
+  "completedAt": "2026-08-05T22:26:37.476Z",
+  "passed": [],
+  "failed": [
+    {
+      "id": "08-adhan-settings",
+      "name": "User adjusts Adhan calculation and fasting reminder settings",
+      "documentation": "08-adhan-settings.md",
+      "passed": false,
+      "durationMs": 1316,
+      "assertions": 27,
+      "steps": [
+        "Navigated to /settings/adhan",
+        "Set adhan:method=Jafari",
+        "Set adhan:method=Auto",
+        "Set adhan:volume=81",
+        "Set adhan:volume=80",
+        "Set adhan:madhhab=Maliki",
+        "Set adhan:madhhab=Shafi",
+        "Set adhan:high-latitude=SeventhOfTheNight",
+        "Set adhan:high-latitude=MiddleOfTheNight",
+        "Set adhan:clock-format=auto",
+        "Set adhan:clock-format=24h",
+        "Clicked adhan:imsak-reminder:add",
+        "Set adhan:imsak-reminder:value:0=11",
+        "Set adhan:imsak-reminder:direction:0=after",
+        "Clicked adhan:imsak-reminder:remove:0"
+      ],
+      "warnings": [
+        "onboarding.getSnapshot took 476 ms (browser)",
+        "onboarding.complete took 453 ms (browser)",
+        "300 ms ceiling exceeded: onboarding.getSnapshot=476ms",
+        "300 ms ceiling exceeded: onboarding.complete=453ms"
+      ],
+      "failedAssertion": "300 ms data-call ceiling exceeded: onboarding.getSnapshot=476ms, onboarding.complete=453ms",
+      "stack": "Error: 300 ms data-call ceiling exceeded: onboarding.getSnapshot=476ms, onboarding.complete=453ms\n    at KL (http://127.0.0.1:4179/assets/index-C3Ned9W6.js:16:12198)\n    at async IL (http://127.0.0.1:4179/assets/index-C3Ned9W6.js:16:14688)"
+    }
+  ],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-05T22-26-35-529Z`\n- Platform: `web`\n- Passed: **0**\n- Failed: **1**\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-05T22-26-35-529Z`\n- Platform: `web`\n- Failed: **1**\n- Passed: **0**\n\n## 08-adhan-settings — User adjusts Adhan calculation and fasting reminder settings\n\n- Documentation: `08-adhan-settings.md`\n- Duration: 1316 ms\n- Assertions completed: 27\n- Failed assertion: **300 ms data-call ceiling exceeded: onboarding.getSnapshot=476ms, onboarding.complete=453ms**\n- ⚠️ onboarding.getSnapshot took 476 ms (browser)\n- ⚠️ onboarding.complete took 453 ms (browser)\n- ⚠️ 300 ms ceiling exceeded: onboarding.getSnapshot=476ms\n- ⚠️ 300 ms ceiling exceeded: onboarding.complete=453ms\n\n### Completed steps\n\n- Navigated to /settings/adhan\n- Set adhan:method=Jafari\n- Set adhan:method=Auto\n- Set adhan:volume=81\n- Set adhan:volume=80\n- Set adhan:madhhab=Maliki\n- Set adhan:madhhab=Shafi\n- Set adhan:high-latitude=SeventhOfTheNight\n- Set adhan:high-latitude=MiddleOfTheNight\n- Set adhan:clock-format=auto\n- Set adhan:clock-format=24h\n- Clicked adhan:imsak-reminder:add\n- Set adhan:imsak-reminder:value:0=11\n- Set adhan:imsak-reminder:direction:0=after\n- Clicked adhan:imsak-reminder:remove:0\n\n### Stack\n\n```text\nError: 300 ms data-call ceiling exceeded: onboarding.getSnapshot=476ms, onboarding.complete=453ms\n    at KL (http://127.0.0.1:4179/assets/index-C3Ned9W6.js:16:12198)\n    at async IL (http://127.0.0.1:4179/assets/index-C3Ned9W6.js:16:14688)\n```\n"
+}

@@ -1,9 +1,11 @@
 import type { BridgeResponse } from "./mauiWebberClient";
 import { prepareWebPlatformPayload, tryHandleWebPlatformCall, type BrowserCoreCall } from "./webPlatformAdapter";
-import { executeWasmCore, getLastWasmCoreLoadError } from "./wasmCoreClient";
+import { executeWasmCore, getLastWasmCoreLoadError, preloadWasmCore } from "./wasmCoreClient";
 import { coreContract } from "../generated/core-contract";
 
-const DATABASE = "prayer-companion";
+const DATABASE = import.meta.env.VITE_PRAY_AUTOMATION === "true"
+  ? "prayer-companion-automation"
+  : "prayer-companion";
 const STORE = "repositories";
 const STATE_KEY = "core-state";
 const SCHEMA_VERSION = 4;
@@ -11,27 +13,47 @@ let ready: Promise<void> | undefined;
 let operationQueue = Promise.resolve();
 let volatileState: string | undefined;
 let repositoryNeedsUpgrade = false;
+let preloadedBootstrap: BridgeResponse<unknown> | undefined;
 const kinds = new Map<string, string>(coreContract.rpcContracts.map((item) => [item.name, item.kind]));
 
 export async function callBrowserBackend<T>(method: string, payload?: unknown): Promise<BridgeResponse<T> | undefined> {
+  const started = performance.now();
   await (ready ??= migrateLegacyState());
+  if (method === "app.bootstrap" && preloadedBootstrap) {
+    const response = preloadedBootstrap as BridgeResponse<T>;
+    preloadedBootstrap = undefined;
+    console.info(`[pray.rpc] ${JSON.stringify({ method, backend: "browser", totalMs: Math.round((performance.now() - started) * 10) / 10, preloaded: true })}`);
+    return response;
+  }
   // Permission dialogs, GPS acquisition, and reverse-geocoding must not hold the
   // repository lock. Only the deterministic state transition is serialized.
-  const preparedPayload = await prepareWebPlatformPayload(method, payload);
+  const preparationState = volatileState ?? await readRecord();
+  const readOnlyCoreCall: BrowserCoreCall = (innerMethod, innerPayload) =>
+    executeWasmCore(preparationState, innerMethod, withPlatformContext(innerPayload));
+  const preparedPayload = await prepareWebPlatformPayload(method, payload, readOnlyCoreCall);
   const operation = operationQueue.then(() => executeOperation<T>(method, preparedPayload), () => executeOperation<T>(method, preparedPayload));
   operationQueue = operation.then(() => undefined, () => undefined);
-  return operation;
+  const response = await operation;
+  const totalMs = performance.now() - started;
+  console.info(`[pray.rpc] ${JSON.stringify({ method, backend: "browser", totalMs: Math.round(totalMs * 10) / 10 })}`);
+  if (totalMs > 300 && !isInteractiveOperation(method)) console.error(`[pray.rpc] budget_exceeded method=${method} totalMs=${totalMs.toFixed(1)} budgetMs=300`);
+  return response;
+}
+
+export async function preloadBrowserBackend(): Promise<void> {
+  await Promise.all([ready ??= migrateLegacyState(), preloadWasmCore()]);
+  preloadedBootstrap ??= await executeOperation("app.bootstrap", {});
 }
 
 export { getLastWasmCoreLoadError };
 
 async function executeOperation<T>(method: string, payload?: unknown): Promise<BridgeResponse<T> | undefined> {
-  let state = await readRecord();
+  let state = volatileState ?? await readRecord();
   const events: unknown[] = [];
   let stateChanged = false;
 
   const coreCall: BrowserCoreCall = async <TResult>(innerMethod: string, innerPayload?: unknown) => {
-    const response = await executeWasmCore<TResult>(state, innerMethod, innerPayload);
+    const response = await executeWasmCore<TResult>(state, innerMethod, withPlatformContext(innerPayload));
     if (response?.ok && response.state) {
       stateChanged ||= response.state !== state;
       state = response.state;
@@ -100,6 +122,10 @@ function isMutation(method: string): boolean {
   return kind === "command" || kind === "compatibilityAdapter";
 }
 
+function isInteractiveOperation(method: string): boolean {
+  return /^(permissions\.|location\.|adhan\.sound\.|external\.|mauiWebber\.(pullRemote|clearSiteData))/.test(method);
+}
+
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DATABASE, 1);
@@ -122,9 +148,11 @@ async function readRecord(): Promise<string | undefined> {
         const value = request.result as string | { schemaVersion?: number; data?: string } | undefined;
         if (typeof value === "string") {
           repositoryNeedsUpgrade = true;
+          volatileState = value;
           resolve(value);
         } else if (typeof value?.data === "string" && (value.schemaVersion ?? 1) <= SCHEMA_VERSION) {
           repositoryNeedsUpgrade ||= value.schemaVersion !== SCHEMA_VERSION;
+          volatileState = value.data;
           resolve(value.data);
         } else if ((value?.schemaVersion ?? 0) > SCHEMA_VERSION) {
           reject(new RepositorySchemaError(`Browser repository schema ${value?.schemaVersion} is newer than supported schema ${SCHEMA_VERSION}.`));
@@ -135,9 +163,7 @@ async function readRecord(): Promise<string | undefined> {
       request.onerror = () => reject(request.error);
     }).finally(() => db.close());
   } catch (error) {
-    if (error instanceof RepositorySchemaError) throw error;
-    console.warn("Browser repository is using volatile storage because IndexedDB is unavailable.", error);
-    return volatileState;
+    throw new Error("Browser repository could not be read; refusing volatile-storage fallback.", { cause: error });
   }
 }
 
@@ -153,6 +179,15 @@ async function writeRecord(value: string): Promise<void> {
       transaction.onabort = () => reject(transaction.error);
     }).finally(() => db.close());
   } catch (error) {
-    console.warn("Browser repository could not persist to IndexedDB; state is volatile.", error);
+    throw new Error("Browser repository could not persist; refusing to report a successful mutation.", { cause: error });
   }
+}
+
+function withPlatformContext(payload: unknown): Record<string, unknown> {
+  const body = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : {};
+  const timeZoneId = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!timeZoneId) throw new Error("Browser time zone is unavailable; prayer calculation cannot continue safely.");
+  return { ...body, _platform: { timeZoneId } };
 }

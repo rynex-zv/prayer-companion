@@ -142,6 +142,8 @@ function TasbihRing({
     <div
       role="button"
       tabIndex={0}
+      aria-label={`${currentPhrase}. ${progressText}. ${count}`}
+      data-selector-name="tasbih:increment"
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -299,6 +301,7 @@ function TasbihPage() {
 
         <button
           onClick={reset}
+          data-selector-name="tasbih:reset"
           className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
         >
           <RotateCcw className="h-4 w-4" />
@@ -312,6 +315,8 @@ function TasbihPage() {
         <Picker
           value={data.selectedPresetId}
           onChange={selectPreset}
+          ariaLabel={t("presets")}
+          selectorName="tasbih:preset-picker"
         >
           {data.presets.map((p) => (
             <option

@@ -82,7 +82,7 @@ export async function tryHandleWebPlatformCall<T = unknown>(
 }
 
 /** Performs user/browser/network waits before entering the serialized repository transaction. */
-export async function prepareWebPlatformPayload(method: string, payload?: unknown): Promise<unknown> {
+export async function prepareWebPlatformPayload(method: string, payload: unknown, coreCall: BrowserCoreCall): Promise<unknown> {
   if (typeof window === "undefined") return payload;
   const request = (payload && typeof payload === "object" ? payload : {}) as PlatformPayload;
   const permissionId = request.id?.toLowerCase();
@@ -94,8 +94,9 @@ export async function prepareWebPlatformPayload(method: string, payload?: unknow
 
   const prepared: PlatformPayload = { ...request };
   if (needsLocation) {
-    if (!navigator.geolocation) throw new Error("Browser geolocation is unavailable.");
-    const position = await getCurrentBrowserPosition({});
+    const labels = await loadWebLabels(coreCall);
+    if (!navigator.geolocation) throw new Error(label(labels, "webGeolocationUnavailable"));
+    const position = await getCurrentBrowserPosition(labels);
     prepared._preparedLocation = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,

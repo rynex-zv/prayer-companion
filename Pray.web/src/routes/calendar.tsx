@@ -53,6 +53,7 @@ function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month");
   const [mode, setMode] = useState<CalendarMode>("gregorian");
   const [selectedIso, setSelectedIso] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   if (!data) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
   const snapshot = data;
@@ -61,6 +62,9 @@ function CalendarPage() {
   const todayDay = data.days.find((d) => d.isToday) ?? null;
 
   async function navigate(direction: -1 | 1) {
+    if (busy) return;
+    setBusy(true);
+    try {
     if (view === "month") {
       const result = await executeCommand<Snapshot>(direction < 0 ? "calendar.previousMonth" : "calendar.nextMonth");
       if (result.ok) setData(result.data);
@@ -88,6 +92,9 @@ function CalendarPage() {
       if (result.ok) setData(result.data);
     }
     setSelectedIso(iso);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -101,6 +108,8 @@ function CalendarPage() {
         <div className="flex items-center justify-between gap-2" dir="ltr">
           <button
             onClick={() => navigate(-1)}
+            data-selector-name="calendar:previous"
+            disabled={busy}
             className="rounded-full p-2 hover:bg-muted"
             aria-label={t("previousMonth")}
           >
@@ -117,6 +126,8 @@ function CalendarPage() {
           </div>
           <button
             onClick={() => navigate(1)}
+            data-selector-name="calendar:next"
+            disabled={busy}
             className="rounded-full p-2 hover:bg-muted"
             aria-label={t("nextMonth")}
           >
@@ -129,6 +140,7 @@ function CalendarPage() {
             <button
               key={v}
               onClick={() => setView(v)}
+              data-selector-name={`calendar:view:${v}`}
               className={cn(
                 "rounded-full px-2 py-1.5 transition",
                 view === v ? "bg-card shadow ring-1 ring-primary/30 text-primary" : "text-muted-foreground hover:text-foreground"
@@ -141,10 +153,18 @@ function CalendarPage() {
 
         <div className="flex items-center justify-between gap-2">
           <button
+            disabled={busy}
+            data-selector-name="calendar:today"
             onClick={async () => {
-              const result = await executeCommand<Snapshot>("calendar.today");
-              if (result.ok) setData(result.data);
-              setSelectedIso(new Date().toISOString().slice(0, 10));
+              if (busy) return;
+              setBusy(true);
+              try {
+                const result = await executeCommand<Snapshot>("calendar.today");
+                if (result.ok) setData(result.data);
+                setSelectedIso(new Date().toISOString().slice(0, 10));
+              } finally {
+                setBusy(false);
+              }
             }}
             className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground"
           >
@@ -153,12 +173,14 @@ function CalendarPage() {
           <div className="flex items-center gap-1 rounded-full bg-muted/60 p-1 text-xs">
             <button
               onClick={() => setMode("gregorian")}
+              data-selector-name="calendar:mode:gregorian"
               className={cn("rounded-full px-3 py-1", mode === "gregorian" ? "bg-card text-primary shadow" : "text-muted-foreground")}
             >
               {t("calMode_gregorian")}
             </button>
             <button
               onClick={() => setMode("hijri")}
+              data-selector-name="calendar:mode:hijri"
               className={cn("rounded-full px-3 py-1", mode === "hijri" ? "bg-card text-primary shadow" : "text-muted-foreground")}
             >
               {t("calMode_hijri")}
@@ -169,9 +191,15 @@ function CalendarPage() {
 
       {view === "year" && (
         <YearView data={data} mode={mode} onPickMonth={async (monthValue) => {
-          const result = await executeCommand<Snapshot>("calendar.setMonth", { month: monthValue });
-          if (result.ok) setData(result.data);
-          setView("month");
+          if (busy) return;
+          setBusy(true);
+          try {
+            const result = await executeCommand<Snapshot>("calendar.setMonth", { month: monthValue });
+            if (result.ok) setData(result.data);
+            setView("month");
+          } finally {
+            setBusy(false);
+          }
         }} />
       )}
       {view === "month" && (
@@ -236,6 +264,7 @@ function MonthView({ data, mode, onSelect }: { data: Snapshot; mode: CalendarMod
                     : "border-border/40 bg-card hover:bg-muted/60"
               )}
               aria-label={day.date}
+              data-selector-name={`calendar:day:${day.sourceDate}`}
             >
               <span className="absolute top-1 right-1 text-[9px] leading-none text-muted-foreground tabular-nums">
                 {secondary}

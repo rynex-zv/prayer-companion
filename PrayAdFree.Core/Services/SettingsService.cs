@@ -19,20 +19,17 @@ public sealed class SettingsService : ISettingsRepository, IApplicationTransacti
     }
 
     public AppSettings Load() {
-        try {
-            var json = _transaction.Value?.PendingJson ?? _store.Get(SettingsKey, "");
-            if (string.IsNullOrWhiteSpace(json)) {
-                return new AppSettings();
-            }
+        var json = _transaction.Value?.PendingJson ?? _store.Get(SettingsKey, "");
+        if (string.IsNullOrWhiteSpace(json)) {
+            return new AppSettings();
+        }
 
-            return JsonSerializer.Deserialize(json, CoreJsonContext.Default.AppSettings) ?? new AppSettings();
-        } catch {
-            var fallback = new AppSettings();
-            try {
-                Save(fallback);
-            } catch {
-            }
-            return fallback;
+        try {
+            return JsonSerializer.Deserialize(json, CoreJsonContext.Default.AppSettings)
+                ?? throw new InvalidDataException("Saved application settings contain a null document.");
+        } catch (JsonException exception) {
+            throw new InvalidDataException(
+                "Saved application settings are corrupt. They were not replaced with prayer-time defaults.", exception);
         }
     }
 

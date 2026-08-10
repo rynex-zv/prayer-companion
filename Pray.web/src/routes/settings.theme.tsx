@@ -43,7 +43,7 @@ function ThemePage() {
       <div className="flex flex-col gap-3">
         <Card className="space-y-3">
           <Field label={t("language")}>
-            <Picker value={theme.language} onChange={(value) => void setLanguage(value)}>
+            <Picker value={theme.language} onChange={(value) => void setLanguage(value)} selectorName="theme:language">
               {theme.languages.map((language) => (
                 <option key={language.code} value={language.code}>
                   {language.name}
@@ -53,6 +53,7 @@ function ThemePage() {
           </Field>
           <Field label={t("themeMode")}>
             <SegmentedControl
+              selectorPrefix="theme:mode"
               value={theme.themeMode}
               onChange={(value) => void setThemeField("themeMode", value)}
               options={[
@@ -85,6 +86,7 @@ function ThemePage() {
               <button
                 type="button"
                 onClick={() => void setThemeField("textSize", Math.max(75, theme.textSize - 5))}
+                aria-label={`${t("textSize")} −`}
                 className="rounded-full bg-muted p-2"
                 data-selector-name="theme:text-size:decrease"
               >
@@ -96,6 +98,7 @@ function ThemePage() {
               <button
                 type="button"
                 onClick={() => void setThemeField("textSize", Math.min(150, theme.textSize + 5))}
+                aria-label={`${t("textSize")} +`}
                 className="rounded-full bg-muted p-2"
                 data-selector-name="theme:text-size:increase"
               >

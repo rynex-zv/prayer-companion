@@ -24,7 +24,7 @@ function run(cmd, cargs, cwd = webRoot, extraEnv = {}) {
     const child = spawn(cmd, cargs, {
       cwd,
       stdio: 'inherit',
-      shell: true,
+      shell: false,
       env: { ...process.env, ...extraEnv },
     });
     child.on('exit', (code) =>
@@ -62,7 +62,7 @@ async function main() {
   if (dev) buildArgs.push('--dev');
   if (phone) buildArgs.push('--phone');
   console.log(`[build-all] 3/3 Vite bundle ${buildArgs.join(' ')}`);
-  await run('node', ['scripts/build.mjs', ...buildArgs], webRoot, { PRAY_WEB_SKIP_DOTNET: '1' });
+  await run(process.execPath, ['scripts/build.mjs', ...buildArgs], webRoot, { PRAY_WEB_SKIP_DOTNET: '1' });
 
   console.log('[build-all] ✓ done');
 }

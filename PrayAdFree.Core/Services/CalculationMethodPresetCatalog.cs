@@ -4,6 +4,36 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public static class CalculationMethodPresetCatalog {
+    // Only expose methods that this engine can represent completely. Jafari and
+    // Tehran require a Maghrib solar angle, which Adhan .NET 0.9 cannot model.
+    // Hiding them is deliberate: silently calculating Maghrib at sunset would
+    // produce a materially different method under a trusted name.
+    public static IReadOnlyList<CalculationMethod> SupportedMethods { get; } = new[] {
+        CalculationMethod.Auto,
+        CalculationMethod.Karachi,
+        CalculationMethod.Isna,
+        CalculationMethod.MuslimWorldLeague,
+        CalculationMethod.UmmAlQura,
+        CalculationMethod.Egypt,
+        CalculationMethod.Gulf,
+        CalculationMethod.Kuwait,
+        CalculationMethod.Qatar,
+        CalculationMethod.Singapore,
+        CalculationMethod.France,
+        CalculationMethod.Turkey,
+        CalculationMethod.Russia,
+        CalculationMethod.Moonsighting,
+        CalculationMethod.Dubai,
+        CalculationMethod.Jakim,
+        CalculationMethod.Tunisia,
+        CalculationMethod.Algeria,
+        CalculationMethod.Kemenag,
+        CalculationMethod.Morocco,
+        CalculationMethod.Portugal,
+        CalculationMethod.Jordan,
+        CalculationMethod.Custom
+    };
+
     private static readonly IReadOnlyDictionary<CalculationMethod, SunAnglePreset> Presets =
         new Dictionary<CalculationMethod, SunAnglePreset> {
             [CalculationMethod.Jafari] = new("16", "14"),
@@ -33,7 +63,7 @@ public static class CalculationMethodPresetCatalog {
 
     public static SunAnglePreset ResolvePreset(AppSettings settings) {
         var method = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
             : settings.Method;
 
         if (method == CalculationMethod.Custom) {
@@ -44,7 +74,7 @@ public static class CalculationMethodPresetCatalog {
 
         return Presets.TryGetValue(method, out var preset)
             ? preset
-            : Presets[CalculationMethod.MuslimWorldLeague];
+            : throw new InvalidOperationException($"No verified display preset exists for calculation method '{method}'.");
     }
 
     private static string FormatAngle(double value) {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BottomTabs } from "./BottomTabs";
-import { bootstrapAppState, languageProxy, useAppStore } from "@/state/appStore";
+import { bootstrapAppState, getAppState, languageProxy, retryBootstrapAppState, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
 import { ShakeDataResetButton } from "./ShakeDataResetButton";
 
@@ -28,6 +28,7 @@ declare global {
   interface Window {
     prayerCompanion?: {
       getRoutes: () => readonly string[];
+      isReady: () => boolean;
       navigate: (route: string) => Promise<boolean>;
       currentRoute: () => string;
       inspect: () => {
@@ -37,7 +38,7 @@ declare global {
         selectors: { name: string; tag: string; text: string; value?: string; checked?: boolean }[];
       };
       click: (selectorName: string) => boolean;
-      setValue: (selectorName: string, value: string | number | boolean) => boolean;
+      setValue: (selectorName: string, value: string | number | boolean) => Promise<boolean>;
     };
   }
 }
@@ -48,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     direction: state.languageObject.direction,
     onboardingCompleted: state.onboardingCompleted,
     bootstrapStatus: state.bootstrapStatus,
+    bootstrapError: state.fieldSync["shell.bootstrap"]?.error,
   }));
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -56,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nativeNavigation = useRef(false);
 
   useEffect(() => {
-    void bootstrapAppState();
+    void bootstrapAppState().catch((error) => console.error("Application bootstrap failed", error));
   }, []);
 
   useEffect(() => {
@@ -153,12 +155,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     window.prayerCompanion = {
       getRoutes: () => INSPECTABLE_ROUTES,
+      isReady: () => getAppState().bootstrapStatus === "ready",
       navigate: async (route: string) => {
         if (!INSPECTABLE_ROUTES.includes(route as (typeof INSPECTABLE_ROUTES)[number])) {
           return false;
         }
 
-        void navigate({ to: route });
+        await navigate({ to: route });
         return true;
       },
       currentRoute: () => pathname,
@@ -193,11 +196,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         element.click();
         return true;
       },
-      setValue: (selectorName: string, value: string | number | boolean) => {
+      setValue: async (selectorName: string, value: string | number | boolean) => {
         const element = document.querySelector<HTMLElement>(`[data-selector-name="${CSS.escape(selectorName)}"]`);
         if (element?.isContentEditable) {
           element.textContent = String(value);
           element.dispatchEvent(new Event("input", { bubbles: true }));
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
           return true;
         }
@@ -206,12 +210,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           return false;
         }
 
-        const next = String(value);
+        const requested = String(value);
+        const next = element instanceof HTMLSelectElement
+          ? Array.from(element.options).find((option) => option.value.localeCompare(requested, undefined, { sensitivity: "accent" }) === 0)?.value ?? requested
+          : requested;
         const valueSetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")?.set;
         valueSetter?.call(element, next);
         element.dispatchEvent(new Event("input", { bubbles: true }));
         element.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         element.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         return true;
       },
     };
@@ -219,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       delete window.prayerCompanion;
     };
-  }, [navigate, pathname, shell.direction, shell.language]);
+  }, [navigate, pathname, shell.bootstrapStatus, shell.direction, shell.language]);
 
   const showTabs = TAB_ROUTES.includes(pathname);
 
@@ -236,7 +245,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           data-selector-name={`route:${pathname}`}
         >
-          {children}
+          {shell.bootstrapStatus === "error" ? (
+            <div role="alert" data-selector-name="app:bootstrap-error" className="mx-auto mt-12 max-w-md rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
+              <h1 className="text-lg font-semibold text-destructive">{languageProxy.errorSomethingWentWrong}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">{shell.bootstrapError}</p>
+              <button
+                type="button"
+                data-selector-name="app:bootstrap-retry"
+                className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={() => void retryBootstrapAppState()}
+              >
+                {languageProxy.errorTryAgain}
+              </button>
+            </div>
+          ) : children}
         </main>
         <ShakeDataResetButton />
         {showTabs ? <BottomTabs labels={languageProxy} /> : null}

@@ -12,6 +12,39 @@ export async function executeCommand<T = unknown>(name: string, payload?: unknow
     : { ok: false, error: result.error.message, errorInfo: result.error };
 }
 
+type PlatformAck = { accepted?: boolean; operationId?: string };
+type PlatformEventPayload<T> = { operationId?: string; data?: T; error?: string };
+
+async function executeInteractiveCommand<T = unknown>(name: string, payload?: Record<string, unknown>): Promise<ClientResponse<T>> {
+  const operationId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  let dispose = () => {};
+  const completion = new Promise<ClientResponse<T>>((resolve) => {
+    const timer = globalThis.setTimeout(() => {
+      dispose();
+      resolve({ ok: false, error: `${name} did not complete.`, errorInfo: { code: "platform_timeout", message: `${name} did not complete.`, retryable: true } });
+    }, 30000);
+    dispose = appClient.subscribe((event) => {
+      const eventPayload = event.payload as PlatformEventPayload<T> | undefined;
+      if (eventPayload?.operationId !== operationId || !event.type.startsWith("platform.operation.")) return;
+      globalThis.clearTimeout(timer);
+      dispose();
+      if (event.type === "platform.operation.completed") resolve({ ok: true, data: eventPayload.data as T });
+      else resolve({ ok: false, error: eventPayload.error ?? `${name} failed.`, errorInfo: { code: "platform_operation_failed", message: eventPayload.error ?? `${name} failed.`, retryable: false } });
+    });
+  });
+  const response = await executeCommand<T | PlatformAck>(name, { ...(payload ?? {}), operationId });
+  if (!response.ok) {
+    dispose();
+    return response;
+  }
+  const ack = response.data as PlatformAck;
+  if (ack?.accepted !== true) {
+    dispose();
+    return response as ClientResponse<T>;
+  }
+  return completion;
+}
+
 export function nativeBackendReady(): boolean {
   return isBridgeReady();
 }
@@ -24,18 +57,31 @@ export function updateSettingsSection<TResult, TValue = TResult>(section: string
   return executeCommand<TResult>("settings.update", { section, field: "value", value });
 }
 
+export type ConfirmedSettingsSection<T> = {
+  ok?: boolean;
+  section: string;
+  field: string;
+  value: T;
+  projection: T;
+  calculated?: T;
+};
+
+export function patchSettingsSection<T>(section: string, value: T): Promise<ClientResponse<ConfirmedSettingsSection<T>>> {
+  return executeCommand<ConfirmedSettingsSection<T>>("settings.update", { section, field: "value", value });
+}
+
 export const platformIntents = {
-  requestPermission: (id: string) => executeCommand("permissions.request", { id }),
-  requestAllPermissions: () => executeCommand("permissions.requestAll"),
-  refreshLocation: <T>() => executeCommand<T>("location.refresh"),
-  reverseGeocode: <T>(latitude: number, longitude: number) => executeCommand<T>("location.reverseGeocode", { latitude, longitude }),
-  addCustomAdhanSound: () => executeCommand("adhan.sound.addCustom"),
-  previewAdhanSound: (id: string) => executeCommand("adhan.sound.preview", { id }),
+  requestPermission: (id: string) => executeInteractiveCommand("permissions.request", { id }),
+  requestAllPermissions: () => executeInteractiveCommand("permissions.requestAll"),
+  refreshLocation: <T>() => executeInteractiveCommand<T>("location.refresh"),
+  reverseGeocode: <T>(latitude: number, longitude: number) => executeInteractiveCommand<T>("location.reverseGeocode", { latitude, longitude }),
+  addCustomAdhanSound: () => executeInteractiveCommand("adhan.sound.addCustom"),
+  previewAdhanSound: (id: string) => executeInteractiveCommand("adhan.sound.preview", { id }),
   removeCustomAdhanSound: (id: string) => executeCommand("adhan.sound.removeCustom", { id }),
-  testAlarm: () => executeCommand("alarm.test"),
-  testNotification: () => executeCommand("notification.test"),
-  openEmail: (to: string) => executeCommand("external.openEmail", { to }),
-  call: (number: string) => executeCommand("external.call", { number }),
-  openUrl: (url: string) => executeCommand("external.openUrl", { url }),
-  reportIssue: () => executeCommand("external.reportIssue"),
+  testAlarm: () => executeInteractiveCommand("alarm.test"),
+  testNotification: () => executeInteractiveCommand("notification.test"),
+  openEmail: (to: string) => executeInteractiveCommand("external.openEmail", { to }),
+  call: (number: string) => executeInteractiveCommand("external.call", { number }),
+  openUrl: (url: string) => executeInteractiveCommand("external.openUrl", { url }),
+  reportIssue: () => executeInteractiveCommand("external.reportIssue"),
 };

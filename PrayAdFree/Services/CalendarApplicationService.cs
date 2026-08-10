@@ -76,7 +76,11 @@ public class CalendarApplicationService : ObservableApplicationService, ICalenda
         } while (_reloadPending);
     }
 
-    private void OnSettingsChanged(object? sender, EventArgs args) => QueueReload();
+    private async void OnSettingsChanged(object? sender, EventArgs args) {
+        // Keep persistence on the mutation's critical path, but refresh this projection later.
+        await Task.Yield();
+        QueueReload();
+    }
 
     private void QueueReload() {
         _reloadPending = true;

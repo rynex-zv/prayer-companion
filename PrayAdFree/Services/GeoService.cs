@@ -61,8 +61,10 @@ public sealed class GeoService : IGeoLookupService {
                 Longitude = place.longitude
             });
 
-        return cached
-            .Concat(defaults)
+        // Canonical catalog entries are authoritative. A prior reverse-geocode
+        // cache hit near Amsterdam must not replace the shared city coordinate.
+        return defaults
+            .Concat(cached)
             .GroupBy(place => $"{place.CountryCode}|{place.City}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();

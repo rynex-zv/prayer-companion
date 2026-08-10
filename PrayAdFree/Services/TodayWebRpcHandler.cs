@@ -7,7 +7,7 @@ using PrayAdFree.Core.Models;
 namespace Pray_Ad_Free.Services;
 
 public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
-    private const int SnapshotCacheSchemaVersion = 2;
+    private const int SnapshotCacheSchemaVersion = 5;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
     };
@@ -20,6 +20,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     private readonly string _snapshotPath;
     private Task? _preloadTask;
     private TodayWebSnapshot? _lastSnapshot;
+    private string? _lastSnapshotInputKey;
     private bool _backgroundRefreshRunning;
     private bool _cacheWarmupStarted;
 
@@ -27,7 +28,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         _source = source;
         _settings = settings;
         _logger = logger;
-        _snapshotPath = Path.Combine(FileSystem.AppDataDirectory, "MauiWebber", "today-snapshot.json");
+        _snapshotPath = Path.Combine(AutomationRuntime.DataRoot, "MauiWebber", "today-snapshot.json");
         _lastSnapshot = LoadCachedSnapshot();
     }
 
@@ -39,11 +40,18 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
     }
 
     public async Task<object?> HandleAsync(string method, JsonElement payload, CancellationToken cancellationToken) {
-        return method switch {
-            "today.getSnapshot" => await GetSnapshotAsync(refresh: false).ConfigureAwait(false),
-            "today.refresh" => await GetSnapshotAsync(refresh: true).ConfigureAwait(false),
-            _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
-        };
+        try {
+            return method switch {
+                "today.getSnapshot" => await GetSnapshotAsync(refresh: false).ConfigureAwait(false),
+                "today.refresh" => await GetSnapshotAsync(refresh: true).ConfigureAwait(false),
+                _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
+            };
+        } catch (Exception exception) when (method is "today.getSnapshot" or "today.refresh") {
+            // A calculation or persistence failure must remain visible, but it
+            // must not strand the whole React shell on a loading skeleton.
+            _logger.LogException(exception, $"TodayWebRpcHandler.{method}");
+            return BuildSnapshot(LocalizationManager.Translate("UnableToLoadPrayerTimes"));
+        }
     }
 
     private async Task<TodayWebSnapshot> GetSnapshotAsync(bool refresh) {
@@ -52,7 +60,12 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         }
 
         if (_lastSnapshot != null) {
-            StartCacheWarmup();
+            // A settings mutation commits before the background Today refresh.
+            // Never return the old method/location projection during that window.
+            if (!string.Equals(_lastSnapshotInputKey, BuildSnapshotInputKey(), StringComparison.Ordinal)) {
+                return await RefreshAndCacheAsync(force: true).ConfigureAwait(false);
+            }
+
             if (!string.IsNullOrWhiteSpace(_source.LocationTitle)) {
                 _source.UpdateCountdown(DateTime.Now);
                 _lastSnapshot = BuildSnapshot();
@@ -61,7 +74,11 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             return _lastSnapshot;
         }
 
-        return await RefreshAndCacheAsync(force: false).ConfigureAwait(false);
+        // The authoritative engine is now local and deterministic. Returning an
+        // empty projection here left a permanent skeleton because no confirmed
+        // follow-up projection was delivered. Calculate once and return it in
+        // bootstrap; failures are converted to an explicit visible error above.
+        return await RefreshAndCacheAsync(force: true).ConfigureAwait(false);
     }
 
     private void StartCacheWarmup() {
@@ -108,8 +125,23 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         }
     }
 
-    private TodayWebSnapshot BuildSnapshot() {
+    private TodayWebSnapshot BuildSnapshot(string error = "") {
         var isRtl = string.Equals(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, "ar", StringComparison.OrdinalIgnoreCase);
+        var settings = _settings.Load();
+        if (string.IsNullOrWhiteSpace(error) &&
+            (!_source.TodayTimings.Any() || _source.TodayTimings.All(item => string.IsNullOrWhiteSpace(item.Time))) &&
+            (_source.StatusMessage.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+             _source.StatusMessage.Contains("unable", StringComparison.OrdinalIgnoreCase))) {
+            error = LocalizationManager.Translate("UnableToLoadPrayerTimes");
+        }
+        var effectiveMethod = settings.Method;
+        if (settings.Method == CalculationMethod.Auto) {
+            try {
+                effectiveMethod = MethodResolver.ResolveRequired(settings.Location.CountryCode);
+            } catch when (!string.IsNullOrWhiteSpace(error)) {
+                // Preserve the invalid selection in the visible error projection.
+            }
+        }
 
         return new TodayWebSnapshot(
             LocationTitle: _source.LocationTitle,
@@ -129,7 +161,16 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             IsIftarNext: _source.IsIftarNext,
             NextFastingCountdown: _source.NextFastingCountdown,
             IsRtl: isRtl,
-            Labels: WebCatalog.Labels(LocalizationManager.CurrentLanguage),
+            Error: error,
+            Calculation: new TodayCalculation(
+                SelectedMethod: settings.Method.ToString(),
+                SelectedMethodLabel: LocalizationManager.Translate($"method_{settings.Method}"),
+                EffectiveMethod: effectiveMethod.ToString(),
+                EffectiveMethodLabel: LocalizationManager.Translate($"method_{effectiveMethod}"),
+                Madhhab: settings.Madhhab.ToString(),
+                MadhhabLabel: LocalizationManager.Translate($"madhhab_{settings.Madhhab}"),
+                HighLatitudeRule: settings.HighLatitudeRule.ToString(),
+                HighLatitudeRuleLabel: LocalizationManager.Translate($"highLatitude_{settings.HighLatitudeRule}")),
             TodayTimings: _source.TodayTimings.Select(row => new TodayWebTiming(
                 Id: row.Id.ToString(),
                 Time: row.Time,
@@ -210,6 +251,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
                 TryDeleteSnapshotCache();
                 return null;
             }
+            _lastSnapshotInputKey = envelope.InputKey;
             return envelope.Snapshot;
         } catch (Exception ex) {
             _logger.LogException(ex, "TodayWebRpcHandler.LoadCachedSnapshot");
@@ -225,6 +267,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             var tempPath = _snapshotPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             File.WriteAllText(tempPath, JsonSerializer.Serialize(envelope, JsonOptions));
             File.Move(tempPath, _snapshotPath, overwrite: true);
+            _lastSnapshotInputKey = envelope.InputKey;
         } catch (Exception ex) {
             _logger.LogException(ex, "TodayWebRpcHandler.SaveSnapshot");
         }
@@ -265,8 +308,19 @@ public sealed record TodayWebSnapshot(
     bool IsIftarNext,
     string NextFastingCountdown,
     bool IsRtl,
-    IReadOnlyDictionary<string, string> Labels,
+    string Error,
+    TodayCalculation Calculation,
     IReadOnlyList<TodayWebTiming> TodayTimings);
+
+public sealed record TodayCalculation(
+    string SelectedMethod,
+    string SelectedMethodLabel,
+    string EffectiveMethod,
+    string EffectiveMethodLabel,
+    string Madhhab,
+    string MadhhabLabel,
+    string HighLatitudeRule,
+    string HighLatitudeRuleLabel);
 
 public sealed record TodayWebTiming(
     string Id,

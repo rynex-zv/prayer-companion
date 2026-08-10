@@ -254,54 +254,6 @@ public sealed class MauiWebberUpdater {
         _logger.Log("RemoteSlot.Disabled", _options.AppId);
     }
 
-    public async Task<string?> ResolveAfterNavigationFailureAsync(string failedUrl, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
-            var removedSlot = false;
-            foreach (var slot in new[] { ActiveSlot, PreviousSlot }) {
-                var slotPath = SlotPath(slot);
-                if (!Directory.Exists(slotPath)) {
-                    continue;
-                }
-
-                var entryPath = EntryPath(slotPath);
-                var entryUrl = new Uri(entryPath).AbsoluteUri;
-                if (!string.Equals(failedUrl, entryUrl, StringComparison.OrdinalIgnoreCase) &&
-                    !failedUrl.Contains(slotPath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)) {
-                    continue;
-                }
-
-                DeleteDirectory(slotPath);
-                removedSlot = true;
-                _logger.Log("NavigationFailure.Rollback", $"slot={slot};url={failedUrl}");
-            }
-
-            if (!removedSlot) {
-                return null;
-            }
-
-            var active = SlotPath(ActiveSlot);
-            var previous = SlotPath(PreviousSlot);
-            if (_options.RollbackEnabled && IsHealthy(previous)) {
-                ReplaceDirectory(active, previous);
-                Preferences.Set(UseRemoteSlotPreferenceKey(), true);
-                var previousEntry = EntryPath(active);
-                _logger.Log("NavigationFailure.PreviousFallback", previousEntry);
-                return previousEntry;
-            }
-
-            Preferences.Set(UseRemoteSlotPreferenceKey(), false);
-            var embedded = await ResolveEmbeddedStartupUrlAsync(cancellationToken).ConfigureAwait(false);
-            _logger.Log("NavigationFailure.Fallback", embedded);
-            return embedded;
-        } catch (Exception ex) {
-            _logger.LogException(ex, "MauiWebber.ResolveAfterNavigationFailure");
-            return null;
-        } finally {
-            _gate.Release();
-        }
-    }
-
     private void LogResolve(string source, string entry, DateTime started) {
         _logger.Log("ResolveStartupFile.End", $"source={source};ms={(DateTime.UtcNow - started).TotalMilliseconds:F0};entry={entry}");
     }
@@ -329,7 +281,7 @@ public sealed class MauiWebberUpdater {
 
     private async Task EnsureEmbeddedAsync(MauiWebberManifest manifest, CancellationToken cancellationToken) {
         var embedded = SlotPath(EmbeddedSlot);
-        if (IsHealthy(embedded) && IsSlotSameVersion(embedded, manifest.Version)) {
+        if (IsHealthy(embedded) && IsSlotSameBundle(embedded, manifest)) {
             return;
         }
 
@@ -449,6 +401,22 @@ public sealed class MauiWebberUpdater {
         var manifest = LoadManifest(slotPath);
         return !string.IsNullOrWhiteSpace(manifest?.Version) &&
                string.Equals(manifest.Version, expectedVersion, StringComparison.Ordinal);
+    }
+
+    private bool IsSlotSameBundle(string slotPath, MauiWebberManifest expected) {
+        var installed = LoadManifest(slotPath);
+        if (!string.Equals(installed?.Version, expected.Version, StringComparison.Ordinal) ||
+            installed!.Files.Count != expected.Files.Count) {
+            return false;
+        }
+
+        var installedHashes = installed.Files.ToDictionary(
+            item => item.Path,
+            item => item.Sha256,
+            StringComparer.OrdinalIgnoreCase);
+        return expected.Files.All(item =>
+            installedHashes.TryGetValue(item.Path, out var hash) &&
+            string.Equals(hash, item.Sha256, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool IsSlotAtLeastVersion(string slotPath, string? minimumVersion) {

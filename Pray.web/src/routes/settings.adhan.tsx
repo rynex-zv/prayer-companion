@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, OptionButtons, SectionBlock, StatusLine } from "@/components/SettingsFormControls";
 import { Picker } from "@/components/Picker";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useProjection } from "@/hooks/useProjection";
-import { platformIntents } from "@/client/applicationClient";
-import { syncField } from "@/state/appStore";
+import { patchSettingsSection, platformIntents } from "@/client/applicationClient";
 
 export const Route = createFileRoute("/settings/adhan")({
   component: AdhanPage,
@@ -15,6 +14,8 @@ export const Route = createFileRoute("/settings/adhan")({
 type AdhanSettings = {
   sounds: { id: string; label: string; selected: boolean; isCustom: boolean; canPreview?: boolean }[];
   volume: number;
+  calculationEngine?: string;
+  calculationEngines?: Option[];
   calculationMethod: string;
   calculationMethods?: Option[];
   madhhab: string;
@@ -39,42 +40,49 @@ type AdhanSettings = {
 type Option = { id: string; label: string };
 type Reminder = { id?: string; value: number; unit: string; direction: string; label?: string };
 
-const fallbackMethods = ["Auto", "Jafari", "Karachi", "Isna", "MuslimWorldLeague", "UmmAlQura", "Egypt", "Tehran", "Gulf", "Kuwait", "Qatar", "Singapore", "France", "Turkey", "Russia", "Moonsighting", "Dubai", "Jakim", "Tunisia", "Algeria", "Kemenag", "Morocco", "Portugal", "Jordan", "Custom"];
-const fallbackMadhhabs = ["Shafi", "Maliki", "Hanbali", "Hanafi"];
-const fallbackHighLatitudeRules = ["MiddleOfTheNight", "SeventhOfTheNight", "TwilightAngle"];
 const prayers = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha", "imsak"];
 
 function AdhanPage() {
   const t = useAppLabels();
-  const { data, setData, refresh } = useProjection<AdhanSettings>("settings.getSnapshot", { section: "adhan" }, "settings.adhan");
+  const { data, setData } = useProjection<AdhanSettings>("settings.getSnapshot", { section: "adhan" }, "settings.adhan");
   const [status, setStatus] = useState("ready");
-  useEffect(() => {
-    if (!data) return;
-
-    const hasLegacySoundIds = data.sounds.some((sound) => sound.id === "builtin_1" || sound.id === "builtin_2");
-    const missingBackendCatalogs = !data.calculationMethods?.length || !data.madhhabs?.length || !data.clockFormats?.length;
-    if (hasLegacySoundIds || data.sounds.length < 10 || missingBackendCatalogs) {
-      void refresh(true);
-    }
-  }, [data, refresh]);
 
   if (!data) return null;
+
+  const catalogsReady = Boolean(
+    data.calculationEngines?.length === 1 &&
+    data.calculationMethods?.length &&
+    data.madhhabs?.length &&
+    data.highLatitudeRules?.length &&
+    data.clockFormats?.length,
+  );
+  if (!catalogsReady) {
+    return (
+      <div data-selector-name="adhan:page" className="flex flex-col gap-3">
+        <SettingsHeader title={t("adhan")} />
+        <StatusLine selectorName="adhan:status" value={t("status_error")} />
+        <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {t("errorSomethingWentWrong")}
+        </div>
+      </div>
+    );
+  }
 
   const patch = (next: AdhanSettings) => {
     setData(next);
     setStatus("saving");
-    void syncField("adhan", "value", next).then((ok) => setStatus(ok ? "saved" : "error"));
+    void patchSettingsSection("adhan", next).then((response) => {
+      if (!response.ok) return setStatus("error");
+      setData(response.data.projection);
+      setStatus("saved");
+    });
   };
 
   const selectedSound = data.sounds.find((sound) => sound.selected)?.id ?? data.sounds[0]?.id ?? "";
-  const calculationMethods = data.calculationMethods?.length ? data.calculationMethods : fallbackMethods.map((id) => ({ id, label: t(`method_${id}`) }));
-  const madhhabs = data.madhhabs?.length ? data.madhhabs : fallbackMadhhabs.map((id) => ({ id, label: t(`madhhab_${id}`) }));
-  const highLatitudeRules = data.highLatitudeRules?.length ? data.highLatitudeRules : fallbackHighLatitudeRules.map((id) => ({ id, label: t(`highLatitude_${id}`) }));
-  const clockFormats = data.clockFormats?.length ? data.clockFormats : [
-    { id: "auto", label: t("auto") },
-    { id: "12h", label: t("clock12h") },
-    { id: "24h", label: t("clock24h") },
-  ];
+  const calculationMethods = data.calculationMethods!;
+  const madhhabs = data.madhhabs!;
+  const highLatitudeRules = data.highLatitudeRules!;
+  const clockFormats = data.clockFormats!;
 
   return (
     <div data-selector-name="adhan:page" className="flex flex-col gap-3">
@@ -119,6 +127,7 @@ function AdhanPage() {
             max="100"
             value={data.volume}
             onChange={(event) => patch({ ...data, volume: Number(event.currentTarget.value) || 0 })}
+            aria-label={t("volume")}
             data-selector-name="adhan:volume"
             className="w-full accent-primary"
           />
@@ -126,6 +135,12 @@ function AdhanPage() {
       </SectionBlock>
 
       <SectionBlock title={t("calculation")}>
+        <div className="text-sm text-card-foreground">
+          <div className="mb-1 text-xs text-muted-foreground">{t("calculationEngine")}</div>
+          <div data-selector-name="adhan:calculation-engine" className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            {data.calculationEngines![0].label}
+          </div>
+        </div>
         <SelectSetting
           label={t("method")}
           value={data.calculationMethod}

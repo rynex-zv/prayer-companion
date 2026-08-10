@@ -52,7 +52,7 @@ function TasbihSettingsPage() {
             {t("add")}
           </button>
         </div>
-        <Picker value={data.selectedPresetId} onChange={selectPreset}>
+        <Picker value={data.selectedPresetId} onChange={selectPreset} ariaLabel={t("tasbihPresets")} selectorName="settings-tasbih:preset-picker">
           {data.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
         </Picker>
       </SectionBlock>
@@ -72,6 +72,15 @@ function TasbihSettingsPage() {
             options={repeatModes.map((id) => ({ id, label: t(`tasbihRepeat_${id}`) }))}
             onChange={(repeatMode) => invoke("updateTasbihPreset", { id: preset.id, name: preset.name, repeatMode })}
           />
+          <button
+            type="button"
+            disabled={data.presets.length <= 1}
+            onClick={() => invoke("removeTasbihPreset", { id: preset.id })}
+            data-selector-name={`settings-tasbih:remove-preset:${preset.id}`}
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("remove")}
+          </button>
           {preset.items.map((item, index) => (
             <div key={`${preset.id}-${index}`} className="rounded-md border border-border bg-background p-3">
               <DeferredEditableSetting

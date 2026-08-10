@@ -48,6 +48,7 @@ export function useTasbih(): {
       const methods: Record<string, string> = {
         addTasbihPreset: "tasbih.addPreset",
         updateTasbihPreset: "tasbih.updatePreset",
+        removeTasbihPreset: "tasbih.removePreset",
         addTasbihItem: "tasbih.addItem",
         updateTasbihItem: "tasbih.updateItem",
         moveTasbihItem: "tasbih.moveItem",

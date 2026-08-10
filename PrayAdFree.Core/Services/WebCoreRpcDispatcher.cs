@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Contracts;
 
@@ -7,6 +8,7 @@ namespace PrayAdFree.Core.Services;
 
 public sealed class WebCoreRpcDispatcher {
     private readonly DailyPrayerSnapshotFactory _dailyFactory = new();
+    private readonly FastingSnapshotFactory _fastingFactory = new();
     private readonly CalendarMonthPresenter _calendarPresenter = new();
     private readonly TasbihProgressCalculator _tasbihCalculator = new();
     private readonly WebPrayerMonthFactory _prayerMonthFactory = new();
@@ -36,6 +38,8 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     public object? Dispatch(string method, JsonElement payload) {
+        var platformTimeZone = ReadNestedString(payload, "_platform", "timeZoneId");
+        if (!string.IsNullOrWhiteSpace(platformTimeZone)) _state.TimeZoneId = platformTimeZone;
         var operationKind = WebContractExporter.Classify(method);
         var domain = ReadNestedString(payload, "_rpc", "domain") ?? method.Split('.')[0];
         var ifRevision = ReadNestedLong(payload, "_query", "ifRevision");
@@ -74,6 +78,7 @@ public sealed class WebCoreRpcDispatcher {
             "tasbih.selectPreset" => SelectTasbihPreset(GetString(payload, "id", _state.SelectedTasbihPresetId)),
             "tasbih.addPreset" => AddTasbihPreset(GetString(payload, "name", T("newPresetName"))),
             "tasbih.updatePreset" => UpdateTasbihPreset(payload),
+            "tasbih.removePreset" => RemoveTasbihPreset(payload),
             "tasbih.addItem" => AddTasbihItem(payload),
             "tasbih.updateItem" => UpdateTasbihItem(payload),
             "tasbih.moveItem" => MoveTasbihItem(payload),
@@ -121,9 +126,6 @@ public sealed class WebCoreRpcDispatcher {
         projections = new {
             shell = ShellSnapshot(),
             today = TodaySnapshot(),
-            alarm = AlarmSnapshot(),
-            onboarding = OnboardingSnapshot(),
-            permissions = SettingsSnapshot("permissions"),
             capabilities = new { platform = "browser", native = false, events = true }
         }
     };
@@ -176,8 +178,13 @@ public sealed class WebCoreRpcDispatcher {
         var now = DateTime.Now;
         var settings = BuildSettings();
         var day = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now));
+        var tomorrow = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now.AddDays(1)));
         var snapshot = _dailyFactory.Build(day, settings, now);
+        var fasting = _fastingFactory.Build(day, tomorrow, settings, now);
         var next = snapshot.NextPrayerTime;
+        var effectiveMethod = settings.Method == CalculationMethod.Auto
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            : settings.Method;
 
         return new {
             locationTitle = LocationTitle(),
@@ -191,13 +198,22 @@ public sealed class WebCoreRpcDispatcher {
             nextPrayerDayId = snapshot.IsNextPrayerTomorrow ? "tomorrow" : "today",
             countdown = FormatDuration(next - now),
             statusMessage = "",
-            imsakTime = Format(day.Timings.Imsak, settings),
-            iftarTime = Format(day.Timings.Maghrib, settings),
-            isImsakNext = snapshot.NextPrayerId == PrayerId.Imsak,
-            isIftarNext = snapshot.NextPrayerId == PrayerId.Maghrib,
-            nextFastingCountdown = FormatDuration(day.Timings.Maghrib - now),
+            calculation = new {
+                selectedMethod = settings.Method.ToString(),
+                selectedMethodLabel = T($"method_{settings.Method}"),
+                effectiveMethod = effectiveMethod.ToString(),
+                effectiveMethodLabel = T($"method_{effectiveMethod}"),
+                madhhab = settings.Madhhab.ToString(),
+                madhhabLabel = T($"madhhab_{settings.Madhhab}"),
+                highLatitudeRule = settings.HighLatitudeRule.ToString(),
+                highLatitudeRuleLabel = T($"highLatitude_{settings.HighLatitudeRule}")
+            },
+            imsakTime = Format(fasting.ImsakTime, settings),
+            iftarTime = Format(fasting.IftarTime, settings),
+            isImsakNext = fasting.IsImsakNext,
+            isIftarNext = fasting.IsIftarNext,
+            nextFastingCountdown = FormatDuration(fasting.Remaining),
             isRtl = WebCatalog.IsRtl(_state.Language),
-            labels = Labels(),
             todayTimings = snapshot.Entries.Select(entry => new {
                 id = entry.Prayer.ToString().ToLowerInvariant(),
                 time = Format(entry.AdjustedTime, settings),
@@ -323,7 +339,7 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private object SetHeadingMode(string? mode) {
-        _state.HeadingMode = mode == "manual" ? "manual" : "auto";
+        _state.HeadingMode = AppInputContract.RequiredChoice(mode, "qibla.headingMode", "auto", "manual");
         return QiblaSnapshot();
     }
 
@@ -333,12 +349,12 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private object SetDisplayMode(string? mode) {
-        _state.ReadingMode = mode == "map" ? "map" : "compass";
+        _state.ReadingMode = AppInputContract.RequiredChoice(mode, "qibla.displayMode", "compass", "map");
         return QiblaSnapshot();
     }
 
     private object SetVisualFilter(string? mode) {
-        _state.FilterMode = mode is "night" or "contrast" ? mode : "none";
+        _state.FilterMode = AppInputContract.RequiredChoice(mode, "qibla.visualFilter", "none", "night", "contrast");
         return QiblaSnapshot();
     }
 
@@ -356,8 +372,11 @@ public sealed class WebCoreRpcDispatcher {
             presets = _state.TasbihPresets.Select(item => new {
                 id = item.Id,
                 name = TranslateTasbihText(item.Name),
-                repeatMode = item.RepeatMode,
-                items = item.Items.Select(i => new { Text = TranslateTasbihText(i.Text), i.TargetCount }).ToArray()
+                repeatMode = NormalizeTasbihRepeatMode(item.RepeatMode),
+                items = item.Items.Select(i => new {
+                    text = TranslateTasbihText(i.Text),
+                    targetCount = i.TargetCount
+                }).ToArray()
             }).ToArray()
         };
     }
@@ -376,9 +395,10 @@ public sealed class WebCoreRpcDispatcher {
     private object AlarmSnapshot() => WebAlarmSnapshotFactory.Inactive(_state.Language);
 
     private object SelectTasbihPreset(string? id) {
-        if (_state.TasbihCount == 0 && _state.TasbihPresets.Any(item => item.Id == id)) {
-            _state.SelectedTasbihPresetId = id!;
-        }
+        var preset = _state.TasbihPresets.FirstOrDefault(item => item.Id == id)
+            ?? throw new ArgumentException($"Unknown Tasbih preset ID '{id ?? "<missing>"}'.", nameof(id));
+        if (_state.TasbihCount != 0) throw new InvalidOperationException("Reset Tasbih before changing presets.");
+        _state.SelectedTasbihPresetId = preset.Id;
 
         return TasbihSnapshot();
     }
@@ -409,7 +429,21 @@ public sealed class WebCoreRpcDispatcher {
                 languages = WebCatalog.Languages.Select(item => new { code = item.Code, name = item.Name }).ToArray(),
                 accentColors = WebCatalog.AccentColors
             },
+            "adhan" when !string.IsNullOrWhiteSpace(_state.AdhanSettingsJson) => BuildStoredAdhanProjection(),
             "adhan" => new {
+                calculationEngine = WebPrayerMonthFactory.EngineId,
+                calculationEngines = new[] { new { id = WebPrayerMonthFactory.EngineId, label = T("calculationEngine_SharedCoreAdhan") } },
+                calculationMethods = CalculationMethodPresetCatalog.SupportedMethods
+                    .Select(method => new { id = method.ToString(), label = T($"method_{method}") }).ToArray(),
+                madhhabs = Enum.GetValues<Madhhab>()
+                    .Select(value => new { id = value.ToString(), label = T($"madhhab_{value}") }).ToArray(),
+                highLatitudeRules = Enum.GetValues<HighLatitudeRule>()
+                    .Select(value => new { id = value.ToString(), label = T($"highLatitude_{value}") }).ToArray(),
+                clockFormats = new[] {
+                    new { id = "auto", label = T("auto") },
+                    new { id = "12h", label = T("clock12h") },
+                    new { id = "24h", label = T("clock24h") }
+                },
                 defaults = WebCatalog.AdhanDefaults,
                 sounds = WebCatalog.DefaultAdhanSounds.Select(item => new { id = item.Id, label = item.Label, selected = item.Selected, isCustom = item.IsCustom, canPreview = item.CanPreview }).ToArray(),
                 volume = WebCatalog.AdhanDefaults.Volume,
@@ -426,6 +460,7 @@ public sealed class WebCoreRpcDispatcher {
                 iftarReminders = Array.Empty<object>(),
                 perPrayerOverrides = Array.Empty<object>()
             },
+            "notifications" when !string.IsNullOrWhiteSpace(_state.NotificationSettingsJson) => ParseStoredProjection(_state.NotificationSettingsJson),
             "notifications" => new {
                 enableAdhan = WebCatalog.NotificationDefaults.EnableAdhan,
                 mobilePrimaryAdhanType = WebCatalog.NotificationDefaults.MobilePrimaryAdhanType,
@@ -435,17 +470,31 @@ public sealed class WebCoreRpcDispatcher {
                 vibrationStrength = WebCatalog.NotificationDefaults.VibrationStrength,
                 vibrationPattern = WebCatalog.NotificationDefaults.VibrationPattern,
                 minutesBefore = WebCatalog.NotificationDefaults.MinutesBefore,
+                reminderScope = "All",
+                reminderPrayer = "Fajr",
+                reminderScopes = new[] {
+                    new { id = "All", label = T("reminder_All") },
+                    new { id = "SpecificPrayer", label = T("Reminder_Specific") }
+                },
+                reminderPrayers = new[] { "Fajr", "Dhuhr", "Asr", "Maghrib", "Isha" }
+                    .Select(id => new { id, label = T($"prayer_{id}") }).ToArray(),
+                reminderAlertTypes = new[] { "Adhan", "Notification", "Silent", "Alarm" }
+                    .Select(id => new { id, label = T($"reminderType_{id}") }).ToArray(),
+                reminderUnits = new[] { new { id = "minute", label = T("minutes") }, new { id = "hour", label = T("hours") } },
+                reminderDirections = new[] { new { id = "before", label = T("before") }, new { id = "after", label = T("after") } },
                 reminders = Array.Empty<object>(),
                 pendingDeferredReminder = (object?)null
             },
             "permissions" => PermissionsSnapshot(),
+            "alarmReminders" when !string.IsNullOrWhiteSpace(_state.AlarmRemindersSettingsJson) => ParseStoredProjection(_state.AlarmRemindersSettingsJson),
             "alarmReminders" => new {
                 builtIn = WebCatalog.BuiltInAlarmReminders.Select(item => new { id = item.Id, text = item.Text, enabled = item.Enabled }).ToArray(),
                 userRemindersEnabled = true,
                 userReminders = Array.Empty<object>()
             },
             "about" => AboutSnapshot(),
-            _ => new { locations = SettingsSnapshot("locations"), theme = SettingsSnapshot("theme"), adhan = SettingsSnapshot("adhan") }
+            null or "" => new { locations = SettingsSnapshot("locations"), theme = SettingsSnapshot("theme"), adhan = SettingsSnapshot("adhan") },
+            _ => throw new ArgumentException($"Unknown settings section '{section}'.", nameof(section))
         };
     }
 
@@ -455,16 +504,19 @@ public sealed class WebCoreRpcDispatcher {
         var value = payload.TryGetProperty("value", out var valueElement) ? valueElement : default;
 
         if (section == "theme" && field == "language") {
-            _state.Language = WebCatalog.NormalizeLanguage(value.ValueKind == JsonValueKind.String ? value.GetString() : null);
+            _state.Language = WebCatalog.NormalizeLanguage(RequiredStringValue(value, "value"));
             return new { ok = true, section, field, value = _state.Language, languageObject = LanguageObject(_state.Language) };
         }
 
         if (section == "theme" && field == "themeMode") {
-            _state.ThemeMode = WebCatalog.NormalizeTheme(value.ValueKind == JsonValueKind.String ? value.GetString() : null);
+            _state.ThemeMode = WebCatalog.NormalizeTheme(RequiredStringValue(value, "value"));
         } else if (section == "theme" && field == "accentColor") {
-            _state.AccentColor = WebCatalog.NormalizeAccent(value.ValueKind == JsonValueKind.String ? value.GetString() : null);
+            _state.AccentColor = WebCatalog.NormalizeAccent(RequiredStringValue(value, "value"));
         } else if (section == "theme" && field == "textSize") {
-            _state.TextSize = WebCatalog.ClampTextSize(value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var textSize) ? textSize : _state.TextSize);
+            if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var textSize)) {
+                throw new ArgumentException("Theme textSize requires an integer value.", "value");
+            }
+            _state.TextSize = WebCatalog.ClampTextSize(textSize);
         } else if (section == "locations" && field == "value" && value.ValueKind == JsonValueKind.Object) {
             var previousLatitude = _state.Latitude;
             var previousLongitude = _state.Longitude;
@@ -484,7 +536,22 @@ public sealed class WebCoreRpcDispatcher {
                 _state.City = place?.City ?? string.Empty;
             }
         } else if (section == "adhan" && field == "value" && value.ValueKind == JsonValueKind.Object) {
+            var candidate = value.GetRawText();
+            var previous = _state.AdhanSettingsJson;
+            _state.AdhanSettingsJson = candidate;
+            try {
+                _ = ReadStoredAdhanSettings();
+            } finally {
+                _state.AdhanSettingsJson = previous;
+            }
             _state.ClockFormat = GetString(value, "clockFormat", _state.ClockFormat) ?? _state.ClockFormat;
+            _state.AdhanSettingsJson = candidate;
+        } else if (section == "notifications" && field == "value" && value.ValueKind == JsonValueKind.Object) {
+            _state.NotificationSettingsJson = value.GetRawText();
+        } else if (section == "alarmReminders" && field == "value" && value.ValueKind == JsonValueKind.Object) {
+            _state.AlarmRemindersSettingsJson = value.GetRawText();
+        } else {
+            throw new ArgumentException($"Unsupported settings patch '{section}.{field}' or invalid value shape.");
         }
 
         return new {
@@ -492,7 +559,8 @@ public sealed class WebCoreRpcDispatcher {
             section,
             field,
             value = CloneJsonValue(value),
-            calculated = section == "locations" ? SettingsSnapshot("locations") : null
+            calculated = section == "locations" ? SettingsSnapshot("locations") : null,
+            projection = SettingsSnapshot(section)
         };
     }
 
@@ -526,9 +594,7 @@ public sealed class WebCoreRpcDispatcher {
     private object UpdateTasbihPreset(JsonElement payload) {
         var id = GetString(payload, "id", null);
         var preset = _state.TasbihPresets.FirstOrDefault(item => item.Id == id);
-        if (preset is null) {
-            return TasbihSnapshot();
-        }
+        if (preset is null) throw new ArgumentException($"Unknown Tasbih preset ID '{id ?? "<missing>"}'.");
 
         var name = GetString(payload, "name", preset.Name) ?? preset.Name;
         var repeatMode = NormalizeTasbihRepeatMode(GetString(payload, "repeatMode", preset.RepeatMode));
@@ -536,15 +602,29 @@ public sealed class WebCoreRpcDispatcher {
         return TasbihSnapshot();
     }
 
+    private object RemoveTasbihPreset(JsonElement payload) {
+        var id = GetString(payload, "id", null);
+        var preset = _state.TasbihPresets.FirstOrDefault(item => item.Id == id);
+        if (preset is null) throw new ArgumentException($"Unknown Tasbih preset ID '{id ?? "<missing>"}'.");
+        if (_state.TasbihPresets.Count <= 1) throw new InvalidOperationException("The last Tasbih preset cannot be removed.");
+
+        _state.TasbihPresets.Remove(preset);
+        if (_state.SelectedTasbihPresetId == id) {
+            _state.SelectedTasbihPresetId = _state.TasbihPresets[0].Id;
+        }
+        _state.TasbihCount = 0;
+        return TasbihSnapshot();
+    }
+
     private object AddTasbihItem(JsonElement payload) {
         var preset = FindTasbihPreset(payload);
-        if (preset is null) {
-            return TasbihSnapshot();
-        }
+        if (preset is null) throw new ArgumentException("Unknown Tasbih preset ID.");
 
-        var text = GetString(payload, "text", WebStateDefaults.DefaultTasbihItemText) ?? WebStateDefaults.DefaultTasbihItemText;
-        var targetCount = Math.Max(1, GetInt(payload, "targetCount", WebStateDefaults.DefaultTasbihTargetCount));
-        preset.Items.Add(new WebTasbihItem(string.IsNullOrWhiteSpace(text) ? WebStateDefaults.DefaultTasbihItemText : text.Trim(), targetCount));
+        var text = GetString(payload, "text", null);
+        if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("Tasbih item text is required.", "text");
+        var targetCount = GetInt(payload, "targetCount", WebStateDefaults.DefaultTasbihTargetCount);
+        if (targetCount <= 0) throw new ArgumentOutOfRangeException("targetCount", targetCount, "Tasbih target must be positive.");
+        preset.Items.Add(new WebTasbihItem(text.Trim(), targetCount));
         _state.TasbihCount = 0;
         return TasbihSnapshot();
     }
@@ -552,14 +632,15 @@ public sealed class WebCoreRpcDispatcher {
     private object UpdateTasbihItem(JsonElement payload) {
         var preset = FindTasbihPreset(payload);
         var index = GetInt(payload, "index", -1);
-        if (preset is null || index < 0 || index >= preset.Items.Count) {
-            return TasbihSnapshot();
-        }
+        if (preset is null) throw new ArgumentException("Unknown Tasbih preset ID.");
+        if (index < 0 || index >= preset.Items.Count) throw new ArgumentOutOfRangeException(nameof(index), index, "Unknown Tasbih item index.");
 
         var item = preset.Items[index];
         var text = GetString(payload, "text", item.Text) ?? item.Text;
-        var targetCount = Math.Max(1, GetInt(payload, "targetCount", item.TargetCount));
-        preset.Items[index] = item with { Text = string.IsNullOrWhiteSpace(text) ? item.Text : text.Trim(), TargetCount = targetCount };
+        if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("Tasbih item text cannot be empty.", "text");
+        var targetCount = GetInt(payload, "targetCount", item.TargetCount);
+        if (targetCount <= 0) throw new ArgumentOutOfRangeException("targetCount", targetCount, "Tasbih target must be positive.");
+        preset.Items[index] = item with { Text = text.Trim(), TargetCount = targetCount };
         _state.TasbihCount = 0;
         return TasbihSnapshot();
     }
@@ -568,13 +649,13 @@ public sealed class WebCoreRpcDispatcher {
         var preset = FindTasbihPreset(payload);
         var index = GetInt(payload, "index", -1);
         var direction = GetString(payload, "direction", "");
-        if (preset is null || index < 0 || index >= preset.Items.Count) {
-            return TasbihSnapshot();
-        }
+        if (preset is null) throw new ArgumentException("Unknown Tasbih preset ID.");
+        if (index < 0 || index >= preset.Items.Count) throw new ArgumentOutOfRangeException(nameof(index), index, "Unknown Tasbih item index.");
+        if (direction is not ("up" or "down")) throw new ArgumentException($"Unknown Tasbih move direction '{direction}'.");
 
         var target = direction == "up" ? index - 1 : direction == "down" ? index + 1 : index;
         if (target < 0 || target >= preset.Items.Count || target == index) {
-            return TasbihSnapshot();
+            throw new InvalidOperationException("Tasbih item cannot move beyond the collection boundary.");
         }
 
         (preset.Items[index], preset.Items[target]) = (preset.Items[target], preset.Items[index]);
@@ -585,10 +666,11 @@ public sealed class WebCoreRpcDispatcher {
     private object RemoveTasbihItem(JsonElement payload) {
         var preset = FindTasbihPreset(payload);
         var index = GetInt(payload, "index", -1);
-        if (preset is not null && preset.Items.Count > 1 && index >= 0 && index < preset.Items.Count) {
-            preset.Items.RemoveAt(index);
-            _state.TasbihCount = 0;
-        }
+        if (preset is null) throw new ArgumentException("Unknown Tasbih preset ID.");
+        if (preset.Items.Count <= 1) throw new InvalidOperationException("The last Tasbih item cannot be removed.");
+        if (index < 0 || index >= preset.Items.Count) throw new ArgumentOutOfRangeException(nameof(index), index, "Unknown Tasbih item index.");
+        preset.Items.RemoveAt(index);
+        _state.TasbihCount = 0;
 
         return TasbihSnapshot();
     }
@@ -656,6 +738,7 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private AppSettings BuildSettings() {
+        var adhan = ReadStoredAdhanSettings();
         return new AppSettings {
             Location = new LocationSettings {
                 Mode = _state.UseGps ? LocationMode.Gps : LocationMode.Manual,
@@ -664,8 +747,14 @@ public sealed class WebCoreRpcDispatcher {
                 CountryCode = _state.CountryCode,
                 Latitude = _state.Latitude,
                 Longitude = _state.Longitude,
-                TimeZoneId = TimeZoneInfo.Local.Id
+                TimeZoneId = _state.TimeZoneId
             },
+            Method = adhan.Method,
+            Madhhab = adhan.Madhhab,
+            HighLatitudeRule = adhan.HighLatitudeRule,
+            SunAngles = adhan.SunAngles,
+            Offsets = adhan.Offsets,
+            FastingOffsets = adhan.FastingOffsets,
             ClockFormat = _state.ClockFormat == "24h" ? ClockFormat.TwentyFourHour : _state.ClockFormat == "12h" ? ClockFormat.TwelveHour : ClockFormat.Auto,
             Language = _state.Language,
             LanguageSelected = true,
@@ -675,10 +764,71 @@ public sealed class WebCoreRpcDispatcher {
         };
     }
 
+    private (CalculationMethod Method, Madhhab Madhhab, HighLatitudeRule HighLatitudeRule, SunAngleSettings SunAngles, PrayerOffsets Offsets, FastingOffsets FastingOffsets) ReadStoredAdhanSettings() {
+        var defaults = (
+            Method: CalculationMethod.Auto,
+            Madhhab: Madhhab.Shafi,
+            HighLatitudeRule: HighLatitudeRule.MiddleOfTheNight,
+            SunAngles: new SunAngleSettings(),
+            Offsets: PrayerOffsets.Default,
+            FastingOffsets: new FastingOffsets { ImsakAdvanceMinutes = 10 });
+        if (string.IsNullOrWhiteSpace(_state.AdhanSettingsJson)) return defaults;
+
+        try {
+            using var document = JsonDocument.Parse(_state.AdhanSettingsJson);
+            var root = document.RootElement;
+            var method = ParseEnumValue(GetString(root, "calculationMethod", null), defaults.Method);
+            var madhhab = ParseEnumValue(GetString(root, "madhhab", null), defaults.Madhhab);
+            var highLatitude = ParseEnumValue(GetString(root, "highLatitudeRule", null), defaults.HighLatitudeRule);
+            var offsets = root.TryGetProperty("offsets", out var offsetValue) && offsetValue.ValueKind == JsonValueKind.Object
+                ? new PrayerOffsets {
+                    Fajr = (int)GetDouble(offsetValue, "fajr", 0),
+                    Sunrise = (int)GetDouble(offsetValue, "sunrise", 0),
+                    Dhuhr = (int)GetDouble(offsetValue, "dhuhr", 0),
+                    Asr = (int)GetDouble(offsetValue, "asr", 0),
+                    Maghrib = (int)GetDouble(offsetValue, "maghrib", 0),
+                    Isha = (int)GetDouble(offsetValue, "isha", 0),
+                    Imsak = (int)GetDouble(offsetValue, "imsak", 0)
+                }
+                : defaults.Offsets;
+            var fasting = root.TryGetProperty("fasting", out var fastingValue) && fastingValue.ValueKind == JsonValueKind.Object
+                ? new FastingOffsets {
+                    IftarDelayMinutes = (int)GetDouble(fastingValue, "iftarDelay", 0),
+                    ImsakAdvanceMinutes = (int)GetDouble(fastingValue, "imsakAdvance", 10)
+                }
+                : defaults.FastingOffsets;
+            return (
+                method,
+                madhhab,
+                highLatitude,
+                new SunAngleSettings {
+                    Fajr = GetDouble(root, "fajrAngle", 18),
+                    Isha = GetDouble(root, "ishaAngle", 17)
+                },
+                offsets,
+                fasting);
+        } catch (JsonException exception) {
+            throw new InvalidDataException(
+                "Saved Adhan settings are corrupt. Prayer times were not recalculated with defaults.", exception);
+        }
+    }
+
+    private static TEnum ParseEnumValue<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum {
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        return Enum.TryParse<TEnum>(value, true, out var parsed) && Enum.IsDefined(parsed)
+            ? parsed
+            : throw new InvalidDataException($"Saved Adhan setting '{value}' is not a valid {typeof(TEnum).Name}.");
+    }
+
     private TasbihPresetSettings ToCorePreset(WebTasbihPreset preset) {
         return new TasbihPresetSettings {
             Name = preset.Name,
-            RepeatMode = preset.RepeatMode is "Loop" or "Continue" ? TasbihRepeatMode.RepeatContinue : TasbihRepeatMode.None,
+            RepeatMode = preset.RepeatMode switch {
+                "Loop" or "Continue" => TasbihRepeatMode.RepeatContinue,
+                "Sequence" or "Reset" => TasbihRepeatMode.RepeatReset,
+                "None" => TasbihRepeatMode.None,
+                _ => throw new InvalidDataException($"Persisted Tasbih repeat mode '{preset.RepeatMode}' is invalid.")
+            },
             Items = preset.Items.Select(item => new TasbihItemSettings { Text = item.Text, TargetCount = item.TargetCount }).ToList()
         };
     }
@@ -731,38 +881,41 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private string? GetString(JsonElement payload, string property, string? fallback) {
-        return payload.ValueKind == JsonValueKind.Object &&
-               payload.TryGetProperty(property, out var value) &&
-               value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : fallback;
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty(property, out var value)) return fallback;
+        if (value.ValueKind == JsonValueKind.String) return value.GetString();
+        if (value.ValueKind == JsonValueKind.Null) return fallback;
+        throw new ArgumentException($"Invalid '{property}': expected a string.", property);
     }
 
     private double GetDouble(JsonElement payload, string property, double fallback) {
-        return payload.ValueKind == JsonValueKind.Object &&
-               payload.TryGetProperty(property, out var value) &&
-               value.TryGetDouble(out var number)
-            ? number
-            : fallback;
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty(property, out var value)) return fallback;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number)) return number;
+        throw new ArgumentException($"Invalid '{property}': expected a finite number.", property);
     }
 
     private bool GetBool(JsonElement payload, string property, bool fallback) {
-        return payload.ValueKind == JsonValueKind.Object &&
-               payload.TryGetProperty(property, out var value) &&
-               value.ValueKind is JsonValueKind.True or JsonValueKind.False
-            ? value.GetBoolean()
-            : fallback;
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty(property, out var value)) return fallback;
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False) return value.GetBoolean();
+        throw new ArgumentException($"Invalid '{property}': expected a boolean.", property);
     }
 
     private int GetInt(JsonElement payload, string property, int fallback) {
-        return payload.ValueKind == JsonValueKind.Object &&
-               payload.TryGetProperty(property, out var value) &&
-               value.TryGetInt32(out var number)
-            ? number
-            : fallback;
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty(property, out var value)) return fallback;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
+        throw new ArgumentException($"Invalid '{property}': expected an integer.", property);
     }
 
-    private string NormalizeTasbihRepeatMode(string? mode) => mode is "Continue" or "Reset" or "None" or "Loop" or "Sequence" ? mode : "Continue";
+    private static string RequiredStringValue(JsonElement value, string field) =>
+        value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
+            ? value.GetString()!
+            : throw new ArgumentException($"Invalid '{field}': expected a non-empty string.", field);
+
+    private string NormalizeTasbihRepeatMode(string? mode) => mode switch {
+        "Continue" or "Loop" => "Continue",
+        "Reset" or "Sequence" => "Reset",
+        "None" => "None",
+        _ => throw new ArgumentException($"Unknown Tasbih repeat mode '{mode ?? "<missing>"}'.")
+    };
 
     private string Slug(string value) {
         var chars = value.ToLowerInvariant()
@@ -796,10 +949,46 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private string TranslateTasbihText(string value) {
-        return string.IsNullOrWhiteSpace(value) ? value : WebCatalog.Translate(_state.Language, value.Trim());
+        if (string.IsNullOrWhiteSpace(value)) return value;
+        var key = value.Trim();
+        return WebCatalog.Labels(_state.Language).TryGetValue(key, out var translated) ? translated : value;
     }
 
     private static object? CloneJsonValue(JsonElement value) =>
         value.ValueKind == JsonValueKind.Undefined ? null : value.Clone();
+
+    private static JsonElement ParseStoredProjection(string json) {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.Clone();
+    }
+
+    private JsonElement BuildStoredAdhanProjection() {
+        var projection = JsonNode.Parse(_state.AdhanSettingsJson) as JsonObject ?? new JsonObject();
+        projection["calculationEngine"] = WebPrayerMonthFactory.EngineId;
+        projection["calculationEngines"] = new JsonArray(new JsonObject {
+            ["id"] = WebPrayerMonthFactory.EngineId,
+            ["label"] = T("calculationEngine_SharedCoreAdhan")
+        });
+        projection["calculationMethods"] = new JsonArray(CalculationMethodPresetCatalog.SupportedMethods
+            .Select(method => (JsonNode)new JsonObject {
+                ["id"] = method.ToString(),
+                ["label"] = T($"method_{method}")
+            }).ToArray());
+        projection["madhhabs"] = new JsonArray(Enum.GetValues<Madhhab>()
+            .Select(value => (JsonNode)new JsonObject {
+                ["id"] = value.ToString(),
+                ["label"] = T($"madhhab_{value}")
+            }).ToArray());
+        projection["highLatitudeRules"] = new JsonArray(Enum.GetValues<HighLatitudeRule>()
+            .Select(value => (JsonNode)new JsonObject {
+                ["id"] = value.ToString(),
+                ["label"] = T($"highLatitude_{value}")
+            }).ToArray());
+        projection["clockFormats"] = new JsonArray(
+            new JsonObject { ["id"] = "auto", ["label"] = T("auto") },
+            new JsonObject { ["id"] = "12h", ["label"] = T("clock12h") },
+            new JsonObject { ["id"] = "24h", ["label"] = T("clock24h") });
+        return ParseStoredProjection(projection.ToJsonString());
+    }
 
 }

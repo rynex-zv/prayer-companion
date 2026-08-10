@@ -15,6 +15,7 @@ public static class MethodResolver {
         ["US"] = CalculationMethod.Isna,
         ["CA"] = CalculationMethod.Isna,
         ["GB"] = CalculationMethod.MuslimWorldLeague,
+        ["NL"] = CalculationMethod.MuslimWorldLeague,
         ["FR"] = CalculationMethod.France,
         ["DE"] = CalculationMethod.MuslimWorldLeague,
         ["RU"] = CalculationMethod.Russia,
@@ -27,13 +28,16 @@ public static class MethodResolver {
         ["JO"] = CalculationMethod.Jordan
     };
 
-    public static CalculationMethod Resolve(string countryCode, CalculationMethod fallback) {
+    public static CalculationMethod ResolveRequired(string? countryCode) {
         if (string.IsNullOrWhiteSpace(countryCode)) {
-            return fallback;
+            throw new ArgumentException(
+                "Automatic calculation requires a country code. Select a location or choose a calculation method explicitly.",
+                nameof(countryCode));
         }
 
-        return CountryMethods.TryGetValue(countryCode.ToUpperInvariant(), out var method)
-            ? method
-            : fallback;
+        if (CountryMethods.TryGetValue(countryCode.Trim().ToUpperInvariant(), out var method)) return method;
+        throw new ArgumentException(
+            $"No automatic calculation method is configured for country code '{countryCode}'. Choose a calculation method explicitly.",
+            nameof(countryCode));
     }
 }

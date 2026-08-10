@@ -5,7 +5,7 @@ namespace PrayAdFree.Core.Services;
 public static class WebStateDefaults {
     public const string DefaultRemoteWebUrl = "http://pray.rynex.nl/";
     public const string DefaultTasbihRepeatMode = "Continue";
-    public const string DefaultTasbihItemText = "SubhanAllah";
+    public const string DefaultTasbihItemText = "Tasbih_SubhanAllah";
     public const int DefaultTasbihTargetCount = 33;
 
     public static WebState Build() {
@@ -20,6 +20,7 @@ public static class WebStateDefaults {
             City = "Amsterdam",
             Latitude = 52.3676,
             Longitude = 4.9041,
+            TimeZoneId = "Europe/Amsterdam",
             Heading = 95,
             ManualHeading = 100,
             HeadingMode = "auto",
@@ -66,6 +67,10 @@ public static class WebStateDefaults {
         if (state.Latitude == 0 && state.Longitude == 0) {
             state.Latitude = defaults.Latitude;
             state.Longitude = defaults.Longitude;
+        }
+
+        if (string.IsNullOrWhiteSpace(state.TimeZoneId)) {
+            state.TimeZoneId = defaults.TimeZoneId;
         }
 
         if (string.IsNullOrWhiteSpace(state.HeadingMode)) {

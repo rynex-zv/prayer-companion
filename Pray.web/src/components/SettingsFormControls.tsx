@@ -28,7 +28,7 @@ export function EditableSetting({
   className?: string;
 }) {
   return (
-    <div className={cn("text-sm text-card-foreground", className)}>
+    <label className={cn("text-sm text-card-foreground", className)}>
       <span className="mb-1 block text-xs text-muted-foreground">{label}</span>
       <input
         value={String(value)}
@@ -36,7 +36,7 @@ export function EditableSetting({
         data-selector-name={selectorName}
         className="min-h-9 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-card-foreground"
       />
-    </div>
+    </label>
   );
 }
 

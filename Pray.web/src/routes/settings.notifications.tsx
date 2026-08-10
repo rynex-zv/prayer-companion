@@ -4,8 +4,7 @@ import { SettingsHeader } from "@/components/SettingsHeader";
 import { EditableSetting, OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/components/SettingsFormControls";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useProjection } from "@/hooks/useProjection";
-import { platformIntents } from "@/client/applicationClient";
-import { syncField } from "@/state/appStore";
+import { patchSettingsSection, platformIntents } from "@/client/applicationClient";
 
 export const Route = createFileRoute("/settings/notifications")({
   component: NotificationsPage,
@@ -50,7 +49,11 @@ function NotificationsPage() {
   const patch = (next: NotificationSettings) => {
     setData(next);
     setStatus("saving");
-    void syncField("notifications", "value", next).then((ok) => setStatus(ok ? "saved" : "error"));
+    void patchSettingsSection("notifications", next).then((response) => {
+      if (!response.ok) return setStatus("error");
+      setData(response.data.projection);
+      setStatus("saved");
+    });
   };
 
   const invoke = (action: "testAlarm" | "testNotification") => {

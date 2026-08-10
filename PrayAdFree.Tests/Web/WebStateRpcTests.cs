@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 
@@ -52,14 +53,10 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
-    public void Corrupt_persisted_browser_state_recovers_to_a_valid_default_repository_document() {
-        var result = WebCoreExecutionEngine.Execute("{ definitely-not-json", "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
-        var shell = JsonSerializer.SerializeToElement(result.Data);
-
-        Assert.Equal("en", shell.GetProperty("language").GetString());
-        var restored = JsonSerializer.Deserialize<WebExecutionState>(result.State);
-        Assert.NotNull(restored);
-        Assert.Equal(0, restored!.Revision.Global);
+    public void Corrupt_persisted_browser_state_is_not_replaced_with_a_default_location() {
+        var error = Assert.Throws<InvalidDataException>(() => WebCoreExecutionEngine.Execute(
+            "{ definitely-not-json", "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { })));
+        Assert.Contains("not replaced", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -85,6 +82,99 @@ public sealed class WebStateRpcTests {
         Assert.Equal(string.Empty, calculated.GetProperty("country").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("countryName").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("city").GetString());
+    }
+
+    [Fact]
+    public void Settings_mutations_return_and_persist_complete_confirmed_projections() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        var adhan = Dispatch(dispatcher, "settings.update", new {
+            section = "adhan", field = "value", value = new {
+                sounds = Array.Empty<object>(), volume = 80, calculationMethod = "Auto",
+                calculationMethods = Array.Empty<object>(), madhhab = "Shafi", madhhabs = Array.Empty<object>(),
+                highLatitudeRule = "MiddleOfTheNight", highLatitudeRules = Array.Empty<object>(),
+                fajrAngle = 18, ishaAngle = 17, isCustomMethod = false,
+                offsets = new { fajr = 0, sunrise = 0, dhuhr = 0, asr = 0, maghrib = 0, isha = 0, imsak = 0 },
+                clockFormat = "24h", fasting = new { iftarDelay = 0, imsakAdvance = 10 },
+                imsakReminders = new[] { new { value = 10, unit = "minute", direction = "before" } },
+                iftarReminders = Array.Empty<object>(), perPrayerOverrides = Array.Empty<object>()
+            }
+        });
+        var confirmed = JsonSerializer.SerializeToElement(adhan).GetProperty("projection");
+        Assert.Single(confirmed.GetProperty("imsakReminders").EnumerateArray());
+        var reread = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "settings.getSnapshot", new { section = "adhan" }));
+        Assert.Single(reread.GetProperty("imsakReminders").EnumerateArray());
+        Assert.Equal(WebPrayerMonthFactory.EngineId, reread.GetProperty("calculationEngine").GetString());
+
+        var notifications = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "settings.getSnapshot", new { section = "notifications" }));
+        Assert.Equal(5, notifications.GetProperty("reminderPrayers").GetArrayLength());
+        Assert.Equal(2, notifications.GetProperty("reminderScopes").GetArrayLength());
+    }
+
+    [Fact]
+    public void Deterministic_same_device_data_calls_stay_below_300ms() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        foreach (var (method, payload) in new (string, object)[] {
+            ("app.bootstrap", new { }),
+            ("settings.getSnapshot", new { section = "locations" }),
+            ("tasbih.getSnapshot", new { }),
+            ("tasbih.addPreset", new { name = "Performance fixture" }),
+            ("tasbih.removePreset", new { id = "performance-fixture" }),
+            ("onboarding.complete", new { })
+        }) {
+            var timer = Stopwatch.StartNew();
+            Dispatch(dispatcher, method, payload);
+            timer.Stop();
+            Assert.True(timer.ElapsedMilliseconds < 300, $"{method} took {timer.ElapsedMilliseconds}ms");
+        }
+    }
+
+    [Fact]
+    public void Tasbih_preset_create_and_delete_return_complete_confirmed_collections() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        var created = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.addPreset", new { name = "Temporary preset" }));
+        var createdPresets = created.GetProperty("presets").EnumerateArray().ToArray();
+        var createdPreset = Assert.Single(createdPresets, preset => preset.GetProperty("name").GetString() == "Temporary preset");
+        Assert.Equal(createdPreset.GetProperty("id").GetString(), created.GetProperty("selectedPresetId").GetString());
+
+        var deleted = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.removePreset", new { id = createdPreset.GetProperty("id").GetString() }));
+        Assert.DoesNotContain(deleted.GetProperty("presets").EnumerateArray(), preset => preset.GetProperty("name").GetString() == "Temporary preset");
+        Assert.NotEqual(createdPreset.GetProperty("id").GetString(), deleted.GetProperty("selectedPresetId").GetString());
+    }
+
+    [Fact]
+    public void Tasbih_mutations_return_the_updated_repeat_mode_and_item_projection() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        var created = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.addPreset", new { name = "Editable preset" }));
+        var id = created.GetProperty("selectedPresetId").GetString();
+
+        var updatedPreset = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.updatePreset", new {
+            id,
+            name = "Renamed preset",
+            repeatMode = "Reset"
+        }));
+        var preset = Assert.Single(updatedPreset.GetProperty("presets").EnumerateArray(), item => item.GetProperty("id").GetString() == id);
+        Assert.Equal("Renamed preset", preset.GetProperty("name").GetString());
+        Assert.Equal("Reset", preset.GetProperty("repeatMode").GetString());
+
+        var addedItem = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.addItem", new {
+            presetId = id,
+            text = "Second item",
+            targetCount = 7
+        }));
+        preset = Assert.Single(addedItem.GetProperty("presets").EnumerateArray(), item => item.GetProperty("id").GetString() == id);
+        Assert.Contains(preset.GetProperty("items").EnumerateArray(), item =>
+            item.GetProperty("text").GetString() == "Second item" && item.GetProperty("targetCount").GetInt32() == 7);
+
+        var updatedItem = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "tasbih.updateItem", new {
+            presetId = id,
+            index = 1,
+            text = "Edited item",
+            targetCount = 9
+        }));
+        preset = Assert.Single(updatedItem.GetProperty("presets").EnumerateArray(), item => item.GetProperty("id").GetString() == id);
+        var item = preset.GetProperty("items")[1];
+        Assert.Equal("Edited item", item.GetProperty("text").GetString());
+        Assert.Equal(9, item.GetProperty("targetCount").GetInt32());
     }
 
     [Fact]

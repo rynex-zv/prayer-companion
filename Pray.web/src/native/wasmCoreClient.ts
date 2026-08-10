@@ -56,6 +56,10 @@ async function loadWasmCore(): Promise<StatefulWasmCall | undefined> {
   return loadPromise;
 }
 
+export async function preloadWasmCore(): Promise<void> {
+  await loadWasmCore();
+}
+
 export function getLastWasmCoreLoadError(): string {
   return lastLoadError;
 }

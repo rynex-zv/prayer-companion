@@ -24,16 +24,31 @@ public readonly record struct AppPermissionSnapshot(
     bool IsSupported);
 
 public sealed class AppPermissionCenterService : IAppPermissionCenterService {
-    public async Task<IReadOnlyList<AppPermissionSnapshot>> GetSnapshotsAsync() {
-        var items = new List<AppPermissionSnapshot> {
-            new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: true, IsSupported: IsNotificationsSupported()),
-            new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsFullScreenIntentsSupported()),
-            new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsDisplayOverAppsSupported()),
-            new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: true, IsSupported: IsExactAlarmsSupported()),
-            new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: false, IsSupported: IsLocationSupported())
-        };
+    private static readonly TimeSpan SnapshotLifetime = TimeSpan.FromSeconds(30);
+    private readonly SemaphoreSlim _snapshotGate = new(1, 1);
+    private IReadOnlyList<AppPermissionSnapshot>? _cachedSnapshots;
+    private DateTime _cachedAtUtc;
 
-        return items.Where(item => item.IsSupported).ToList();
+    public async Task<IReadOnlyList<AppPermissionSnapshot>> GetSnapshotsAsync() {
+        if (TryGetCachedSnapshots(out var cached)) return cached;
+
+        await _snapshotGate.WaitAsync().ConfigureAwait(false);
+        try {
+            if (TryGetCachedSnapshots(out cached)) return cached;
+            var items = new List<AppPermissionSnapshot> {
+                new(AppPermissionKind.Notifications, await IsNotificationsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: true, IsSupported: IsNotificationsSupported()),
+                new(AppPermissionKind.FullScreenIntents, await IsFullScreenIntentsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsFullScreenIntentsSupported()),
+                new(AppPermissionKind.DisplayOverApps, await IsDisplayOverAppsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: false, IsSupported: IsDisplayOverAppsSupported()),
+                new(AppPermissionKind.ExactAlarms, await IsExactAlarmsGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: true, IsCritical: true, IsSupported: IsExactAlarmsSupported()),
+                new(AppPermissionKind.Location, await IsLocationGrantedAsync().ConfigureAwait(false), UsesSettingsFlow: false, IsCritical: false, IsSupported: IsLocationSupported())
+            };
+
+            _cachedSnapshots = items.Where(item => item.IsSupported).ToArray();
+            _cachedAtUtc = DateTime.UtcNow;
+            return _cachedSnapshots;
+        } finally {
+            _snapshotGate.Release();
+        }
     }
 
     public async Task<AlarmPermissionState> GetAlarmPermissionStateAsync() {
@@ -45,6 +60,7 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
     }
 
     public async Task ResolveAsync(AppPermissionKind kind) {
+        InvalidateSnapshots();
         switch (kind) {
             case AppPermissionKind.Notifications:
                 await ResolveNotificationsAsync().ConfigureAwait(false);
@@ -62,6 +78,22 @@ public sealed class AppPermissionCenterService : IAppPermissionCenterService {
                 await ResolveLocationAsync().ConfigureAwait(false);
                 return;
         }
+    }
+
+    private bool TryGetCachedSnapshots(out IReadOnlyList<AppPermissionSnapshot> snapshots) {
+        var cached = _cachedSnapshots;
+        if (cached != null && DateTime.UtcNow - _cachedAtUtc <= SnapshotLifetime) {
+            snapshots = cached;
+            return true;
+        }
+
+        snapshots = Array.Empty<AppPermissionSnapshot>();
+        return false;
+    }
+
+    private void InvalidateSnapshots() {
+        _cachedSnapshots = null;
+        _cachedAtUtc = default;
     }
 
     private static async Task<bool> IsNotificationsGrantedAsync() {

@@ -13,7 +13,7 @@ for (const file of walk(src)) {
     continue;
   }
   if (!source.includes("native/mauiWebberClient")) continue;
-  if (relative === "client/appClient.ts" || relative === "client/applicationClient.ts" || relative === "client/telemetry.ts") continue;
+  if (relative === "client/appClient.ts" || relative === "client/applicationClient.ts" || relative === "client/telemetry.ts" || relative === "automation/report.ts") continue;
   violations.push(relative);
 }
 for (const retired of ["client/legacyClient.ts", "hooks/useSnapshot.ts", "hooks/useStoredSnapshot.ts"]) {

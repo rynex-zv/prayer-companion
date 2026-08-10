@@ -6,7 +6,7 @@ namespace PrayAdFree.Core.Services;
 
 public sealed class PrayerTimesService {
     public const int CacheSchemaVersion = 3;
-    public const int CalculationVersion = 1;
+    public const int CalculationVersion = 3;
     private readonly IPrayerTimesClient _client;
     private readonly PrayerTimesCache _cache;
 
@@ -37,11 +37,12 @@ public sealed class PrayerTimesService {
 
     public static string BuildCacheKey(AppSettings settings, int year, int month) {
         var method = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.Resolve(settings.Location.CountryCode, CalculationMethod.MuslimWorldLeague)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
             : settings.Method;
         var raw = string.Join('|',
             $"schema:{CacheSchemaVersion}",
             $"calculation:{CalculationVersion}",
+            $"engine:{WebPrayerMonthFactory.EngineId}",
             $"period:{year:D4}-{month:D2}",
             $"latitude:{settings.Location.Latitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}",
             $"longitude:{settings.Location.Longitude.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}",

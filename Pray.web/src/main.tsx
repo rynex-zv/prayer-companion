@@ -12,6 +12,9 @@ import "./styles.css";
 import "@/state/appStore";
 
 import { getRouter } from "./router";
+import { automationEnabled } from "./automation/config";
+import { startAutomationRun } from "./automation/runner";
+import { preloadBrowserBackend } from "./native/browserAppBackend";
 
 const root = document.getElementById("app");
 
@@ -19,8 +22,20 @@ if (!root) {
   throw new Error("Missing #app root element.");
 }
 
-createRoot(root).render(
-  <StrictMode>
-    <RouterProvider router={getRouter()} />
-  </StrictMode>,
-);
+async function startApplication() {
+  if (!window.mauiWebber && window.location.protocol !== "file:" && window.location.hostname !== "app.prayadfree.local") {
+    await preloadBrowserBackend();
+  }
+
+  createRoot(root!).render(
+    <StrictMode>
+      <RouterProvider router={getRouter()} />
+    </StrictMode>,
+  );
+
+  if (automationEnabled()) {
+    await startAutomationRun();
+  }
+}
+
+void startApplication();

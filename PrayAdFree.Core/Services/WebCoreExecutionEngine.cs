@@ -24,17 +24,20 @@ public static class WebCoreExecutionEngine {
             var envelope = JsonSerializer.Deserialize(stateJson, CoreJsonContext.Default.WebExecutionState);
             if (envelope?.State is not null && envelope.Revision is not null) {
                 envelope.State.EnsureDefaults();
+                envelope.State.ValidatePersisted();
                 return envelope;
             }
-        } catch (JsonException) {
-        }
 
-        try {
-            var legacy = JsonSerializer.Deserialize(stateJson, CoreJsonContext.Default.WebState) ?? WebState.Default();
-            legacy.EnsureDefaults();
-            return new WebExecutionState(legacy, new AppRevision(0, new Dictionary<string, long>(), 0));
-        } catch (JsonException) {
-            return Default();
+            var legacy = JsonSerializer.Deserialize(stateJson, CoreJsonContext.Default.WebState);
+            if (legacy is not null) {
+                legacy.EnsureDefaults();
+                legacy.ValidatePersisted();
+                return new WebExecutionState(legacy, new AppRevision(0, new Dictionary<string, long>(), 0));
+            }
+            throw new InvalidDataException("Persisted WebAssembly state envelope is incomplete.");
+        } catch (JsonException exception) {
+            throw new InvalidDataException(
+                "Persisted WebAssembly state is corrupt. It was not replaced with Amsterdam defaults.", exception);
         }
     }
 

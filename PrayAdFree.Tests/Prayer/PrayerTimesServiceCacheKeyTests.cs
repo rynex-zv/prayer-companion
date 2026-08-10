@@ -36,13 +36,13 @@ public class PrayerTimesServiceCacheKeyTests {
     [Fact]
     public void BuildCacheKey_ChangesForSubFourDecimalCoordinateAndTimezoneInputs() {
         var baseline = new AppSettings {
-            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, TimeZoneId = "Europe/Amsterdam" }
+            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, CountryCode = "NL", TimeZoneId = "Europe/Amsterdam" }
         };
         var coordinate = new AppSettings {
-            Location = new LocationSettings { Latitude = 52.36760002, Longitude = 4.9041, TimeZoneId = "Europe/Amsterdam" }
+            Location = new LocationSettings { Latitude = 52.36760002, Longitude = 4.9041, CountryCode = "NL", TimeZoneId = "Europe/Amsterdam" }
         };
         var timezone = new AppSettings {
-            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, TimeZoneId = "UTC" }
+            Location = new LocationSettings { Latitude = 52.36760001, Longitude = 4.9041, CountryCode = "NL", TimeZoneId = "UTC" }
         };
 
         var key = PrayerTimesService.BuildCacheKey(baseline, 2026, 7);

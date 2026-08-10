@@ -117,6 +117,57 @@ public sealed class BackendArchitectureTests {
     }
 
     [Fact]
+    public void Windows_web_content_uses_a_stable_https_origin_and_accessible_host() {
+        var root = FindRepoRoot();
+        var host = File.ReadAllText(Path.Combine(root, "MauiWebber", "MauiWebberPage.cs"));
+        Assert.Contains("app.prayadfree.local", host, StringComparison.Ordinal);
+        Assert.Contains("SetVirtualHostNameToFolderMapping", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("TryUseFallbackAsync", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("ResolveAfterNavigationFailureAsync", host, StringComparison.Ordinal);
+        Assert.Contains("WebView.ReleaseBlocker", host, StringComparison.Ordinal);
+        Assert.Contains("CreateCoreWebView2ControllerAsync", host, StringComparison.Ordinal);
+        Assert.Contains("CoreWebView2ControllerWindowReference.CreateFromWindowHandle", host, StringComparison.Ordinal);
+        Assert.Contains("NotifyParentWindowPositionChanged", host, StringComparison.Ordinal);
+        var uiaTest = File.ReadAllText(Path.Combine(root, "tools", "Test-WindowsAccessibility.ps1"));
+        Assert.Contains("ControlType]::Document", uiaTest, StringComparison.Ordinal);
+        Assert.Contains("NamedInteractiveControls", uiaTest, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Phone_bundle_and_native_injection_share_one_console_and_response_listener() {
+        var root = FindRepoRoot();
+        var build = File.ReadAllText(Path.Combine(root, "Pray.web", "scripts", "build.mjs"));
+        var host = File.ReadAllText(Path.Combine(root, "MauiWebber", "MauiWebberPage.cs"));
+
+        Assert.Contains("window.__mauiWebberJsLogAttached = true", build, StringComparison.Ordinal);
+        Assert.Contains("__nativeResponseListener: receiveResponse", build, StringComparison.Ordinal);
+        Assert.Contains("!window.mauiWebber.__nativeResponseListener", host, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Native_and_browser_backends_share_strict_input_rejection() {
+        var root = FindRepoRoot();
+        var native = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "WebAppRpcHandler.cs"));
+        var browser = File.ReadAllText(Path.Combine(root, "PrayAdFree.Core", "Services", "WebCoreRpcDispatcher.cs"));
+
+        foreach (var source in new[] { native, browser }) {
+            Assert.Contains("AppInputContract.RequiredChoice", source, StringComparison.Ordinal);
+            Assert.Contains("Unknown settings section", source, StringComparison.Ordinal);
+        }
+        Assert.Contains("AppInputContract.RequiredIndex", native, StringComparison.Ordinal);
+        Assert.Contains("Unknown Tasbih preset ID", browser, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Automation_readiness_api_tracks_bootstrap_state_changes() {
+        var root = FindRepoRoot();
+        var shell = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "components", "AppShell.tsx"));
+
+        Assert.Contains("isReady: () => getAppState().bootstrapStatus === \"ready\"", shell, StringComparison.Ordinal);
+        Assert.Contains("bootstrapAppState().catch", shell, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Native_derived_caches_are_versioned_and_input_keyed() {
         var root = FindRepoRoot();
         var prayer = File.ReadAllText(Path.Combine(root, "PrayAdFree.Core", "Services", "PrayerTimesService.cs"));

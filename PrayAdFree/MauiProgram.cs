@@ -135,10 +135,7 @@ namespace Pray_Ad_Free {
             builder.Logging.AddDebug();
 #endif
 
-            builder.Services.AddSingleton<ISettingsStore>(_ => new FileSettingsStore(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "PrayAdFree",
-                    "app_settings.json")));
+            builder.Services.AddSingleton<ISettingsStore>(_ => new FileSettingsStore(AutomationRuntime.SettingsPath));
             builder.Services.AddSingleton<SettingsService>();
             builder.Services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<SettingsService>());
             builder.Services.AddSingleton<IApplicationTransactionFactory>(sp => sp.GetRequiredService<SettingsService>());
@@ -155,7 +152,7 @@ namespace Pray_Ad_Free {
                     sp.GetRequiredService<PhotonGeoProvider>(),
                     sp.GetRequiredService<NominatimGeoProvider>()
                 },
-                Path.Combine(FileSystem.AppDataDirectory, "geo_cache.json")
+                Path.Combine(AutomationRuntime.DataRoot, "geo_cache.json")
             ));
             builder.Services.AddSingleton<IGeoLookupService>(sp => sp.GetRequiredService<GeoService>());
             builder.Services.AddSingleton<ILocationProvider, LocationProvider>();
@@ -177,9 +174,14 @@ namespace Pray_Ad_Free {
 #endif
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<AndroidAlarmCapabilityService>();
+#if PRAY_AUTOMATION
+            builder.Services.AddSingleton<ILocalNotificationScheduler, AutomationNotificationScheduler>();
+#else
             builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
-            builder.Services.AddSingleton(_ => new PrayerTimesCache(FileSystem.AppDataDirectory));
-            builder.Services.AddHttpClient<IPrayerTimesClient, AladhanPrayerTimesClient>();
+#endif
+            builder.Services.AddSingleton(_ => new PrayerTimesCache(AutomationRuntime.DataRoot));
+            builder.Services.AddSingleton<WebPrayerMonthFactory>();
+            builder.Services.AddSingleton<IPrayerTimesClient, SharedCorePrayerTimesClient>();
             builder.Services.AddSingleton<PrayerTimesService>();
             builder.Services.AddSingleton<PrayerDataService>();
             builder.Services.AddSingleton<NotificationBootstrapper>();

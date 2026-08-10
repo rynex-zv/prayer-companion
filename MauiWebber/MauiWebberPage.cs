@@ -6,13 +6,16 @@ using AndroidWebView = Android.Webkit.WebView;
 using Java.Interop;
 #endif
 #if WINDOWS
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+using WinRT.Interop;
 #endif
 
 namespace MauiWebber;
 
 public class MauiWebberPage : ContentPage {
+    private const string LocalContentHost = "app.prayadfree.local";
     private const string RpcScheme = "mauiwebber";
     private const string RpcHost = "rpc";
     private const string RpcSentinelHost = "mauiwebber.local";
@@ -27,12 +30,17 @@ public class MauiWebberPage : ContentPage {
     private readonly SemaphoreSlim _scriptGate = new(1, 1);
     private bool _loaded;
     private bool _firstTodaySnapshotLogged;
-    private int _navigationFallbackAttempts;
     private int _shakeCount;
     private DateTimeOffset _shakeSequenceStartedAt;
     private DateTimeOffset _lastShakeAt;
 #if ANDROID
     private AndroidMauiWebberBridge? _androidBridge;
+#endif
+#if WINDOWS
+    private CoreWebView2Controller? _windowsController;
+    private CoreWebView2? _windowsCoreWebView2;
+    private WebView2? _windowsLayoutView;
+    private Windows.Foundation.Rect _windowsControllerBounds;
 #endif
 
     public MauiWebberPage(
@@ -45,11 +53,28 @@ public class MauiWebberPage : ContentPage {
         _logger = logger ?? NullMauiWebberLogger.Instance;
         _initialRoute = initialRoute;
         Content = _webView;
+        // React/ARIA remains the accessibility authority. On Windows the MAUI
+        // composition-hosted peer is retained only for layout; a windowed
+        // CoreWebView2Controller attaches Chromium's provider to the app HWND.
         _webView.HandlerChanged += OnWebViewHandlerChanged;
         _webView.Navigating += OnNavigating;
         _webView.Navigated += OnNavigated;
         MauiWebberEventHub.Published += OnApplicationEvent;
-        Unloaded += (_, _) => MauiWebberEventHub.Published -= OnApplicationEvent;
+        Unloaded += OnPageUnloaded;
+    }
+
+    private void OnPageUnloaded(object? sender, EventArgs e) {
+        _logger.Log("Page.Unloaded", $"ms={_stopwatch.ElapsedMilliseconds}");
+        MauiWebberEventHub.Published -= OnApplicationEvent;
+#if WINDOWS
+        if (_windowsLayoutView != null) {
+            _windowsLayoutView.LayoutUpdated -= OnWindowsLayoutUpdated;
+        }
+        _windowsController?.Close();
+        _windowsController = null;
+        _windowsCoreWebView2 = null;
+        _windowsLayoutView = null;
+#endif
     }
 
     private void OnApplicationEvent(object? sender, object value) {
@@ -59,8 +84,10 @@ public class MauiWebberPage : ContentPage {
     private async Task PublishApplicationEventAsync(object value) {
         try {
             var json = JsonSerializer.Serialize(value, JsonOptions);
+            _logger.Log("ApplicationEvent.Dispatch", $"ms={_stopwatch.ElapsedMilliseconds};payload={json}");
             var script = $"window.dispatchEvent(new CustomEvent('mauiwebber:app-event',{{detail:{json}}}));";
-            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+            await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+            _logger.Log("ApplicationEvent.Delivered", $"ms={_stopwatch.ElapsedMilliseconds}");
         } catch (Exception ex) {
             _logger.LogException(ex, "MauiWebber.PublishApplicationEvent");
         }
@@ -96,33 +123,49 @@ public class MauiWebberPage : ContentPage {
 #endif
 #if WINDOWS
         if (_webView.Handler?.PlatformView is WebView2 windowsWebView) {
-            windowsWebView.CoreWebView2Initialized -= OnWindowsWebView2Initialized;
-            windowsWebView.CoreWebView2Initialized += OnWindowsWebView2Initialized;
-            windowsWebView.WebMessageReceived -= OnWindowsWebMessageReceived;
-            windowsWebView.WebMessageReceived += OnWindowsWebMessageReceived;
-            if (windowsWebView.CoreWebView2 != null) {
-                EnableWindowsWebMessages(windowsWebView.CoreWebView2);
-            }
+            _windowsLayoutView = windowsWebView;
+            windowsWebView.Opacity = 0;
+            windowsWebView.IsHitTestVisible = false;
+            windowsWebView.LayoutUpdated -= OnWindowsLayoutUpdated;
+            windowsWebView.LayoutUpdated += OnWindowsLayoutUpdated;
         }
 #endif
     }
 
 #if WINDOWS
-    private void OnWindowsWebView2Initialized(WebView2 sender, CoreWebView2InitializedEventArgs args) {
-        if (args.Exception != null || sender.CoreWebView2 == null) {
-            _logger.Log("WebView2.Init.Failed", args.Exception?.Message ?? "unknown");
+    private async Task EnsureWindowsWindowedWebViewAsync() {
+        if (_windowsController != null && _windowsCoreWebView2 != null) {
             return;
         }
 
-        EnableWindowsWebMessages(sender.CoreWebView2);
+        var platformWindow = Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window
+            ?? throw new InvalidOperationException("Windows host window is unavailable.");
+        var hostHwnd = WindowNative.GetWindowHandle(platformWindow);
+        if (hostHwnd == IntPtr.Zero) {
+            throw new InvalidOperationException("Windows host HWND is unavailable.");
+        }
+
+        var environment = await CoreWebView2Environment.CreateAsync();
+        var parentWindow = CoreWebView2ControllerWindowReference.CreateFromWindowHandle(
+            unchecked((ulong)hostHwnd.ToInt64()));
+        _windowsController = await environment.CreateCoreWebView2ControllerAsync(parentWindow);
+        _windowsController.BoundsMode = CoreWebView2BoundsMode.UseRasterizationScale;
+        _windowsCoreWebView2 = _windowsController.CoreWebView2;
+        _windowsCoreWebView2.WebMessageReceived += OnWindowsWebMessageReceived;
+        _windowsCoreWebView2.NavigationCompleted += OnWindowsNavigationCompleted;
+        EnableWindowsWebMessages(_windowsCoreWebView2);
+        UpdateWindowsControllerBounds();
+        _windowsController.IsVisible = true;
+        _logger.Log("WebView2.WindowedController.Attached", $"hwnd=0x{hostHwnd.ToInt64():X};ms={_stopwatch.ElapsedMilliseconds}");
     }
 
     private void EnableWindowsWebMessages(CoreWebView2 coreWebView2) {
         coreWebView2.Settings.IsWebMessageEnabled = true;
+        coreWebView2.Settings.AreDefaultScriptDialogsEnabled = true;
         _logger.Log("WebView2.MessageHandler.Attached", $"ms={_stopwatch.ElapsedMilliseconds}");
     }
 
-    private async void OnWindowsWebMessageReceived(WebView2 sender, CoreWebView2WebMessageReceivedEventArgs args) {
+    private async void OnWindowsWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args) {
         try {
             var message = args.TryGetWebMessageAsString();
             _logger.Log("WebView2.MessageReceived", $"ms={_stopwatch.ElapsedMilliseconds};length={message?.Length ?? 0}");
@@ -133,28 +176,94 @@ public class MauiWebberPage : ContentPage {
             _logger.LogException(ex, "MauiWebber.WebView2.MessageReceived");
         }
     }
+
+    private async void OnWindowsNavigationCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args) {
+        var url = sender.Source;
+        _logger.Log("WebView.Navigated", $"ms={_stopwatch.ElapsedMilliseconds};success={args.IsSuccess};status={args.WebErrorStatus};url={url}");
+        await HandleNavigationCompletedAsync(args.IsSuccess, url).ConfigureAwait(false);
+    }
+
+    private void OnWindowsLayoutUpdated(object? sender, object e) => UpdateWindowsControllerBounds();
+
+    private void UpdateWindowsControllerBounds() {
+        if (_windowsController == null || _windowsLayoutView?.XamlRoot?.Content is not UIElement root) {
+            return;
+        }
+
+        // Keep the controller in logical-pixel mode and provide WinUI's exact
+        // rasterization scale. Mixing DIPs with raw-pixel bounds distorts both
+        // rendering and UIA coordinates on scaled displays.
+        _windowsController.RasterizationScale = _windowsLayoutView.XamlRoot.RasterizationScale;
+        var origin = _windowsLayoutView.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(0, 0));
+        var bounds = new Windows.Foundation.Rect(
+            Math.Max(0, origin.X),
+            Math.Max(0, origin.Y),
+            Math.Max(1, _windowsLayoutView.ActualWidth),
+            Math.Max(1, _windowsLayoutView.ActualHeight));
+        if (bounds == _windowsControllerBounds) {
+            return;
+        }
+
+        _windowsControllerBounds = bounds;
+        _windowsController.Bounds = bounds;
+        _windowsController.NotifyParentWindowPositionChanged();
+        _logger.Log("WebView2.Bounds", $"width={bounds.Width};height={bounds.Height};scale={_windowsController.RasterizationScale};ms={_stopwatch.ElapsedMilliseconds}");
+    }
 #endif
 
     protected override async void OnAppearing() {
         base.OnAppearing();
         StartShakeDetection();
         if (_loaded) {
+#if WINDOWS
+            if (_windowsController != null) {
+                UpdateWindowsControllerBounds();
+                _windowsController.IsVisible = true;
+            }
+#endif
             return;
         }
 
         _loaded = true;
-        var startupFile = await _updater.ResolveStartupFileAsync().ConfigureAwait(false);
-        await MainThread.InvokeOnMainThreadAsync(() => {
+        try {
+            var startupFile = await _updater.ResolveStartupFileAsync().ConfigureAwait(false);
+            await MainThread.InvokeOnMainThreadAsync(async () => {
+#if WINDOWS
+            for (var attempt = 0; attempt < 80 && _windowsLayoutView == null; attempt++) {
+                if (_webView.Handler?.PlatformView is WebView2 windowsWebView) {
+                    _windowsLayoutView = windowsWebView;
+                } else {
+                    await Task.Delay(25).ConfigureAwait(true);
+                }
+            }
+            if (_windowsLayoutView == null) {
+                throw new InvalidOperationException("Windows WebView2 handler did not initialize; refusing insecure file: navigation.");
+            }
+            await EnsureWindowsWindowedWebViewAsync();
+            var sourceUrl = BuildSourceUrl(startupFile);
+            _windowsCoreWebView2!.Navigate(sourceUrl);
+            _logger.Log("WebView.SourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={sourceUrl}");
+#else
             _webView.Source = new UrlWebViewSource {
                 Url = BuildSourceUrl(startupFile)
             };
             _logger.Log("WebView.SourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
-        });
-        _ = _updater.CheckForUpdatesAsync();
+#endif
+            });
+            _ = _updater.CheckForUpdatesAsync();
+        } catch (Exception ex) {
+            _logger.LogException(ex, "MauiWebber.Startup");
+            _logger.Log("WebView.ReleaseBlocker", $"reason=startup-failed;error={ex.Message}");
+        }
     }
 
     protected override void OnDisappearing() {
         StopShakeDetection();
+#if WINDOWS
+        if (_windowsController != null) {
+            _windowsController.IsVisible = false;
+        }
+#endif
         base.OnDisappearing();
     }
 
@@ -250,7 +359,7 @@ public class MauiWebberPage : ContentPage {
 
     private async Task DispatchShakeUnlockAsync() {
         try {
-            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(
+            await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync(
                 "window.dispatchEvent(new Event('prayercompanion:shake-unlock'));"
             )).ConfigureAwait(false);
             _logger.Log("Shake.Unlock", "count=5");
@@ -261,14 +370,18 @@ public class MauiWebberPage : ContentPage {
 
     private async void OnNavigated(object? sender, WebNavigatedEventArgs e) {
         _logger.Log("WebView.Navigated", $"ms={_stopwatch.ElapsedMilliseconds};result={e.Result};url={e.Url}");
-        if (e.Result == WebNavigationResult.Success) {
+        await HandleNavigationCompletedAsync(e.Result == WebNavigationResult.Success, e.Url).ConfigureAwait(false);
+    }
+
+    private async Task HandleNavigationCompletedAsync(bool succeeded, string url) {
+        if (succeeded) {
             try {
                 _logger.Log("Bridge.Inject.Start", $"ms={_stopwatch.ElapsedMilliseconds}");
                 await InjectBridgeAsync().ConfigureAwait(false);
                 await NavigateToInitialRouteAsync().ConfigureAwait(false);
                 _logger.Log("Bridge.Inject.End", $"ms={_stopwatch.ElapsedMilliseconds}");
                 var diagnostics = await MainThread.InvokeOnMainThreadAsync(() =>
-                    _webView.EvaluateJavaScriptAsync("""
+                    EvaluateJavaScriptAsync("""
                         (function(){
                           var app = document.getElementById('app');
                           return JSON.stringify({
@@ -281,20 +394,21 @@ public class MauiWebberPage : ContentPage {
                         """)).ConfigureAwait(false);
                 _logger.Log("Bridge.PageDiagnostics", $"ms={_stopwatch.ElapsedMilliseconds};result={diagnostics}");
                 if (await WaitForReactRootAsync().ConfigureAwait(false)) {
-                    _logger.Log("WebView.RuntimeHealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={e.Url}");
+                    await CaptureWindowsVisualEvidenceAsync().ConfigureAwait(false);
+                    _logger.Log("WebView.RuntimeHealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={url}");
                     return;
                 }
 
-                _logger.Log("WebView.RuntimeUnhealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={e.Url}");
+                _logger.Log("WebView.RuntimeUnhealthy", $"ms={_stopwatch.ElapsedMilliseconds};url={url}");
             } catch (Exception ex) {
                 _logger.LogException(ex, "MauiWebber.Bridge.Inject");
             }
 
-            await TryUseFallbackAsync(e.Url).ConfigureAwait(false);
+            _logger.Log("WebView.ReleaseBlocker", $"reason=runtime-unhealthy;url={url}");
             return;
         }
 
-        await TryUseFallbackAsync(e.Url).ConfigureAwait(false);
+        _logger.Log("WebView.ReleaseBlocker", $"reason=navigation-failed;url={url}");
     }
 
     private async Task<bool> WaitForReactRootAsync() {
@@ -307,8 +421,8 @@ public class MauiWebberPage : ContentPage {
                     """;
             var result = await MainThread.InvokeOnMainThreadAsync(async () => {
 #if WINDOWS
-                if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
-                    return await windowsWebView.CoreWebView2.ExecuteScriptAsync(script);
+                if (_windowsCoreWebView2 != null) {
+                    return await _windowsCoreWebView2.ExecuteScriptAsync(script);
                 }
 #endif
                 return await _webView.EvaluateJavaScriptAsync(script);
@@ -321,26 +435,6 @@ public class MauiWebberPage : ContentPage {
         }
 
         return false;
-    }
-
-    private async Task TryUseFallbackAsync(string failedUrl) {
-        if (_navigationFallbackAttempts >= 2) {
-            _logger.Log("WebView.FallbackExhausted", $"url={failedUrl}");
-            return;
-        }
-
-        _navigationFallbackAttempts++;
-        var fallback = await _updater.ResolveAfterNavigationFailureAsync(failedUrl).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(fallback)) {
-            await MainThread.InvokeOnMainThreadAsync(() => {
-                _webView.Source = new UrlWebViewSource {
-                    Url = Uri.TryCreate(fallback, UriKind.Absolute, out var uri)
-                        ? uri.AbsoluteUri
-                        : new Uri(fallback).AbsoluteUri
-                };
-                _logger.Log("WebView.FallbackSourceSet", $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
-            });
-        }
     }
 
     private async void OnNavigating(object? sender, WebNavigatingEventArgs e) {
@@ -516,18 +610,36 @@ public class MauiWebberPage : ContentPage {
         var data = await _rpcHandler.HandleAsync(request.Method, request.Payload, CancellationToken.None).ConfigureAwait(false);
         var rpcElapsed = _stopwatch.ElapsedMilliseconds - rpcStarted;
         _logger.Log("Rpc.Handled", $"method={request.Method};ms={rpcElapsed}");
+        if (rpcElapsed > 300 && !IsInteractiveOperation(request.Method)) {
+            _logger.Log("Rpc.BudgetExceeded", $"method={request.Method};ms={rpcElapsed};budgetMs=300");
+        }
         if (isFirstTodaySnapshot) {
             _logger.Log("Today.GetSnapshot.First.End", $"ms={_stopwatch.ElapsedMilliseconds};elapsed={rpcElapsed}");
         }
         await ResolveAsync(request.Id, new MauiWebberRpcResponse { Ok = true, Data = data }).ConfigureAwait(false);
     }
 
+    private static bool IsInteractiveOperation(string method) =>
+        method.StartsWith("permissions.", StringComparison.Ordinal) ||
+        method.StartsWith("location.", StringComparison.Ordinal) ||
+        method.StartsWith("adhan.sound.", StringComparison.Ordinal) ||
+        method.StartsWith("external.", StringComparison.Ordinal) ||
+        method is "mauiWebber.pullRemote" or "mauiWebber.clearSiteData";
+
     private void SetWebViewSource(string startupFile, string logName) {
-        _navigationFallbackAttempts = 0;
+#if WINDOWS
+        if (_windowsCoreWebView2 == null) {
+            throw new InvalidOperationException("Windows windowed WebView2 is unavailable; refusing navigation fallback.");
+        }
+        var sourceUrl = ToSourceUrl(startupFile);
+        _windowsCoreWebView2.Navigate(sourceUrl);
+        _logger.Log(logName, $"ms={_stopwatch.ElapsedMilliseconds};url={sourceUrl}");
+#else
         _webView.Source = new UrlWebViewSource {
             Url = ToSourceUrl(startupFile)
         };
         _logger.Log(logName, $"ms={_stopwatch.ElapsedMilliseconds};url={((UrlWebViewSource)_webView.Source).Url}");
+#endif
     }
 
     private async Task ClearNativeSiteDataAsync() {
@@ -540,8 +652,8 @@ public class MauiWebberPage : ContentPage {
         }).ConfigureAwait(false);
 #elif WINDOWS
         await MainThread.InvokeOnMainThreadAsync(async () => {
-            if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
-                await windowsWebView.CoreWebView2.Profile.ClearBrowsingDataAsync(
+            if (_windowsCoreWebView2 != null) {
+                await _windowsCoreWebView2.Profile.ClearBrowsingDataAsync(
                     CoreWebView2BrowsingDataKinds.DiskCache);
             }
         }).ConfigureAwait(false);
@@ -555,7 +667,18 @@ public class MauiWebberPage : ContentPage {
         _logger.Log("WebView.SiteDataCleared", "reconstructable-cache-only");
     }
 
-    private static string ToSourceUrl(string startupFile) {
+    private string ToSourceUrl(string startupFile) {
+#if WINDOWS
+        if (Uri.TryCreate(startupFile, UriKind.Absolute, out var absolute) && absolute.IsFile &&
+            _windowsCoreWebView2 != null) {
+            var directory = Path.GetDirectoryName(absolute.LocalPath) ?? throw new InvalidOperationException("Web bundle directory is missing.");
+            _windowsCoreWebView2.SetVirtualHostNameToFolderMapping(
+                LocalContentHost,
+                directory,
+                CoreWebView2HostResourceAccessKind.Allow);
+            return $"https://{LocalContentHost}/{Uri.EscapeDataString(Path.GetFileName(absolute.LocalPath))}";
+        }
+#endif
         return Uri.TryCreate(startupFile, UriKind.Absolute, out var uri)
             ? uri.AbsoluteUri
             : new Uri(startupFile).AbsoluteUri;
@@ -563,27 +686,69 @@ public class MauiWebberPage : ContentPage {
 
     private string BuildSourceUrl(string startupFile) {
         var source = ToSourceUrl(startupFile);
-        if (string.IsNullOrWhiteSpace(_initialRoute)) {
+        var initialRoute = EffectiveInitialRoute();
+        if (string.IsNullOrWhiteSpace(initialRoute)) {
             return source;
         }
 
-        var builder = new UriBuilder(source) { Fragment = _initialRoute.TrimStart('#') };
+        var builder = new UriBuilder(source) { Fragment = initialRoute.TrimStart('#') };
         return builder.Uri.AbsoluteUri;
     }
 
     private async Task NavigateToInitialRouteAsync() {
-        if (string.IsNullOrWhiteSpace(_initialRoute)) {
+        var initialRoute = EffectiveInitialRoute();
+        if (string.IsNullOrWhiteSpace(initialRoute)) {
             return;
         }
 
-        var routeJson = JsonSerializer.Serialize(_initialRoute, JsonOptions);
-        await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync($$"""
+        var routeJson = JsonSerializer.Serialize(initialRoute, JsonOptions);
+        await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync($$"""
             (function(){
               if (window.prayerCompanion && typeof window.prayerCompanion.navigate === 'function') {
                 window.prayerCompanion.navigate({{routeJson}});
               }
             })();
             """)).ConfigureAwait(false);
+    }
+
+    private string? EffectiveInitialRoute() =>
+        _initialRoute ?? Environment.GetEnvironmentVariable("PRAY_VISUAL_ROUTE");
+
+    private async Task CaptureWindowsVisualEvidenceAsync() {
+#if WINDOWS
+        var path = Environment.GetEnvironmentVariable("PRAY_VISUAL_CAPTURE_PATH");
+        if (string.IsNullOrWhiteSpace(path) || _windowsCoreWebView2 == null) return;
+        // Let route transitions, fonts, and entry animations settle before the
+        // diagnostic capture. This code only runs when the explicit visual QA
+        // environment variable is present.
+        await Task.Delay(1500).ConfigureAwait(false);
+        await MainThread.InvokeOnMainThreadAsync(async () => {
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
+            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await _windowsCoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, stream);
+            stream.Seek(0);
+            using var reader = new Windows.Storage.Streams.DataReader(stream.GetInputStreamAt(0));
+            await reader.LoadAsync((uint)stream.Size);
+            var bytes = new byte[stream.Size];
+            reader.ReadBytes(bytes);
+            await File.WriteAllBytesAsync(path, bytes);
+        }).ConfigureAwait(false);
+        _logger.Log("WebView.VisualEvidence.Captured", $"path={path};ms={_stopwatch.ElapsedMilliseconds}");
+#else
+        await Task.CompletedTask;
+#endif
+    }
+
+    private async Task<string?> EvaluateJavaScriptAsync(string script) {
+#if WINDOWS
+        if (_windowsCoreWebView2 == null) {
+            throw new InvalidOperationException("Windows windowed WebView2 is unavailable; refusing script fallback.");
+        }
+
+        return await _windowsCoreWebView2.ExecuteScriptAsync(script);
+#else
+        return await _webView.EvaluateJavaScriptAsync(script);
+#endif
     }
 
     private Task InjectBridgeAsync() {
@@ -797,7 +962,7 @@ public class MauiWebberPage : ContentPage {
               }, 0);
             })();
             """;
-        return _webView.EvaluateJavaScriptAsync(script);
+        return EvaluateJavaScriptAsync(script);
     }
 
     private async Task<bool> DispatchNavigationCommandAsync(string direction) {
@@ -818,7 +983,7 @@ public class MauiWebberPage : ContentPage {
                 })();
                 """;
 
-            var result = await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+            var result = await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
             var handled = IsJavaScriptTrue(result);
             _logger.Log("NavigationCommand", $"direction={direction};handled={handled};result={result}");
             return handled;
@@ -843,7 +1008,6 @@ public class MauiWebberPage : ContentPage {
         await _scriptGate.WaitAsync().ConfigureAwait(false);
         try {
 #if WINDOWS
-            await Task.Delay(50).ConfigureAwait(false);
             var envelope = new {
                 __mauiWebberResponse = true,
                 id,
@@ -851,8 +1015,8 @@ public class MauiWebberPage : ContentPage {
             };
             var json = JsonSerializer.Serialize(envelope, JsonOptions);
             var posted = await MainThread.InvokeOnMainThreadAsync(() => {
-                if (_webView.Handler?.PlatformView is WebView2 windowsWebView && windowsWebView.CoreWebView2 != null) {
-                    windowsWebView.CoreWebView2.PostWebMessageAsJson(json);
+                if (_windowsCoreWebView2 != null) {
+                    _windowsCoreWebView2.PostWebMessageAsJson(json);
                     return true;
                 }
 
@@ -861,12 +1025,12 @@ public class MauiWebberPage : ContentPage {
             if (!posted) {
                 var script = $"window.mauiWebber&&window.mauiWebber.__resolve({JsonSerializer.Serialize(id)}, {JsonSerializer.Serialize(response, JsonOptions)});";
                 await MainThread.InvokeOnMainThreadAsync(() => {
-                    return _webView.EvaluateJavaScriptAsync(script);
+                    return EvaluateJavaScriptAsync(script);
                 }).ConfigureAwait(false);
             }
 #else
             var script = $"window.mauiWebber&&window.mauiWebber.__resolve({JsonSerializer.Serialize(id)}, {JsonSerializer.Serialize(response, JsonOptions)});";
-            await MainThread.InvokeOnMainThreadAsync(() => _webView.EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
+            await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync(script)).ConfigureAwait(false);
 #endif
             _logger.Log("Resolve.End", $"id={id};elapsed={_stopwatch.ElapsedMilliseconds - started}");
         } catch (Exception ex) {

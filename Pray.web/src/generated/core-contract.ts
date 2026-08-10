@@ -34,6 +34,7 @@ export const coreContract = {
     "tasbih.selectPreset",
     "tasbih.addPreset",
     "tasbih.updatePreset",
+    "tasbih.removePreset",
     "tasbih.addItem",
     "tasbih.updateItem",
     "tasbih.moveItem",
@@ -58,6 +59,7 @@ export const coreContract = {
     "settings.update",
     "onboarding.getSnapshot",
     "onboarding.complete",
+    "automation.writeReports",
     "mauiWebber.getRemoteUrl",
     "mauiWebber.trace",
     "mauiWebber.setRemoteUrl",
@@ -197,6 +199,11 @@ export const coreContract = {
       "domain": "tasbih"
     },
     {
+      "name": "tasbih.removePreset",
+      "kind": "command",
+      "domain": "tasbih"
+    },
+    {
       "name": "tasbih.addItem",
       "kind": "command",
       "domain": "tasbih"
@@ -315,6 +322,11 @@ export const coreContract = {
       "name": "onboarding.complete",
       "kind": "command",
       "domain": "onboarding"
+    },
+    {
+      "name": "automation.writeReports",
+      "kind": "platformOperation",
+      "domain": "automation"
     },
     {
       "name": "mauiWebber.getRemoteUrl",

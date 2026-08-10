@@ -28,7 +28,7 @@ public class AdditionalCoreTests {
 
     [Fact]
     public void MethodResolver_IsCaseInsensitive() {
-        var method = MethodResolver.Resolve("sa", CalculationMethod.MuslimWorldLeague);
+        var method = MethodResolver.ResolveRequired("sa");
         Assert.Equal(CalculationMethod.UmmAlQura, method);
     }
 

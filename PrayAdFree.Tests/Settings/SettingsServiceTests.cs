@@ -5,6 +5,18 @@ namespace PrayAdFree.Tests;
 
 public class SettingsServiceTests {
     [Fact]
+    public void Corrupt_settings_are_reported_and_never_replaced_with_defaults() {
+        var store = new InMemorySettingsStore();
+        store.Set("app_settings", "{not-json");
+        var service = new SettingsService(store);
+
+        var error = Assert.Throws<InvalidDataException>(() => service.Load());
+
+        Assert.Contains("were not replaced", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("{not-json", store.Get("app_settings", ""));
+    }
+
+    [Fact]
     public void SaveAndLoad_RoundTrips() {
         var store = new InMemorySettingsStore();
         var service = new SettingsService(store);

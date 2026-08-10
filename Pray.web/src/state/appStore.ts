@@ -2,6 +2,10 @@ import { useSyncExternalStore } from "react";
 import { executeCommand } from "@/client/applicationClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
 import bundledEnglishLabels from "../../../PrayAdFree/Resources/Raw/i18n/en.json";
+import bundledArabicLabels from "../../../PrayAdFree/Resources/Raw/i18n/ar.json";
+import bundledFrenchLabels from "../../../PrayAdFree/Resources/Raw/i18n/fr.json";
+import bundledSpanishLabels from "../../../PrayAdFree/Resources/Raw/i18n/es.json";
+import bundledTurkishLabels from "../../../PrayAdFree/Resources/Raw/i18n/tr.json";
 
 export type Direction = "rtl" | "ltr";
 export type SyncStatus = "clean" | "dirty" | "syncing" | "saved" | "error";
@@ -41,7 +45,7 @@ type ShellSnapshot = {
   themeMode: "system" | "light" | "dark";
   accentColor?: string;
   textSize?: number;
-  labels: Record<string, string>;
+  labels?: Record<string, string>;
   languageObject?: LanguageObject;
   languages?: { code: string; name: string; direction?: Direction }[];
   onboardingCompleted: boolean;
@@ -132,6 +136,12 @@ export function bootstrapAppState(): Promise<void> {
   return bootstrapPromise;
 }
 
+export function retryBootstrapAppState(): Promise<void> {
+  bootstrapPromise = undefined;
+  updateState({ bootstrapStatus: "idle" });
+  return bootstrapAppState();
+}
+
 async function performBootstrap() {
   const response = await appClient.bootstrap<BootstrapResult>({ domain: "app", projectionKey: "app.bootstrap" });
   if (!response.ok) {
@@ -146,10 +156,11 @@ async function performBootstrap() {
   }
 
   const backend = response.data.projections.shell as ShellSnapshot;
+  const bundledLabels = bundledLabelsByLanguage[backend.language] ?? bundledEnglishLabels;
   const backendLanguage = normalizeLanguageObject(backend.languageObject ?? {
     code: backend.language,
     direction: backend.isRtl ? "rtl" : "ltr",
-    labels: backend.labels,
+    labels: backend.labels ?? bundledLabels,
     updatedAt: Date.now(),
   });
 
@@ -168,6 +179,14 @@ async function performBootstrap() {
     },
   });
 }
+
+const bundledLabelsByLanguage: Record<string, Record<string, string>> = {
+  en: bundledEnglishLabels,
+  ar: bundledArabicLabels,
+  fr: bundledFrenchLabels,
+  es: bundledSpanishLabels,
+  tr: bundledTurkishLabels,
+};
 
 export async function setLanguage(code: string): Promise<boolean> {
   markField("theme.language", "dirty");
@@ -228,10 +247,20 @@ function sameValue(a: unknown, b: unknown) {
   }
 
   try {
-    return JSON.stringify(a) === JSON.stringify(b);
+    return JSON.stringify(canonicalValue(a)) === JSON.stringify(canonicalValue(b));
   } catch {
     return false;
   }
+}
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, canonicalValue(item)]));
+  }
+  return value;
 }
 
 function markField(key: string, status: SyncStatus, error?: string) {

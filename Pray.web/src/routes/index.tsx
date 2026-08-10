@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
+import { useAppLabels } from "@/hooks/useAppLabels";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,6 +24,7 @@ function Time({ children }: { children: string }) {
 function TodayPage() {
   usePageLog("today");
   const { data, refresh, loading } = useToday();
+  const L = useAppLabels();
   const [now, setNow] = useState(() => new Date());
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
@@ -46,18 +49,25 @@ function TodayPage() {
   }, [data]);
 
   if (!data) return <SkeletonToday />;
-  const L = data.labels;
-  const text = (key: string) => {
-    const value = L[key];
-    if (!value) throw new Error(`Missing Core label: ${key}`);
-    return value;
-  };
+  const text = L;
   const prayer = (id: string) => text(`prayer_${id[0].toUpperCase()}${id.slice(1).toLowerCase()}`);
+
+  if (data.error) {
+    return (
+      <div role="alert" data-selector-name="today:error" className="mx-auto mt-10 max-w-md rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
+        <h1 className="text-lg font-semibold text-destructive">{data.error}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{L("method")}: {data.calculation.selectedMethodLabel}</p>
+        <Link to="/settings/adhan" className="mt-4 inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          {L("adhan")}
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center gap-2">
-        <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L.basmala}</p>
+        <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L("basmala")}</p>
         <PageLog page="today" />
       </div>
 
@@ -79,10 +89,29 @@ function TodayPage() {
           <button
             onClick={() => { void refresh(); }}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label={L.refresh}
+            aria-label={L("refresh")}
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
+        </div>
+      </Card>
+
+      <Card className="grid gap-1 text-xs text-muted-foreground" data-selector-name="today:calculation-summary">
+        <div className="flex justify-between gap-3">
+          <span>{L("method")}</span>
+          <span className="text-right text-card-foreground">
+            {data.calculation.selectedMethod === "Auto"
+              ? `${data.calculation.selectedMethodLabel} → ${data.calculation.effectiveMethodLabel}`
+              : data.calculation.effectiveMethodLabel}
+          </span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>{L("madhhab")}</span>
+          <span className="text-right text-card-foreground">{data.calculation.madhhabLabel}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>{L("highLatitudeRule")}</span>
+          <span className="text-right text-card-foreground">{data.calculation.highLatitudeRuleLabel}</span>
         </div>
       </Card>
 
@@ -107,7 +136,7 @@ function TodayPage() {
 
       {/* Timings */}
       <Card className="border-primary/20 bg-card/95">
-        <CardTitle className="mb-2">{L.today}</CardTitle>
+        <CardTitle className="mb-2">{L("today")}</CardTitle>
         <ul className="divide-y divide-border">
           {data.todayTimings.map((t) => (
             <li key={t.id} className={cn("flex items-center justify-between py-2.5", t.isNext && "font-semibold text-primary")}>
@@ -124,11 +153,11 @@ function TodayPage() {
       {/* Imsak / Iftar */}
       <div className="grid grid-cols-2 gap-3">
         <Card className={cn("bg-secondary/70", data.isImsakNext && "ring-2 ring-primary")}>
-          <CardTitle>{L.imsak}</CardTitle>
+          <CardTitle>{L("imsak")}</CardTitle>
           <div className="mt-1 text-xl font-semibold"><Time>{data.imsakTime}</Time></div>
         </Card>
         <Card className={cn("bg-accent/70 text-accent-foreground", data.isIftarNext && "ring-2 ring-primary")}>
-          <CardTitle>{L.iftar}</CardTitle>
+          <CardTitle>{L("iftar")}</CardTitle>
           <div className="mt-1 text-xl font-semibold"><Time>{data.iftarTime}</Time></div>
         </Card>
       </div>

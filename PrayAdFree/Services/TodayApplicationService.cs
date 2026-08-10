@@ -151,6 +151,10 @@ public class TodayApplicationService : ObservableApplicationService, ITodayProje
             }
             _settings = _dataService.LoadSettings();
             var month = await _dataService.GetMonthAsync(_settings, DateTime.Today, CancellationToken.None);
+            // GPS/manual resolution can persist a corrected location while the
+            // month is being calculated. Use that same confirmed input for the
+            // projection and notification schedule instead of the stale copy.
+            _settings = _dataService.LoadSettings();
             var today = month.Days.FirstOrDefault(day => day.Date == DateOnly.FromDateTime(DateTime.Today));
             _today = today;
             if (today == null) {
@@ -372,7 +376,11 @@ public class TodayApplicationService : ObservableApplicationService, ITodayProje
 
     private void OnLanguageChanged(object? sender, EventArgs args) => RefreshLocalization();
 
-    private void OnSettingsChanged(object? sender, EventArgs args) => _ = RefreshAsync();
+    private async void OnSettingsChanged(object? sender, EventArgs args) {
+        // Repository commits must not wait for recalculation or notification scheduling.
+        await Task.Yield();
+        await RefreshAsync().ConfigureAwait(false);
+    }
 
     private static string BuildLocation(LocationSettings location) {
         if (!string.IsNullOrWhiteSpace(location.City) && !string.IsNullOrWhiteSpace(location.Country)) {

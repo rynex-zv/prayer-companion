@@ -48,18 +48,19 @@ function AlarmPage() {
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
+    const intervalMs = data?.isActive ? 1000 : 10_000;
     const poll = async () => {
       await refresh(true);
       if (!cancelled) {
-        timer = window.setTimeout(poll, 1000);
+        timer = window.setTimeout(poll, intervalMs);
       }
     };
-    timer = window.setTimeout(poll, 1000);
+    timer = window.setTimeout(poll, intervalMs);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [refresh]);
+  }, [data?.isActive, refresh]);
 
   const run = async (method: "alarm.snooze" | "alarm.stop", payload?: unknown) => {
     if (submitting) return;

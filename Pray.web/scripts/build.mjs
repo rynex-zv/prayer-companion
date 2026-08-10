@@ -10,7 +10,6 @@ const phone = args.has('--phone');
 const love = args.has('--love') || args.has('-love');
 const devMode = args.has('--dev');
 const skipDotnet = String(process.env.PRAY_WEB_SKIP_DOTNET ?? "") == "1";
-console.log(skipDotnet, "is it >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 const distDir = love ? '.lovable-dist' : phone ? 'dist-phone' : 'dist';
 const outDir = `../${distDir}`;
 
@@ -19,6 +18,10 @@ const phoneBridgeBootstrap = `<script>
   if (window.mauiWebber) return;
   var appendJSlog = true;
   var callbacks = {};
+  // MauiWebberPage may inject after this bootstrap. Publish the same guard and
+  // listener identity so it augments this bridge instead of wrapping console
+  // and resolving every native response a second time.
+  window.__mauiWebberJsLogAttached = true;
 
   function normalizeLogArg(arg) {
     if (arg instanceof Error) {
@@ -84,10 +87,6 @@ const phoneBridgeBootstrap = `<script>
     if (!data || data.__mauiWebberResponse !== true) return;
     window.__lastNativeResponse = data;
     window.mauiWebber.__resolve(data.id, data.response);
-  }
-
-  if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
-    window.chrome.webview.addEventListener('message', receiveResponse);
   }
 
   function sendMessage(message) {
@@ -157,9 +156,13 @@ const phoneBridgeBootstrap = `<script>
     __debugPending: function() {
       return Object.keys(callbacks);
     },
+    __nativeResponseListener: receiveResponse,
     __navigate: null,
     navigation: null
   };
+  if (window.chrome && window.chrome.webview && typeof window.chrome.webview.addEventListener === 'function') {
+    window.chrome.webview.addEventListener('message', receiveResponse);
+  }
   window.dispatchEvent(new CustomEvent('mauiwebber:ready'));
 })();
 </script>`;
@@ -168,13 +171,17 @@ function run(command, commandArgs) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, commandArgs, {
       cwd: process.cwd(),
-      shell: true,
+      shell: false,
       stdio: 'inherit',
       env: {
         ...process.env,
         PRAY_WEB_TARGET: phone ? 'phone' : 'web',
         PRAY_WEB_OUTDIR: outDir,
-        PRAY_WEB_DIST_DIR: distDir
+        PRAY_WEB_DIST_DIR: distDir,
+        VITE_PRAY_AUTOMATION: String(process.env.PRAY_AUTOMATION ?? 'false'),
+        VITE_PRAY_AUTOMATION_WINDOWS: String(process.env.PRAY_AUTOMATION_WINDOWS ?? process.env.PRAY_AUTOMATION ?? 'false'),
+        VITE_PRAY_AUTOMATION_ANDROID: String(process.env.PRAY_AUTOMATION_ANDROID ?? process.env.PRAY_AUTOMATION ?? 'false'),
+        VITE_PRAY_AUTOMATION_WEB: String(process.env.PRAY_AUTOMATION_WEB ?? process.env.PRAY_AUTOMATION ?? 'false')
       }
     });
 
@@ -197,9 +204,9 @@ if (!phone && !skipDotnet) {
 const viteArgs = ['build'];
 if (phone) viteArgs.push('--mode', 'phone');
 else if (devMode) viteArgs.push('--mode', 'development');
-await run('vite', viteArgs);
+await run(process.execPath, [resolve(process.cwd(), 'node_modules', 'vite', 'bin', 'vite.js'), ...viteArgs]);
 await cp(resolve(process.cwd(), 'web.config'), resolve(process.cwd(), distDir, 'web.config'));
-if (!phone && !skipDotnet) {
+if (!phone) {
   const wasmPublishRoot = resolve(process.cwd(), '..', 'PrayAdFree.WebBridge', 'bin', 'Release', 'net10.0', 'publish', 'wwwroot', '_framework');
   const wasmDistRoot = resolve(process.cwd(), distDir, 'wasm', '_framework');
   await rm(resolve(process.cwd(), distDir, 'wasm'), { recursive: true, force: true });

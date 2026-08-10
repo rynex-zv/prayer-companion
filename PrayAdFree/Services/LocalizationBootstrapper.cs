@@ -36,11 +36,7 @@ public static class LocalizationBootstrapper {
         }
 
         try {
-            var settingsPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "PrayAdFree",
-                "app_settings.json");
-            var settings = new SettingsService(new FileSettingsStore(settingsPath)).Load();
+            var settings = new SettingsService(new FileSettingsStore(AutomationRuntime.SettingsPath)).Load();
             return settings.Language;
         } catch {
             return preferredLanguage;

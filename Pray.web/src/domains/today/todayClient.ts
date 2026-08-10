@@ -9,7 +9,14 @@ export type TodaySnapshot = {
   nextPrayerId: string; nextPrayerClock: string; nextPrayerBaseClock: string;
   showNextPrayerBaseClock: boolean; nextPrayerDayId: string; countdown: string; statusMessage: string;
   imsakTime: string; iftarTime: string; isImsakNext: boolean; isIftarNext: boolean;
-  nextFastingCountdown: string; isRtl: boolean; labels: Record<string, string>;
+  nextFastingCountdown: string; isRtl: boolean;
+  error?: string;
+  calculation: {
+    selectedMethod: string; selectedMethodLabel: string;
+    effectiveMethod: string; effectiveMethodLabel: string;
+    madhhab: string; madhhabLabel: string;
+    highLatitudeRule: string; highLatitudeRuleLabel: string;
+  };
   todayTimings: { id: string; time: string; baseTime?: string; isNext: boolean }[];
 };
 

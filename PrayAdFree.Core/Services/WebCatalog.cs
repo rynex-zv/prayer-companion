@@ -122,14 +122,22 @@ public static class WebCatalog {
     public static bool IsRtl(string language) => string.Equals(NormalizeLanguage(language), "ar", StringComparison.Ordinal);
 
     public static string NormalizeLanguage(string? language) =>
-        Languages.Any(item => string.Equals(item.Code, language, StringComparison.Ordinal)) ? language! : "en";
+        Languages.Any(item => string.Equals(item.Code, language, StringComparison.Ordinal))
+            ? language!
+            : throw new ArgumentException($"Unsupported language: '{language ?? "<missing>"}'.", nameof(language));
 
-    public static string NormalizeTheme(string? theme) => theme is "light" or "dark" ? theme : "system";
+    public static string NormalizeTheme(string? theme) => theme is "light" or "dark" or "system"
+        ? theme
+        : throw new ArgumentException($"Unsupported theme: '{theme ?? "<missing>"}'.", nameof(theme));
 
     public static string NormalizeAccent(string? accent) =>
-        AccentColors.Contains(accent ?? "", StringComparer.Ordinal) ? accent! : "teal";
+        AccentColors.Contains(accent ?? "", StringComparer.Ordinal)
+            ? accent!
+            : throw new ArgumentException($"Unsupported accent: '{accent ?? "<missing>"}'.", nameof(accent));
 
-    public static int ClampTextSize(int value) => Math.Clamp(value, 75, 150);
+    public static int ClampTextSize(int value) => value is >= 75 and <= 150
+        ? value
+        : throw new ArgumentOutOfRangeException(nameof(value), value, "Text size must be between 75 and 150.");
 
     public static object[] LocalizedOptions(IEnumerable<WebLabeledOption> options, string language) =>
         options.Select(item => new { id = item.Id, label = Translate(language, item.LabelKey) }).ToArray<object>();

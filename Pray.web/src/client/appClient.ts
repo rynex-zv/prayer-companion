@@ -121,8 +121,14 @@ class DefaultAppClient implements AppClient {
   }
 
   private acceptEvent(event: AppEvent): void {
-    if (!event || !applyAppEvent(event)) return;
-    eventListeners.forEach((listener) => listener(event));
+    if (!event) return;
+    const applied = applyAppEvent(event);
+    // Platform completion is a one-shot correlation signal. A newer domain
+    // revision may legitimately arrive first, but the waiting caller must still
+    // receive the completion for its operation ID.
+    if (applied || event.type.startsWith("platform.operation.")) {
+      eventListeners.forEach((listener) => listener(event));
+    }
   }
 }
 

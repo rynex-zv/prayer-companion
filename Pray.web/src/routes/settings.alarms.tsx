@@ -56,6 +56,7 @@ function AlarmsPage() {
             value={newReminderText}
             onChange={(event) => setNewReminderText(event.currentTarget.value)}
             placeholder={t("newReminder")}
+            aria-label={t("newReminder")}
             data-selector-name="alarms:new-reminder-text"
             className="min-h-9 rounded-md border border-input bg-card px-3 py-2 text-sm"
           />

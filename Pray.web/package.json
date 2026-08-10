@@ -17,7 +17,9 @@
     "build:all:phone": "node scripts/build-all.mjs --phone",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "check:architecture": "node scripts/check-client-boundaries.mjs"
+    "check:architecture": "node scripts/check-client-boundaries.mjs",
+    "test:runtime-defects": "node --experimental-strip-types scripts/test-runtime-defects.mjs",
+    "automation:web": "node scripts/run-automation.mjs"
   },
   "dependencies": {
     "@fontsource/amiri": "^5.2.8",
@@ -39,6 +41,7 @@
     "@tanstack/router-plugin": "^1.168.19",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "playwright-core": "^1.62.1",
     "postcss": "^8.5.17",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.8.3"

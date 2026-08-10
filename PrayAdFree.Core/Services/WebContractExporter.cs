@@ -48,6 +48,7 @@ public static class WebContractExporter {
         "tasbih.selectPreset",
         "tasbih.addPreset",
         "tasbih.updatePreset",
+        "tasbih.removePreset",
         "tasbih.addItem",
         "tasbih.updateItem",
         "tasbih.moveItem",
@@ -72,6 +73,7 @@ public static class WebContractExporter {
         "settings.update",
         "onboarding.getSnapshot",
         "onboarding.complete",
+        "automation.writeReports",
         "mauiWebber.getRemoteUrl",
         "mauiWebber.trace",
         "mauiWebber.setRemoteUrl",
@@ -89,7 +91,7 @@ public static class WebContractExporter {
         "today.getSnapshot" or "calendar.getSnapshot" or "qibla.getSnapshot" or
         "tasbih.getSnapshot" or "alarm.getSnapshot" or "settings.getSnapshot" or
         "onboarding.getSnapshot" or "mauiWebber.getRemoteUrl" => RpcOperationKind.Query,
-        "mauiWebber.trace" or "mauiWebber.pullRemote" or "mauiWebber.useEmbedded" or "mauiWebber.clearSiteData" => RpcOperationKind.PlatformOperation,
+        "automation.writeReports" or "mauiWebber.trace" or "mauiWebber.pullRemote" or "mauiWebber.useEmbedded" or "mauiWebber.clearSiteData" => RpcOperationKind.PlatformOperation,
         _ => RpcOperationKind.Command
     };
 }

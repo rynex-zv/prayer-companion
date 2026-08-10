@@ -16,16 +16,14 @@ public sealed class FileSettingsStore : ISettingsStore {
             throw new NotSupportedException("Only string settings are supported.");
         }
 
-        try {
-            if (!File.Exists(_path)) {
-                return defaultValue;
-            }
-
-            var value = File.ReadAllText(_path);
-            return (T)(object)(value ?? "");
-        } catch {
+        if (!File.Exists(_path)) {
             return defaultValue;
         }
+
+        // Existing-but-unreadable settings are a release-significant data
+        // failure. Do not disguise access/corruption errors as a clean install.
+        var value = File.ReadAllText(_path);
+        return (T)(object)(value ?? "");
     }
 
     public void Set<T>(string key, T value) {

@@ -1,0 +1,38 @@
+{
+  "runId": "web-2026-08-05T22-30-47-844Z",
+  "platform": "web",
+  "startedAt": "2026-08-05T22:30:47.844Z",
+  "completedAt": "2026-08-05T22:30:49.547Z",
+  "passed": [
+    {
+      "id": "08-adhan-settings",
+      "name": "User adjusts Adhan calculation and fasting reminder settings",
+      "documentation": "08-adhan-settings.md",
+      "passed": true,
+      "durationMs": 1433,
+      "assertions": 27,
+      "steps": [
+        "Navigated to /settings/adhan",
+        "Shared prayer snapshot: fajr=03:20, sunrise=06:08, dhuhr=13:47, asr=17:53, maghrib=21:23, isha=23:54",
+        "Set adhan:method=Jafari",
+        "Set adhan:method=Auto",
+        "Set adhan:volume=81",
+        "Set adhan:volume=80",
+        "Set adhan:madhhab=Maliki",
+        "Set adhan:madhhab=Shafi",
+        "Set adhan:high-latitude=SeventhOfTheNight",
+        "Set adhan:high-latitude=MiddleOfTheNight",
+        "Set adhan:clock-format=auto",
+        "Set adhan:clock-format=24h",
+        "Clicked adhan:imsak-reminder:add",
+        "Set adhan:imsak-reminder:value:0=11",
+        "Set adhan:imsak-reminder:direction:0=after",
+        "Clicked adhan:imsak-reminder:remove:0"
+      ],
+      "warnings": []
+    }
+  ],
+  "failed": [],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-05T22-30-47-844Z`\n- Platform: `web`\n- Passed: **1**\n- Failed: **0**\n\n## 08-adhan-settings — User adjusts Adhan calculation and fasting reminder settings\n\n- Documentation: `08-adhan-settings.md`\n- Duration: 1433 ms\n- Assertions: 27\n- Warnings: 0\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-05T22-30-47-844Z`\n- Platform: `web`\n- Failed: **0**\n- Passed: **1**\n\nNo failed scenarios."
+}

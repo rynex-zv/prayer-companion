@@ -4,8 +4,8 @@ import { useAppStore } from "@/state/appStore";
 export type Option = { id: string; label: string };
 
 export function SegmentedControl({
-  value, onChange, options, className,
-}: { value: string; onChange: (id: string) => void; options: Option[]; className?: string }) {
+  value, onChange, options, className, selectorPrefix,
+}: { value: string; onChange: (id: string) => void; options: Option[]; className?: string; selectorPrefix?: string }) {
   const direction = useAppStore((state) => state.direction);
   const orderedOptions = direction === "rtl" ? [...options].reverse() : options;
   return (
@@ -15,6 +15,7 @@ export function SegmentedControl({
           key={o.id}
           type="button"
           onClick={() => onChange(o.id)}
+          data-selector-name={selectorPrefix ? `${selectorPrefix}:${o.id}` : undefined}
           className={cn(
             "rounded-full px-3 py-1.5 font-medium transition-colors",
             value === o.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",

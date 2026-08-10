@@ -21,7 +21,7 @@ public sealed class AladhanPrayerTimesClient : IPrayerTimesClient {
         }
 
         var method = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.Resolve(location.CountryCode, CalculationMethod.MuslimWorldLeague)
+            ? MethodResolver.ResolveRequired(location.CountryCode)
             : settings.Method;
 
         var school = settings.Madhhab == Madhhab.Hanafi ? 1 : 0;

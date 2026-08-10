@@ -60,6 +60,15 @@ export default defineConfig({
   },
   build: {
     outDir: process.env.PRAY_WEB_OUTDIR ?? '../dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    // MAUI evaluates MauiAsset items before invoking the frontend target. Stable
+    // phone names keep that evaluated list valid when Vite replaces the bundle.
+    rollupOptions: process.env.PRAY_WEB_TARGET === 'phone' ? {
+      output: {
+        entryFileNames: 'assets/app.js',
+        chunkFileNames: 'assets/chunk-[name].js',
+        assetFileNames: 'assets/[name][extname]',
+      },
+    } : undefined,
   }
 });

@@ -1,0 +1,23 @@
+{
+  "runId": "web-2026-08-05T17-29-27-590Z",
+  "platform": "web",
+  "startedAt": "2026-08-05T17:29:27.590Z",
+  "completedAt": "2026-08-05T17:29:42.595Z",
+  "passed": [],
+  "failed": [
+    {
+      "id": "runner-initialization",
+      "name": "Automation runner initialization",
+      "documentation": "README.md",
+      "passed": false,
+      "durationMs": 0,
+      "assertions": 0,
+      "steps": [],
+      "warnings": [],
+      "failedAssertion": "Application bootstrap did not become ready",
+      "stack": "AutomationAssertionError: Application bootstrap did not become ready\n    at c (http://127.0.0.1:4179/assets/runner-WNMGqPkW.js:1:4488)\n    at async H (http://127.0.0.1:4179/assets/runner-WNMGqPkW.js:3:10453)"
+    }
+  ],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-05T17-29-27-590Z`\n- Platform: `web`\n- Passed: **0**\n- Failed: **1**\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-05T17-29-27-590Z`\n- Platform: `web`\n- Failed: **1**\n- Passed: **0**\n\n## runner-initialization — Automation runner initialization\n\n- Documentation: `README.md`\n- Duration: 0 ms\n- Assertions completed: 0\n- Failed assertion: **Application bootstrap did not become ready**\n\n### Completed steps\n\n- None\n\n### Stack\n\n```text\nAutomationAssertionError: Application bootstrap did not become ready\n    at c (http://127.0.0.1:4179/assets/runner-WNMGqPkW.js:1:4488)\n    at async H (http://127.0.0.1:4179/assets/runner-WNMGqPkW.js:3:10453)\n```\n"
+}

@@ -55,7 +55,7 @@ public sealed class AppProtocolContractTests {
     }
 
     [Fact]
-    public void Browser_bootstrap_contains_grouped_startup_projections() {
+    public void Browser_bootstrap_contains_only_initial_route_projections() {
         var dispatcher = new WebCoreRpcDispatcher();
         using var payload = JsonDocument.Parse("{}");
         var json = JsonSerializer.SerializeToElement(dispatcher.Dispatch("app.bootstrap", payload.RootElement), JsonOptions);
@@ -63,9 +63,9 @@ public sealed class AppProtocolContractTests {
         Assert.Equal(AppProtocol.ContractVersion, json.GetProperty("contractVersion").GetInt32());
         Assert.True(json.GetProperty("projections").TryGetProperty("shell", out _));
         Assert.True(json.GetProperty("projections").TryGetProperty("today", out _));
-        Assert.True(json.GetProperty("projections").TryGetProperty("alarm", out _));
-        Assert.True(json.GetProperty("projections").TryGetProperty("onboarding", out _));
-        Assert.True(json.GetProperty("projections").TryGetProperty("permissions", out _));
+        Assert.False(json.GetProperty("projections").TryGetProperty("alarm", out _));
+        Assert.False(json.GetProperty("projections").TryGetProperty("onboarding", out _));
+        Assert.False(json.GetProperty("projections").TryGetProperty("permissions", out _));
         Assert.True(json.GetProperty("projections").TryGetProperty("capabilities", out _));
     }
 

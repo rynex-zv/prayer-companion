@@ -105,16 +105,19 @@ function QiblaPage() {
 
       <div className="flex flex-wrap gap-2">
         <SegmentedControl
+          selectorPrefix="qibla:heading"
           value={data.selectedHeadingMode}
           onChange={(id) => applyQibla("qibla.setHeadingMode", { mode: id })}
           options={data.headingModes}
         />
         <SegmentedControl
+          selectorPrefix="qibla:reading"
           value={data.selectedReadingMode}
           onChange={(id) => applyQibla("qibla.setDisplayMode", { mode: id })}
           options={data.readingModes}
         />
         <SegmentedControl
+          selectorPrefix="qibla:filter"
           value={data.selectedFilterMode}
           onChange={(id) => applyQibla("qibla.setVisualFilter", { mode: id })}
           options={data.filterModes}

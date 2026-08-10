@@ -25,6 +25,8 @@ public sealed class NativeAppBackend {
     private readonly ApplicationCoordinator _application;
     private readonly ApplicationOperationCoalescer _operations;
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
+    private readonly object _bootstrapSync = new();
+    private Task<object>? _bootstrapTask;
     private DateTime _calendarMonth = DateTime.Today;
     private bool _qiblaLoaded;
     private string _qiblaDisplayMode = "compass";
@@ -77,7 +79,23 @@ public sealed class NativeAppBackend {
     }
 
     public Task PreloadAsync() {
-        return _today.PreloadAsync();
+        var bootstrap = GetBootstrapTask();
+        _ = WarmPlatformSnapshotsAsync();
+        return bootstrap;
+    }
+
+    private async Task WarmPlatformSnapshotsAsync() {
+        try {
+            await _permissionCenter.GetSnapshotsAsync().ConfigureAwait(false);
+        } catch (Exception exception) {
+            _logger.LogException(exception, "NativeAppBackend.PlatformWarmup");
+        }
+    }
+
+    private Task<object> GetBootstrapTask() {
+        lock (_bootstrapSync) {
+            return _bootstrapTask ??= BuildBootstrapAsync(CancellationToken.None);
+        }
     }
 
     public async Task<object?> HandleAsync(NativeAppOperation operation, JsonElement payload, CancellationToken cancellationToken) {
@@ -88,8 +106,9 @@ public sealed class NativeAppBackend {
                 return new { notModified = true, revision = domainRevision };
             }
             var execute = new Func<Task<object?>>(async () => method switch {
-            "app.bootstrap" => await BuildBootstrapAsync(cancellationToken).ConfigureAwait(false),
-            "today.getSnapshot" or "today.refresh" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
+            "app.bootstrap" => await GetBootstrapTask().ConfigureAwait(false),
+            "today.getSnapshot" => await _today.HandleAsync(method, payload, cancellationToken).ConfigureAwait(false),
+            "today.refresh" => await AcknowledgeTodayRefreshAsync(operation.RequestId, cancellationToken).ConfigureAwait(false),
             "mauiWebber.trace" => new { ok = true },
             "app.getShellSnapshot" => BuildShellSnapshot(),
             "app.getLocalization" => BuildLabels(),
@@ -114,6 +133,7 @@ public sealed class NativeAppBackend {
             "tasbih.selectPreset" => SelectTasbihPreset(payload),
             "tasbih.addPreset" => PatchTasbihAndSnapshot("addTasbihPreset", payload),
             "tasbih.updatePreset" => PatchTasbihAndSnapshot("updateTasbihPreset", payload),
+            "tasbih.removePreset" => PatchTasbihAndSnapshot("removeTasbihPreset", payload),
             "tasbih.addItem" => PatchTasbihAndSnapshot("addTasbihItem", payload),
             "tasbih.updateItem" => PatchTasbihAndSnapshot("updateTasbihItem", payload),
             "tasbih.moveItem" => PatchTasbihAndSnapshot("moveTasbihItem", payload),
@@ -121,18 +141,24 @@ public sealed class NativeAppBackend {
             "alarm.getSnapshot" => await GetAlarmSnapshotAsync().ConfigureAwait(false),
             "alarm.snooze" => await SnoozeAlarmAsync(payload).ConfigureAwait(false),
             "alarm.stop" => await StopAlarmAsync().ConfigureAwait(false),
-            "alarm.test" => await TestAdhanAlarmAsync(payload).ConfigureAwait(false),
-            "notification.test" => await TestAdhanNotificationAsync(payload).ConfigureAwait(false),
-            "permissions.request" => await RequestPermissionAsync(payload).ConfigureAwait(false),
-            "permissions.requestAll" => await RequestAllPermissionsAsync().ConfigureAwait(false),
-            "location.refresh" => await RefreshGpsLocationAsync().ConfigureAwait(false),
-            "location.reverseGeocode" => await ReverseGeocodeLocationAsync(payload).ConfigureAwait(false),
-            "adhan.sound.preview" => await PreviewAdhanSoundAsync(payload).ConfigureAwait(false),
-            "adhan.sound.addCustom" or "adhan.sound.removeCustom" or "external.openEmail" or "external.call" or "external.openUrl" or "external.reportIssue" => new { ok = true },
+            "alarm.test" => QueuePlatformOperation(method, "alarm", payload, () => TestAdhanAlarmAsync(payload)),
+            "notification.test" => QueuePlatformOperation(method, "notification", payload, () => TestAdhanNotificationAsync(payload)),
+            "permissions.request" => QueuePlatformOperation(method, "permissions", payload, () => RequestPermissionAsync(payload)),
+            "permissions.requestAll" => QueuePlatformOperation(method, "permissions", payload, RequestAllPermissionsAsync),
+            "location.refresh" => QueuePlatformOperation(method, "location", payload, RefreshGpsLocationAsync),
+            "location.reverseGeocode" => QueuePlatformOperation(method, "location", payload, () => ReverseGeocodeLocationAsync(payload)),
+            "adhan.sound.preview" => QueuePlatformOperation(method, "adhan", payload, () => PreviewAdhanSoundAsync(payload)),
+            "adhan.sound.addCustom" => QueuePlatformOperation(method, "adhan", payload, ImportCustomAdhanSoundAsync),
+            "adhan.sound.removeCustom" => await RemoveCustomAdhanSoundAsync(payload).ConfigureAwait(false),
+            "external.openEmail" => QueuePlatformOperation(method, "external", payload, () => OpenEmailAsync(payload)),
+            "external.call" => QueuePlatformOperation(method, "external", payload, () => OpenPhoneAsync(payload)),
+            "external.openUrl" => QueuePlatformOperation(method, "external", payload, () => OpenUrlAsync(payload)),
+            "external.reportIssue" => QueuePlatformOperation(method, "external", payload, OpenIssueReportAsync),
             "settings.getSnapshot" => await GetSettingsSnapshotAsync(payload).ConfigureAwait(false),
             "settings.update" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
             "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
+            "automation.writeReports" => WriteAutomationReports(payload),
                 _ => throw new InvalidOperationException($"Unknown MauiWebber RPC method: {method}")
             });
             if (operation.Kind is PrayAdFree.Core.Contracts.RpcOperationKind.Command or PrayAdFree.Core.Contracts.RpcOperationKind.CompatibilityAdapter) {
@@ -156,25 +182,57 @@ public sealed class NativeAppBackend {
     }
 
     private async Task<object> BuildBootstrapAsync(CancellationToken cancellationToken) {
+        // Bootstrap only what the shell and initial Today route consume. Loading
+        // alarm, onboarding, and platform permissions here duplicated their route
+        // queries and made cold startup wait on expensive platform inspection.
         var today = await _today.HandleAsync("today.getSnapshot", default, cancellationToken).ConfigureAwait(false);
-        var alarm = await GetAlarmSnapshotAsync().ConfigureAwait(false);
-        var onboarding = await BuildOnboardingSnapshotAsync().ConfigureAwait(false);
-        var permissionsPayload = JsonSerializer.SerializeToElement(new { section = "permissions" });
-        var permissions = await GetSettingsSnapshotAsync(permissionsPayload).ConfigureAwait(false);
         return new {
             contractVersion = PrayAdFree.Core.Contracts.AppProtocol.ContractVersion,
             persistenceSchemaVersion = PrayAdFree.Core.Contracts.AppProtocol.PersistenceSchemaVersion,
             revisions = _revisions.Snapshot(),
             startup = new { route = "/", intent = (string?)null },
             projections = new {
-                shell = BuildShellSnapshot(),
+                shell = BuildBootstrapShellSnapshot(),
                 today,
-                alarm,
-                onboarding,
-                permissions,
                 capabilities = new { platform = DeviceInfo.Platform.ToString().ToLowerInvariant(), native = true, events = true }
             }
         };
+    }
+
+    private object BuildBootstrapShellSnapshot() {
+        var settings = _settingsService.Load();
+        var language = ResolveLanguage(settings.Language);
+        return new {
+            route = "/",
+            language,
+            isRtl = string.Equals(language, "ar", StringComparison.OrdinalIgnoreCase),
+            themeMode = ResolveTheme(settings.ThemeMode),
+            accentColor = AccentFromIndex(settings.AccentIndex),
+            textSize = settings.TextScale == 0 ? 100 : settings.TextScale,
+            languages = WebCatalog.Languages.Select(item => new {
+                code = item.Code,
+                name = item.Name,
+                direction = item.Direction
+            }).ToList(),
+            onboardingCompleted = settings.OnboardingCompleted
+        };
+    }
+
+    private async Task<object?> AcknowledgeTodayRefreshAsync(string requestId, CancellationToken cancellationToken) {
+        var current = await _today.HandleAsync("today.getSnapshot", default, cancellationToken).ConfigureAwait(false);
+        _ = Task.Run(async () => {
+            try {
+                var refreshed = await _today.HandleAsync("today.refresh", default, CancellationToken.None).ConfigureAwait(false);
+                MauiWebberEventHub.Publish(_revisions.Changed(
+                    "today",
+                    requestId,
+                    "projection.updated",
+                    payload: new { projectionKey = "today.snapshot", data = refreshed }));
+            } catch (Exception exception) {
+                _logger.LogException(exception, "NativeAppBackend.TodayRefresh");
+            }
+        });
+        return current;
     }
 
     private static string BuildOperationKey(string method, JsonElement payload) {
@@ -202,7 +260,6 @@ public sealed class NativeAppBackend {
                 direction = item.Direction
             }).ToList(),
             tabs = WebCatalog.LocalizedShellTabs(language),
-            labels = BuildLabels(),
             onboardingCompleted = settings.OnboardingCompleted
         };
     }
@@ -518,18 +575,14 @@ public sealed class NativeAppBackend {
     }
 
     private async Task<object> SetQiblaDisplayModeAsync(JsonElement payload) {
-        var mode = ReadString(payload, "mode");
-        _qiblaDisplayMode = string.Equals(mode, "map", StringComparison.OrdinalIgnoreCase) ? "map" : "compass";
+        _qiblaDisplayMode = AppInputContract.RequiredChoice(
+            ReadString(payload, "mode"), "qibla.displayMode", "compass", "map");
         return await GetQiblaAsync().ConfigureAwait(false);
     }
 
     private async Task<object> SetQiblaVisualFilterAsync(JsonElement payload) {
-        var mode = ReadString(payload, "mode");
-        _qiblaVisualFilter = mode?.ToLowerInvariant() switch {
-            "night" => "night",
-            "contrast" => "contrast",
-            _ => "none"
-        };
+        _qiblaVisualFilter = AppInputContract.RequiredChoice(
+            ReadString(payload, "mode"), "qibla.visualFilter", "none", "night", "contrast");
         return await GetQiblaAsync().ConfigureAwait(false);
     }
 
@@ -540,29 +593,48 @@ public sealed class NativeAppBackend {
 
     private object SelectTasbihPreset(JsonElement payload) {
         var id = ReadString(payload, "id");
-        if (int.TryParse(id, CultureInfo.InvariantCulture, out var index)) _tasbih.SelectPreset(index);
+        var presetCount = _settingsService.Load().Tasbih.Presets.Count;
+        var index = AppInputContract.RequiredIndex(id, presetCount, "tasbih.presetId");
+        _tasbih.SelectPreset(index);
 
         return BuildTasbihSnapshot();
     }
 
     private object BuildTasbihSnapshot() {
+        var settings = _settingsService.Load();
+        var presets = settings.Tasbih.Presets;
+        var selectedIndex = Math.Clamp(
+            settings.Tasbih.SelectedPresetIndex,
+            0,
+            Math.Max(0, presets.Count - 1));
+        var selectedPreset = presets.Count > 0 ? presets[selectedIndex] : null;
+        var selectedItem = selectedPreset?.Items.FirstOrDefault();
+        var count = _tasbih.Count;
+
         return new {
-            count = _tasbih.Count,
-            currentPhrase = _tasbih.CurrentPhrase,
-            progressText = _tasbih.ProgressText,
-            isPresetSelectionEnabled = _tasbih.IsPresetSelectionEnabled,
-            selectedPresetId = Math.Max(0, _tasbih.Presets.ToList().IndexOf(_tasbih.SelectedPreset!)).ToString(CultureInfo.InvariantCulture),
-            presets = _tasbih.Presets.Select((preset, index) => new {
+            count,
+            currentPhrase = LocalizeTasbihText(selectedItem?.Text ?? _tasbih.CurrentPhrase),
+            progressText = selectedItem is null
+                ? _tasbih.ProgressText
+                : $"{count} / {selectedItem.TargetCount}",
+            isPresetSelectionEnabled = presets.Count > 1,
+            selectedPresetId = selectedIndex.ToString(CultureInfo.InvariantCulture),
+            presets = presets.Select((preset, index) => new {
                 id = index.ToString(CultureInfo.InvariantCulture),
-                name = preset.Name,
-                repeatMode = preset.RepeatMode.ToString(),
+                name = LocalizeTasbihText(preset.Name),
+                repeatMode = ToWebTasbihRepeatMode(preset.RepeatMode),
                 items = preset.Items.Select(item => new {
-                    text = item.Text,
+                    text = LocalizeTasbihText(item.Text),
                     targetCount = item.TargetCount
                 }).ToList()
             }).ToList()
         };
     }
+
+    private static string LocalizeTasbihText(string value) =>
+        value.StartsWith("Tasbih_", StringComparison.Ordinal)
+            ? LocalizationManager.Translate(value)
+            : value;
 
     private async Task<object?> GetSettingsSnapshotAsync(JsonElement payload) {
         var section = ReadString(payload, "section");
@@ -575,14 +647,15 @@ public sealed class NativeAppBackend {
             "permissions" => await BuildPermissionsSettingsAsync().ConfigureAwait(false),
             "alarmReminders" => BuildAlarmReminderSettings(settings),
             "about" => BuildAboutSettings(),
-            _ => new {
+            null or "" => new {
                 locations = BuildLocationsSettings(settings),
                 theme = BuildThemeSettings(settings),
                 adhan = BuildAdhanSettings(settings),
                 notifications = BuildNotificationSettings(settings),
                 permissions = await BuildPermissionsSettingsAsync().ConfigureAwait(false),
                 alarmReminders = BuildAlarmReminderSettings(settings)
-            }
+            },
+            _ => throw new ArgumentException($"Unknown settings section '{section}'.", nameof(section))
         };
     }
 
@@ -611,7 +684,7 @@ public sealed class NativeAppBackend {
             changedSection = "locations";
             next = CopySettings(
                 next,
-                location: await PatchLocationAsync(next.Location, locations).ConfigureAwait(false),
+                location: PatchLocationConfirmed(next.Location, locations),
                 qibla: PatchQibla(next.Qibla, locations));
         }
 
@@ -653,7 +726,7 @@ public sealed class NativeAppBackend {
             ? await GetSettingsSnapshotAsync(payload).ConfigureAwait(false)
             : await GetSettingsSnapshotAsync(BuildSectionPayload(changedSection)).ConfigureAwait(false);
         if (changedSection is not ("notifications" or "adhan" or "locations")) return snapshot;
-        return new ApplicationCommandExecution(snapshot, [async _ => {
+        _ = Task.Run(async () => {
             try {
                 await _notificationBootstrapper
                     .EnsureScheduledAsync($"WebSettings:{changedSection}", requestPermissions: false, force: true)
@@ -661,7 +734,8 @@ public sealed class NativeAppBackend {
             } catch (Exception exception) {
                 _logger.LogException(exception, $"NativeAppBackend.Reconcile.{changedSection}");
             }
-        }]);
+        });
+        return snapshot;
     }
 
     private async Task<object> SetSettingsFieldAsync(JsonElement payload) {
@@ -700,11 +774,9 @@ public sealed class NativeAppBackend {
         var payloadNode = new JsonObject {
             [patchSection] = sectionNode
         };
-        var sectionPatchResult = await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
-        var calculated = string.Equals(section, "locations", StringComparison.OrdinalIgnoreCase)
-            ? BuildLocationsSettings(_settingsService.Load())
-            : null;
-        return PreserveAfterCommit(sectionPatchResult, new { ok = true, section, field, value, calculated });
+        var projection = await PatchSettingsAsync(JsonSerializer.SerializeToElement(payloadNode)).ConfigureAwait(false);
+        var calculated = string.Equals(section, "locations", StringComparison.OrdinalIgnoreCase) ? projection : null;
+        return new { ok = true, section, field, value, calculated, projection };
     }
 
     private static object PreserveAfterCommit(object? execution, object data) =>
@@ -728,33 +800,222 @@ public sealed class NativeAppBackend {
         return BuildTasbihSnapshot();
     }
 
-    private async Task<object> RequestAllPermissionsAsync() {
-        await ResolveAllPermissionsAsync().ConfigureAwait(false);
-        return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+    private async Task<PlatformOperationCompletion> RequestAllPermissionsAsync() {
+        if (!AutomationRuntimeEnabled()) await ResolveAllPermissionsAsync().ConfigureAwait(false);
+        return new PlatformOperationCompletion(await BuildPermissionsSettingsAsync().ConfigureAwait(false), "settings.permissions");
     }
 
-    private async Task<object> RequestPermissionAsync(JsonElement payload) {
-        await ResolvePermissionAsync(payload).ConfigureAwait(false);
-        return await BuildPermissionsSettingsAsync().ConfigureAwait(false);
+    private async Task<PlatformOperationCompletion> RequestPermissionAsync(JsonElement payload) {
+        ValidatePermission(payload);
+        if (!AutomationRuntimeEnabled()) await ResolvePermissionAsync(payload).ConfigureAwait(false);
+        return new PlatformOperationCompletion(await BuildPermissionsSettingsAsync().ConfigureAwait(false), "settings.permissions");
     }
 
-    private async Task<object> PreviewAdhanSoundAsync(JsonElement payload) {
+    private async Task<PlatformOperationCompletion> PreviewAdhanSoundAsync(JsonElement payload) {
         var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
-        var started = await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
-        return new { ok = started, action = "previewSound", id };
+        var started = AutomationRuntimeEnabled() || await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
+        return new PlatformOperationCompletion(new { ok = started, simulated = AutomationRuntimeEnabled(), action = "previewSound", id }, null);
     }
 
-    private async Task<object> TestAdhanAlarmAsync(JsonElement payload) {
+    private async Task<PlatformOperationCompletion> TestAdhanAlarmAsync(JsonElement payload) {
         var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
-        var scheduled = await _adhanPlaybackService.ScheduleTestAlarmAsync(id, TimeSpan.FromSeconds(12)).ConfigureAwait(false);
-        return new { ok = scheduled, action = "testAlarm", id };
+        var scheduled = AutomationRuntimeEnabled() || await _adhanPlaybackService.ScheduleTestAlarmAsync(id, TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+        return new PlatformOperationCompletion(new { ok = scheduled, simulated = AutomationRuntimeEnabled(), action = "testAlarm", id }, null);
     }
 
-    private async Task<object> TestAdhanNotificationAsync(JsonElement payload) {
+    private async Task<PlatformOperationCompletion> TestAdhanNotificationAsync(JsonElement payload) {
         var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
-        var started = await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
-        return new { ok = started, action = "testNotification", id };
+        var started = AutomationRuntimeEnabled() || await _adhanPlaybackService.PlayPreviewAsync(id).ConfigureAwait(false);
+        return new PlatformOperationCompletion(new { ok = started, simulated = AutomationRuntimeEnabled(), action = "testNotification", id }, null);
     }
+
+    private object QueuePlatformOperation(
+        string method,
+        string domain,
+        JsonElement payload,
+        Func<Task<PlatformOperationCompletion>> execute) {
+        var operationId = ReadString(payload, "operationId") ?? Guid.NewGuid().ToString("N");
+        _ = Task.Run(async () => {
+            // Give the transport time to deliver the acknowledgement before an
+            // interactive picker or external application can block the UI thread.
+            await Task.Delay(25).ConfigureAwait(false);
+            try {
+                _logger.LogEvent("PlatformOperation.Start", $"operation={method};operationId={operationId}");
+                var completion = await MainThread.InvokeOnMainThreadAsync(execute).ConfigureAwait(false);
+                MauiWebberEventHub.Publish(_revisions.Changed(
+                    domain,
+                    operationId,
+                    "platform.operation.completed",
+                    payload: new {
+                        operationId,
+                        operation = method,
+                        ok = true,
+                        projectionKey = completion.ProjectionKey,
+                        data = completion.Data
+                    }));
+                _logger.LogEvent("PlatformOperation.Completed", $"operation={method};operationId={operationId}");
+            } catch (Exception exception) {
+                _logger.LogException(exception, $"NativeAppBackend.{method}");
+                MauiWebberEventHub.Publish(_revisions.Changed(
+                    domain,
+                    operationId,
+                    "platform.operation.failed",
+                    payload: new {
+                        operationId,
+                        operation = method,
+                        ok = false,
+                        error = exception.Message
+                    }));
+            }
+        });
+        return new { accepted = true, status = "pending", operationId };
+    }
+
+    private async Task<PlatformOperationCompletion> ImportCustomAdhanSoundAsync() {
+        if (AutomationRuntimeEnabled()) {
+            return new PlatformOperationCompletion(BuildAdhanSettings(_settingsService.Load()), "settings.adhan");
+        }
+
+        var pick = await FilePicker.Default.PickAsync(new PickOptions {
+            PickerTitle = T("PickAdhanSound"),
+            FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>> {
+                { DevicePlatform.Android, new[] { "audio/*" } },
+                { DevicePlatform.iOS, new[] { "public.audio" } },
+                { DevicePlatform.MacCatalyst, new[] { "public.audio" } },
+                { DevicePlatform.WinUI, new[] { ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".wma", ".opus", ".amr", ".3gp", ".mp4", ".aiff", ".aif", ".caf" } }
+            })
+        });
+        if (pick == null) {
+            return new PlatformOperationCompletion(new { cancelled = true }, null);
+        }
+
+        var key = $"adhan_custom_{Guid.NewGuid():N}";
+        var directory = AdhanSoundLibrary.GetCustomSoundsDirectory();
+        Directory.CreateDirectory(directory);
+        var header = new byte[64];
+        string? targetPath = null;
+        try {
+            await using var source = await pick.OpenReadAsync();
+            var headerLength = await source.ReadAsync(header.AsMemory());
+            if (headerLength <= 0) throw new InvalidDataException("Selected audio file is empty.");
+            var extension = AudioFileTypeDetector.ResolveExtension(pick.FileName, header.AsSpan(0, headerLength));
+            var fileName = $"{key}{extension}";
+            targetPath = Path.Combine(directory, fileName);
+            await using (var target = File.Create(targetPath)) {
+                await target.WriteAsync(header.AsMemory(0, headerLength));
+                await source.CopyToAsync(target);
+            }
+
+            var settings = _settingsService.Load();
+            var sounds = settings.Notifications.CustomSounds.ToList();
+            sounds.Add(new CustomAdhanSound {
+                Key = key,
+                Name = Path.GetFileNameWithoutExtension(pick.FileName)?.Trim() is { Length: > 0 } name ? name : T("AddCustomAdhanSound"),
+                FileName = fileName
+            });
+            var notifications = CopyNotifications(settings.Notifications, soundKey: key, customSounds: sounds);
+            var updated = CopySettings(settings, notifications: notifications);
+            SaveSettings(updated);
+            return new PlatformOperationCompletion(BuildAdhanSettings(updated), "settings.adhan");
+        } catch {
+            if (!string.IsNullOrWhiteSpace(targetPath) && File.Exists(targetPath)) File.Delete(targetPath);
+            throw;
+        }
+    }
+
+    private async Task<object> RemoveCustomAdhanSoundAsync(JsonElement payload) {
+        var id = ReadString(payload, "id") ?? throw new ArgumentException("Custom sound id is required.", nameof(payload));
+        var settings = _settingsService.Load();
+        var existing = settings.Notifications.CustomSounds.FirstOrDefault(item =>
+            string.Equals(item.Key, id, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"Custom sound '{id}' was not found.");
+        await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
+        var sounds = settings.Notifications.CustomSounds.Where(item =>
+            !string.Equals(item.Key, id, StringComparison.OrdinalIgnoreCase)).ToList();
+        var overrides = settings.Notifications.PrayerOverrides
+            .Select(item => string.Equals(item.SoundKey, id, StringComparison.OrdinalIgnoreCase)
+                ? new AdhanPrayerOverride { Prayer = item.Prayer, EnableVibration = item.EnableVibration }
+                : item)
+            .Where(item => item.SoundKey != null || item.EnableVibration != null)
+            .ToList();
+        var nextSoundKey = string.Equals(settings.Notifications.SoundKey, id, StringComparison.OrdinalIgnoreCase)
+            ? "adhan_default"
+            : settings.Notifications.SoundKey;
+        var updated = CopySettings(settings, notifications: CopyNotifications(
+            settings.Notifications,
+            soundKey: nextSoundKey,
+            customSounds: sounds,
+            prayerOverrides: overrides));
+        SaveSettings(updated);
+        var path = Path.Combine(AdhanSoundLibrary.GetCustomSoundsDirectory(), existing.FileName);
+        if (File.Exists(path)) File.Delete(path);
+        return BuildAdhanSettings(updated);
+    }
+
+    private static async Task<PlatformOperationCompletion> OpenEmailAsync(JsonElement payload) {
+        var to = ReadString(payload, "to")?.Trim();
+        if (string.IsNullOrWhiteSpace(to) || !to.Contains('@')) throw new ArgumentException("A valid email address is required.");
+        if (!AutomationRuntimeEnabled()) {
+            await Email.Default.ComposeAsync(new EmailMessage { To = new List<string> { to } });
+        }
+        return new PlatformOperationCompletion(new { opened = !AutomationRuntimeEnabled(), simulated = AutomationRuntimeEnabled(), target = to }, null);
+    }
+
+    private static Task<PlatformOperationCompletion> OpenPhoneAsync(JsonElement payload) {
+        var number = ReadString(payload, "number")?.Trim();
+        if (string.IsNullOrWhiteSpace(number)) throw new ArgumentException("A phone number is required.");
+        if (!AutomationRuntimeEnabled()) PhoneDialer.Default.Open(number);
+        return Task.FromResult(new PlatformOperationCompletion(new { opened = !AutomationRuntimeEnabled(), simulated = AutomationRuntimeEnabled(), target = number }, null));
+    }
+
+    private static async Task<PlatformOperationCompletion> OpenUrlAsync(JsonElement payload) {
+        var value = ReadString(payload, "url")?.Trim();
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http")) {
+            throw new ArgumentException("A valid HTTP(S) URL is required.");
+        }
+        var opened = AutomationRuntimeEnabled() || await Launcher.Default.OpenAsync(uri);
+        if (!opened) throw new InvalidOperationException("Windows did not accept the external URL.");
+        return new PlatformOperationCompletion(new { opened = !AutomationRuntimeEnabled(), simulated = AutomationRuntimeEnabled(), target = uri.AbsoluteUri }, null);
+    }
+
+    private static async Task<PlatformOperationCompletion> OpenIssueReportAsync() {
+        var target = WebCatalog.AboutInfo.Email;
+        if (!AutomationRuntimeEnabled()) {
+            await Email.Default.ComposeAsync(new EmailMessage {
+                Subject = "Pray Ad Free issue report",
+                To = new List<string> { target }
+            });
+        }
+        return new PlatformOperationCompletion(new { opened = !AutomationRuntimeEnabled(), simulated = AutomationRuntimeEnabled(), target }, null);
+    }
+
+    private static NotificationSettings CopyNotifications(
+        NotificationSettings current,
+        string? soundKey = null,
+        IReadOnlyList<CustomAdhanSound>? customSounds = null,
+        IReadOnlyList<AdhanPrayerOverride>? prayerOverrides = null) => new() {
+        EnableAdhan = current.EnableAdhan,
+        MobilePrimaryAdhanType = current.MobilePrimaryAdhanType,
+        EnableVibration = current.EnableVibration,
+        HideOnCloseOnWindows = current.HideOnCloseOnWindows,
+        RunBackgroundServiceOnWindows = current.RunBackgroundServiceOnWindows,
+        MinutesBefore = current.MinutesBefore,
+        AdhanVolume = current.AdhanVolume,
+        SoundKey = soundKey ?? current.SoundKey,
+        CustomSounds = customSounds ?? current.CustomSounds,
+        PrayerOverrides = prayerOverrides ?? current.PrayerOverrides,
+        VibrationStrength = current.VibrationStrength,
+        VibrationPattern = current.VibrationPattern,
+        ReminderScope = current.ReminderScope,
+        ReminderPrayer = current.ReminderPrayer,
+        ReminderItems = current.ReminderItems.ToList(),
+        ReminderOffsetsMinutes = current.ReminderOffsetsMinutes.ToList(),
+        PendingDeferredReminder = current.PendingDeferredReminder
+    };
+
+    private sealed record PlatformOperationCompletion(object Data, string? ProjectionKey);
+
+    private static bool AutomationRuntimeEnabled() => AutomationRuntime.IsEnabled;
 
     private async Task ResolveAllPermissionsAsync() {
         var snapshots = await _permissionCenter.GetSnapshotsAsync().ConfigureAwait(false);
@@ -764,17 +1025,23 @@ public sealed class NativeAppBackend {
     }
 
     private async Task ResolvePermissionAsync(JsonElement payload) {
-        var id = ReadString(payload, "id");
-        if (string.IsNullOrWhiteSpace(id) ||
-            !Enum.TryParse<AppPermissionKind>(id, ignoreCase: true, out var kind)) {
-            return;
-        }
-
+        var kind = ValidatePermission(payload);
         await _permissionCenter.ResolveAsync(kind).ConfigureAwait(false);
     }
 
-    private async Task<object> RefreshGpsLocationAsync() {
+    private static AppPermissionKind ValidatePermission(JsonElement payload) {
+        var id = ReadString(payload, "id");
+        if (string.IsNullOrWhiteSpace(id) || !Enum.TryParse<AppPermissionKind>(id, ignoreCase: true, out var kind)) {
+            throw new ArgumentException($"Unknown permission id '{id ?? "<missing>"}'.", nameof(payload));
+        }
+        return kind;
+    }
+
+    private async Task<PlatformOperationCompletion> RefreshGpsLocationAsync() {
         var settings = _settingsService.Load();
+        if (AutomationRuntimeEnabled()) {
+            return new PlatformOperationCompletion(BuildLocationsSettings(settings), "settings.locations");
+        }
         var gpsSettings = CopySettings(
             settings,
             location: new LocationSettings {
@@ -796,18 +1063,18 @@ public sealed class NativeAppBackend {
             }
 
             SaveSettings(updated);
-            return BuildLocationsSettings(updated);
+            return new PlatformOperationCompletion(BuildLocationsSettings(updated), "settings.locations");
         } catch (OperationCanceledException) {
             throw new InvalidOperationException(T("webGpsTimedOut"));
         }
     }
 
-    private async Task<object> ReverseGeocodeLocationAsync(JsonElement payload) {
+    private async Task<PlatformOperationCompletion> ReverseGeocodeLocationAsync(JsonElement payload) {
         var settings = _settingsService.Load();
         var latitude = ReadDouble(payload, "latitude", settings.Location.Latitude);
         var longitude = ReadDouble(payload, "longitude", settings.Location.Longitude);
         if (!HasUsableCoordinates(latitude, longitude)) {
-            return BuildLocationsSettings(settings);
+            throw new ArgumentException("Valid latitude and longitude are required.", nameof(payload));
         }
 
         var reverse = await _geoLookupService.ReverseAsync(latitude, longitude, CancellationToken.None)
@@ -824,7 +1091,7 @@ public sealed class NativeAppBackend {
         };
         var updated = CopySettings(settings, location: location);
         SaveSettings(updated);
-        return BuildLocationsSettings(updated);
+        return new PlatformOperationCompletion(BuildLocationsSettings(updated), "settings.locations");
     }
 
     private object CompleteOnboarding() {
@@ -837,41 +1104,24 @@ public sealed class NativeAppBackend {
         _dataService.SaveSettings(settings);
     }
 
-    private async Task<LocationSettings> PatchLocationAsync(LocationSettings current, JsonElement payload) {
+    private LocationSettings PatchLocationConfirmed(LocationSettings current, JsonElement payload) {
         var patched = PatchLocation(current, payload);
         if (patched.Mode == LocationMode.Gps) {
             return patched;
         }
 
-        var latitudeChanged = payload.TryGetProperty("latitude", out _);
-        var longitudeChanged = payload.TryGetProperty("longitude", out _);
-        if ((latitudeChanged || longitudeChanged) && HasUsableCoordinates(patched.Latitude, patched.Longitude)) {
-            var reverse = await _geoLookupService.ReverseAsync(patched.Latitude, patched.Longitude, CancellationToken.None)
-                .ConfigureAwait(false);
-            if (reverse != null) {
-                return new LocationSettings {
-                    Mode = LocationMode.Manual,
-                    City = string.IsNullOrWhiteSpace(reverse.City) ? patched.City : reverse.City,
-                    Country = string.IsNullOrWhiteSpace(reverse.Country) ? patched.Country : reverse.Country,
-                    CountryCode = string.IsNullOrWhiteSpace(reverse.CountryCode) ? patched.CountryCode : reverse.CountryCode,
-                    Latitude = patched.Latitude,
-                    Longitude = patched.Longitude,
-                    TimeZoneId = patched.TimeZoneId,
-                    LastUpdatedUtc = DateTime.UtcNow
-                };
-            }
-
-            return new LocationSettings {
-                Mode = LocationMode.Manual,
-                City = T("UnknownCity"),
-                Country = T("UnknownCountry"),
-                CountryCode = string.Empty,
-                Latitude = patched.Latitude,
-                Longitude = patched.Longitude,
-                TimeZoneId = patched.TimeZoneId,
-                LastUpdatedUtc = DateTime.UtcNow
-            };
-        }
+        // The web projection sends the complete confirmed section. Coordinates
+        // being present does not mean that the user edited them; treating every
+        // country/city selection as a coordinate edit caused a needless remote
+        // reverse-geocode and then overwrote the selected place.
+        var latitudeChanged = payload.TryGetProperty("latitude", out _) &&
+                              Math.Abs(patched.Latitude - current.Latitude) > 0.000001;
+        var longitudeChanged = payload.TryGetProperty("longitude", out _) &&
+                               Math.Abs(patched.Longitude - current.Longitude) > 0.000001;
+        // Coordinate persistence is a local mutation. Reverse geocoding is an
+        // explicit external intent issued by the web route after confirmation,
+        // so it must never hold this same-device data call open.
+        if ((latitudeChanged || longitudeChanged) && HasUsableCoordinates(patched.Latitude, patched.Longitude)) return patched;
 
         var placeChanged = payload.TryGetProperty("country", out _) ||
                            payload.TryGetProperty("countryName", out _) ||
@@ -896,15 +1146,18 @@ public sealed class NativeAppBackend {
     }
 
     private GeoLocationResult? FindKnownPlace(string? countryCode, string? country, string? city) {
-        return _geoLookupService.GetKnownPlaces().FirstOrDefault(item =>
-            (string.IsNullOrWhiteSpace(countryCode) ||
-             string.Equals(item.CountryCode, countryCode, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(item.Country, countryCode, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrWhiteSpace(country) ||
-             string.Equals(item.Country, country, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(item.CountryCode, country, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrWhiteSpace(city) ||
-             string.Equals(item.City, city, StringComparison.OrdinalIgnoreCase)));
+        return _geoLookupService.GetKnownPlaces().FirstOrDefault(item => {
+            // A stable ISO code wins over the localized display name
+            // (for example NL + "Nederland" versus catalog "Netherlands").
+            var countryMatches = !string.IsNullOrWhiteSpace(countryCode)
+                ? string.Equals(item.CountryCode, countryCode, StringComparison.OrdinalIgnoreCase)
+                : string.IsNullOrWhiteSpace(country) ||
+                  string.Equals(item.Country, country, StringComparison.OrdinalIgnoreCase) ||
+                  string.Equals(item.CountryCode, country, StringComparison.OrdinalIgnoreCase);
+            var cityMatches = string.IsNullOrWhiteSpace(city) ||
+                              string.Equals(item.City, city, StringComparison.OrdinalIgnoreCase);
+            return countryMatches && cityMatches;
+        });
     }
 
     private static bool HasUsableCoordinates(double latitude, double longitude) {
@@ -983,6 +1236,7 @@ public sealed class NativeAppBackend {
     }
 
     private static NotificationSettings PatchNotifications(NotificationSettings current, JsonElement payload) {
+        var reminderItems = ReadAdhanReminderItems(payload, current.ReminderItems);
         return new NotificationSettings {
             EnableAdhan = ReadBool(payload, "enableAdhan", current.EnableAdhan),
             MobilePrimaryAdhanType = ParseMobilePrimaryAdhanType(ReadString(payload, "mobilePrimaryAdhanType"), current.MobilePrimaryAdhanType),
@@ -994,12 +1248,12 @@ public sealed class NativeAppBackend {
             SoundKey = current.SoundKey,
             CustomSounds = current.CustomSounds,
             PrayerOverrides = current.PrayerOverrides,
-            VibrationStrength = ParseEnum(ReadString(payload, "vibrationStrength"), current.VibrationStrength),
-            VibrationPattern = ParseEnum(ReadString(payload, "vibrationPattern"), current.VibrationPattern),
+            VibrationStrength = ParseWebVibrationStrength(ReadString(payload, "vibrationStrength"), current.VibrationStrength),
+            VibrationPattern = ParseWebVibrationPattern(ReadString(payload, "vibrationPattern"), current.VibrationPattern),
             ReminderScope = ParseEnum(ReadString(payload, "reminderScope"), current.ReminderScope),
             ReminderPrayer = ParseEnum(ReadString(payload, "reminderPrayer"), current.ReminderPrayer),
-            ReminderItems = ReadAdhanReminderItems(payload, current.ReminderItems),
-            ReminderOffsetsMinutes = ReadAdhanReminderItems(payload, current.ReminderItems).Select(item => item.OffsetMinutes).ToList(),
+            ReminderItems = reminderItems,
+            ReminderOffsetsMinutes = reminderItems.Select(item => item.OffsetMinutes).ToList(),
             PendingDeferredReminder = current.PendingDeferredReminder
         };
     }
@@ -1052,76 +1306,151 @@ public sealed class NativeAppBackend {
             }).ToList()
         }).ToList();
 
+        var selectedIndex = Math.Clamp(settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, presets.Count - 1));
         switch (action) {
             case "addTasbihPreset":
                 presets.Add(new TasbihPresetSettings {
                     Name = ReadString(payload, "name") ?? T("tasbih"),
                     RepeatMode = TasbihRepeatMode.None,
-                    Items = new List<TasbihItemSettings>()
+                    Items = new List<TasbihItemSettings> {
+                        new() { Text = WebStateDefaults.DefaultTasbihItemText, TargetCount = WebStateDefaults.DefaultTasbihTargetCount }
+                    }
                 });
+                selectedIndex = presets.Count - 1;
                 break;
             case "updateTasbihPreset": {
                 var index = ReadIndex(payload, "id");
-                if (index >= 0 && index < presets.Count) {
-                    presets[index] = new TasbihPresetSettings {
-                        Name = ReadString(payload, "name") ?? presets[index].Name,
-                        RepeatMode = ParseEnum(ReadString(payload, "repeatMode"), presets[index].RepeatMode),
-                        Items = presets[index].Items
-                    };
+                if (index < 0 || index >= presets.Count) {
+                    throw new ArgumentOutOfRangeException("id", index, "Unknown Tasbih preset index.");
                 }
+                presets[index] = new TasbihPresetSettings {
+                    Name = ReadString(payload, "name") ?? presets[index].Name,
+                    RepeatMode = ParseTasbihRepeatMode(ReadString(payload, "repeatMode"), presets[index].RepeatMode),
+                    Items = presets[index].Items
+                };
+                break;
+            }
+            case "removeTasbihPreset": {
+                var index = ReadIndex(payload, "id");
+                if (presets.Count <= 1) {
+                    throw new InvalidOperationException("The last Tasbih preset cannot be removed.");
+                }
+                if (index < 0 || index >= presets.Count) {
+                    throw new ArgumentOutOfRangeException("id", index, "Unknown Tasbih preset index.");
+                }
+                presets.RemoveAt(index);
+                selectedIndex = index < selectedIndex ? selectedIndex - 1 : Math.Min(selectedIndex, presets.Count - 1);
                 break;
             }
             case "addTasbihItem": {
                 var index = ReadIndex(payload, "presetId");
                 var text = ReadString(payload, "text");
-                if (index >= 0 && index < presets.Count && !string.IsNullOrWhiteSpace(text)) {
-                    presets[index].Items.Add(new TasbihItemSettings {
-                        Text = text,
-                        TargetCount = Math.Max(1, ReadInt(payload, "targetCount", 33))
-                    });
+                if (index < 0 || index >= presets.Count) {
+                    throw new ArgumentOutOfRangeException("presetId", index, "Unknown Tasbih preset index.");
                 }
+                if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("Tasbih item text is required.", "text");
+                presets[index].Items.Add(new TasbihItemSettings {
+                    Text = text,
+                    TargetCount = RequirePositive(ReadInt(payload, "targetCount", 33), "targetCount")
+                });
                 break;
             }
             case "updateTasbihItem": {
                 var presetIndex = ReadIndex(payload, "presetId");
                 var itemIndex = ReadInt(payload, "index", -1);
-                if (presetIndex >= 0 && presetIndex < presets.Count && itemIndex >= 0 && itemIndex < presets[presetIndex].Items.Count) {
-                    var item = presets[presetIndex].Items[itemIndex];
-                    presets[presetIndex].Items[itemIndex] = new TasbihItemSettings {
-                        Text = ReadString(payload, "text") ?? item.Text,
-                        TargetCount = Math.Max(1, ReadInt(payload, "targetCount", item.TargetCount))
-                    };
-                }
+                RequireTasbihItem(presets, presetIndex, itemIndex);
+                var item = presets[presetIndex].Items[itemIndex];
+                presets[presetIndex].Items[itemIndex] = new TasbihItemSettings {
+                    Text = ReadString(payload, "text") ?? item.Text,
+                    TargetCount = RequirePositive(ReadInt(payload, "targetCount", item.TargetCount), "targetCount")
+                };
                 break;
             }
             case "moveTasbihItem": {
                 var presetIndex = ReadIndex(payload, "presetId");
                 var itemIndex = ReadInt(payload, "index", -1);
                 var direction = ReadString(payload, "direction");
-                if (presetIndex >= 0 && presetIndex < presets.Count && itemIndex >= 0 && itemIndex < presets[presetIndex].Items.Count) {
-                    var target = string.Equals(direction, "up", StringComparison.OrdinalIgnoreCase) ? itemIndex - 1 : itemIndex + 1;
-                    if (target >= 0 && target < presets[presetIndex].Items.Count) {
-                        (presets[presetIndex].Items[itemIndex], presets[presetIndex].Items[target]) =
-                            (presets[presetIndex].Items[target], presets[presetIndex].Items[itemIndex]);
-                    }
+                RequireTasbihItem(presets, presetIndex, itemIndex);
+                if (!string.Equals(direction, "up", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(direction, "down", StringComparison.OrdinalIgnoreCase)) {
+                    throw new ArgumentException($"Invalid Tasbih move direction: '{direction ?? "<missing>"}'.", "direction");
                 }
+                var target = string.Equals(direction, "up", StringComparison.OrdinalIgnoreCase) ? itemIndex - 1 : itemIndex + 1;
+                if (target < 0 || target >= presets[presetIndex].Items.Count) {
+                    throw new InvalidOperationException("Tasbih item cannot move beyond the collection boundary.");
+                }
+                (presets[presetIndex].Items[itemIndex], presets[presetIndex].Items[target]) =
+                    (presets[presetIndex].Items[target], presets[presetIndex].Items[itemIndex]);
                 break;
             }
             case "removeTasbihItem": {
                 var presetIndex = ReadIndex(payload, "presetId");
                 var itemIndex = ReadInt(payload, "index", -1);
-                if (presetIndex >= 0 && presetIndex < presets.Count && itemIndex >= 0 && itemIndex < presets[presetIndex].Items.Count) {
-                    presets[presetIndex].Items.RemoveAt(itemIndex);
+                RequireTasbihItem(presets, presetIndex, itemIndex);
+                if (presets[presetIndex].Items.Count <= 1) {
+                    throw new InvalidOperationException("The last item in a Tasbih preset cannot be removed.");
                 }
+                presets[presetIndex].Items.RemoveAt(itemIndex);
                 break;
             }
+            default:
+                throw new ArgumentException($"Unknown Tasbih action: '{action}'.", nameof(action));
         }
 
         SaveSettings(CopySettings(settings, tasbih: new TasbihSettings {
             Presets = presets,
-            SelectedPresetIndex = Math.Clamp(settings.Tasbih.SelectedPresetIndex, 0, Math.Max(0, presets.Count - 1))
+            SelectedPresetIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, presets.Count - 1))
         }));
     }
+
+    private static void RequireTasbihItem(IReadOnlyList<TasbihPresetSettings> presets, int presetIndex, int itemIndex) {
+        if (presetIndex < 0 || presetIndex >= presets.Count) {
+            throw new ArgumentOutOfRangeException(nameof(presetIndex), presetIndex, "Unknown Tasbih preset index.");
+        }
+        if (itemIndex < 0 || itemIndex >= presets[presetIndex].Items.Count) {
+            throw new ArgumentOutOfRangeException(nameof(itemIndex), itemIndex, "Unknown Tasbih item index.");
+        }
+    }
+
+    private static int RequirePositive(int value, string field) => value > 0
+        ? value
+        : throw new ArgumentOutOfRangeException(field, value, $"{field} must be positive.");
+
+    private static object WriteAutomationReports(JsonElement payload) {
+#if PRAY_AUTOMATION
+        var runId = SanitizeAutomationFileName(ReadString(payload, "runId") ?? DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+        var root = Path.Combine(FileSystem.AppDataDirectory, "AutomationReports", runId);
+        Directory.CreateDirectory(root);
+        var passedPath = Path.Combine(root, "passed.md");
+        var failedPath = Path.Combine(root, "failed.md");
+        File.WriteAllText(passedPath, ReadString(payload, "passedMarkdown") ?? "# Passed scenarios\n\n0 passed.\n");
+        File.WriteAllText(failedPath, ReadString(payload, "failedMarkdown") ?? "# Failed scenarios\n\n0 failed.\n");
+        return new { ok = true, runId, passedPath, failedPath };
+#else
+        throw new InvalidOperationException("Automation report output is disabled. Build with PrayAutomation=true.");
+#endif
+    }
+
+    private static string SanitizeAutomationFileName(string value) {
+        var invalid = Path.GetInvalidFileNameChars();
+        var sanitized = new string(value.Select(character => invalid.Contains(character) ? '-' : character).ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? "automation" : sanitized;
+    }
+
+    private static TasbihRepeatMode ParseTasbihRepeatMode(string? value, TasbihRepeatMode fallback) =>
+        value?.ToLowerInvariant() switch {
+            "continue" or "loop" or "repeatcontinue" => TasbihRepeatMode.RepeatContinue,
+            "reset" or "sequence" or "repeatreset" => TasbihRepeatMode.RepeatReset,
+            "none" => TasbihRepeatMode.None,
+            null or "" => fallback,
+            _ => throw new ArgumentException($"Invalid Tasbih repeat mode: '{value}'.", nameof(value))
+        };
+
+    private static string ToWebTasbihRepeatMode(TasbihRepeatMode value) => value switch {
+        TasbihRepeatMode.RepeatContinue => "Continue",
+        TasbihRepeatMode.RepeatReset => "Reset",
+        _ => "None"
+    };
 
     private static PrayerOffsets PatchOffsets(PrayerOffsets current, JsonElement payload) {
         return new PrayerOffsets {
@@ -1136,7 +1465,7 @@ public sealed class NativeAppBackend {
     }
 
     private static IReadOnlyList<AdhanPrayerOverride> PatchPrayerOverrides(IReadOnlyList<AdhanPrayerOverride> current, JsonElement payload) {
-        if (!payload.TryGetProperty("perPrayerOverrides", out var overrides) || overrides.ValueKind != JsonValueKind.Array) {
+        if (!TryGetArray(payload, "perPrayerOverrides", out var overrides)) {
             return current;
         }
 
@@ -1144,7 +1473,12 @@ public sealed class NativeAppBackend {
         foreach (var item in overrides.EnumerateArray()) {
             var prayerName = ReadString(item, "prayer") ?? ReadString(item, "id") ?? "";
             if (!TryParsePrayer(prayerName, out var prayer)) {
-                continue;
+                throw new ArgumentException($"Invalid prayer override target: '{prayerName}'.", "perPrayerOverrides");
+            }
+
+            var vibration = ReadString(item, "vibration");
+            if (vibration is not null && vibration is not ("none" or "default" or "custom" or "enabled")) {
+                throw new ArgumentException($"Invalid prayer override vibration: '{vibration}'.", "perPrayerOverrides");
             }
 
             result.Add(new AdhanPrayerOverride {
@@ -1152,7 +1486,7 @@ public sealed class NativeAppBackend {
                 SoundKey = string.Equals(ReadString(item, "soundId"), "default", StringComparison.OrdinalIgnoreCase)
                     ? null
                     : ReadString(item, "soundId"),
-                EnableVibration = ReadString(item, "vibration") switch {
+                EnableVibration = vibration switch {
                     "none" => false,
                     "default" => null,
                     null => null,
@@ -1165,7 +1499,7 @@ public sealed class NativeAppBackend {
     }
 
     private static List<AdhanReminderItem> ReadAdhanReminderItems(JsonElement payload, IReadOnlyList<AdhanReminderItem> fallback) {
-        if (!payload.TryGetProperty("reminders", out var reminders) || reminders.ValueKind != JsonValueKind.Array) {
+        if (!TryGetArray(payload, "reminders", out var reminders)) {
             return fallback.ToList();
         }
 
@@ -1177,8 +1511,17 @@ public sealed class NativeAppBackend {
             }
 
             var unit = ReadString(reminder, "unit");
+            if (unit is not null && !string.Equals(unit, "minute", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase)) {
+                throw new ArgumentException($"Invalid reminder unit: '{unit}'.", "reminders");
+            }
             var minutes = string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase) ? value * 60 : value;
-            if (string.Equals(ReadString(reminder, "direction"), "after", StringComparison.OrdinalIgnoreCase)) {
+            var direction = ReadString(reminder, "direction");
+            if (direction is not null && !string.Equals(direction, "before", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(direction, "after", StringComparison.OrdinalIgnoreCase)) {
+                throw new ArgumentException($"Invalid reminder direction: '{direction}'.", "reminders");
+            }
+            if (string.Equals(direction, "after", StringComparison.OrdinalIgnoreCase)) {
                 minutes = -minutes;
             }
 
@@ -1192,7 +1535,7 @@ public sealed class NativeAppBackend {
     }
 
     private static string? ReadSelectedSound(JsonElement payload) {
-        if (!payload.TryGetProperty("sounds", out var sounds) || sounds.ValueKind != JsonValueKind.Array) {
+        if (!TryGetArray(payload, "sounds", out var sounds)) {
             return null;
         }
 
@@ -1206,7 +1549,7 @@ public sealed class NativeAppBackend {
     }
 
     private static List<int> ReadReminderMinutes(JsonElement payload, string propertyName, IReadOnlyList<int> fallback) {
-        if (!payload.TryGetProperty(propertyName, out var reminders) || reminders.ValueKind != JsonValueKind.Array) {
+        if (!TryGetArray(payload, propertyName, out var reminders)) {
             return fallback.ToList();
         }
 
@@ -1214,9 +1557,18 @@ public sealed class NativeAppBackend {
         foreach (var reminder in reminders.EnumerateArray()) {
             var value = Math.Max(0, ReadInt(reminder, "value", 0));
             var unit = ReadString(reminder, "unit");
+            if (unit is not null && !string.Equals(unit, "minute", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase)) {
+                throw new ArgumentException($"Invalid reminder unit: '{unit}'.", propertyName);
+            }
             var minutes = string.Equals(unit, "hour", StringComparison.OrdinalIgnoreCase) ? value * 60 : value;
             if (minutes > 0) {
-                if (string.Equals(ReadString(reminder, "direction"), "after", StringComparison.OrdinalIgnoreCase)) {
+                var direction = ReadString(reminder, "direction");
+                if (direction is not null && !string.Equals(direction, "before", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(direction, "after", StringComparison.OrdinalIgnoreCase)) {
+                    throw new ArgumentException($"Invalid reminder direction: '{direction}'.", propertyName);
+                }
+                if (string.Equals(direction, "after", StringComparison.OrdinalIgnoreCase)) {
                     minutes = -minutes;
                 }
                 result.Add(minutes);
@@ -1287,6 +1639,8 @@ public sealed class NativeAppBackend {
         var countryCode = string.IsNullOrWhiteSpace(settings.Location.CountryCode)
             ? countries.FirstOrDefault()?.code ?? ""
             : settings.Location.CountryCode;
+        countryCode = countries.FirstOrDefault(item =>
+            string.Equals(item.code, countryCode, StringComparison.OrdinalIgnoreCase))?.code ?? countryCode;
         var countryName = string.IsNullOrWhiteSpace(settings.Location.Country)
             ? countries.FirstOrDefault()?.name ?? ""
             : settings.Location.Country;
@@ -1377,6 +1731,10 @@ public sealed class NativeAppBackend {
         return new {
             sounds,
             volume = (int)Math.Round(settings.Notifications.AdhanVolume * 100),
+            calculationEngine = WebPrayerMonthFactory.EngineId,
+            calculationEngines = new[] {
+                new { id = WebPrayerMonthFactory.EngineId, label = T("calculationEngine_SharedCoreAdhan") }
+            },
             calculationMethod = settings.Method.ToString(),
             calculationMethods = BuildCalculationMethodOptions(),
             madhhab = settings.Madhhab.ToString(),
@@ -1425,33 +1783,7 @@ public sealed class NativeAppBackend {
     }
 
     private static object[] BuildCalculationMethodOptions() {
-        return new[] {
-            CalculationMethod.Auto,
-            CalculationMethod.Jafari,
-            CalculationMethod.Karachi,
-            CalculationMethod.Isna,
-            CalculationMethod.MuslimWorldLeague,
-            CalculationMethod.UmmAlQura,
-            CalculationMethod.Egypt,
-            CalculationMethod.Tehran,
-            CalculationMethod.Gulf,
-            CalculationMethod.Kuwait,
-            CalculationMethod.Qatar,
-            CalculationMethod.Singapore,
-            CalculationMethod.France,
-            CalculationMethod.Turkey,
-            CalculationMethod.Russia,
-            CalculationMethod.Moonsighting,
-            CalculationMethod.Dubai,
-            CalculationMethod.Jakim,
-            CalculationMethod.Tunisia,
-            CalculationMethod.Algeria,
-            CalculationMethod.Kemenag,
-            CalculationMethod.Morocco,
-            CalculationMethod.Portugal,
-            CalculationMethod.Jordan,
-            CalculationMethod.Custom
-        }.Select(method => new {
+        return CalculationMethodPresetCatalog.SupportedMethods.Select(method => new {
             id = method.ToString(),
             label = T($"method_{method}")
         }).ToArray();
@@ -1499,8 +1831,16 @@ public sealed class NativeAppBackend {
             hideOnCloseWindows = settings.Notifications.HideOnCloseOnWindows,
             runBackgroundServiceWindows = settings.Notifications.RunBackgroundServiceOnWindows,
             vibration = settings.Notifications.EnableVibration,
-            vibrationStrength = settings.Notifications.VibrationStrength.ToString(),
-            vibrationPattern = settings.Notifications.VibrationPattern.ToString(),
+            vibrationStrength = settings.Notifications.VibrationStrength switch {
+                VibrationStrength.Low => "Light",
+                VibrationStrength.High => "Strong",
+                _ => "Medium"
+            },
+            vibrationPattern = settings.Notifications.VibrationPattern switch {
+                VibrationPattern.Short => "Default",
+                VibrationPattern.Long => "Heartbeat",
+                _ => "Pulse"
+            },
             minutesBefore = settings.Notifications.MinutesBefore,
             reminderScope = settings.Notifications.ReminderScope.ToString(),
             reminderPrayer = settings.Notifications.ReminderPrayer.ToString(),
@@ -1714,11 +2054,17 @@ public sealed class NativeAppBackend {
     }
 
     private static string? ReadString(JsonElement payload, string propertyName) {
-        return payload.ValueKind == JsonValueKind.Object &&
-               payload.TryGetProperty(propertyName, out var property) &&
-               property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind == JsonValueKind.Null) {
+            return null;
+        }
+
+        if (property.ValueKind == JsonValueKind.String) {
+            return property.GetString();
+        }
+
+        throw new ArgumentException($"Invalid '{propertyName}': expected a string.", propertyName);
     }
 
     private static double ReadDouble(JsonElement payload, string propertyName) {
@@ -1731,9 +2077,11 @@ public sealed class NativeAppBackend {
             return fallback;
         }
 
-        return property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value)
-            ? value
-            : fallback;
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var value) && double.IsFinite(value)) {
+            return value;
+        }
+
+        throw new ArgumentException($"Invalid '{propertyName}': expected a finite number.", propertyName);
     }
 
     private static int ReadInt(JsonElement payload, string propertyName, int fallback) {
@@ -1751,7 +2099,7 @@ public sealed class NativeAppBackend {
             return value;
         }
 
-        return fallback;
+        throw new ArgumentException($"Invalid '{propertyName}': expected an integer.", propertyName);
     }
 
     private static bool ReadBool(JsonElement payload, string propertyName, bool fallback) {
@@ -1764,15 +2112,24 @@ public sealed class NativeAppBackend {
             JsonValueKind.True => true,
             JsonValueKind.False => false,
             JsonValueKind.String when bool.TryParse(property.GetString(), out var value) => value,
-            _ => fallback
+            _ => throw new ArgumentException($"Invalid '{propertyName}': expected a boolean.", propertyName)
         };
     }
 
     private static bool TryGetObject(JsonElement payload, string propertyName, out JsonElement property) {
-        if (payload.ValueKind == JsonValueKind.Object &&
-            payload.TryGetProperty(propertyName, out property) &&
-            property.ValueKind == JsonValueKind.Object) {
-            return true;
+        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(propertyName, out property)) {
+            if (property.ValueKind == JsonValueKind.Object) return true;
+            throw new ArgumentException($"Invalid '{propertyName}': expected an object.", propertyName);
+        }
+
+        property = default;
+        return false;
+    }
+
+    private static bool TryGetArray(JsonElement payload, string propertyName, out JsonElement property) {
+        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(propertyName, out property)) {
+            if (property.ValueKind == JsonValueKind.Array) return true;
+            throw new ArgumentException($"Invalid '{propertyName}': expected an array.", propertyName);
         }
 
         property = default;
@@ -1780,20 +2137,44 @@ public sealed class NativeAppBackend {
     }
 
     private static int ReadIndex(JsonElement payload, string propertyName) {
-        var value = ReadString(payload, propertyName);
-        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index)
-            ? index
-            : ReadInt(payload, propertyName, -1);
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty(propertyName, out var property)) {
+            return -1;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var numericIndex)) {
+            return numericIndex;
+        }
+
+        if (property.ValueKind == JsonValueKind.String &&
+            int.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var stringIndex)) {
+            return stringIndex;
+        }
+
+        throw new ArgumentException($"Invalid '{propertyName}': expected an integer index.", propertyName);
     }
+
+    private static VibrationStrength ParseWebVibrationStrength(string? value, VibrationStrength fallback) => value switch {
+        "Light" => VibrationStrength.Low,
+        "Strong" => VibrationStrength.High,
+        _ => ParseEnum(value, fallback)
+    };
+
+    private static VibrationPattern ParseWebVibrationPattern(string? value, VibrationPattern fallback) => value switch {
+        "Default" => VibrationPattern.Short,
+        "Heartbeat" => VibrationPattern.Long,
+        _ => ParseEnum(value, fallback)
+    };
 
     private static TEnum ParseEnum<TEnum>(string? value, TEnum fallback) where TEnum : struct, Enum {
         if (string.IsNullOrWhiteSpace(value)) {
             return fallback;
         }
 
-        return Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed)
-            ? parsed
-            : fallback;
+        if (Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed)) {
+            return parsed;
+        }
+
+        throw new ArgumentException($"Invalid {typeof(TEnum).Name}: '{value}'.", typeof(TEnum).Name);
     }
 
     private static ThemeMode ParseThemeMode(string? value, ThemeMode fallback) {
@@ -1801,7 +2182,8 @@ public sealed class NativeAppBackend {
             "system" or "auto" => ThemeMode.Auto,
             "light" => ThemeMode.Light,
             "dark" => ThemeMode.Dark,
-            _ => fallback
+            null or "" => fallback,
+            _ => throw new ArgumentException($"Invalid theme mode: '{value}'.", nameof(value))
         };
     }
 
@@ -1810,7 +2192,8 @@ public sealed class NativeAppBackend {
             "12h" => ClockFormat.TwelveHour,
             "24h" => ClockFormat.TwentyFourHour,
             "auto" => ClockFormat.Auto,
-            _ => fallback
+            null or "" => fallback,
+            _ => throw new ArgumentException($"Invalid clock format: '{value}'.", nameof(value))
         };
     }
 
@@ -1818,7 +2201,8 @@ public sealed class NativeAppBackend {
         return value?.ToLowerInvariant() switch {
             "full" or "alarm" => MobilePrimaryAdhanType.Alarm,
             "notification" or "adhannotification" => MobilePrimaryAdhanType.AdhanNotification,
-            _ => fallback
+            null or "" => fallback,
+            _ => throw new ArgumentException($"Invalid primary Adhan type: '{value}'.", nameof(value))
         };
     }
 
@@ -1829,7 +2213,8 @@ public sealed class NativeAppBackend {
             "teal" => 6,
             "blue" => 4,
             "rose" => 12,
-            _ => fallback
+            null or "" => fallback,
+            _ => throw new ArgumentException($"Invalid accent color: '{value}'.", nameof(value))
         };
     }
 
