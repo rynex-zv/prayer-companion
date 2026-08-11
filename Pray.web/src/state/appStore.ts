@@ -189,20 +189,29 @@ async function performBootstrap() {
 }
 
 async function refreshGpsLocationAfterBootstrap() {
-  const location = await appClient.query<LocationSnapshot>({
-    name: "settings.getSnapshot",
-    payload: { section: "locations" },
-    domain: "settings",
-    projectionKey: "settings.locations",
-  });
-  if (!location.ok) return;
-  if (location.data.useGps === true) {
-    await platformIntents.refreshLocation();
-    return;
-  }
+  try {
+    const location = await appClient.query<LocationSnapshot>({
+      name: "settings.getSnapshot",
+      payload: { section: "locations" },
+      domain: "settings",
+      projectionKey: "settings.locations",
+    });
+    if (!location.ok) return;
+    const locationRefresh = location.data.useGps === true
+      ? await platformIntents.refreshLocation()
+      : !hasUsableCoordinates(location.data.latitude, location.data.longitude)
+        ? await platformIntents.refreshLocation({ source: "ip" })
+        : undefined;
 
-  if (!hasUsableCoordinates(location.data.latitude, location.data.longitude)) {
-    await platformIntents.refreshLocation({ source: "ip" });
+    if (locationRefresh?.ok) {
+      await appClient.command({
+        name: "today.refresh",
+        domain: "today",
+        projectionKey: "today.snapshot",
+      });
+    }
+  } catch {
+    return;
   }
 }
 

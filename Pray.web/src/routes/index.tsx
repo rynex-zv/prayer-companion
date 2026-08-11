@@ -29,8 +29,8 @@ function TodayPage() {
   const [shareStatus, setShareStatus] = useState("");
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
-  const nextPrayerAt = useMemo(() => readExplicitNextPrayerAt(data), [data]);
-  const countdown = useMemo(() => formatCountdown(now, nextPrayerAt), [now, nextPrayerAt]);
+  const nextPrayerAt = useMemo(() => readNextPrayerTimestampFromSnapshot(data), [data]);
+  const countdown = useMemo(() => formatCountdown(now, nextPrayerAt, data?.countdown), [now, nextPrayerAt, data?.countdown]);
   const progress = useMemo(() => calculatePrayerProgress(now, data), [now, data]);
 
   useEffect(() => {
@@ -231,8 +231,8 @@ function formatCurrentTime(now: Date, sample?: string) {
   });
 }
 
-function formatCountdown(now: Date, nextPrayerAt?: number): string {
-  if (!Number.isFinite(nextPrayerAt)) return "—";
+function formatCountdown(now: Date, nextPrayerAt?: number, coreCountdown = ""): string {
+  if (!Number.isFinite(nextPrayerAt)) return coreCountdown;
   const remaining = Math.max(0, Math.floor(((nextPrayerAt ?? 0) - now.getTime()) / 1000));
   const hours = Math.floor(remaining / 3600);
   const minutes = Math.floor((remaining % 3600) / 60);
@@ -240,13 +240,15 @@ function formatCountdown(now: Date, nextPrayerAt?: number): string {
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function readExplicitNextPrayerAt(data?: { nextPrayerAt?: number } | null): number | undefined {
-  if (typeof data?.nextPrayerAt === "number" && Number.isFinite(data.nextPrayerAt)) return data.nextPrayerAt;
-  return undefined;
+function readNextPrayerTimestampFromSnapshot(data?: { nextPrayerAt?: number; nextPrayerDayId?: string; todayTimings?: { timestamp?: number; isNext?: boolean }[] } | null): number | undefined {
+  const direct = explicitTimestamp(data?.nextPrayerAt);
+  if (direct) return direct;
+  if (data?.nextPrayerDayId === "tomorrow") return undefined;
+  return explicitTimestamp(data?.todayTimings?.find((timing) => timing.isNext)?.timestamp);
 }
 
 function calculatePrayerProgress(now: Date, data?: { nextPrayerAt?: number; nextPrayerDayId?: string; todayTimings: { id?: string; timestamp?: number; isNext?: boolean }[] } | null): { percent: number } {
-  const nextPrayerAt = readExplicitNextPrayerAt(data);
+  const nextPrayerAt = readNextPrayerTimestampFromSnapshot(data);
   if (!data || !nextPrayerAt) return { percent: 0 };
   const current = now.getTime();
   const nextIndex = data.nextPrayerDayId !== "tomorrow"
