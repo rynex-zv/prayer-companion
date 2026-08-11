@@ -7,7 +7,7 @@ import { useAppStore } from "@/state/appStore";
 export type TodaySnapshot = {
   locationTitle: string; hijriDate: string; gregorianDate: string; currentTime?: string;
   nextPrayerId: string; nextPrayerClock: string; nextPrayerBaseClock: string;
-  showNextPrayerBaseClock: boolean; nextPrayerDayId: string; countdown: string; statusMessage: string;
+  showNextPrayerBaseClock: boolean; nextPrayerDayId: string; countdown: string; nextPrayerAt?: number; statusMessage: string;
   imsakTime: string; iftarTime: string; isImsakNext: boolean; isIftarNext: boolean;
   nextFastingCountdown: string; isRtl: boolean;
   error?: string;
@@ -46,6 +46,9 @@ export function useToday() {
       void refresh();
     }
   }, [bootstrapStatus, language, refresh]);
+  useEffect(() => {
+    if (bootstrapStatus === "ready" && !data) void refresh();
+  }, [bootstrapStatus, data, refresh]);
   useEffect(() => appClient.subscribe((event) => { if (event.domain === "today" && event.type !== "domain.changed") void refresh(); }), [refresh]);
   return { data, loading, refresh };
 }

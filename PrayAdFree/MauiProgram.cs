@@ -174,11 +174,13 @@ namespace Pray_Ad_Free {
 #endif
             builder.Services.AddSingleton<PrayerSchedulePlanner>();
             builder.Services.AddSingleton<AndroidAlarmCapabilityService>();
-#if PRAY_AUTOMATION
-            builder.Services.AddSingleton<ILocalNotificationScheduler, AutomationNotificationScheduler>();
-#else
-            builder.Services.AddSingleton<ILocalNotificationScheduler, LocalNotificationScheduler>();
-#endif
+            builder.Services.AddSingleton<ILocalNotificationScheduler>(sp => AutomationRuntime.IsEnabled
+                ? new AutomationNotificationScheduler()
+                : new LocalNotificationScheduler(
+                    sp.GetRequiredService<PrayerSchedulePlanner>(),
+                    sp.GetRequiredService<IAppLogger>(),
+                    sp.GetRequiredService<AndroidAlarmCapabilityService>(),
+                    sp.GetRequiredService<IWindowsNotificationQueueService>()));
             builder.Services.AddSingleton(_ => new PrayerTimesCache(AutomationRuntime.DataRoot));
             builder.Services.AddSingleton<WebPrayerMonthFactory>();
             builder.Services.AddSingleton<IPrayerTimesClient, SharedCorePrayerTimesClient>();

@@ -52,22 +52,24 @@ public static class WebStateDefaults {
             state.TextSize = defaults.TextSize;
         }
 
-        if (string.IsNullOrWhiteSpace(state.Country)) {
-            state.Country = defaults.Country;
-        }
+        var hasCoordinates = state.Latitude != 0 || state.Longitude != 0;
+        if (!hasCoordinates) {
+            if (string.IsNullOrWhiteSpace(state.Country)) {
+                state.Country = defaults.Country;
+            }
 
-        if (string.IsNullOrWhiteSpace(state.CountryCode)) {
-            state.CountryCode = defaults.CountryCode;
-        }
+            if (string.IsNullOrWhiteSpace(state.CountryCode)) {
+                state.CountryCode = defaults.CountryCode;
+            }
 
-        if (string.IsNullOrWhiteSpace(state.City)) {
-            state.City = defaults.City;
-        }
+            if (string.IsNullOrWhiteSpace(state.City)) {
+                state.City = defaults.City;
+            }
 
-        if (state.Latitude == 0 && state.Longitude == 0) {
             state.Latitude = defaults.Latitude;
             state.Longitude = defaults.Longitude;
         }
+        ClearMismatchedCatalogLocation(state);
 
         if (string.IsNullOrWhiteSpace(state.TimeZoneId)) {
             state.TimeZoneId = defaults.TimeZoneId;
@@ -100,6 +102,24 @@ public static class WebStateDefaults {
         if (!state.TasbihPresets.Any(item => item.Id == state.SelectedTasbihPresetId)) {
             state.SelectedTasbihPresetId = state.TasbihPresets[0].Id;
         }
+    }
+
+    private static void ClearMismatchedCatalogLocation(WebState state) {
+        var selected = WebCatalog.FindPlace(state.CountryCode, state.Country, state.City);
+        if (selected is null) {
+            return;
+        }
+
+        var nearest = WebCatalog.FindNearestPlace(state.Latitude, state.Longitude, 50);
+        if (nearest is not null &&
+            string.Equals(nearest.CountryCode, selected.CountryCode, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(nearest.City, selected.City, StringComparison.OrdinalIgnoreCase)) {
+            return;
+        }
+
+        state.Country = string.Empty;
+        state.CountryCode = string.Empty;
+        state.City = string.Empty;
     }
 
     private static List<WebTasbihPreset> BuildWebTasbihPresets() {

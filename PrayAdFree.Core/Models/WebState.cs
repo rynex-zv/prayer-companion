@@ -45,9 +45,6 @@ public sealed class WebState {
         _ = AppInputContract.RequiredChoice(ReadingMode, nameof(ReadingMode), "compass", "map");
         _ = AppInputContract.RequiredChoice(FilterMode, nameof(FilterMode), "none", "night", "contrast");
         _ = AppInputContract.RequiredChoice(ClockFormat, nameof(ClockFormat), "auto", "12h", "24h");
-        if (string.IsNullOrWhiteSpace(CountryCode) || string.IsNullOrWhiteSpace(City)) {
-            throw new InvalidDataException("Persisted location is missing its country code or city.");
-        }
         if (!double.IsFinite(Latitude) || !double.IsFinite(Longitude) || Math.Abs(Latitude) > 90 || Math.Abs(Longitude) > 180) {
             throw new InvalidDataException("Persisted location coordinates are invalid.");
         }

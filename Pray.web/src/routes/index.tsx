@@ -28,6 +28,7 @@ function TodayPage() {
   const [now, setNow] = useState(() => new Date());
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
+  const countdown = useMemo(() => formatCountdown(now, data?.nextPrayerAt, data?.countdown), [now, data?.nextPrayerAt, data?.countdown]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -47,6 +48,11 @@ function TodayPage() {
       traceClient("renderComplete", { route: "today", timingCount: data.todayTimings.length });
     });
   }, [data]);
+
+  useEffect(() => {
+    if (!data?.nextPrayerAt) return;
+    if (data.nextPrayerAt - now.getTime() <= 0) void refresh();
+  }, [data?.nextPrayerAt, now, refresh]);
 
   if (!data) return <SkeletonToday />;
   const text = L;
@@ -129,7 +135,7 @@ function TodayPage() {
             </div>
           </div>
           <div className="mt-3 rounded-lg bg-black/15 px-3 py-2 text-center text-lg font-bold tabular-nums">
-            <Time>{data.countdown}</Time>
+            <Time>{countdown}</Time>
           </div>
         </div>
       </Card>
@@ -181,6 +187,15 @@ function formatCurrentTime(now: Date, sample?: string) {
     second: "2-digit",
     hour12: useTwelveHourClock,
   });
+}
+
+function formatCountdown(now: Date, nextPrayerAt?: number, fallback = ""): string {
+  if (!Number.isFinite(nextPrayerAt)) return fallback;
+  const remaining = Math.max(0, Math.floor(((nextPrayerAt ?? 0) - now.getTime()) / 1000));
+  const hours = Math.floor(remaining / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const seconds = remaining % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function SkeletonToday() {

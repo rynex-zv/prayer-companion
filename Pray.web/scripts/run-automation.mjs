@@ -17,7 +17,7 @@ const logBrowser = (line) => {
 const port = Number(process.env.PRAY_AUTOMATION_PORT ?? 4179);
 const baseUrl = `http://127.0.0.1:${port}`;
 const scenario = process.env.PRAY_AUTOMATION_SCENARIO;
-const automationUrl = scenario ? `${baseUrl}/?automationScenario=${encodeURIComponent(scenario)}` : baseUrl;
+const automationUrl = scenario ? `${baseUrl}/test?automationScenario=${encodeURIComponent(scenario)}` : `${baseUrl}/test`;
 const automationEnvironment = {
   ...process.env,
   PRAY_AUTOMATION: "true",

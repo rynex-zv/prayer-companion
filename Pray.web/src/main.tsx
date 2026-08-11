@@ -13,7 +13,6 @@ import "@/state/appStore";
 
 import { getRouter } from "./router";
 import { automationEnabled } from "./automation/config";
-import { startAutomationRun } from "./automation/runner";
 import { preloadBrowserBackend } from "./native/browserAppBackend";
 
 const root = document.getElementById("app");
@@ -33,7 +32,8 @@ async function startApplication() {
     </StrictMode>,
   );
 
-  if (automationEnabled()) {
+  if (import.meta.env.VITE_PRAY_AUTOMATION === "true" && automationEnabled()) {
+    const { startAutomationRun } = await import("./automation/runner");
     await startAutomationRun();
   }
 }

@@ -42,7 +42,12 @@
 		<Platforms>AnyCPU;ARM32;ARM64;x64;x86</Platforms>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(PrayAutomation)' == 'true'">
+	<PropertyGroup>
+		<EffectivePrayAutomation Condition="'$(Configuration)' == 'Debug' and '$(PrayAutomation)' == 'true'">true</EffectivePrayAutomation>
+		<EffectivePrayAutomation Condition="'$(EffectivePrayAutomation)' == ''">false</EffectivePrayAutomation>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(EffectivePrayAutomation)' == 'true'">
 		<DefineConstants>$(DefineConstants);PRAY_AUTOMATION</DefineConstants>
 		<ApplicationTitle>Pray Ad Free Automation</ApplicationTitle>
 		<ApplicationId>com.rynex.prayer.automation</ApplicationId>
@@ -163,6 +168,6 @@
 
 	<Target Name="BuildPhoneFrontend" BeforeTargets="PrepareForBuild" Inputs="@(FrontendBuildInput)" Outputs="$(FrontendBuildOutput)" Condition="'$(BuildFrontend)' == 'true' and '$(SkipFrontendBuild)' != 'true' and Exists('$(FrontendProjectDir)\package.json')">
 		<Warning Condition="!Exists('$(FrontendProjectDir)\node_modules')" Text="Skipping Pray.web frontend build because node_modules is missing. Run npm install in $(FrontendProjectDir)." />
-		<Exec Condition="Exists('$(FrontendProjectDir)\node_modules')" Command="$(NpmExecutable) run build -- $(FrontendBuildArgs)" WorkingDirectory="$(FrontendProjectDir)" EnvironmentVariables="PRAY_AUTOMATION=$(PrayAutomation)" />
+		<Exec Condition="Exists('$(FrontendProjectDir)\node_modules')" Command="$(NpmExecutable) run build -- $(FrontendBuildArgs)" WorkingDirectory="$(FrontendProjectDir)" EnvironmentVariables="PRAY_AUTOMATION=$(EffectivePrayAutomation)" />
 	</Target>
 </Project>

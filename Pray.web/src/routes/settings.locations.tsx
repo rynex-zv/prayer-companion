@@ -38,8 +38,18 @@ function LocationsPage() {
   const [isRefreshingGps, setIsRefreshingGps] = useState(false);
   if (!data) return null;
 
-  const country = data.countries.find((item) => item.code === data.country) ?? data.countries[0];
+  const country = data.countries.find((item) => item.code === data.country);
   const places = data.places ?? [];
+  const countryOptions = data.countries.map((item) => ({ id: item.code, label: item.name }));
+  if (!data.country) countryOptions.unshift({ id: "", label: "—" });
+  if (data.country && !countryOptions.some((item) => item.id === data.country)) {
+    countryOptions.push({ id: data.country, label: data.countryName || data.country });
+  }
+  const cityOptions = (country?.cities ?? []).map((city) => ({ id: city, label: city }));
+  if (!data.city) cityOptions.unshift({ id: "", label: "—" });
+  if (data.city && !cityOptions.some((item) => item.id === data.city)) {
+    cityOptions.push({ id: data.city, label: data.city });
+  }
   const patch = async (next: LocationSettings, resolveCoordinates = false) => {
     setData(next);
     setStatus("saving");
@@ -134,15 +144,15 @@ function LocationsPage() {
           label={t("country")}
           value={data.country}
           selectorName="locations:country"
-          options={data.countries.map((item) => ({ id: item.code, label: item.name }))}
+          options={countryOptions}
           onChange={patchCountry}
         />
-        {country ? (
+        {country || data.city ? (
           <OptionButtons
             label={t("city")}
             value={data.city}
             selectorName="locations:city"
-            options={country.cities.map((city) => ({ id: city, label: city }))}
+            options={cityOptions}
             onChange={patchCity}
           />
         ) : null}

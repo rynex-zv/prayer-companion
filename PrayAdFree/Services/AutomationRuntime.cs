@@ -1,11 +1,15 @@
 namespace Pray_Ad_Free.Services;
 
 public static class AutomationRuntime {
-#if PRAY_AUTOMATION
-    public const bool IsEnabled = true;
+#if DEBUG && PRAY_AUTOMATION
+    private const bool CompiledForAutomation = true;
 #else
-    public const bool IsEnabled = false;
+    private const bool CompiledForAutomation = false;
 #endif
+
+    public static bool TestsEnabled { get; set; } = false;
+
+    public static bool IsEnabled => CompiledForAutomation && TestsEnabled;
 
     public static string DataRoot => IsEnabled
         ? Path.Combine(FileSystem.AppDataDirectory, "AutomationState")

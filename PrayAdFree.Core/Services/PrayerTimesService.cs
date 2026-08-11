@@ -6,7 +6,7 @@ namespace PrayAdFree.Core.Services;
 
 public sealed class PrayerTimesService {
     public const int CacheSchemaVersion = 3;
-    public const int CalculationVersion = 3;
+    public const int CalculationVersion = 4;
     private readonly IPrayerTimesClient _client;
     private readonly PrayerTimesCache _cache;
 

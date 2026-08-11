@@ -21,6 +21,7 @@ const initialState: ClientState = {
 
 let state = initialState;
 const listeners = new Set<() => void>();
+const SETTINGS_DEPENDENT_PROJECTIONS = ["today.snapshot", "calendar.snapshot", "qibla.snapshot"];
 
 export function getClientState(): ClientState { return state; }
 export function subscribeClientState(listener: () => void): () => void { listeners.add(listener); return () => listeners.delete(listener); }
@@ -59,6 +60,10 @@ export function applyAppEvent(event: { sequence: number; domain: string; revisio
   else if (event.invalidationKey) {
     confirmed = { ...confirmed };
     for (const key of Object.keys(confirmed)) if (key.startsWith(`${event.domain}.`)) delete confirmed[key];
+  }
+  if (event.domain === "settings" || event.domain === "location") {
+    if (confirmed === state.confirmed) confirmed = { ...confirmed };
+    for (const key of SETTINGS_DEPENDENT_PROJECTIONS) delete confirmed[key];
   }
   state = {
     ...state,

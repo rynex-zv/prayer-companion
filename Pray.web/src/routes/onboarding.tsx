@@ -125,7 +125,10 @@ function OnboardingPage() {
     if (requestingPermission) return false;
     setRequestingPermission("location");
     const refreshed = await refreshGpsFromNative();
-    if (refreshed) setGrantedPermissions((current) => new Set(current).add("location"));
+    if (refreshed) {
+      setGrantedPermissions((current) => new Set(current).add("location"));
+      await refresh(true);
+    }
     setRequestingPermission(null);
     return refreshed;
   };
@@ -238,6 +241,7 @@ function OnboardingPage() {
                           setGrantedPermissions((current) => new Set(current).add(id));
                           const confirmed = result.data as { items?: PermissionItem[] };
                           if (confirmed?.items) setData({ ...data, permissions: confirmed });
+                          await refresh(true);
                         }
                         else setFinishError(result.error);
                         setRequestingPermission(null);
@@ -267,6 +271,15 @@ function OnboardingPage() {
               else {
                 const confirmed = result.data as { items?: PermissionItem[] };
                 if (confirmed?.items) setData({ ...data, permissions: confirmed });
+                setGrantedPermissions((current) => {
+                  const next = new Set(current);
+                  for (const permission of permissionItems) {
+                    const id = permission.id?.toLowerCase();
+                    if (id === "location" || id === "notifications") next.add(id);
+                  }
+                  return next;
+                });
+                await refresh(true);
               }
               setRequestingPermission(null);
             }} className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">{t("grantPermissions")}</button>

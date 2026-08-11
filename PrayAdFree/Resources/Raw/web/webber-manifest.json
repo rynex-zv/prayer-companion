@@ -1,5 +1,5 @@
 {
-  "version": "294",
+  "version": "311",
   "contractVersion": 5,
   "target": "phone",
   "entry": "index.html",
@@ -54,7 +54,7 @@
     },
     {
       "path": "assets/app.js",
-      "sha256": "794b9eb2af5320039008ba9cd1c25335c1f9cd51b683271a657d9fbeacf11eab"
+      "sha256": "51567ae5a7e9864636c57e40775883ed1e5949d0137b4213184ca27f4cc7366c"
     },
     {
       "path": "assets/index.css",
@@ -290,7 +290,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "22bf7968aeebb1488093094316727766c90ca280572e10f890d7fc24cec88f69"
+      "sha256": "fb33c49970936fe9c448415c3583e473a73fb3d1259f3cd4773ca8b9cbc5a2b9"
     }
   ]
 }

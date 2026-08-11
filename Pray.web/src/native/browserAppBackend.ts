@@ -2,8 +2,9 @@ import type { BridgeResponse } from "./mauiWebberClient";
 import { prepareWebPlatformPayload, tryHandleWebPlatformCall, type BrowserCoreCall } from "./webPlatformAdapter";
 import { executeWasmCore, getLastWasmCoreLoadError, preloadWasmCore } from "./wasmCoreClient";
 import { coreContract } from "../generated/core-contract";
+import { automationEnabled } from "../automation/config";
 
-const DATABASE = import.meta.env.VITE_PRAY_AUTOMATION === "true"
+const DATABASE = import.meta.env.VITE_PRAY_AUTOMATION === "true" && automationEnabled()
   ? "prayer-companion-automation"
   : "prayer-companion";
 const STORE = "repositories";

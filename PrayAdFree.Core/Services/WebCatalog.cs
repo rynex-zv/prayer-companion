@@ -93,7 +93,7 @@ public static class WebCatalog {
         RemoteWebUrl: WebStateDefaults.DefaultRemoteWebUrl);
 
     public static IReadOnlyList<WebAdhanSoundOption> DefaultAdhanSounds { get; } = new[] {
-        new WebAdhanSoundOption("makkah", "Makkah", true, false, false)
+        new WebAdhanSoundOption("adhan_default", "Default", true, false, true)
     };
 
     public static IReadOnlyList<WebReminderOption> BuiltInAlarmReminders { get; } = new[] {

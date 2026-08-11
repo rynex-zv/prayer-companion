@@ -175,6 +175,47 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private object TodaySnapshot() {
+        try {
+            return BuildTodaySnapshot();
+        } catch (ArgumentException exception) {
+            var adhan = ReadStoredAdhanSettings();
+            var selectedMethod = adhan.Method;
+            return new {
+                locationTitle = LocationTitle(),
+                hijriDate = string.Empty,
+                gregorianDate = DateTime.Now.ToString("dddd, dd MMMM yyyy", DisplayCulture()),
+                currentTime = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+                nextPrayerId = "Fajr",
+                nextPrayerClock = string.Empty,
+                nextPrayerBaseClock = string.Empty,
+                showNextPrayerBaseClock = false,
+                nextPrayerDayId = "today",
+                countdown = string.Empty,
+                nextPrayerAt = (long?)null,
+                statusMessage = exception.Message,
+                calculation = new {
+                    selectedMethod = selectedMethod.ToString(),
+                    selectedMethodLabel = T($"method_{selectedMethod}"),
+                    effectiveMethod = selectedMethod.ToString(),
+                    effectiveMethodLabel = T($"method_{selectedMethod}"),
+                    madhhab = adhan.Madhhab.ToString(),
+                    madhhabLabel = T($"madhhab_{adhan.Madhhab}"),
+                    highLatitudeRule = adhan.HighLatitudeRule.ToString(),
+                    highLatitudeRuleLabel = T($"highLatitude_{adhan.HighLatitudeRule}")
+                },
+                imsakTime = string.Empty,
+                iftarTime = string.Empty,
+                isImsakNext = false,
+                isIftarNext = false,
+                nextFastingCountdown = string.Empty,
+                isRtl = WebCatalog.IsRtl(_state.Language),
+                error = T("UnableToLoadPrayerTimes"),
+                todayTimings = Array.Empty<object>()
+            };
+        }
+    }
+
+    private object BuildTodaySnapshot() {
         var now = DateTime.Now;
         var settings = BuildSettings();
         var day = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now));
@@ -197,6 +238,7 @@ public sealed class WebCoreRpcDispatcher {
             showNextPrayerBaseClock = snapshot.NextPrayerBaseTime.HasValue,
             nextPrayerDayId = snapshot.IsNextPrayerTomorrow ? "tomorrow" : "today",
             countdown = FormatDuration(next - now),
+            nextPrayerAt = ToUnixMilliseconds(next, settings.Location.TimeZoneId),
             statusMessage = "",
             calculation = new {
                 selectedMethod = settings.Method.ToString(),
@@ -230,6 +272,12 @@ public sealed class WebCoreRpcDispatcher {
         "tr" => "tr-TR",
         _ => "en-US"
     });
+
+    private static long ToUnixMilliseconds(DateTime localTime, string timeZoneId) {
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var offset = timeZone.GetUtcOffset(localTime);
+        return new DateTimeOffset(DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified), offset).ToUnixTimeMilliseconds();
+    }
 
     private object CalendarSnapshot(string? monthValue = null) {
         if (!string.IsNullOrWhiteSpace(monthValue) && DateTime.TryParseExact(monthValue + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)) {
@@ -458,6 +506,11 @@ public sealed class WebCoreRpcDispatcher {
                 fasting = new { iftarDelay = 0, imsakAdvance = 10 },
                 imsakReminders = Array.Empty<object>(),
                 iftarReminders = Array.Empty<object>(),
+                vibrationOverrideOptions = new[] {
+                    new { id = "default", label = T("useGlobal") },
+                    new { id = "enabled", label = T("PermissionStatus_Enabled") },
+                    new { id = "none", label = T("PermissionStatus_Disabled") }
+                },
                 perPrayerOverrides = Array.Empty<object>()
             },
             "notifications" when !string.IsNullOrWhiteSpace(_state.NotificationSettingsJson) => ParseStoredProjection(_state.NotificationSettingsJson),
@@ -518,22 +571,42 @@ public sealed class WebCoreRpcDispatcher {
             }
             _state.TextSize = WebCatalog.ClampTextSize(textSize);
         } else if (section == "locations" && field == "value" && value.ValueKind == JsonValueKind.Object) {
+            var previousCountryCode = _state.CountryCode;
+            var previousCountry = _state.Country;
+            var previousCity = _state.City;
             var previousLatitude = _state.Latitude;
             var previousLongitude = _state.Longitude;
             _state.UseGps = GetBool(value, "useGps", _state.UseGps);
             _state.Latitude = GetDouble(value, "latitude", _state.Latitude);
             _state.Longitude = GetDouble(value, "longitude", _state.Longitude);
-            _state.CountryCode = GetString(value, "country", _state.CountryCode) ?? _state.CountryCode;
-            _state.Country = GetString(value, "countryName", _state.Country) ?? _state.Country;
-            _state.City = GetString(value, "city", _state.City) ?? _state.City;
             _state.ReadingMode = GetString(value, "qiblaReadingMode", _state.ReadingMode) ?? _state.ReadingMode;
             _state.FilterMode = GetString(value, "qiblaFilterMode", _state.FilterMode) ?? _state.FilterMode;
-            if (Math.Abs(previousLatitude - _state.Latitude) > 0.000001 ||
-                Math.Abs(previousLongitude - _state.Longitude) > 0.000001) {
+
+            var coordinatesChanged = Math.Abs(previousLatitude - _state.Latitude) > 0.000001 ||
+                Math.Abs(previousLongitude - _state.Longitude) > 0.000001;
+            var incomingCountryCode = CleanLocationText(GetString(value, "country", coordinatesChanged ? string.Empty : _state.CountryCode));
+            var incomingCountry = CleanLocationText(GetString(value, "countryName", coordinatesChanged ? string.Empty : _state.Country));
+            var incomingCity = CleanLocationText(GetString(value, "city", coordinatesChanged ? string.Empty : _state.City));
+
+            if (coordinatesChanged) {
                 var place = WebCatalog.FindNearestPlace(_state.Latitude, _state.Longitude, 50);
-                _state.Country = place?.Country ?? string.Empty;
-                _state.CountryCode = place?.CountryCode ?? string.Empty;
-                _state.City = place?.City ?? string.Empty;
+                if (place is not null) {
+                    _state.Country = place.Country;
+                    _state.CountryCode = place.CountryCode;
+                    _state.City = place.City;
+                } else if (IncomingLocationDiffersFromPrevious(incomingCountryCode, incomingCountry, incomingCity, previousCountryCode, previousCountry, previousCity)) {
+                    _state.CountryCode = incomingCountryCode;
+                    _state.Country = incomingCountry;
+                    _state.City = incomingCity;
+                } else {
+                    _state.CountryCode = string.Empty;
+                    _state.Country = string.Empty;
+                    _state.City = string.Empty;
+                }
+            } else {
+                _state.CountryCode = incomingCountryCode;
+                _state.Country = incomingCountry;
+                _state.City = incomingCity;
             }
         } else if (section == "adhan" && field == "value" && value.ValueKind == JsonValueKind.Object) {
             var candidate = value.GetRawText();
@@ -866,9 +939,27 @@ public sealed class WebCoreRpcDispatcher {
         _ => id.ToString()
     };
 
-    private string LocationTitle() => string.IsNullOrWhiteSpace(_state.Country)
-        ? _state.City
-        : $"{_state.City}, {_state.Country}";
+    private string LocationTitle() {
+        if (!string.IsNullOrWhiteSpace(_state.City) && !string.IsNullOrWhiteSpace(_state.Country)) return $"{_state.City}, {_state.Country}";
+        if (!string.IsNullOrWhiteSpace(_state.City)) return _state.City;
+        if (!string.IsNullOrWhiteSpace(_state.Country)) return _state.Country;
+        return $"{_state.Latitude.ToString("0.####", CultureInfo.InvariantCulture)}, {_state.Longitude.ToString("0.####", CultureInfo.InvariantCulture)}";
+    }
+
+    private static string CleanLocationText(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private static bool IncomingLocationDiffersFromPrevious(
+        string countryCode,
+        string country,
+        string city,
+        string previousCountryCode,
+        string previousCountry,
+        string previousCity) {
+        if (string.IsNullOrWhiteSpace(countryCode) && string.IsNullOrWhiteSpace(country) && string.IsNullOrWhiteSpace(city)) return false;
+        return !string.Equals(countryCode, previousCountryCode, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(country, previousCountry, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(city, previousCity, StringComparison.OrdinalIgnoreCase);
+    }
 
     private string DirectionLabel(double bearing) {
         string[] labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -988,6 +1079,27 @@ public sealed class WebCoreRpcDispatcher {
             new JsonObject { ["id"] = "auto", ["label"] = T("auto") },
             new JsonObject { ["id"] = "12h", ["label"] = T("clock12h") },
             new JsonObject { ["id"] = "24h", ["label"] = T("clock24h") });
+        projection["vibrationOverrideOptions"] = new JsonArray(
+            new JsonObject { ["id"] = "default", ["label"] = T("useGlobal") },
+            new JsonObject { ["id"] = "enabled", ["label"] = T("PermissionStatus_Enabled") },
+            new JsonObject { ["id"] = "none", ["label"] = T("PermissionStatus_Disabled") });
+        if (projection["sounds"] is not JsonArray sounds || sounds.Count == 0) {
+            projection["sounds"] = new JsonArray(new JsonObject {
+                ["id"] = "adhan_default",
+                ["label"] = "Default",
+                ["selected"] = true,
+                ["isCustom"] = false,
+                ["canPreview"] = true
+            });
+        } else {
+            var hasSelected = false;
+            foreach (var item in sounds.OfType<JsonObject>()) {
+                var isCustom = item["isCustom"]?.GetValue<bool>() ?? false;
+                if (!isCustom) item["canPreview"] = true;
+                hasSelected |= item["selected"]?.GetValue<bool>() ?? false;
+            }
+            if (!hasSelected && sounds[0] is JsonObject first) first["selected"] = true;
+        }
         return ParseStoredProjection(projection.ToJsonString());
     }
 

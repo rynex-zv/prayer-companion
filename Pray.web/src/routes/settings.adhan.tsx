@@ -78,7 +78,39 @@ function AdhanPage() {
     });
   };
 
-  const selectedSound = data.sounds.find((sound) => sound.selected)?.id ?? data.sounds[0]?.id ?? "";
+  const applyProjectionResponse = (response: { ok: boolean; data?: unknown; error?: string }) => {
+    if (!response.ok) {
+      setStatus("error");
+      return;
+    }
+
+    const payload = response.data as { projection?: AdhanSettings; cancelled?: boolean } | undefined;
+    if (payload?.cancelled) {
+      setStatus("ready");
+      return;
+    }
+
+    if (payload?.projection) {
+      setData(payload.projection);
+      setStatus("saved");
+    }
+  };
+
+  const addCustomSound = async () => {
+    setStatus("saving");
+    applyProjectionResponse(await platformIntents.addCustomAdhanSound());
+  };
+
+  const removeCustomSound = async (id: string) => {
+    setStatus("saving");
+    applyProjectionResponse(await platformIntents.removeCustomAdhanSound(id));
+  };
+
+  const previewSound = async (id: string) => {
+    const response = await platformIntents.previewAdhanSound(id);
+    if (!response.ok) setStatus("error");
+  };
+
   const calculationMethods = data.calculationMethods!;
   const madhhabs = data.madhhabs!;
   const highLatitudeRules = data.highLatitudeRules!;
@@ -92,7 +124,7 @@ function AdhanPage() {
       <SectionBlock title={t("adhanSound")}>
         <button
           type="button"
-          onClick={() => void platformIntents.addCustomAdhanSound()}
+          onClick={() => void addCustomSound()}
           data-selector-name="adhan:add-custom-sound"
           className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground"
         >
@@ -105,11 +137,11 @@ function AdhanPage() {
               <button type="button" onClick={() => patch({ ...data, sounds: data.sounds.map((item) => ({ ...item, selected: item.id === sound.id })) })} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-select:${sound.id}`}>
                 {sound.selected ? t("selected") : t("select")}
               </button>
-              <button type="button" disabled={sound.canPreview === false} onClick={() => void platformIntents.previewAdhanSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40" data-selector-name={`adhan:sound-play:${sound.id}`}>
+              <button type="button" disabled={sound.canPreview === false} onClick={() => void previewSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40" data-selector-name={`adhan:sound-play:${sound.id}`}>
                 {t("play")}
               </button>
               {sound.isCustom ? (
-                <button type="button" onClick={() => void platformIntents.removeCustomAdhanSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-remove:${sound.id}`}>
+                <button type="button" onClick={() => void removeCustomSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-remove:${sound.id}`}>
                   {t("remove")}
                 </button>
               ) : <span />}

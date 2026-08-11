@@ -21,6 +21,7 @@ function AboutPage() {
   const [isPullingRemote, setIsPullingRemote] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [isClearingData, setIsClearingData] = useState(false);
+  const [download, setDownload] = useState<AppDownload | null>(null);
 
   useEffect(() => {
     console.info("[pray.about] mounted");
@@ -37,6 +38,10 @@ function AboutPage() {
       setRemoteUrl(info.remoteWebUrl);
     }
   }, [info?.remoteWebUrl]);
+
+  useEffect(() => {
+    void loadDeviceDownload().then(setDownload);
+  }, []);
 
   const saveRemoteUrl = async (url: string) => {
     console.info("[pray.about] saveRemoteUrl start", { url });
@@ -161,6 +166,7 @@ function AboutPage() {
           <button onClick={() => platformIntents.call(info.phone)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("callRynex")} {info.phone}</button>
           <button onClick={() => platformIntents.openUrl(info.website)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("openWebsite")}</button>
           <button onClick={() => platformIntents.reportIssue()} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
+          {download ? <a href={download.url} download data-selector-name="about:download-native-app" className="col-span-2 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><DownloadCloud className="h-4 w-4" /> {download.label}</a> : null}
           {nativeBackendReady() ? <button onClick={pullRemote} disabled={isPullingRemote} data-selector-name="about:pull-remote-web" className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"><DownloadCloud className="h-4 w-4" /> {isPullingRemote ? t("pulling") : t("pullLatestWebVersion")}</button> : null}
         </div>
         <div className="grid gap-2">
@@ -213,6 +219,61 @@ type AboutSnapshot = {
   remoteWebUrl: string;
   defaultRemoteWebUrl: string;
 };
+
+type AppDownload = {
+  platform: "windows" | "android" | "ios" | "desktop";
+  kind: "exe" | "zip" | "apk" | "ios";
+  url: string;
+  label: string;
+  version?: string;
+};
+
+async function loadDeviceDownload(): Promise<AppDownload | null> {
+  if (typeof navigator === "undefined") return null;
+  try {
+    const response = await fetch("/downloads/manifest.json", { cache: "no-store" });
+    if (!response.ok) return null;
+    if (!response.headers.get("content-type")?.toLowerCase().includes("json")) return null;
+    const manifest = await response.json() as { files?: AppDownload[] };
+    const candidates = (manifest.files ?? []).filter((file) => matchesDevice(file));
+    for (const candidate of sortDownloads(candidates)) {
+      if (await urlExists(candidate.url)) return candidate;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function matchesDevice(file: AppDownload): boolean {
+  const userAgent = navigator.userAgent;
+  const isAndroid = /Android/i.test(userAgent);
+  const isIos = /iPhone|iPad|iPod/i.test(userAgent);
+  const isWindows = /Windows/i.test(userAgent);
+  if (isAndroid) return file.kind === "apk" || file.platform === "android";
+  if (isIos) return file.kind === "ios" || file.platform === "ios";
+  if (isWindows) return file.kind === "exe" || file.kind === "zip" || file.platform === "windows" || file.platform === "desktop";
+  return file.kind === "zip" || file.platform === "desktop";
+}
+
+function sortDownloads(files: AppDownload[]): AppDownload[] {
+  const priority = new Map<AppDownload["kind"], number>([
+    ["apk", 0],
+    ["ios", 0],
+    ["exe", 0],
+    ["zip", 1],
+  ]);
+  return [...files].sort((a, b) => (priority.get(a.kind) ?? 9) - (priority.get(b.kind) ?? 9));
+}
+
+async function urlExists(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+    return response.ok && !response.headers.get("content-type")?.toLowerCase().includes("html");
+  } catch {
+    return false;
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, error: string): Promise<T> {
   return new Promise((resolve, reject) => {

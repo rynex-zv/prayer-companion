@@ -69,9 +69,9 @@ public sealed class WebStateRpcTests {
                 useGps = false,
                 latitude = 55.0,
                 longitude = 4.0,
-                country = "GH",
-                countryName = "Ghana",
-                city = "Eastern Region"
+                country = "NL",
+                countryName = "Netherlands",
+                city = "Amsterdam"
             }
         });
         var response = JsonSerializer.SerializeToElement(result);
@@ -82,6 +82,60 @@ public sealed class WebStateRpcTests {
         Assert.Equal(string.Empty, calculated.GetProperty("country").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("countryName").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("city").GetString());
+    }
+
+    [Fact]
+    public void GpsReverseGeocodedLocationIsUsedByTodayInsteadOfAmsterdamFallback() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        Dispatch(dispatcher, "settings.update", new {
+            _platform = new { timeZoneId = "Asia/Dubai" },
+            section = "locations",
+            field = "value",
+            value = new {
+                useGps = true,
+                latitude = 25.3085386,
+                longitude = 55.3648474,
+                country = "AE",
+                countryName = "United Arab Emirates",
+                city = "Sharjah"
+            }
+        });
+
+        var location = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "settings.getSnapshot", new { section = "locations" }));
+        Assert.Equal("AE", location.GetProperty("country").GetString());
+        Assert.Equal("United Arab Emirates", location.GetProperty("countryName").GetString());
+        Assert.Equal("Sharjah", location.GetProperty("city").GetString());
+
+        var today = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.getSnapshot", new { }));
+        Assert.Equal("Sharjah, United Arab Emirates", today.GetProperty("locationTitle").GetString());
+        Assert.Equal("Dubai", today.GetProperty("calculation").GetProperty("effectiveMethod").GetString());
+        Assert.DoesNotContain("Amsterdam", today.GetRawText(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BootstrapCleansPersistedCatalogPlaceWhenCoordinatesNoLongerMatch() {
+        var stale = WebState.Default();
+        stale.UseGps = true;
+        stale.CountryCode = "NL";
+        stale.Country = "Netherlands";
+        stale.City = "Amsterdam";
+        stale.Latitude = 25.3085386;
+        stale.Longitude = 55.3648474;
+        stale.TimeZoneId = "Asia/Dubai";
+        var envelope = JsonSerializer.Serialize(new WebExecutionState(
+            stale,
+            new AppRevision(0, new Dictionary<string, long>(), 0)));
+
+        var result = WebCoreExecutionEngine.Execute(envelope, "app.bootstrap", JsonSerializer.SerializeToElement(new { }));
+        var restored = JsonSerializer.Deserialize<WebExecutionState>(result.State)!;
+        var bootstrap = JsonSerializer.SerializeToElement(result.Data);
+        var today = bootstrap.GetProperty("projections").GetProperty("today");
+
+        Assert.Equal(string.Empty, restored.State.CountryCode);
+        Assert.Equal(string.Empty, restored.State.Country);
+        Assert.Equal(string.Empty, restored.State.City);
+        Assert.DoesNotContain("Amsterdam", today.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.True(today.TryGetProperty("error", out _));
     }
 
     [Fact]

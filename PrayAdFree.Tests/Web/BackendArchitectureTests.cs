@@ -126,13 +126,45 @@ public sealed class BackendArchitectureTests {
         Assert.DoesNotContain("ResolveAfterNavigationFailureAsync", host, StringComparison.Ordinal);
         Assert.Contains("WebView.ReleaseBlocker", host, StringComparison.Ordinal);
         Assert.Contains("EnsureCoreWebView2Async", host, StringComparison.Ordinal);
-        Assert.Contains("--force-renderer-accessibility", host, StringComparison.Ordinal);
+        Assert.Contains("--force-renderer-accessibility=complete", host, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateCoreWebView2ControllerAsync", host, StringComparison.Ordinal);
         Assert.DoesNotContain("CoreWebView2ControllerWindowReference.CreateFromWindowHandle", host, StringComparison.Ordinal);
         Assert.DoesNotContain("windowsWebView.Opacity = 0", host, StringComparison.Ordinal);
         var uiaTest = File.ReadAllText(Path.Combine(root, "tools", "Test-WindowsAccessibility.ps1"));
         Assert.Contains("ControlType]::Document", uiaTest, StringComparison.Ordinal);
         Assert.Contains("NamedInteractiveControls", uiaTest, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Native_automation_builds_are_isolated_from_user_profile_data() {
+        var root = FindRepoRoot();
+        var project = File.ReadAllText(Path.Combine(root, "PrayAdFree", "PrayAdFree.csproj"));
+        var runtime = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "AutomationRuntime.cs"));
+        var backend = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Services", "WebAppRpcHandler.cs"));
+        var webBuild = File.ReadAllText(Path.Combine(root, "Pray.web", "scripts", "build.mjs"));
+        var webConfig = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "automation", "config.ts"));
+        var webMain = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "main.tsx"));
+        var webRunner = File.ReadAllText(Path.Combine(root, "Pray.web", "scripts", "run-automation.mjs"));
+        var browserBackend = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "native", "browserAppBackend.ts"));
+
+        Assert.Contains("<EffectivePrayAutomation Condition=\"'$(Configuration)' == 'Debug' and '$(PrayAutomation)' == 'true'\">true</EffectivePrayAutomation>", project, StringComparison.Ordinal);
+        Assert.Contains("<DefineConstants>$(DefineConstants);PRAY_AUTOMATION</DefineConstants>", project, StringComparison.Ordinal);
+        Assert.Contains("<ApplicationId>com.rynex.prayer.automation</ApplicationId>", project, StringComparison.Ordinal);
+        Assert.Contains("EnvironmentVariables=\"PRAY_AUTOMATION=$(EffectivePrayAutomation)\"", project, StringComparison.Ordinal);
+        Assert.Contains("public static bool TestsEnabled { get; set; } = false", runtime, StringComparison.Ordinal);
+        Assert.Contains("public static bool IsEnabled => CompiledForAutomation && TestsEnabled", runtime, StringComparison.Ordinal);
+        Assert.Contains("Path.Combine(FileSystem.AppDataDirectory, \"AutomationState\")", runtime, StringComparison.Ordinal);
+        Assert.Contains("Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), \"PrayAdFree\", \"app_settings.json\")", runtime, StringComparison.Ordinal);
+        Assert.Contains("#if DEBUG && PRAY_AUTOMATION", backend, StringComparison.Ordinal);
+        Assert.Contains("Build Debug with PrayAutomation=true and set AutomationRuntime.TestsEnabled=true", backend, StringComparison.Ordinal);
+        Assert.Contains("VITE_PRAY_AUTOMATION_WINDOWS", webBuild, StringComparison.Ordinal);
+        Assert.Contains("if (!enabled(import.meta.env.VITE_PRAY_AUTOMATION)) return false", webConfig, StringComparison.Ordinal);
+        Assert.Contains("export const automationRoute = \"/test\"", webConfig, StringComparison.Ordinal);
+        Assert.Contains("if (!automationRouteActive()) return false", webConfig, StringComparison.Ordinal);
+        Assert.Contains("import.meta.env.VITE_PRAY_AUTOMATION === \"true\" && automationEnabled()", webMain, StringComparison.Ordinal);
+        Assert.Contains("await import(\"./automation/runner\")", webMain, StringComparison.Ordinal);
+        Assert.Contains("`${baseUrl}/test", webRunner, StringComparison.Ordinal);
+        Assert.Contains("const DATABASE = import.meta.env.VITE_PRAY_AUTOMATION === \"true\" && automationEnabled()", browserBackend, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -167,6 +199,7 @@ public sealed class BackendArchitectureTests {
 
         Assert.Contains("isReady: () => getAppState().bootstrapStatus === \"ready\"", shell, StringComparison.Ordinal);
         Assert.Contains("bootstrapAppState().catch", shell, StringComparison.Ordinal);
+        Assert.Contains("pathname === \"/test\"", shell, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { executeCommand } from "@/client/applicationClient";
+import { executeCommand, platformIntents } from "@/client/applicationClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
 import bundledEnglishLabels from "../../../PrayAdFree/Resources/Raw/i18n/en.json";
 import bundledArabicLabels from "../../../PrayAdFree/Resources/Raw/i18n/ar.json";
@@ -58,6 +58,10 @@ type ConfirmedField<T = unknown> = {
   value: T;
   calculated?: Record<string, unknown>;
   error?: string;
+};
+
+type LocationSnapshot = {
+  useGps?: boolean;
 };
 
 const defaultLanguageObject: LanguageObject = {
@@ -178,6 +182,19 @@ async function performBootstrap() {
       "shell.bootstrap": { status: "saved", updatedAt: Date.now() },
     },
   });
+
+  void refreshGpsLocationAfterBootstrap();
+}
+
+async function refreshGpsLocationAfterBootstrap() {
+  const location = await appClient.query<LocationSnapshot>({
+    name: "settings.getSnapshot",
+    payload: { section: "locations" },
+    domain: "settings",
+    projectionKey: "settings.locations",
+  });
+  if (!location.ok || location.data.useGps !== true) return;
+  await platformIntents.refreshLocation();
 }
 
 const bundledLabelsByLanguage: Record<string, Record<string, string>> = {

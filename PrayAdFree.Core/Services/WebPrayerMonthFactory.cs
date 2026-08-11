@@ -165,7 +165,7 @@ public sealed class WebPrayerMonthFactory {
     }
 
     private static (HijriDate Value, int MonthNumber) BuildHijri(DateOnly date) {
-        var calendar = new System.Globalization.HijriCalendar();
+        var calendar = new System.Globalization.UmAlQuraCalendar();
         var value = date.ToDateTime(TimeOnly.MinValue);
         var month = calendar.GetMonth(value);
         string[] names = ["Muharram", "Safar", "Rabi al-awwal", "Rabi al-thani", "Jumada al-awwal", "Jumada al-thani", "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];

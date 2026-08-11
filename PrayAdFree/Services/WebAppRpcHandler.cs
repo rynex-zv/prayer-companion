@@ -1417,7 +1417,11 @@ public sealed class NativeAppBackend {
         : throw new ArgumentOutOfRangeException(field, value, $"{field} must be positive.");
 
     private static object WriteAutomationReports(JsonElement payload) {
-#if PRAY_AUTOMATION
+#if DEBUG && PRAY_AUTOMATION
+        if (!AutomationRuntime.IsEnabled) {
+            throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set AutomationRuntime.TestsEnabled=true.");
+        }
+
         var runId = SanitizeAutomationFileName(ReadString(payload, "runId") ?? DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
         var root = Path.Combine(FileSystem.AppDataDirectory, "AutomationReports", runId);
         Directory.CreateDirectory(root);
@@ -1427,7 +1431,7 @@ public sealed class NativeAppBackend {
         File.WriteAllText(failedPath, ReadString(payload, "failedMarkdown") ?? "# Failed scenarios\n\n0 failed.\n");
         return new { ok = true, runId, passedPath, failedPath };
 #else
-        throw new InvalidOperationException("Automation report output is disabled. Build with PrayAutomation=true.");
+        throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set AutomationRuntime.TestsEnabled=true.");
 #endif
     }
 

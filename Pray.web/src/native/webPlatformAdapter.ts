@@ -1,4 +1,5 @@
 import type { BridgeResponse } from "./mauiWebberClient";
+import { pickAndStoreBrowserAdhanSound, playBrowserAdhanSound, removeBrowserAdhanSound } from "./browserAdhanSounds";
 
 export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
@@ -27,6 +28,13 @@ type LocationSettings = {
 
 type WebLabels = Record<string, string>;
 type ConfirmedLocation = { value?: LocationSettings; calculated?: LocationSettings };
+type ConfirmedAdhan = { projection?: AdhanSettings; value?: AdhanSettings };
+type AdhanSettings = {
+  sounds?: AdhanSound[];
+  volume?: number;
+  [key: string]: unknown;
+};
+type AdhanSound = { id: string; label: string; selected: boolean; isCustom: boolean; canPreview?: boolean };
 const SETTINGS_SNAPSHOT_METHOD = ["settings", "getSnapshot"].join(".");
 
 export async function tryHandleWebPlatformCall<T = unknown>(
@@ -45,6 +53,9 @@ export async function tryHandleWebPlatformCall<T = unknown>(
   const handlesAction = method === "permissions.requestAll" ||
     method === "location.refresh" ||
     method === "location.reverseGeocode" ||
+    method === "adhan.sound.addCustom" ||
+    method === "adhan.sound.preview" ||
+    method === "adhan.sound.removeCustom" ||
     isPermissionSnapshot ||
     (method === "permissions.request" && (!permissionId || permissionId === "location" || permissionId === "notifications"));
   if (!handlesAction) {
@@ -65,6 +76,18 @@ export async function tryHandleWebPlatformCall<T = unknown>(
 
   if (method === "permissions.requestAll") {
     return requestAllBrowserPermissions<T>(labels, coreCall, request);
+  }
+
+  if (method === "adhan.sound.addCustom") {
+    return addBrowserCustomAdhanSound<T>(labels, coreCall);
+  }
+
+  if (method === "adhan.sound.preview") {
+    return previewBrowserAdhanSound<T>(labels, coreCall, request?.id);
+  }
+
+  if (method === "adhan.sound.removeCustom") {
+    return removeBrowserCustomAdhanSound<T>(labels, coreCall, request?.id);
   }
 
   if (
@@ -161,7 +184,7 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
     longitude: value.coords.longitude,
     address: await reverseAddress(value.coords.latitude, value.coords.longitude),
   })));
-  const current = await coreCall<LocationSettings>("settings.getSnapshot", { section: "locations" });
+  const current = await coreCall<LocationSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
   }
@@ -208,7 +231,7 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: Bro
     return { ok: false, error: label(labels, "webInvalidCoordinates") };
   }
 
-  const current = await coreCall<LocationSettings>("settings.getSnapshot", { section: "locations" });
+  const current = await coreCall<LocationSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
   }
@@ -280,21 +303,91 @@ async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: Brow
     results.push(label(labels, "webNotificationsUnavailable"));
   }
 
-  const data = {
+  const data: Record<string, unknown> = {
       ok,
       action: "requestAllPermissions",
       platform: "web",
       message: results.join(" "),
-  } as T;
+  };
 
   if (!ok) {
     return { ok: false, error: results.join(" ") };
   }
 
+  const snapshot = await coreCall<Record<string, unknown>>("onboarding.getSnapshot", {});
+  if (snapshot?.ok) {
+    const updated = await applyBrowserPermissionState(snapshot.data);
+    const permissions = updated.permissions;
+    const container = permissions as { items?: unknown[] } | undefined;
+    data.permissions = permissions;
+    data.items = Array.isArray(container?.items) ? container.items : Array.isArray(permissions) ? permissions : undefined;
+  }
+
   return {
     ok: true,
-    data,
+    data: data as T,
   };
+}
+
+async function addBrowserCustomAdhanSound<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
+  const picked = await pickAndStoreBrowserAdhanSound(labels);
+  if (!picked) return { ok: true, data: { cancelled: true, platform: "web" } as T };
+
+  const current = await coreCall<AdhanSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "adhan" });
+  if (!current?.ok) return { ok: false, error: current?.error ?? label(labels, "status_error") };
+
+  const sounds = ensureDefaultSound(current.data.sounds ?? [])
+    .filter((sound) => sound.id !== picked.id)
+    .map((sound) => ({ ...sound, selected: false }));
+  const next: AdhanSettings = {
+    ...current.data,
+    sounds: [...sounds, { id: picked.id, label: picked.label, selected: true, isCustom: true, canPreview: true }],
+  };
+  const saved = await coreCall<ConfirmedAdhan>("settings.update", { section: "adhan", field: "value", value: next });
+  if (!saved?.ok) return { ok: false, error: saved?.error ?? label(labels, "status_error") };
+
+  return { ok: true, data: { ok: true, platform: "web", sound: picked, projection: saved.data.projection ?? saved.data.value ?? next } as T };
+}
+
+async function previewBrowserAdhanSound<T>(labels: WebLabels, coreCall: BrowserCoreCall, id?: string): Promise<BridgeResponse<T>> {
+  if (!id) return { ok: false, error: "Sound id is required." };
+  const current = await coreCall<AdhanSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "adhan" });
+  const volume = current?.ok ? current.data.volume ?? 100 : 100;
+  try {
+    await playBrowserAdhanSound(id, volume);
+    return { ok: true, data: { ok: true, platform: "web", id } as T };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : label(labels, "status_error") };
+  }
+}
+
+async function removeBrowserCustomAdhanSound<T>(labels: WebLabels, coreCall: BrowserCoreCall, id?: string): Promise<BridgeResponse<T>> {
+  if (!id) return { ok: false, error: "Sound id is required." };
+  await removeBrowserAdhanSound(id);
+  const current = await coreCall<AdhanSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "adhan" });
+  if (!current?.ok) return { ok: false, error: current?.error ?? label(labels, "status_error") };
+
+  let removedWasSelected = false;
+  const remaining = ensureDefaultSound(current.data.sounds ?? []).filter((sound) => {
+    if (sound.id !== id) return true;
+    removedWasSelected = sound.selected;
+    return false;
+  });
+  const selectedExists = remaining.some((sound) => sound.selected);
+  const nextSounds = remaining.map((sound, index) => ({
+    ...sound,
+    selected: selectedExists ? sound.selected : removedWasSelected ? index === 0 : sound.selected,
+  }));
+  const next: AdhanSettings = { ...current.data, sounds: nextSounds };
+  const saved = await coreCall<ConfirmedAdhan>("settings.update", { section: "adhan", field: "value", value: next });
+  if (!saved?.ok) return { ok: false, error: saved?.error ?? label(labels, "status_error") };
+
+  return { ok: true, data: { ok: true, platform: "web", projection: saved.data.projection ?? saved.data.value ?? next } as T };
+}
+
+function ensureDefaultSound(sounds: AdhanSound[]): AdhanSound[] {
+  if (sounds.length) return sounds;
+  return [{ id: "adhan_default", label: "Default", selected: true, isCustom: false, canPreview: true }];
 }
 
 function getCurrentBrowserPosition(labels: WebLabels): Promise<GeolocationPosition> {

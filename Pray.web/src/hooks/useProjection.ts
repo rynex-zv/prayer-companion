@@ -37,7 +37,7 @@ export function useProjection<T>(method: string, payload?: unknown, explicitKey?
 
   useEffect(() => {
     if (getClientState().confirmed[projectionKey] === undefined) void refresh(false);
-  }, [projectionKey, refresh]);
+  }, [confirmed, projectionKey, refresh]);
 
   return { data, error, loading: loading && !data, refresh, setData };
 }

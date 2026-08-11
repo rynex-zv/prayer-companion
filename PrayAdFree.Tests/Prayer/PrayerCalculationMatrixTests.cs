@@ -85,6 +85,35 @@ public sealed class PrayerCalculationMatrixTests {
         Assert.Equal(expectedUtc, actualUtc);
     }
 
+    [Fact]
+    public void Hijri_projection_uses_UmmAlQura_civil_calendar() {
+        var result = _factory.BuildDay(
+            Settings(CalculationMethod.MuslimWorldLeague, "Europe/Amsterdam", latitude: 51.9244, longitude: 4.4778),
+            new DateOnly(2026, 8, 11));
+
+        Assert.Equal("28", result.Hijri.Day);
+        Assert.Equal("Safar", result.Hijri.Month);
+        Assert.Equal("1448", result.Hijri.Year);
+    }
+
+    [Fact]
+    public void Uae_gps_coordinates_use_dubai_method_and_asia_dubai_timezone() {
+        var result = _factory.BuildDay(
+            Settings(
+                CalculationMethod.Auto,
+                "Asia/Dubai",
+                countryCode: "AE",
+                latitude: 25.3085386,
+                longitude: 55.3648474),
+            new DateOnly(2026, 8, 11));
+
+        Assert.Equal("Asia/Dubai", result.TimeZoneId);
+        Assert.Equal(CalculationMethod.Dubai, MethodResolver.ResolveRequired("AE"));
+        Assert.Equal("04:27", result.Timings.Fajr.ToString("HH:mm"));
+        Assert.Equal("19:00", result.Timings.Maghrib.ToString("HH:mm"));
+        Assert.Equal("20:20", result.Timings.Isha.ToString("HH:mm"));
+    }
+
     private static AppSettings Settings(
         CalculationMethod method,
         string timeZoneId,

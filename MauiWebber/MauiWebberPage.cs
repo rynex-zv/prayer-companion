@@ -7,7 +7,9 @@ using Java.Interop;
 #endif
 #if WINDOWS
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 #endif
 
@@ -50,9 +52,9 @@ public class MauiWebberPage : ContentPage {
         _logger = logger ?? NullMauiWebberLogger.Instance;
         _initialRoute = initialRoute;
         Content = _webView;
-        // React/ARIA remains the accessibility authority. On Windows the MAUI
-        // composition-hosted peer is retained only for layout; a windowed
-        // CoreWebView2Controller attaches Chromium's provider to the app HWND.
+        // React/ARIA remains the accessibility authority. On Windows the
+        // visible MAUI WebView2 host is used directly so the user sees the
+        // same DOM that receives native bridge calls.
         _webView.HandlerChanged += OnWebViewHandlerChanged;
         _webView.Navigating += OnNavigating;
         _webView.Navigated += OnNavigated;
@@ -122,6 +124,8 @@ public class MauiWebberPage : ContentPage {
             _windowsLayoutView = windowsWebView;
             windowsWebView.Opacity = 1;
             windowsWebView.IsHitTestVisible = true;
+            windowsWebView.IsTabStop = true;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(windowsWebView, "Pray Ad Free web content");
         }
 #endif
     }
@@ -134,13 +138,14 @@ public class MauiWebberPage : ContentPage {
 
         var windowsWebView = _windowsLayoutView
             ?? throw new InvalidOperationException("Windows WebView2 handler did not initialize; refusing insecure file: navigation.");
-        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility");
+        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility=complete");
         await windowsWebView.EnsureCoreWebView2Async();
         _windowsCoreWebView2 = windowsWebView.CoreWebView2
             ?? throw new InvalidOperationException("Windows CoreWebView2 did not initialize; refusing insecure file: navigation.");
         _windowsCoreWebView2.WebMessageReceived += OnWindowsWebMessageReceived;
         _windowsCoreWebView2.NavigationCompleted += OnWindowsNavigationCompleted;
         EnableWindowsWebMessages(_windowsCoreWebView2);
+        windowsWebView.Focus(FocusState.Programmatic);
         _logger.Log("WebView2.VisibleHost.Attached", $"ms={_stopwatch.ElapsedMilliseconds}");
     }
 
@@ -577,7 +582,7 @@ public class MauiWebberPage : ContentPage {
     private void SetWebViewSource(string startupFile, string logName) {
 #if WINDOWS
         if (_windowsCoreWebView2 == null) {
-            throw new InvalidOperationException("Windows windowed WebView2 is unavailable; refusing navigation fallback.");
+            throw new InvalidOperationException("Windows WebView2 is unavailable; refusing navigation fallback.");
         }
         var sourceUrl = ToSourceUrl(startupFile);
         _windowsCoreWebView2.Navigate(sourceUrl);
@@ -690,7 +695,7 @@ public class MauiWebberPage : ContentPage {
     private async Task<string?> EvaluateJavaScriptAsync(string script) {
 #if WINDOWS
         if (_windowsCoreWebView2 == null) {
-            throw new InvalidOperationException("Windows windowed WebView2 is unavailable; refusing script fallback.");
+            throw new InvalidOperationException("Windows WebView2 is unavailable; refusing script fallback.");
         }
 
         return await _windowsCoreWebView2.ExecuteScriptAsync(script);

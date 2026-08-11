@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TestRouteImport } from './routes/test'
 import { Route as TasbihRouteImport } from './routes/tasbih'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QiblaRouteImport } from './routes/qibla'
@@ -25,6 +26,11 @@ import { Route as SettingsAlarmsRouteImport } from './routes/settings.alarms'
 import { Route as SettingsAdhanRouteImport } from './routes/settings.adhan'
 import { Route as SettingsAboutRouteImport } from './routes/settings.about'
 
+const TestRoute = TestRouteImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasbihRoute = TasbihRouteImport.update({
   id: '/tasbih',
   path: '/tasbih',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/qibla': typeof QiblaRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tasbih': typeof TasbihRoute
+  '/test': typeof TestRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/adhan': typeof SettingsAdhanRoute
   '/settings/alarms': typeof SettingsAlarmsRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/qibla': typeof QiblaRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tasbih': typeof TasbihRoute
+  '/test': typeof TestRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/adhan': typeof SettingsAdhanRoute
   '/settings/alarms': typeof SettingsAlarmsRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/qibla': typeof QiblaRoute
   '/settings': typeof SettingsRouteWithChildren
   '/tasbih': typeof TasbihRoute
+  '/test': typeof TestRoute
   '/settings/about': typeof SettingsAboutRoute
   '/settings/adhan': typeof SettingsAdhanRoute
   '/settings/alarms': typeof SettingsAlarmsRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/settings'
     | '/tasbih'
+    | '/test'
     | '/settings/about'
     | '/settings/adhan'
     | '/settings/alarms'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/settings'
     | '/tasbih'
+    | '/test'
     | '/settings/about'
     | '/settings/adhan'
     | '/settings/alarms'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/qibla'
     | '/settings'
     | '/tasbih'
+    | '/test'
     | '/settings/about'
     | '/settings/adhan'
     | '/settings/alarms'
@@ -215,10 +227,18 @@ export interface RootRouteChildren {
   QiblaRoute: typeof QiblaRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   TasbihRoute: typeof TasbihRoute
+  TestRoute: typeof TestRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasbih': {
       id: '/tasbih'
       path: '/tasbih'
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   QiblaRoute: QiblaRoute,
   SettingsRoute: SettingsRouteWithChildren,
   TasbihRoute: TasbihRoute,
+  TestRoute: TestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

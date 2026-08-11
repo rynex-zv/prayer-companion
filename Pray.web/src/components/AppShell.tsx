@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (shell.bootstrapStatus !== "ready" || shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm") {
+    if (shell.bootstrapStatus !== "ready" || shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm" || pathname === "/test") {
       return;
     }
 
