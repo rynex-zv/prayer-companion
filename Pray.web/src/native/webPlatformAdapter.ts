@@ -3,9 +3,16 @@ import { pickAndStoreBrowserAdhanSound, playBrowserAdhanSound, removeBrowserAdha
 
 export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
-type PreparedLocation = { latitude: number; longitude: number; address: Awaited<ReturnType<typeof reverseAddress>> };
+type PreparedLocation = {
+  source: "gps" | "ip";
+  latitude: number;
+  longitude: number;
+  timeZoneId?: string;
+  locationSource?: "gps" | "ip" | "manual" | "";
+  address: Awaited<ReturnType<typeof reverseAddress>>;
+};
 type PlatformPayload = {
-  id?: string; latitude?: number; longitude?: number;
+  id?: string; latitude?: number; longitude?: number; source?: "gps" | "ip";
   _preparedLocation?: PreparedLocation;
   _preparedNotification?: NotificationPermission;
 };
@@ -14,6 +21,8 @@ type LocationSettings = {
   useGps: boolean;
   latitude: number;
   longitude: number;
+  timeZoneId?: string;
+  locationSource?: "gps" | "ip" | "manual" | "";
   country?: string;
   countryName?: string;
   city?: string;
@@ -118,13 +127,9 @@ export async function prepareWebPlatformPayload(method: string, payload: unknown
   const prepared: PlatformPayload = { ...request };
   if (needsLocation) {
     const labels = await loadWebLabels(coreCall);
-    if (!navigator.geolocation) throw new Error(label(labels, "webGeolocationUnavailable"));
-    const position = await getCurrentBrowserPosition(labels);
-    prepared._preparedLocation = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      address: await reverseAddress(position.coords.latitude, position.coords.longitude),
-    };
+    prepared._preparedLocation = request.source === "ip"
+      ? await getBrowserIpLocation(labels)
+      : await getBrowserGpsOrIpLocation(labels);
   }
   if (needsNotification && "Notification" in window) {
     prepared._preparedNotification = await Notification.requestPermission();
@@ -175,15 +180,7 @@ async function requestBrowserNotifications<T>(labels: WebLabels, prepared?: Noti
 }
 
 async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PreparedLocation): Promise<BridgeResponse<T>> {
-  if (!navigator.geolocation) {
-    return { ok: false, error: label(labels, "webGeolocationUnavailable") };
-  }
-
-  const position: PreparedLocation = prepared ?? (await getCurrentBrowserPosition(labels).then(async (value) => ({
-    latitude: value.coords.latitude,
-    longitude: value.coords.longitude,
-    address: await reverseAddress(value.coords.latitude, value.coords.longitude),
-  })));
+  const position: PreparedLocation = prepared ?? await getBrowserGpsOrIpLocation(labels);
   const current = await coreCall<LocationSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
@@ -191,9 +188,11 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
 
   const next: LocationSettings = {
     ...current.data,
-    useGps: true,
+    useGps: position.source === "gps",
     latitude: position.latitude,
     longitude: position.longitude,
+    timeZoneId: position.timeZoneId ?? current.data.timeZoneId,
+    locationSource: position.source,
     city: "",
     country: "",
     countryName: "",
@@ -242,6 +241,7 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: Bro
     useGps: false,
     latitude: latitude!,
     longitude: longitude!,
+    locationSource: "manual",
     city: address?.city ?? "",
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
@@ -277,6 +277,66 @@ async function reverseAddress(latitude: number, longitude: number): Promise<{ ci
   } catch {
     return null;
   }
+}
+
+async function getBrowserGpsOrIpLocation(labels: WebLabels): Promise<PreparedLocation> {
+  if (navigator.geolocation) {
+    try {
+      const position = await getCurrentBrowserPosition(labels);
+      return {
+        source: "gps",
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        address: await reverseAddress(position.coords.latitude, position.coords.longitude),
+      };
+    } catch {
+      // If precise browser location is unavailable, use the explicit network
+      // location service instead of any bundled city or cached private coords.
+    }
+  }
+
+  return getBrowserIpLocation(labels);
+}
+
+async function getBrowserIpLocation(labels: WebLabels): Promise<PreparedLocation> {
+  const response = await withTimeout(fetch("https://ipapi.co/json/", {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  }), 12000, label(labels, "webGpsTimedOut"), labels);
+  if (!response.ok) {
+    throw new Error(label(labels, "webGpsUnavailable"));
+  }
+
+  const payload = await response.json() as {
+    city?: string;
+    region?: string;
+    country_name?: string;
+    country_code?: string;
+    latitude?: number;
+    longitude?: number;
+    timezone?: string;
+  };
+  if (!hasUsableCoordinates(payload.latitude, payload.longitude)) {
+    throw new Error(label(labels, "webInvalidCoordinates"));
+  }
+
+  return {
+    source: "ip",
+    latitude: payload.latitude!,
+    longitude: payload.longitude!,
+    timeZoneId: typeof payload.timezone === "string" ? payload.timezone : undefined,
+    address: {
+      city: payload.city ?? payload.region ?? "",
+      country: payload.country_name ?? "",
+      countryCode: (payload.country_code ?? "").toUpperCase(),
+    },
+  };
+}
+
+function hasUsableCoordinates(latitude?: number, longitude?: number): boolean {
+  return Number.isFinite(latitude) && Number.isFinite(longitude) &&
+    Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180 &&
+    (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
 }
 
 async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PlatformPayload): Promise<BridgeResponse<T>> {

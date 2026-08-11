@@ -15,12 +15,13 @@ public static class WebStateDefaults {
             AccentColor = "teal",
             TextSize = 100,
             OnboardingCompleted = false,
-            Country = "Netherlands",
-            CountryCode = "NL",
-            City = "Amsterdam",
-            Latitude = 52.3676,
-            Longitude = 4.9041,
-            TimeZoneId = "Europe/Amsterdam",
+            Country = string.Empty,
+            CountryCode = string.Empty,
+            City = string.Empty,
+            Latitude = 0,
+            Longitude = 0,
+            TimeZoneId = "UTC",
+            LocationSource = string.Empty,
             Heading = 95,
             ManualHeading = 100,
             HeadingMode = "auto",
@@ -52,24 +53,17 @@ public static class WebStateDefaults {
             state.TextSize = defaults.TextSize;
         }
 
+        ClearLegacyAmsterdamDefault(state);
+
         var hasCoordinates = state.Latitude != 0 || state.Longitude != 0;
         if (!hasCoordinates) {
-            if (string.IsNullOrWhiteSpace(state.Country)) {
-                state.Country = defaults.Country;
-            }
-
-            if (string.IsNullOrWhiteSpace(state.CountryCode)) {
-                state.CountryCode = defaults.CountryCode;
-            }
-
-            if (string.IsNullOrWhiteSpace(state.City)) {
-                state.City = defaults.City;
-            }
-
-            state.Latitude = defaults.Latitude;
-            state.Longitude = defaults.Longitude;
+            state.Country = string.Empty;
+            state.CountryCode = string.Empty;
+            state.City = string.Empty;
+            state.LocationSource = string.Empty;
+        } else {
+            ClearMismatchedCatalogLocation(state);
         }
-        ClearMismatchedCatalogLocation(state);
 
         if (string.IsNullOrWhiteSpace(state.TimeZoneId)) {
             state.TimeZoneId = defaults.TimeZoneId;
@@ -102,6 +96,30 @@ public static class WebStateDefaults {
         if (!state.TasbihPresets.Any(item => item.Id == state.SelectedTasbihPresetId)) {
             state.SelectedTasbihPresetId = state.TasbihPresets[0].Id;
         }
+    }
+
+    private static void ClearLegacyAmsterdamDefault(WebState state) {
+        if (state.UseGps) {
+            return;
+        }
+
+        var isLegacyDefault =
+            string.Equals(state.CountryCode, "NL", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(state.Country, "Netherlands", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(state.City, "Amsterdam", StringComparison.OrdinalIgnoreCase) &&
+            Math.Abs(state.Latitude - 52.3676) < 0.000001 &&
+            Math.Abs(state.Longitude - 4.9041) < 0.000001;
+        if (!isLegacyDefault) {
+            return;
+        }
+
+        state.CountryCode = string.Empty;
+        state.Country = string.Empty;
+        state.City = string.Empty;
+        state.Latitude = 0;
+        state.Longitude = 0;
+        state.TimeZoneId = "UTC";
+        state.LocationSource = string.Empty;
     }
 
     private static void ClearMismatchedCatalogLocation(WebState state) {

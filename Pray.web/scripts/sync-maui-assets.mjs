@@ -9,6 +9,7 @@ if (phone) {
   await rm(mauiTarget, { recursive: true, force: true });
   await mkdir(mauiTarget, { recursive: true });
   await cp(source, mauiTarget, { recursive: true });
+  await rm(resolve(mauiTarget, 'downloads'), { recursive: true, force: true });
   process.exit(0);
 }
 

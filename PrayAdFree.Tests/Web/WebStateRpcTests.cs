@@ -60,6 +60,21 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
+    public void FreshBrowserStateDoesNotInventAmsterdamLocation() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        var location = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "settings.getSnapshot", new { section = "locations" }));
+        var today = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.getSnapshot", new { }));
+
+        Assert.Equal(string.Empty, location.GetProperty("country").GetString());
+        Assert.Equal(string.Empty, location.GetProperty("countryName").GetString());
+        Assert.Equal(string.Empty, location.GetProperty("city").GetString());
+        Assert.Equal(0, location.GetProperty("latitude").GetDouble());
+        Assert.Equal(0, location.GetProperty("longitude").GetDouble());
+        Assert.DoesNotContain("Amsterdam", today.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        Assert.True(today.TryGetProperty("error", out _));
+    }
+
+    [Fact]
     public void ManualCoordinatesDoNotKeepAnUnrelatedPlaceName() {
         var dispatcher = new WebCoreRpcDispatcher();
         var result = Dispatch(dispatcher, "settings.update", new {
@@ -110,6 +125,39 @@ public sealed class WebStateRpcTests {
         Assert.Equal("Sharjah, United Arab Emirates", today.GetProperty("locationTitle").GetString());
         Assert.Equal("Dubai", today.GetProperty("calculation").GetProperty("effectiveMethod").GetString());
         Assert.DoesNotContain("Amsterdam", today.GetRawText(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void IpLocationKeepsApiLocationAndWarnsAboutNetworkAccuracy() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        Dispatch(dispatcher, "settings.update", new {
+            _platform = new { timeZoneId = "Europe/Amsterdam" },
+            section = "locations",
+            field = "value",
+            value = new {
+                useGps = false,
+                latitude = 25.3085368,
+                longitude = 55.3648479,
+                timeZoneId = "Asia/Dubai",
+                locationSource = "ip",
+                country = "AE",
+                countryName = "United Arab Emirates",
+                city = "Sharjah"
+            }
+        });
+
+        var location = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "settings.getSnapshot", new { section = "locations" }));
+
+        Assert.False(location.GetProperty("useGps").GetBoolean());
+        Assert.Equal("ip", location.GetProperty("locationSource").GetString());
+        Assert.True(location.GetProperty("vpnWarning").GetBoolean());
+        Assert.Equal("AE", location.GetProperty("country").GetString());
+        Assert.Equal("United Arab Emirates", location.GetProperty("countryName").GetString());
+        Assert.Equal("Sharjah", location.GetProperty("city").GetString());
+        Assert.Equal("Asia/Dubai", location.GetProperty("timeZoneId").GetString());
+        Assert.NotEqual("NL", location.GetProperty("country").GetString());
+        Assert.NotEqual("Netherlands", location.GetProperty("countryName").GetString());
+        Assert.NotEqual("Amsterdam", location.GetProperty("city").GetString());
     }
 
     [Fact]
@@ -234,6 +282,20 @@ public sealed class WebStateRpcTests {
     [Fact]
     public void TodaySnapshotUsesPrayerIdsAndCoreLabels() {
         var dispatcher = new WebCoreRpcDispatcher();
+        Dispatch(dispatcher, "settings.update", new {
+            _platform = new { timeZoneId = "Asia/Dubai" },
+            section = "locations",
+            field = "value",
+            value = new {
+                useGps = false,
+                latitude = 25.2048,
+                longitude = 55.2708,
+                timeZoneId = "Asia/Dubai",
+                country = "AE",
+                countryName = "United Arab Emirates",
+                city = "Dubai"
+            }
+        });
         var result = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.getSnapshot", new { }));
 
         Assert.True(result.TryGetProperty("nextPrayerId", out var nextPrayerId));

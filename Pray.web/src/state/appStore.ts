@@ -62,6 +62,8 @@ type ConfirmedField<T = unknown> = {
 
 type LocationSnapshot = {
   useGps?: boolean;
+  latitude?: number;
+  longitude?: number;
 };
 
 const defaultLanguageObject: LanguageObject = {
@@ -193,8 +195,21 @@ async function refreshGpsLocationAfterBootstrap() {
     domain: "settings",
     projectionKey: "settings.locations",
   });
-  if (!location.ok || location.data.useGps !== true) return;
-  await platformIntents.refreshLocation();
+  if (!location.ok) return;
+  if (location.data.useGps === true) {
+    await platformIntents.refreshLocation();
+    return;
+  }
+
+  if (!hasUsableCoordinates(location.data.latitude, location.data.longitude)) {
+    await platformIntents.refreshLocation({ source: "ip" });
+  }
+}
+
+function hasUsableCoordinates(latitude?: number, longitude?: number): boolean {
+  return Number.isFinite(latitude) && Number.isFinite(longitude) &&
+    Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180 &&
+    (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
 }
 
 const bundledLabelsByLanguage: Record<string, Record<string, string>> = {

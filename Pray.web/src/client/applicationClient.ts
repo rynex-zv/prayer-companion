@@ -73,7 +73,7 @@ export function patchSettingsSection<T>(section: string, value: T): Promise<Clie
 export const platformIntents = {
   requestPermission: (id: string) => executeInteractiveCommand("permissions.request", { id }),
   requestAllPermissions: () => executeInteractiveCommand("permissions.requestAll"),
-  refreshLocation: <T>() => executeInteractiveCommand<T>("location.refresh"),
+  refreshLocation: <T>(payload?: { source?: "gps" | "ip" }) => executeInteractiveCommand<T>("location.refresh", payload),
   reverseGeocode: <T>(latitude: number, longitude: number) => executeInteractiveCommand<T>("location.reverseGeocode", { latitude, longitude }),
   addCustomAdhanSound: () => executeInteractiveCommand("adhan.sound.addCustom"),
   previewAdhanSound: (id: string) => executeInteractiveCommand("adhan.sound.preview", { id }),

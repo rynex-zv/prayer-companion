@@ -29,7 +29,8 @@ function TodayPage() {
   const [shareStatus, setShareStatus] = useState("");
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
-  const countdown = useMemo(() => formatCountdown(now, data?.nextPrayerAt, data?.countdown), [now, data?.nextPrayerAt, data?.countdown]);
+  const nextPrayerAt = useMemo(() => readExplicitNextPrayerAt(data), [data]);
+  const countdown = useMemo(() => formatCountdown(now, nextPrayerAt), [now, nextPrayerAt]);
   const progress = useMemo(() => calculatePrayerProgress(now, data), [now, data]);
 
   useEffect(() => {
@@ -52,9 +53,9 @@ function TodayPage() {
   }, [data]);
 
   useEffect(() => {
-    if (!data?.nextPrayerAt) return;
-    if (data.nextPrayerAt - now.getTime() <= 0) void refresh();
-  }, [data?.nextPrayerAt, now, refresh]);
+    if (!nextPrayerAt) return;
+    if (nextPrayerAt - now.getTime() <= 0) void refresh();
+  }, [nextPrayerAt, now, refresh]);
 
   if (!data) return <SkeletonToday />;
   const text = L;
@@ -181,14 +182,16 @@ function TodayPage() {
         <CardTitle className="mb-2">{L("today")}</CardTitle>
         <ul className="divide-y divide-border">
           {data.todayTimings.map((t) => (
-            <li key={t.id} className={cn("flex items-center justify-between py-2.5", t.isNext && "font-semibold text-primary")}>
+            <li key={t.id} className={cn("flex items-center justify-between gap-4 py-2.5", t.isNext && "font-semibold text-primary")}>
               <span className="flex items-center gap-2">
                 <span className={cn("h-2 w-2 rounded-full", t.isNext ? "bg-primary" : "bg-accent")} />
                 {prayer(t.id)}
               </span>
-              <Time>{t.time}</Time>
-              <span className="text-xs font-normal text-muted-foreground" data-selector-name={`today:timing-remaining:${t.id}`}>
-                {formatTimingRemaining(now, t.timestamp, L)}
+              <span className="text-end">
+                <Time>{t.time}</Time>
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground" data-selector-name={`today:timing-remaining:${t.id}`}>
+                  {formatTimingRemaining(now, t.timestamp, L)}
+                </span>
               </span>
             </li>
           ))}
@@ -228,8 +231,8 @@ function formatCurrentTime(now: Date, sample?: string) {
   });
 }
 
-function formatCountdown(now: Date, nextPrayerAt?: number, fallback = ""): string {
-  if (!Number.isFinite(nextPrayerAt)) return fallback;
+function formatCountdown(now: Date, nextPrayerAt?: number): string {
+  if (!Number.isFinite(nextPrayerAt)) return "—";
   const remaining = Math.max(0, Math.floor(((nextPrayerAt ?? 0) - now.getTime()) / 1000));
   const hours = Math.floor(remaining / 3600);
   const minutes = Math.floor((remaining % 3600) / 60);
@@ -237,21 +240,40 @@ function formatCountdown(now: Date, nextPrayerAt?: number, fallback = ""): strin
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function calculatePrayerProgress(now: Date, data?: { nextPrayerAt?: number; todayTimings: { timestamp?: number }[] } | null): { percent: number } {
-  if (!data?.nextPrayerAt) return { percent: 0 };
+function readExplicitNextPrayerAt(data?: { nextPrayerAt?: number } | null): number | undefined {
+  if (typeof data?.nextPrayerAt === "number" && Number.isFinite(data.nextPrayerAt)) return data.nextPrayerAt;
+  return undefined;
+}
+
+function calculatePrayerProgress(now: Date, data?: { nextPrayerAt?: number; nextPrayerDayId?: string; todayTimings: { id?: string; timestamp?: number; isNext?: boolean }[] } | null): { percent: number } {
+  const nextPrayerAt = readExplicitNextPrayerAt(data);
+  if (!data || !nextPrayerAt) return { percent: 0 };
   const current = now.getTime();
-  const previous = data.todayTimings
-    .map((timing) => timing.timestamp)
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value <= current)
-    .sort((a, b) => b - a)[0];
-  if (!previous || data.nextPrayerAt <= previous) return { percent: 0 };
-  const percent = ((current - previous) / (data.nextPrayerAt - previous)) * 100;
+  const nextIndex = data.nextPrayerDayId !== "tomorrow"
+    ? data.todayTimings.findIndex((timing) => timing.isNext)
+    : -1;
+  const previous = explicitTimestamp(
+    nextIndex > 0
+      ? data.todayTimings[nextIndex - 1]?.timestamp
+      : data.nextPrayerDayId === "tomorrow"
+        ? data.todayTimings[data.todayTimings.length - 1]?.timestamp
+        : data.todayTimings
+          .map((timing) => timing.timestamp)
+          .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value <= current)
+          .sort((a, b) => b - a)[0],
+  );
+  if (!previous || nextPrayerAt <= previous) return { percent: 0 };
+  const percent = ((current - previous) / (nextPrayerAt - previous)) * 100;
   return { percent: Math.max(0, Math.min(100, percent)) };
 }
 
+function explicitTimestamp(value?: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 function formatTimingRemaining(now: Date, timestamp: number | undefined, label: (key: string) => string): string {
-  if (!Number.isFinite(timestamp)) return "";
-  const diffSeconds = Math.floor(((timestamp ?? 0) - now.getTime()) / 1000);
+  if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return "";
+  const diffSeconds = Math.floor((timestamp - now.getTime()) / 1000);
   if (diffSeconds <= 0) return label("prayerPassed");
   const value = formatShortDuration(diffSeconds);
   return label("remainingIn").replace("{0}", value);

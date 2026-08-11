@@ -15,6 +15,7 @@ public sealed class WebState {
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public string TimeZoneId { get; set; } = "";
+    public string LocationSource { get; set; } = "";
     public DateTime SelectedMonth { get; set; } = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     public double Heading { get; set; }
     public double ManualHeading { get; set; }
@@ -45,6 +46,9 @@ public sealed class WebState {
         _ = AppInputContract.RequiredChoice(ReadingMode, nameof(ReadingMode), "compass", "map");
         _ = AppInputContract.RequiredChoice(FilterMode, nameof(FilterMode), "none", "night", "contrast");
         _ = AppInputContract.RequiredChoice(ClockFormat, nameof(ClockFormat), "auto", "12h", "24h");
+        if (!string.IsNullOrWhiteSpace(LocationSource)) {
+            _ = AppInputContract.RequiredChoice(LocationSource, nameof(LocationSource), "gps", "ip", "manual");
+        }
         if (!double.IsFinite(Latitude) || !double.IsFinite(Longitude) || Math.Abs(Latitude) > 90 || Math.Abs(Longitude) > 180) {
             throw new InvalidDataException("Persisted location coordinates are invalid.");
         }

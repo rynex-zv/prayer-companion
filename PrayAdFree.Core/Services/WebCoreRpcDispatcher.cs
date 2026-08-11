@@ -177,7 +177,7 @@ public sealed class WebCoreRpcDispatcher {
     private object TodaySnapshot() {
         try {
             return BuildTodaySnapshot();
-        } catch (ArgumentException exception) {
+        } catch (Exception exception) when (exception is ArgumentException or InvalidOperationException) {
             var adhan = ReadStoredAdhanSettings();
             var selectedMethod = adhan.Method;
             return new {
@@ -459,10 +459,12 @@ public sealed class WebCoreRpcDispatcher {
                 useGps = _state.UseGps,
                 latitude = _state.Latitude,
                 longitude = _state.Longitude,
+                timeZoneId = _state.TimeZoneId,
+                locationSource = _state.LocationSource,
                 country = _state.CountryCode,
                 countryName = _state.Country,
                 city = _state.City,
-                vpnWarning = false,
+                vpnWarning = string.Equals(_state.LocationSource, "ip", StringComparison.OrdinalIgnoreCase),
                 qiblaReadingMode = _state.ReadingMode,
                 qiblaFilterMode = _state.FilterMode,
                 qiblaReadingModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaReadingModes, _state.Language),
@@ -581,6 +583,8 @@ public sealed class WebCoreRpcDispatcher {
             _state.UseGps = GetBool(value, "useGps", _state.UseGps);
             _state.Latitude = GetDouble(value, "latitude", _state.Latitude);
             _state.Longitude = GetDouble(value, "longitude", _state.Longitude);
+            _state.TimeZoneId = GetString(value, "timeZoneId", _state.TimeZoneId) ?? _state.TimeZoneId;
+            var incomingLocationSource = NormalizeLocationSource(GetString(value, "locationSource", null));
             _state.ReadingMode = GetString(value, "qiblaReadingMode", _state.ReadingMode) ?? _state.ReadingMode;
             _state.FilterMode = GetString(value, "qiblaFilterMode", _state.FilterMode) ?? _state.FilterMode;
 
@@ -589,17 +593,19 @@ public sealed class WebCoreRpcDispatcher {
             var incomingCountryCode = CleanLocationText(GetString(value, "country", coordinatesChanged ? string.Empty : _state.CountryCode));
             var incomingCountry = CleanLocationText(GetString(value, "countryName", coordinatesChanged ? string.Empty : _state.Country));
             var incomingCity = CleanLocationText(GetString(value, "city", coordinatesChanged ? string.Empty : _state.City));
+            var locationTextChanged = IncomingLocationDiffersFromPrevious(incomingCountryCode, incomingCountry, incomingCity, previousCountryCode, previousCountry, previousCity);
+            if (!string.IsNullOrWhiteSpace(incomingLocationSource)) {
+                _state.LocationSource = incomingLocationSource;
+            } else if (coordinatesChanged || locationTextChanged || value.TryGetProperty("useGps", out _)) {
+                _state.LocationSource = _state.UseGps ? "gps" : "manual";
+            }
 
             if (coordinatesChanged) {
-                var place = WebCatalog.FindNearestPlace(_state.Latitude, _state.Longitude, 50);
-                if (place is not null) {
-                    _state.Country = place.Country;
-                    _state.CountryCode = place.CountryCode;
-                    _state.City = place.City;
-                } else if (IncomingLocationDiffersFromPrevious(incomingCountryCode, incomingCountry, incomingCity, previousCountryCode, previousCountry, previousCity)) {
+                if (locationTextChanged) {
                     _state.CountryCode = incomingCountryCode;
                     _state.Country = incomingCountry;
                     _state.City = incomingCity;
+                    ClearCatalogLocationWhenCoordinatesDoNotMatch();
                 } else {
                     _state.CountryCode = string.Empty;
                     _state.Country = string.Empty;
@@ -609,6 +615,7 @@ public sealed class WebCoreRpcDispatcher {
                 _state.CountryCode = incomingCountryCode;
                 _state.Country = incomingCountry;
                 _state.City = incomingCity;
+                ClearCatalogLocationWhenCoordinatesDoNotMatch();
             }
         } else if (section == "adhan" && field == "value" && value.ValueKind == JsonValueKind.Object) {
             var candidate = value.GetRawText();
@@ -949,6 +956,29 @@ public sealed class WebCoreRpcDispatcher {
     }
 
     private static string CleanLocationText(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private static string NormalizeLocationSource(string? value) {
+        var source = CleanLocationText(value).ToLowerInvariant();
+        return source is "gps" or "ip" or "manual" ? source : string.Empty;
+    }
+
+    private void ClearCatalogLocationWhenCoordinatesDoNotMatch() {
+        var selected = WebCatalog.FindPlace(_state.CountryCode, _state.Country, _state.City);
+        if (selected is null) {
+            return;
+        }
+
+        var nearest = WebCatalog.FindNearestPlace(_state.Latitude, _state.Longitude, 50);
+        if (nearest is not null &&
+            string.Equals(nearest.CountryCode, selected.CountryCode, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(nearest.City, selected.City, StringComparison.OrdinalIgnoreCase)) {
+            return;
+        }
+
+        _state.CountryCode = string.Empty;
+        _state.Country = string.Empty;
+        _state.City = string.Empty;
+    }
 
     private static bool IncomingLocationDiffersFromPrevious(
         string countryCode,

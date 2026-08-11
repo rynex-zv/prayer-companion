@@ -71,6 +71,17 @@ function LocationsPage() {
     return true;
   };
   const patchCountry = (code: string) => {
+    if (!code) {
+      void patch({
+        ...data,
+        useGps: false,
+        country: "",
+        countryName: "",
+        city: "",
+      });
+      return;
+    }
+
     const nextCountry = data.countries.find((item) => item.code === code);
     const firstCity = nextCountry?.cities[0] ?? "";
     const place = places.find((item) =>
@@ -87,6 +98,15 @@ function LocationsPage() {
     });
   };
   const patchCity = (city: string) => {
+    if (!city) {
+      void patch({
+        ...data,
+        useGps: false,
+        city: "",
+      });
+      return;
+    }
+
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === data.country.toLowerCase() &&
       item.city.toLowerCase() === city.toLowerCase());

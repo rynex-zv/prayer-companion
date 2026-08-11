@@ -85,6 +85,8 @@ function OnboardingPage() {
     : t("permissionStatus");
   const locationPermission = permissionItems.find((permission) => permission.id?.toLowerCase() === "location");
   const locationPermissionGranted = !!locationPermission && isPermissionGranted(locationPermission);
+  const locationGpsReady = !!data.location?.useGps && hasUsableCoordinates(data.location.latitude, data.location.longitude);
+  const locationAccessReady = locationPermissionGranted || locationGpsReady;
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
   const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
     setData({ ...data, location });
@@ -133,7 +135,7 @@ function OnboardingPage() {
     return refreshed;
   };
   const refreshGps = async () => {
-    if (!locationPermissionGranted) {
+    if (!locationAccessReady) {
       await requestLocationPermission();
       return;
     }
@@ -145,6 +147,16 @@ function OnboardingPage() {
   const patchCountry = (countryCode: string) => {
     if (!data.location) return;
     const location = data.location;
+    if (!countryCode) {
+      void patchLocation({
+        ...location,
+        useGps: false,
+        country: "",
+        countryName: "",
+        city: "",
+      });
+      return;
+    }
     const country = location.countries?.find((item) => item.code === countryCode);
     const firstCity = country?.cities[0] ?? "";
     const place = places.find((item) =>
@@ -163,6 +175,14 @@ function OnboardingPage() {
   const patchCity = (city: string) => {
     if (!data.location) return;
     const location = data.location;
+    if (!city) {
+      void patchLocation({
+        ...location,
+        useGps: false,
+        city: "",
+      });
+      return;
+    }
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === (location.country ?? "").toLowerCase() &&
       item.city.toLowerCase() === city.toLowerCase());
@@ -312,9 +332,9 @@ function OnboardingPage() {
                   <span data-selector-name="onboarding:location:gps-label">{t("useGps")}</span>
                   <button
                     type="button"
-                    aria-checked={!!data.location.useGps && locationPermissionGranted}
+                    aria-checked={!!data.location.useGps && locationAccessReady}
                     onClick={() => {
-                      if (!locationPermissionGranted) {
+                      if (!locationAccessReady) {
                         void requestLocationPermission();
                         return;
                       }
@@ -324,7 +344,7 @@ function OnboardingPage() {
                     data-selector-name="onboarding:location:gps"
                     className="rounded-full bg-muted px-3 py-1 text-xs"
                   >
-                    {data.location.useGps && locationPermissionGranted ? t("enabled") : t("disabled")}
+                    {data.location.useGps && locationAccessReady ? t("enabled") : t("disabled")}
                   </button>
                 </div>
                 <button
@@ -333,7 +353,7 @@ function OnboardingPage() {
                   data-selector-name="onboarding:location:refresh-gps"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                 >
-                  {locationPermissionGranted ? t("refreshGps") : t("grantPermissions")}
+                  {locationAccessReady ? t("refreshGps") : t("grantPermissions")}
                 </button>
                 <label className="block text-xs text-muted-foreground">
                   {t("country")}
@@ -343,6 +363,7 @@ function OnboardingPage() {
                     data-selector-name="onboarding:location:country"
                     className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground"
                   >
+                    <option value="">—</option>
                     {(data.location.countries ?? []).map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
                   </select>
                 </label>
@@ -354,6 +375,7 @@ function OnboardingPage() {
                     data-selector-name="onboarding:location:city"
                     className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground"
                   >
+                    <option value="">—</option>
                     {(currentCountry?.cities ?? []).map((city) => <option key={city} value={city}>{city}</option>)}
                   </select>
                 </label>
@@ -397,7 +419,7 @@ function OnboardingPage() {
               return;
             }
 
-            if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationPermissionGranted })) {
+            if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationAccessReady })) {
               setFinishing(false);
               return;
             }

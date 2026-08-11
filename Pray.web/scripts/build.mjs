@@ -243,6 +243,7 @@ if (phone) {
   }
 
   await writeFile(indexPath, embeddedHtml, 'utf8');
+  await rm(resolve(process.cwd(), distDir, 'downloads'), { recursive: true, force: true });
 }
 await run('node', ['scripts/generate-manifest.mjs', ...(phone ? ['--phone'] : [])]);
 if (!love) {

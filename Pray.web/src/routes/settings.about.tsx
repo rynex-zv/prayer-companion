@@ -166,7 +166,7 @@ function AboutPage() {
           <button onClick={() => platformIntents.call(info.phone)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("callRynex")} {info.phone}</button>
           <button onClick={() => platformIntents.openUrl(info.website)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("openWebsite")}</button>
           <button onClick={() => platformIntents.reportIssue()} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
-          {download ? <a href={download.url} download data-selector-name="about:download-native-app" className="col-span-2 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><DownloadCloud className="h-4 w-4" /> {download.label}</a> : null}
+          {download ? <a href={download.url} download data-selector-name="about:download-native-app" className="col-span-2 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><DownloadCloud className="h-4 w-4" /> {downloadLabel(download, t)}</a> : null}
           {nativeBackendReady() ? <button onClick={pullRemote} disabled={isPullingRemote} data-selector-name="about:pull-remote-web" className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"><DownloadCloud className="h-4 w-4" /> {isPullingRemote ? t("pulling") : t("pullLatestWebVersion")}</button> : null}
         </div>
         <div className="grid gap-2">
@@ -264,6 +264,14 @@ function sortDownloads(files: AppDownload[]): AppDownload[] {
     ["zip", 1],
   ]);
   return [...files].sort((a, b) => (priority.get(a.kind) ?? 9) - (priority.get(b.kind) ?? 9));
+}
+
+function downloadLabel(download: AppDownload, label: (key: string) => string): string {
+  if (download.kind === "apk" || download.platform === "android") return label("downloadAndroidApk");
+  if (download.kind === "exe") return label("downloadWindowsExe");
+  if (download.kind === "zip") return label("downloadDesktopZip");
+  if (download.kind === "ios" || download.platform === "ios") return label("downloadIosBuild");
+  return download.label;
 }
 
 async function urlExists(url: string): Promise<boolean> {
