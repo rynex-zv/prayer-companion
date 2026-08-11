@@ -7,7 +7,7 @@ using PrayAdFree.Core.Models;
 namespace Pray_Ad_Free.Services;
 
 public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
-    private const int SnapshotCacheSchemaVersion = 7;
+    private const int SnapshotCacheSchemaVersion = 8;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) {
         WriteIndented = true
     };
@@ -154,6 +154,7 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             ShowNextPrayerBaseClock: _source.ShowNextPrayerBaseClock,
             NextPrayerDayId: _source.NextPrayerDayId,
             Countdown: _source.Countdown,
+            NextPrayerAt: ToUnixMilliseconds(_source.NextPrayerTime, settings.Location.TimeZoneId),
             StatusMessage: BuildStatusMessage(_source.StatusMessage),
             ImsakTime: _source.ImsakTime,
             IftarTime: _source.IftarTime,
@@ -174,7 +175,9 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
             TodayTimings: _source.TodayTimings.Select(row => new TodayWebTiming(
                 Id: row.Id.ToString(),
                 Time: row.Time,
+                Timestamp: ToUnixMilliseconds(row.Timestamp, settings.Location.TimeZoneId),
                 BaseTime: row.BaseTime,
+                BaseTimestamp: ToUnixMilliseconds(row.BaseTimestamp, settings.Location.TimeZoneId),
                 ShowBaseTime: row.ShowBaseTime,
                 IsNext: row.IsNext)).ToList());
     }
@@ -239,6 +242,12 @@ public sealed class TodayWebRpcHandler : IMauiWebberRpcHandler {
         };
     }
 
+    private static long ToUnixMilliseconds(DateTime localTime, string timeZoneId) {
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var offset = timeZone.GetUtcOffset(localTime);
+        return new DateTimeOffset(DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified), offset).ToUnixTimeMilliseconds();
+    }
+
     private TodayWebSnapshot? LoadCachedSnapshot() {
         try {
             if (!File.Exists(_snapshotPath)) {
@@ -301,6 +310,7 @@ public sealed record TodayWebSnapshot(
     bool ShowNextPrayerBaseClock,
     string NextPrayerDayId,
     string Countdown,
+    long NextPrayerAt,
     string StatusMessage,
     string ImsakTime,
     string IftarTime,
@@ -325,6 +335,8 @@ public sealed record TodayCalculation(
 public sealed record TodayWebTiming(
     string Id,
     string Time,
+    long Timestamp,
     string BaseTime,
+    long BaseTimestamp,
     bool ShowBaseTime,
     bool IsNext);

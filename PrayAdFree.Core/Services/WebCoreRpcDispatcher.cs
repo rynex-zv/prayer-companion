@@ -259,7 +259,9 @@ public sealed class WebCoreRpcDispatcher {
             todayTimings = snapshot.Entries.Select(entry => new {
                 id = entry.Prayer.ToString().ToLowerInvariant(),
                 time = Format(entry.AdjustedTime, settings),
+                timestamp = ToUnixMilliseconds(entry.AdjustedTime, settings.Location.TimeZoneId),
                 baseTime = Format(entry.BaseTime, settings),
+                baseTimestamp = ToUnixMilliseconds(entry.BaseTime, settings.Location.TimeZoneId),
                 isNext = entry.IsNext
             }).ToArray()
         };

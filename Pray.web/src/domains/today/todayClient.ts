@@ -17,7 +17,7 @@ export type TodaySnapshot = {
     madhhab: string; madhhabLabel: string;
     highLatitudeRule: string; highLatitudeRuleLabel: string;
   };
-  todayTimings: { id: string; time: string; baseTime?: string; isNext: boolean }[];
+  todayTimings: { id: string; time: string; timestamp?: number; baseTime?: string; baseTimestamp?: number; isNext: boolean }[];
 };
 
 const PROJECTION = "today.snapshot";

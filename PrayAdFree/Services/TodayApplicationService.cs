@@ -54,6 +54,7 @@ public class TodayApplicationService : ObservableApplicationService, ITodayProje
     public ObservableCollection<PrayerTimeRow> TodayTimings { get; }
     IEnumerable<PrayerTimeRow> ITodayProjectionSource.TodayTimings => TodayTimings;
     public PrayerId NextPrayerId => _nextPrayerId;
+    public DateTime NextPrayerTime => _nextPrayerTime;
     public string NextPrayerDayId => _nextPrayerTime.Date > DateTime.Now.Date ? "tomorrow" : "today";
     public ClockFormat CurrentClockFormat => _settings.ClockFormat;
 
@@ -241,7 +242,9 @@ public class TodayApplicationService : ObservableApplicationService, ITodayProje
                 Id = entry.Prayer,
                 Name = LocalizationManager.TranslatePrayer(entry.Prayer),
                 Time = TimeFormatHelper.FormatTime(entry.AdjustedTime, _settings.ClockFormat),
+                Timestamp = entry.AdjustedTime,
                 BaseTime = TimeFormatHelper.FormatTime(entry.BaseTime, _settings.ClockFormat),
+                BaseTimestamp = entry.BaseTime,
                 ShowBaseTime = entry.ShowBaseTime,
                 IsNext = entry.IsNext
             });

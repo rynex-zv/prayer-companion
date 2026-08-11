@@ -8,6 +8,7 @@ public interface ITodayProjectionSource {
     string HijriDate { get; }
     string GregorianDate { get; }
     PrayerId NextPrayerId { get; }
+    DateTime NextPrayerTime { get; }
     string NextPrayerClock { get; }
     string NextPrayerBaseClock { get; }
     bool ShowNextPrayerBaseClock { get; }

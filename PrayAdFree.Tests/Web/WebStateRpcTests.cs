@@ -240,8 +240,12 @@ public sealed class WebStateRpcTests {
         Assert.False(string.IsNullOrWhiteSpace(nextPrayerId.GetString()));
         Assert.False(result.TryGetProperty("nextPrayerName", out _));
         Assert.True(result.TryGetProperty("nextPrayerDayId", out _));
+        Assert.True(result.TryGetProperty("nextPrayerAt", out var nextPrayerAt));
+        Assert.True(nextPrayerAt.GetInt64() > 0);
         Assert.All(result.GetProperty("todayTimings").EnumerateArray(), timing => {
             Assert.True(timing.TryGetProperty("id", out _));
+            Assert.True(timing.TryGetProperty("timestamp", out var timestamp));
+            Assert.True(timestamp.GetInt64() > 0);
             Assert.False(timing.TryGetProperty("name", out _));
         });
         Assert.Equal("Asr", WebCatalog.Translate("en", "Prayer_Asr"));
