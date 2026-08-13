@@ -13,6 +13,7 @@ type StoredAdhanSound = {
 };
 
 let activeAudio: HTMLAudioElement | undefined;
+let activeToneContext: AudioContext | undefined;
 
 export type BrowserAdhanSoundInfo = {
   id: string;
@@ -40,7 +41,7 @@ export async function pickAndStoreBrowserAdhanSound(labels: Record<string, strin
 }
 
 export async function playBrowserAdhanSound(id: string, volume = 100): Promise<void> {
-  stopActiveAudio();
+  stopActiveBrowserAdhanSound();
   const custom = id.startsWith("adhan_custom_") ? await getSound(id) : undefined;
   if (!custom) {
     await playDefaultNotificationTone(volume);
@@ -120,6 +121,7 @@ function openDatabase(): Promise<IDBDatabase> {
 
 async function playDefaultNotificationTone(volume: number): Promise<void> {
   const context = new AudioContext();
+  activeToneContext = context;
   const gain = context.createGain();
   gain.gain.value = clampVolume(volume) * 0.25;
   gain.connect(context.destination);
@@ -139,14 +141,18 @@ async function playDefaultNotificationTone(volume: number): Promise<void> {
   second.stop(context.currentTime + 0.42);
 
   await new Promise<void>((resolve) => window.setTimeout(resolve, 480));
-  await context.close();
+  if (context.state !== "closed") await context.close();
+  if (activeToneContext === context) activeToneContext = undefined;
 }
 
-function stopActiveAudio(): void {
-  if (!activeAudio) return;
-  activeAudio.pause();
-  activeAudio.src = "";
-  activeAudio = undefined;
+export function stopActiveBrowserAdhanSound(): void {
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio.src = "";
+    activeAudio = undefined;
+  }
+  if (activeToneContext && activeToneContext.state !== "closed") void activeToneContext.close();
+  activeToneContext = undefined;
 }
 
 function clampVolume(volume: number): number {

@@ -26,6 +26,21 @@ export async function callBrowserBackend<T>(method: string, payload?: unknown): 
     console.info(`[pray.rpc] ${JSON.stringify({ method, backend: "browser", totalMs: Math.round((performance.now() - started) * 10) / 10, preloaded: true })}`);
     return response;
   }
+  if (isPlatformOperation(method)) {
+    const operationId = readOperationId(payload);
+    if (!operationId) return { ok: false, error: `${method} requires an operationId.` };
+    window.setTimeout(() => {
+      void executeQueuedOperation<T>(method, payload, performance.now()).then(
+        (response) => publishPlatformCompletion(operationId, response),
+        (error) => publishPlatformFailure(operationId, error),
+      );
+    }, 0);
+    return { ok: true, data: { accepted: true, status: "pending", operationId } as T };
+  }
+  return executeQueuedOperation<T>(method, payload, started);
+}
+
+async function executeQueuedOperation<T>(method: string, payload: unknown, started: number): Promise<BridgeResponse<T> | undefined> {
   // Permission dialogs, GPS acquisition, and reverse-geocoding must not hold the
   // repository lock. Only the deterministic state transition is serialized.
   const preparationState = volatileState ?? await readRecord();
@@ -121,6 +136,41 @@ function retireLegacyKeys(): void {
 function isMutation(method: string): boolean {
   const kind = kinds.get(method);
   return kind === "command" || kind === "compatibilityAdapter";
+}
+
+function isPlatformOperation(method: string): boolean {
+  return kinds.get(method) === "platformOperation";
+}
+
+function readOperationId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
+  const value = (payload as { operationId?: unknown }).operationId;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function publishPlatformCompletion<T>(operationId: string, response: BridgeResponse<T> | undefined): void {
+  if (!response) {
+    publishPlatformFailure(operationId, new Error("Platform operation returned no result."));
+    return;
+  }
+  if (response.ok) {
+    for (const event of response.events ?? []) {
+      window.dispatchEvent(new CustomEvent("mauiwebber:app-event", { detail: event }));
+    }
+  }
+  const detail = response.ok
+    ? { type: "platform.operation.completed", payload: { operationId, data: response.data } }
+    : { type: "platform.operation.failed", payload: { operationId, error: response.error } };
+  window.dispatchEvent(new CustomEvent("mauiwebber:app-event", { detail }));
+}
+
+function publishPlatformFailure(operationId: string, error: unknown): void {
+  window.dispatchEvent(new CustomEvent("mauiwebber:app-event", {
+    detail: {
+      type: "platform.operation.failed",
+      payload: { operationId, error: error instanceof Error ? error.message : String(error) },
+    },
+  }));
 }
 
 function isInteractiveOperation(method: string): boolean {

@@ -10,6 +10,8 @@ Open each settings destination through its visible row, return to Settings betwe
 
 ## Tested
 
+- About always exposes a device-specific download or an explicit unavailable status; the control may never disappear silently.
+
 Settings navigation, route names, About query/save responses, browser unsupported-update behavior, and stable page controls.
 
 ## Faild+why

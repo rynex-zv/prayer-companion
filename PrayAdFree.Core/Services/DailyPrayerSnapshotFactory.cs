@@ -13,15 +13,30 @@ public sealed class DailyPrayerSnapshotFactory {
     ];
 
     public DailyPrayerSnapshot Build(PrayerDay day, AppSettings settings, DateTime now) {
+        return Build(day, null, settings, now);
+    }
+
+    public DailyPrayerSnapshot Build(PrayerDay day, PrayerDay? tomorrow, AppSettings settings, DateTime now) {
         ArgumentNullException.ThrowIfNull(day);
         ArgumentNullException.ThrowIfNull(settings);
 
-        var (nextPrayerId, nextPrayerTime) = NextPrayerCalculator.GetNext(day, now);
+        var remainingToday = DefaultDisplayOrder
+            .Select(prayer => (id: prayer, time: day.Timings.Get(prayer)))
+            .Where(item => item.time > now)
+            .OrderBy(item => item.time)
+            .FirstOrDefault();
+        var showTomorrow = remainingToday == default && tomorrow is not null;
+        var displayDay = showTomorrow ? tomorrow! : day;
+        var (nextPrayerId, nextPrayerTime) = showTomorrow
+            ? (PrayerId.Fajr, tomorrow!.Timings.Fajr)
+            : remainingToday == default
+                ? NextPrayerCalculator.GetNext(day, now)
+                : remainingToday;
         var nextOffset = GetOffsetForPrayer(settings, nextPrayerId);
         var entries = new List<DailyPrayerSnapshotEntry>(DefaultDisplayOrder.Length);
 
         foreach (var prayer in DefaultDisplayOrder) {
-            var adjustedTime = day.Timings.Get(prayer);
+            var adjustedTime = displayDay.Timings.Get(prayer);
             var offset = GetOffsetForPrayer(settings, prayer);
             entries.Add(new DailyPrayerSnapshotEntry {
                 Prayer = prayer,
@@ -36,7 +51,7 @@ public sealed class DailyPrayerSnapshotFactory {
             NextPrayerId = nextPrayerId,
             NextPrayerTime = nextPrayerTime,
             NextPrayerBaseTime = nextOffset == 0 ? null : nextPrayerTime.AddMinutes(-nextOffset),
-            IsNextPrayerTomorrow = nextPrayerTime.Date > now.Date,
+            IsNextPrayerTomorrow = showTomorrow || nextPrayerTime.Date > now.Date,
             Entries = entries
         };
     }

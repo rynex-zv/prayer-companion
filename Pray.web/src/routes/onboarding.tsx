@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProjection } from "@/hooks/useProjection";
-import { executeCommand, platformIntents, updateSettingsSection } from "@/client/applicationClient";
+import { executeCommand, nativeBackendReady, platformIntents, updateSettingsSection } from "@/client/applicationClient";
+import { watchBrowserPermissionChanges } from "@/native/webPlatformAdapter";
 import { Card } from "@/components/Card";
 import { CoordinateInput } from "@/components/CoordinateInput";
 import { Field } from "@/components/Field";
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageLog } from "@/components/PageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
-import { setLanguage, setOnboardingCompleted, useAppStore } from "@/state/appStore";
+import { confirmAppLocation, refreshAutomaticLocation, setLanguage, setOnboardingCompleted, useAppStore } from "@/state/appStore";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -34,6 +35,7 @@ type Place = { country: string; countryCode: string; city: string; latitude: num
 type PermissionItem = {
   id?: string;
   isGranted?: boolean;
+  permissionState?: string;
   title?: string;
   name?: string;
   description?: string;
@@ -65,12 +67,32 @@ function OnboardingPage() {
   const language = useAppStore((state) => state.language);
   const languages = useAppStore((state) => state.languages);
   const direction = useAppStore((state) => state.direction);
+  const autoLocationStep = useRef(false);
+  const manualLocationRevision = useRef(0);
   useEffect(() => {
     if (data?.completed) {
       setOnboardingCompleted(true);
       void navigate({ to: "/", replace: true });
     }
   }, [data?.completed, navigate]);
+  useEffect(() => {
+    if (nativeBackendReady()) return;
+    return watchBrowserPermissionChanges(() => { void refresh(true); }, false);
+  }, [refresh]);
+  useEffect(() => {
+    if (!data || step !== 2) {
+      autoLocationStep.current = false;
+      return;
+    }
+    if (autoLocationStep.current) return;
+    autoLocationStep.current = true;
+    const revisionAtStart = manualLocationRevision.current;
+    void refreshAutomaticLocation().then(() => {
+      // A GPS/IP result that started before the user edited a location field
+      // must never repaint the form over the confirmed manual value.
+      if (manualLocationRevision.current === revisionAtStart) return refresh(true);
+    });
+  }, [data, refresh, step]);
   if (!data) return null;
 
   const steps = data.steps?.length ? data.steps : [t("language"), t("permissions"), t("locationAndGps")];
@@ -89,6 +111,7 @@ function OnboardingPage() {
   const locationAccessReady = locationPermissionGranted || locationGpsReady;
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight;
   const patchLocation = async (location: LocationSettings, resolveCoordinates = false) => {
+    manualLocationRevision.current += 1;
     setData({ ...data, location });
     const response = await updateSettingsSection<LocationConfirmation, LocationSettings>("locations", location);
     if (!response.ok) {
@@ -105,10 +128,10 @@ function OnboardingPage() {
       }
     }
     setFinishError("");
-    return true;
+    return confirmed;
   };
   const refreshGpsFromNative = async () => {
-    const response = await platformIntents.refreshLocation<LocationSettings | { location?: LocationSettings }>();
+    const response = await platformIntents.refreshLocation<LocationSettings | { location?: LocationSettings }>({ source: "gps" });
     if (!response.ok) {
       setFinishError(response.error);
       return false;
@@ -126,10 +149,13 @@ function OnboardingPage() {
   const requestLocationPermission = async () => {
     if (requestingPermission) return false;
     setRequestingPermission("location");
-    const refreshed = await refreshGpsFromNative();
+    const permission = await platformIntents.requestPermission("location");
+    const refreshed = permission.ok && await refreshAutomaticLocation();
     if (refreshed) {
       setGrantedPermissions((current) => new Set(current).add("location"));
       await refresh(true);
+    } else if (!permission.ok) {
+      setFinishError(permission.error);
     }
     setRequestingPermission(null);
     return refreshed;
@@ -243,7 +269,7 @@ function OnboardingPage() {
                         <div className="text-sm font-semibold" data-selector-name={`onboarding:permission-title:${permission.id ?? index}`}>{permission.title ?? permission.name ?? t("permissions")}</div>
                         {permission.description ? <div className="mt-1 text-xs text-muted-foreground" data-selector-name={`onboarding:permission-description:${permission.id ?? index}`}>{permission.description}</div> : null}
                       </div>
-                      {permission.status ? <span className="text-xs font-medium text-primary" data-selector-name={`onboarding:permission-status:${permission.id ?? index}`}>{permission.status}</span> : null}
+                      {permission.status ? <span className="text-xs font-medium text-primary" data-selector-name={`onboarding:permission-status:${permission.id ?? index}`}>{permission.isGranted ? t("permissionGranted") : permission.permissionState === "denied" ? t("permissionDenied") : t("permissionNotGranted")}</span> : null}
                     </div>
                     <button
                       type="button"
@@ -419,7 +445,8 @@ function OnboardingPage() {
               return;
             }
 
-            if (!await patchLocation({ ...location!, useGps: !!location?.useGps && locationAccessReady })) {
+            const confirmedLocation = await patchLocation({ ...location!, useGps: !!location?.useGps && locationAccessReady });
+            if (!confirmedLocation) {
               setFinishing(false);
               return;
             }
@@ -433,6 +460,7 @@ function OnboardingPage() {
 
             setData({ ...data, completed: true });
             setOnboardingCompleted(true);
+            await confirmAppLocation(confirmedLocation);
             await navigate({ to: "/", replace: true });
           }}
           className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"

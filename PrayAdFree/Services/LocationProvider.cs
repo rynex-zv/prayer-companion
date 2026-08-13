@@ -48,7 +48,8 @@ public sealed class LocationProvider : ILocationProvider {
                 Country = country,
                 CountryCode = reverse?.CountryCode ?? "",
                 TimeZoneId = TimeZoneInfo.Local.Id,
-                LastUpdatedUtc = DateTime.UtcNow
+                LastUpdatedUtc = DateTime.UtcNow,
+                Source = "gps"
             };
         } catch (Exception ex) {
             _logger.LogException(ex, "LocationProvider.GetFromGpsAsync");
@@ -74,7 +75,8 @@ public sealed class LocationProvider : ILocationProvider {
                         Latitude = result.Latitude,
                         Longitude = result.Longitude,
                         TimeZoneId = TimeZoneInfo.Local.Id,
-                        LastUpdatedUtc = DateTime.UtcNow
+                        LastUpdatedUtc = DateTime.UtcNow,
+                        Source = string.IsNullOrWhiteSpace(current.Source) ? "manual" : current.Source
                     };
                 }
             }

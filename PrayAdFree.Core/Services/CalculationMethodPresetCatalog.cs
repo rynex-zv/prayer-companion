@@ -64,7 +64,7 @@ public static class CalculationMethodPresetCatalog {
 
     public static SunAnglePreset ResolvePreset(AppSettings settings) {
         var method = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode, settings.Location.TimeZoneId)
             : settings.Method;
 
         if (method == CalculationMethod.Custom) {

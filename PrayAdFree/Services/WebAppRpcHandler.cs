@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using MauiWebber;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
+using Microsoft.Maui.Devices.Sensors;
 
 namespace Pray_Ad_Free.Services;
 
@@ -16,6 +17,7 @@ public sealed class NativeAppBackend {
     private readonly PrayerDataService _dataService;
     private readonly IAppPermissionCenterService _permissionCenter;
     private readonly IGeoLookupService _geoLookupService;
+    private readonly IIpLocationService _ipLocationService;
     private readonly IAdhanPlaybackService _adhanPlaybackService;
     private readonly INotificationBootstrapper _notificationBootstrapper;
     private readonly AndroidAlarmCapabilityService _alarmCapability;
@@ -31,6 +33,7 @@ public sealed class NativeAppBackend {
     private bool _qiblaLoaded;
     private string _qiblaDisplayMode = "compass";
     private string _qiblaVisualFilter = "none";
+    private bool _qiblaCompassSubscribed;
 
     public NativeAppBackend(
         TodayWebRpcHandler today,
@@ -41,6 +44,7 @@ public sealed class NativeAppBackend {
         PrayerDataService dataService,
         IAppPermissionCenterService permissionCenter,
         IGeoLookupService geoLookupService,
+        IIpLocationService ipLocationService,
         IAdhanPlaybackService adhanPlaybackService,
         INotificationBootstrapper notificationBootstrapper,
         AndroidAlarmCapabilityService alarmCapability,
@@ -56,6 +60,7 @@ public sealed class NativeAppBackend {
         _dataService = dataService;
         _permissionCenter = permissionCenter;
         _geoLookupService = geoLookupService;
+        _ipLocationService = ipLocationService;
         _adhanPlaybackService = adhanPlaybackService;
         _notificationBootstrapper = notificationBootstrapper;
         _alarmCapability = alarmCapability;
@@ -121,6 +126,8 @@ public sealed class NativeAppBackend {
             "calendar.nextMonth" => await MoveCalendarAsync(1).ConfigureAwait(false),
             "calendar.previousMonth" => await MoveCalendarAsync(-1).ConfigureAwait(false),
             "qibla.getSnapshot" => await GetQiblaAsync().ConfigureAwait(false),
+            "qibla.startSensor" => await StartQiblaSensorAsync().ConfigureAwait(false),
+            "qibla.stopSensor" => await StopQiblaSensorAsync().ConfigureAwait(false),
             "qibla.setHeadingMode" => await SetQiblaHeadingModeAsync(payload).ConfigureAwait(false),
             "qibla.updateHeading" => await UpdateQiblaHeadingAsync(payload).ConfigureAwait(false),
             "qibla.adjustManualHeading" => AdjustQiblaManualHeading(payload),
@@ -145,9 +152,10 @@ public sealed class NativeAppBackend {
             "notification.test" => QueuePlatformOperation(method, "notification", payload, () => TestAdhanNotificationAsync(payload)),
             "permissions.request" => QueuePlatformOperation(method, "permissions", payload, () => RequestPermissionAsync(payload)),
             "permissions.requestAll" => QueuePlatformOperation(method, "permissions", payload, RequestAllPermissionsAsync),
-            "location.refresh" => QueuePlatformOperation(method, "location", payload, RefreshGpsLocationAsync),
+            "location.refresh" => QueuePlatformOperation(method, "location", payload, () => RefreshLocationAsync(payload)),
             "location.reverseGeocode" => QueuePlatformOperation(method, "location", payload, () => ReverseGeocodeLocationAsync(payload)),
             "adhan.sound.preview" => QueuePlatformOperation(method, "adhan", payload, () => PreviewAdhanSoundAsync(payload)),
+            "adhan.sound.stopPreview" => QueuePlatformOperation(method, "adhan", payload, StopAdhanSoundPreviewAsync),
             "adhan.sound.addCustom" => QueuePlatformOperation(method, "adhan", payload, ImportCustomAdhanSoundAsync),
             "adhan.sound.removeCustom" => await RemoveCustomAdhanSoundAsync(payload).ConfigureAwait(false),
             "external.openEmail" => QueuePlatformOperation(method, "external", payload, () => OpenEmailAsync(payload)),
@@ -182,18 +190,24 @@ public sealed class NativeAppBackend {
     }
 
     private async Task<object> BuildBootstrapAsync(CancellationToken cancellationToken) {
-        // Bootstrap only what the shell and initial Today route consume. Loading
-        // alarm, onboarding, and platform permissions here duplicated their route
-        // queries and made cold startup wait on expensive platform inspection.
+        // Bootstrap only cheap projections needed before React can safely route.
+        // Alarm is included because Android alarm launches can arrive before the
+        // WebView navigation bridge is ready; the first React render must know
+        // whether /alarm is the authoritative startup route.
         var today = await _today.HandleAsync("today.getSnapshot", default, cancellationToken).ConfigureAwait(false);
+        var alarm = await GetAlarmSnapshotStateAsync().ConfigureAwait(false);
         return new {
             contractVersion = PrayAdFree.Core.Contracts.AppProtocol.ContractVersion,
             persistenceSchemaVersion = PrayAdFree.Core.Contracts.AppProtocol.PersistenceSchemaVersion,
             revisions = _revisions.Snapshot(),
-            startup = new { route = "/", intent = (string?)null },
+            startup = new {
+                route = alarm.IsActive ? "/alarm" : "/",
+                intent = alarm.IsActive ? "alarm" : (string?)null
+            },
             projections = new {
                 shell = BuildBootstrapShellSnapshot(),
                 today,
+                alarm = alarm.Snapshot,
                 capabilities = new { platform = DeviceInfo.Platform.ToString().ToLowerInvariant(), native = true, events = true }
             }
         };
@@ -264,13 +278,15 @@ public sealed class NativeAppBackend {
         };
     }
 
-    private async Task<object> GetAlarmSnapshotAsync() {
+    private async Task<(object Snapshot, bool IsActive)> GetAlarmSnapshotStateAsync() {
         var settings = _settingsService.Load();
         var language = ResolveLanguage(settings.Language);
         var model = await _adhanPlaybackService.GetActiveAlarmPresentationModelAsync().ConfigureAwait(false);
-        return model == null
-            ? WebAlarmSnapshotFactory.Inactive(language)
-            : WebAlarmSnapshotFactory.Active(
+        if (model == null) {
+            return (WebAlarmSnapshotFactory.Inactive(language), false);
+        }
+
+        return (WebAlarmSnapshotFactory.Active(
                 language,
                 model.PrayerClock,
                 model.DelayFromBase,
@@ -279,7 +295,12 @@ public sealed class NativeAppBackend {
                 model.CanSnooze,
                 model.MinDelayMinutes,
                 model.MaxDelayMinutes,
-                model.InitialDelayMinutes);
+                model.InitialDelayMinutes), true);
+    }
+
+    private async Task<object> GetAlarmSnapshotAsync() {
+        var alarm = await GetAlarmSnapshotStateAsync().ConfigureAwait(false);
+        return alarm.Snapshot;
     }
 
     private async Task<object> SnoozeAlarmAsync(JsonElement payload) {
@@ -299,12 +320,15 @@ public sealed class NativeAppBackend {
         return await GetAlarmSnapshotAsync().ConfigureAwait(false);
     }
 
-    private static Task CloseAlarmHostAsync() => MainThread.InvokeOnMainThreadAsync(async () => {
-        var navigation = Shell.Current?.Navigation ?? Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
-        if (navigation?.ModalStack.LastOrDefault() is Pages.AdhanSnoozePage) {
-            await navigation.PopModalAsync().ConfigureAwait(true);
-        }
-    });
+    private static async Task CloseAlarmHostAsync() {
+        var shell = Shell.Current;
+        var sectionStack = shell?.CurrentItem?.CurrentItem?.Navigation?.NavigationStack;
+        var webPage = sectionStack?.LastOrDefault() as MauiWebberPage
+            ?? shell?.Navigation?.NavigationStack.LastOrDefault() as MauiWebberPage
+            ?? shell?.CurrentPage as MauiWebberPage
+            ?? Application.Current?.Windows.FirstOrDefault()?.Page as MauiWebberPage;
+        if (webPage != null) await webPage.NavigateToRouteAsync("/", TimeSpan.FromSeconds(3)).ConfigureAwait(false);
+    }
 
     private static object BuildLanguageObject(string? language) {
         var requested = ResolveLanguage(language ?? LocalizationManager.CurrentLanguage);
@@ -580,6 +604,51 @@ public sealed class NativeAppBackend {
         return await GetQiblaAsync().ConfigureAwait(false);
     }
 
+    private async Task<object> StartQiblaSensorAsync() {
+        if (!Compass.IsSupported) {
+            throw new InvalidOperationException("A compass sensor is not available on this device.");
+        }
+
+        await MainThread.InvokeOnMainThreadAsync(() => {
+            if (!_qiblaCompassSubscribed) {
+                Compass.ReadingChanged += OnQiblaCompassReadingChanged;
+                _qiblaCompassSubscribed = true;
+            }
+            if (!Compass.IsMonitoring) {
+                Compass.Start(SensorSpeed.UI, applyLowPassFilter: true);
+            }
+        });
+        return await GetQiblaAsync().ConfigureAwait(false);
+    }
+
+    private async Task<object> StopQiblaSensorAsync() {
+        await MainThread.InvokeOnMainThreadAsync(() => {
+            if (_qiblaCompassSubscribed) {
+                Compass.ReadingChanged -= OnQiblaCompassReadingChanged;
+                _qiblaCompassSubscribed = false;
+            }
+            if (Compass.IsMonitoring) {
+                Compass.Stop();
+            }
+        });
+        return new { stopped = true };
+    }
+
+    private void OnQiblaCompassReadingChanged(object? sender, CompassChangedEventArgs args) {
+        var heading = args.Reading.HeadingMagneticNorth;
+#if ANDROID
+        if (_qibla.Location is { } location) {
+            var magneticField = new Android.Hardware.GeomagneticField(
+                (float)location.Latitude,
+                (float)location.Longitude,
+                0,
+                Java.Lang.JavaSystem.CurrentTimeMillis());
+            heading += magneticField.Declination;
+        }
+#endif
+        _qibla.UpdateHeading(heading);
+    }
+
     private async Task<object> SetQiblaVisualFilterAsync(JsonElement payload) {
         _qiblaVisualFilter = AppInputContract.RequiredChoice(
             ReadString(payload, "mode"), "qibla.visualFilter", "none", "night", "contrast");
@@ -632,7 +701,7 @@ public sealed class NativeAppBackend {
     }
 
     private static string LocalizeTasbihText(string value) =>
-        value.StartsWith("Tasbih_", StringComparison.Ordinal)
+        value.StartsWith("Tasbih_", StringComparison.Ordinal) || value.StartsWith("TasbihPreset_", StringComparison.Ordinal)
             ? LocalizationManager.Translate(value)
             : value;
 
@@ -817,6 +886,11 @@ public sealed class NativeAppBackend {
         return new PlatformOperationCompletion(new { ok = started, simulated = AutomationRuntimeEnabled(), action = "previewSound", id }, null);
     }
 
+    private async Task<PlatformOperationCompletion> StopAdhanSoundPreviewAsync() {
+        if (!AutomationRuntimeEnabled()) await _adhanPlaybackService.StopAsync().ConfigureAwait(false);
+        return new PlatformOperationCompletion(new { ok = true, simulated = AutomationRuntimeEnabled(), action = "stopPreview" }, null);
+    }
+
     private async Task<PlatformOperationCompletion> TestAdhanAlarmAsync(JsonElement payload) {
         var id = ReadString(payload, "id") ?? _settingsService.Load().Notifications.SoundKey;
         var scheduled = AutomationRuntimeEnabled() || await _adhanPlaybackService.ScheduleTestAlarmAsync(id, TimeSpan.FromSeconds(12)).ConfigureAwait(false);
@@ -889,6 +963,12 @@ public sealed class NativeAppBackend {
             return new PlatformOperationCompletion(new { cancelled = true }, null);
         }
 
+        var suggestedName = Path.GetFileNameWithoutExtension(pick.FileName)?.Trim() ?? string.Empty;
+        var customName = await PromptForCustomAdhanSoundNameAsync(suggestedName).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(customName)) {
+            return new PlatformOperationCompletion(new { cancelled = true }, null);
+        }
+
         var key = $"adhan_custom_{Guid.NewGuid():N}";
         var directory = AdhanSoundLibrary.GetCustomSoundsDirectory();
         Directory.CreateDirectory(directory);
@@ -910,7 +990,7 @@ public sealed class NativeAppBackend {
             var sounds = settings.Notifications.CustomSounds.ToList();
             sounds.Add(new CustomAdhanSound {
                 Key = key,
-                Name = Path.GetFileNameWithoutExtension(pick.FileName)?.Trim() is { Length: > 0 } name ? name : T("AddCustomAdhanSound"),
+                Name = customName.Trim(),
                 FileName = fileName
             });
             var notifications = CopyNotifications(settings.Notifications, soundKey: key, customSounds: sounds);
@@ -921,6 +1001,25 @@ public sealed class NativeAppBackend {
             if (!string.IsNullOrWhiteSpace(targetPath) && File.Exists(targetPath)) File.Delete(targetPath);
             throw;
         }
+    }
+
+    private static async Task<string?> PromptForCustomAdhanSoundNameAsync(string suggestedName) {
+        return await MainThread.InvokeOnMainThreadAsync(async () => {
+            Page? page = Shell.Current
+                ?? Application.Current?.Windows.FirstOrDefault()?.Page;
+            if (page == null) {
+                throw new InvalidOperationException("The app window is not ready to name the selected sound.");
+            }
+
+            return await page.DisplayPromptAsync(
+                T("AddCustomAdhanSound"),
+                T("CustomAdhanNamePrompt"),
+                accept: T("add"),
+                cancel: T("Cancel"),
+                placeholder: T("CustomAdhanNamePlaceholder"),
+                maxLength: 80,
+                initialValue: suggestedName);
+        }).ConfigureAwait(false);
     }
 
     private async Task<object> RemoveCustomAdhanSoundAsync(JsonElement payload) {
@@ -1037,22 +1136,31 @@ public sealed class NativeAppBackend {
         return kind;
     }
 
-    private async Task<PlatformOperationCompletion> RefreshGpsLocationAsync() {
+    private async Task<PlatformOperationCompletion> RefreshLocationAsync(JsonElement payload) {
         var settings = _settingsService.Load();
-        if (AutomationRuntimeEnabled()) {
-            return new PlatformOperationCompletion(BuildLocationsSettings(settings), "settings.locations");
+        var requestedSource = ReadString(payload, "source")?.Trim().ToLowerInvariant() ?? "auto";
+        var locationPermissionGranted = await IsLocationPermissionGrantedAsync().ConfigureAwait(false);
+        if (requestedSource == "gps" && !locationPermissionGranted) {
+            throw new InvalidOperationException(T("webLocationPermissionDenied"));
         }
+        var useGps = requestedSource == "gps" || (requestedSource == "auto" && locationPermissionGranted);
+        if (AutomationRuntimeEnabled()) {
+            return new PlatformOperationCompletion(new { location = BuildLocationsSettings(settings), changed = false }, "settings.locations");
+        }
+        if (!useGps) return await RefreshIpLocationAsync(settings).ConfigureAwait(false);
+
         var gpsSettings = CopySettings(
             settings,
             location: new LocationSettings {
                 Mode = LocationMode.Gps,
-                City = string.Empty,
-                Country = string.Empty,
-                CountryCode = string.Empty,
+                City = settings.Location.City,
+                Country = settings.Location.Country,
+                CountryCode = settings.Location.CountryCode,
                 Latitude = settings.Location.Latitude,
                 Longitude = settings.Location.Longitude,
                 TimeZoneId = settings.Location.TimeZoneId,
-                LastUpdatedUtc = settings.Location.LastUpdatedUtc
+                LastUpdatedUtc = settings.Location.LastUpdatedUtc,
+                Source = "gps"
             });
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         try {
@@ -1062,11 +1170,50 @@ public sealed class NativeAppBackend {
                 throw new InvalidOperationException(T("webGpsUnavailable"));
             }
 
-            SaveSettings(updated);
-            return new PlatformOperationCompletion(BuildLocationsSettings(updated), "settings.locations");
+            var changed = LocationChanged(settings.Location, updated.Location, "gps");
+            if (changed) SaveSettings(updated);
+            return new PlatformOperationCompletion(new { location = BuildLocationsSettings(updated), changed }, "settings.locations");
         } catch (OperationCanceledException) {
             throw new InvalidOperationException(T("webGpsTimedOut"));
         }
+    }
+
+    private async Task<PlatformOperationCompletion> RefreshIpLocationAsync(AppSettings settings) {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var result = await _ipLocationService.GetCurrentLocationAsync(timeout.Token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException(T("webIpLocationUnavailable"));
+        var location = new LocationSettings {
+            Mode = LocationMode.Manual,
+            City = result.City,
+            Country = result.Country,
+            CountryCode = result.CountryCode,
+            Latitude = result.Latitude,
+            Longitude = result.Longitude,
+            TimeZoneId = string.IsNullOrWhiteSpace(result.TimeZoneId) ? settings.Location.TimeZoneId : result.TimeZoneId,
+            LastUpdatedUtc = DateTime.UtcNow,
+            Source = "ip"
+        };
+        var changed = LocationChanged(settings.Location, location, "ip");
+        var updated = changed ? CopySettings(settings, location: location) : settings;
+        if (changed) SaveSettings(updated);
+        return new PlatformOperationCompletion(new { location = BuildLocationsSettings(updated), changed }, "settings.locations");
+    }
+
+    private static Task<bool> IsLocationPermissionGrantedAsync() {
+        return Microsoft.Maui.ApplicationModel.MainThread.InvokeOnMainThreadAsync(async () =>
+            await Microsoft.Maui.ApplicationModel.Permissions.CheckStatusAsync<Microsoft.Maui.ApplicationModel.Permissions.LocationWhenInUse>()
+                == Microsoft.Maui.ApplicationModel.PermissionStatus.Granted);
+    }
+
+    private static bool LocationChanged(LocationSettings current, LocationSettings next, string source) {
+        var currentSource = string.IsNullOrWhiteSpace(current.Source)
+            ? current.Mode == LocationMode.Gps ? "gps" : "manual"
+            : current.Source;
+        return !string.Equals(currentSource, source, StringComparison.OrdinalIgnoreCase)
+            || Math.Abs(current.Latitude - next.Latitude) >= 0.00001
+            || Math.Abs(current.Longitude - next.Longitude) >= 0.00001
+            || !string.Equals(current.CountryCode, next.CountryCode, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(current.City, next.City, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<PlatformOperationCompletion> ReverseGeocodeLocationAsync(JsonElement payload) {
@@ -1087,7 +1234,8 @@ public sealed class NativeAppBackend {
             Latitude = latitude,
             Longitude = longitude,
             TimeZoneId = settings.Location.TimeZoneId,
-            LastUpdatedUtc = DateTime.UtcNow
+            LastUpdatedUtc = DateTime.UtcNow,
+            Source = "manual"
         };
         var updated = CopySettings(settings, location: location);
         SaveSettings(updated);
@@ -1137,7 +1285,8 @@ public sealed class NativeAppBackend {
                     Latitude = known.Latitude,
                     Longitude = known.Longitude,
                     TimeZoneId = patched.TimeZoneId,
-                    LastUpdatedUtc = DateTime.UtcNow
+                    LastUpdatedUtc = DateTime.UtcNow,
+                    Source = "manual"
                 };
             }
         }
@@ -1177,7 +1326,8 @@ public sealed class NativeAppBackend {
             Latitude = ReadDouble(payload, "latitude", current.Latitude),
             Longitude = ReadDouble(payload, "longitude", current.Longitude),
             TimeZoneId = current.TimeZoneId,
-            LastUpdatedUtc = DateTime.UtcNow
+            LastUpdatedUtc = DateTime.UtcNow,
+            Source = useGps ? "gps" : ReadString(payload, "locationSource") ?? "manual"
         };
     }
 
@@ -1419,7 +1569,7 @@ public sealed class NativeAppBackend {
     private static object WriteAutomationReports(JsonElement payload) {
 #if DEBUG && PRAY_AUTOMATION
         if (!AutomationRuntime.IsEnabled) {
-            throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set AutomationRuntime.TestsEnabled=true.");
+            throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set PRAY_AUTOMATION=true.");
         }
 
         var runId = SanitizeAutomationFileName(ReadString(payload, "runId") ?? DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
@@ -1431,7 +1581,7 @@ public sealed class NativeAppBackend {
         File.WriteAllText(failedPath, ReadString(payload, "failedMarkdown") ?? "# Failed scenarios\n\n0 failed.\n");
         return new { ok = true, runId, passedPath, failedPath };
 #else
-        throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set AutomationRuntime.TestsEnabled=true.");
+        throw new InvalidOperationException("Automation report output is disabled. Build Debug with PrayAutomation=true and set PRAY_AUTOMATION=true.");
 #endif
     }
 
@@ -1664,6 +1814,9 @@ public sealed class NativeAppBackend {
             }
         }
 
+        var locationSource = string.IsNullOrWhiteSpace(settings.Location.Source)
+            ? settings.Location.Mode == LocationMode.Gps ? "gps" : "manual"
+            : settings.Location.Source.ToLowerInvariant();
         return new {
             useGps = settings.Location.Mode == LocationMode.Gps,
             latitude,
@@ -1671,7 +1824,8 @@ public sealed class NativeAppBackend {
             country = countryCode,
             countryName,
             city,
-            vpnWarning = false,
+            locationSource,
+            vpnWarning = locationSource == "ip",
             qiblaReadingMode = settings.Qibla.ReadingMode.ToString(),
             qiblaFilterMode = settings.Qibla.FilterMode.ToString(),
             qiblaReadingModes = new[] {
@@ -1830,6 +1984,7 @@ public sealed class NativeAppBackend {
                 : settings.Notifications.ReminderOffsetsMinutes.Select(minutes => new AdhanReminderItem { OffsetMinutes = minutes }))
             .ToList();
         return new {
+            showWindowsControls = DeviceInfo.Platform == DevicePlatform.WinUI,
             enableAdhan = settings.Notifications.EnableAdhan,
             mobilePrimaryAdhanType = settings.Notifications.MobilePrimaryAdhanType.ToString(),
             hideOnCloseWindows = settings.Notifications.HideOnCloseOnWindows,
@@ -1950,12 +2105,27 @@ public sealed class NativeAppBackend {
     }
 
     private async Task<object> BuildPermissionsSettingsAsync() {
-        var snapshots = await _permissionCenter.GetSnapshotsAsync().ConfigureAwait(false);
-        var alarm = await _alarmCapability.GetCurrentDecisionAsync().ConfigureAwait(false);
+        IReadOnlyList<AppPermissionSnapshot> snapshots;
+        try {
+            snapshots = await _permissionCenter.GetSnapshotsAsync().ConfigureAwait(false);
+        } catch (Exception exception) {
+            _logger.LogException(exception, "NativeAppBackend.BuildPermissionsSettings");
+            snapshots = Array.Empty<AppPermissionSnapshot>();
+        }
+
+        string alarmStatus;
+        try {
+            var alarm = await _alarmCapability.GetCurrentDecisionAsync().ConfigureAwait(false);
+            alarmStatus = T($"PermissionsAlarmMode_{alarm.SupportStatus}");
+        } catch (Exception exception) {
+            _logger.LogException(exception, "NativeAppBackend.BuildAlarmPermissionSettings");
+            alarmStatus = T("status_error");
+        }
+
         return new {
             alarmMode = new {
                 title = T("PermissionsAlarmModeTitle"),
-                status = T($"PermissionsAlarmMode_{alarm.SupportStatus}"),
+                status = alarmStatus,
                 description = T("PermissionsSubtitle")
             },
             items = snapshots.Where(item => item.IsSupported).Select(item => new {

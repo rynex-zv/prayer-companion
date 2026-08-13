@@ -1,0 +1,229 @@
+{
+  "runId": "web-2026-08-11T07-32-37-598Z",
+  "platform": "web",
+  "startedAt": "2026-08-11T07:32:37.598Z",
+  "completedAt": "2026-08-11T07:33:01.427Z",
+  "passed": [
+    {
+      "id": "04-theme-localization",
+      "name": "User personalizes language, theme, accent, and text size",
+      "documentation": "04-theme-localization.md",
+      "passed": true,
+      "durationMs": 1368,
+      "assertions": 14,
+      "steps": [
+        "Navigated to /settings/theme",
+        "Set theme:language=ar",
+        "Set theme:language=en",
+        "Clicked theme:mode:light",
+        "Clicked theme:mode:dark",
+        "Clicked theme:mode:system",
+        "Clicked theme:accent:green",
+        "Clicked theme:accent:teal",
+        "Clicked theme:text-size:decrease",
+        "Clicked theme:text-size:increase"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "05-tasbih-workflow",
+      "name": "User creates, edits, orders, uses, and removes a Tasbih preset",
+      "documentation": "05-tasbih-workflow.md",
+      "passed": true,
+      "durationMs": 2660,
+      "assertions": 20,
+      "steps": [
+        "Navigated to /settings/tasbih",
+        "Set settings-tasbih:new-preset-name=Automation preset",
+        "Clicked settings-tasbih:add-preset-from-input",
+        "Set settings-tasbih:preset-name:automation-preset=Automation renamed",
+        "Set settings-tasbih:repeat:automation-preset=Reset",
+        "Set settings-tasbih:new-item-text:automation-preset=Automation item",
+        "Set settings-tasbih:new-item-count:automation-preset=7",
+        "Clicked settings-tasbih:add-item:automation-preset",
+        "Set settings-tasbih:item-text:automation-preset:1=Automation edited item",
+        "Set settings-tasbih:item-count:automation-preset:1=9",
+        "Clicked settings-tasbih:item-up:automation-preset:1",
+        "Clicked settings-tasbih:item-down:automation-preset:0",
+        "Clicked settings-tasbih:item-remove:automation-preset:1",
+        "Navigated to /tasbih",
+        "Clicked tasbih:increment",
+        "Clicked tasbih:increment",
+        "Clicked tasbih:reset",
+        "Navigated to /settings/tasbih",
+        "Clicked settings-tasbih:remove-preset:automation-preset"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "06-notification-reminder",
+      "name": "User configures and removes an Adhan notification reminder",
+      "documentation": "06-notification-reminder.md",
+      "passed": true,
+      "durationMs": 1392,
+      "assertions": 14,
+      "steps": [
+        "Navigated to /settings/notifications",
+        "Clicked notifications:vibration",
+        "Clicked notifications:vibration",
+        "Set notifications:minutes-before=11",
+        "Set notifications:minutes-before=10",
+        "Clicked notifications:reminder-add",
+        "Set notifications:reminder-value:0=12",
+        "Set notifications:reminder-unit:0=hour",
+        "Set notifications:reminder-direction:0=after",
+        "Set notifications:reminder-alert:0=Notification",
+        "Clicked notifications:reminder-remove:0"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "07-alarm-reminder",
+      "name": "User creates, edits, toggles, and removes an alarm reminder",
+      "documentation": "07-alarm-reminder.md",
+      "passed": true,
+      "durationMs": 1488,
+      "assertions": 9,
+      "steps": [
+        "Navigated to /settings/alarms",
+        "Clicked alarms:built-in:wudu",
+        "Clicked alarms:built-in:wudu",
+        "Set alarms:new-reminder-text=Automation alarm reminder",
+        "Clicked alarms:add-reminder-from-input",
+        "Clicked alarms:user-toggle:new-1786433577634",
+        "Set alarms:reminder-text:new-1786433577634=Automation alarm edited",
+        "Clicked alarms:remove:new-1786433577634"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "09-settings-about-navigation",
+      "name": "User opens every Settings page and saves the About URL",
+      "documentation": "09-settings-about-navigation.md",
+      "passed": true,
+      "durationMs": 2429,
+      "assertions": 20,
+      "steps": [
+        "Navigated to /settings",
+        "Clicked settings:row:locations",
+        "Navigated to /settings",
+        "Clicked settings:row:themeDiagnostics",
+        "Navigated to /settings",
+        "Clicked settings:row:adhan",
+        "Navigated to /settings",
+        "Clicked settings:row:notifications",
+        "Navigated to /settings",
+        "Clicked settings:row:permissions",
+        "Navigated to /settings",
+        "Clicked settings:row:alarmReminders",
+        "Navigated to /settings",
+        "Clicked settings:row:tasbihSettings",
+        "Navigated to /settings",
+        "Clicked settings:row:about",
+        "Navigated to /settings/about",
+        "Clicked about:save-remote-web-url"
+      ],
+      "warnings": []
+    }
+  ],
+  "failed": [
+    {
+      "id": "01-page-contract",
+      "name": "Every page, text, control name, input value, and navigation",
+      "documentation": "01-page-contract.md",
+      "passed": false,
+      "durationMs": 13668,
+      "assertions": 54,
+      "steps": [
+        "Navigated to /onboarding",
+        "Validated 7 control names on /onboarding step 1",
+        "Clicked onboarding:next",
+        "Validated 6 control names on /onboarding step 2",
+        "Clicked onboarding:next",
+        "Validated 8 control names on /onboarding step 3",
+        "Set onboarding:location:country=NL",
+        "Set onboarding:location:country=",
+        "Set onboarding:location:latitude=53.3676",
+        "Set onboarding:location:latitude=52.3676",
+        "Set onboarding:location:longitude=5.9041",
+        "Set onboarding:location:longitude=4.9041",
+        "Changed and restored 4 inputs on /onboarding step 3",
+        "Clicked onboarding:back",
+        "Clicked onboarding:next",
+        "Clicked onboarding:next",
+        "Completed onboarding navigation and redirect",
+        "Navigated to /",
+        "Validated 1 control names on /",
+        "Changed and restored 0 inputs on /"
+      ],
+      "warnings": [
+        "location.refresh took 289 ms (browser)"
+      ],
+      "failedAssertion": "Route /calendar did not finish rendering visible content",
+      "stack": "AutomationAssertionError: Route /calendar did not finish rendering visible content\n    at l (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:5018)\n    at async G.navigate (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:773)\n    at async Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:2343)"
+    },
+    {
+      "id": "02-today-calendar",
+      "name": "User checks prayer times and explores the calendar",
+      "documentation": "02-today-calendar.md",
+      "passed": false,
+      "durationMs": 136,
+      "assertions": 2,
+      "steps": [
+        "Navigated to /"
+      ],
+      "warnings": [],
+      "failedAssertion": "Today refresh button is missing",
+      "stack": "AutomationAssertionError: Today refresh button is missing\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:2682)"
+    },
+    {
+      "id": "03-qibla-location",
+      "name": "User changes location and verifies Qibla modes",
+      "documentation": "03-qibla-location.md",
+      "passed": false,
+      "durationMs": 161,
+      "assertions": 1,
+      "steps": [
+        "Navigated to /settings/locations"
+      ],
+      "warnings": [],
+      "failedAssertion": "Missing selector: locations:city",
+      "stack": "AutomationAssertionError: Missing selector: locations:city\n    at G.element (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:1081)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:3368)"
+    },
+    {
+      "id": "08-adhan-settings",
+      "name": "User adjusts Adhan calculation and fasting reminder settings",
+      "documentation": "08-adhan-settings.md",
+      "passed": false,
+      "durationMs": 476,
+      "assertions": 11,
+      "steps": [
+        "Navigated to /settings/locations",
+        "Set locations:country=NL",
+        "Set locations:city=Amsterdam",
+        "Navigated to /settings/adhan",
+        "Set adhan:clock-format=24h",
+        "Shared prayer inputs: Amsterdam NL, 52.3676, 4.9041, Auto, Shafi, MiddleOfTheNight, 24h",
+        "Shared prayer snapshot: ",
+        "Set adhan:method=Jafari"
+      ],
+      "warnings": [],
+      "failedAssertion": "Changing calculation method Auto -> Jafari did not change any prayer time",
+      "stack": "AutomationAssertionError: Changing calculation method Auto -> Jafari did not change any prayer time\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:9182)"
+    },
+    {
+      "id": "10-platform-operations",
+      "name": "System operations acknowledge promptly and report truthful completion",
+      "documentation": "10-platform-operations.md",
+      "passed": false,
+      "durationMs": 7,
+      "assertions": 2,
+      "steps": [],
+      "warnings": [],
+      "failedAssertion": "external.openEmail returned a fake success instead of a pending acknowledgement",
+      "stack": "AutomationAssertionError: external.openEmail returned a fake success instead of a pending acknowledgement\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:12920)"
+    }
+  ],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-11T07-32-37-598Z`\n- Platform: `web`\n- Passed: **5**\n- Failed: **5**\n\n## 04-theme-localization — User personalizes language, theme, accent, and text size\n\n- Documentation: `04-theme-localization.md`\n- Duration: 1368 ms\n- Assertions: 14\n- Warnings: 0\n\n## 05-tasbih-workflow — User creates, edits, orders, uses, and removes a Tasbih preset\n\n- Documentation: `05-tasbih-workflow.md`\n- Duration: 2660 ms\n- Assertions: 20\n- Warnings: 0\n\n## 06-notification-reminder — User configures and removes an Adhan notification reminder\n\n- Documentation: `06-notification-reminder.md`\n- Duration: 1392 ms\n- Assertions: 14\n- Warnings: 0\n\n## 07-alarm-reminder — User creates, edits, toggles, and removes an alarm reminder\n\n- Documentation: `07-alarm-reminder.md`\n- Duration: 1488 ms\n- Assertions: 9\n- Warnings: 0\n\n## 09-settings-about-navigation — User opens every Settings page and saves the About URL\n\n- Documentation: `09-settings-about-navigation.md`\n- Duration: 2429 ms\n- Assertions: 20\n- Warnings: 0\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-11T07-32-37-598Z`\n- Platform: `web`\n- Failed: **5**\n- Passed: **5**\n\n## 01-page-contract — Every page, text, control name, input value, and navigation\n\n- Documentation: `01-page-contract.md`\n- Duration: 13668 ms\n- Assertions completed: 54\n- Failed assertion: **Route /calendar did not finish rendering visible content**\n- ⚠️ location.refresh took 289 ms (browser)\n\n### Completed steps\n\n- Navigated to /onboarding\n- Validated 7 control names on /onboarding step 1\n- Clicked onboarding:next\n- Validated 6 control names on /onboarding step 2\n- Clicked onboarding:next\n- Validated 8 control names on /onboarding step 3\n- Set onboarding:location:country=NL\n- Set onboarding:location:country=\n- Set onboarding:location:latitude=53.3676\n- Set onboarding:location:latitude=52.3676\n- Set onboarding:location:longitude=5.9041\n- Set onboarding:location:longitude=4.9041\n- Changed and restored 4 inputs on /onboarding step 3\n- Clicked onboarding:back\n- Clicked onboarding:next\n- Clicked onboarding:next\n- Completed onboarding navigation and redirect\n- Navigated to /\n- Validated 1 control names on /\n- Changed and restored 0 inputs on /\n\n### Stack\n\n```text\nAutomationAssertionError: Route /calendar did not finish rendering visible content\n    at l (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:5018)\n    at async G.navigate (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:773)\n    at async Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:2343)\n```\n\n## 02-today-calendar — User checks prayer times and explores the calendar\n\n- Documentation: `02-today-calendar.md`\n- Duration: 136 ms\n- Assertions completed: 2\n- Failed assertion: **Today refresh button is missing**\n\n### Completed steps\n\n- Navigated to /\n\n### Stack\n\n```text\nAutomationAssertionError: Today refresh button is missing\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:2682)\n```\n\n## 03-qibla-location — User changes location and verifies Qibla modes\n\n- Documentation: `03-qibla-location.md`\n- Duration: 161 ms\n- Assertions completed: 1\n- Failed assertion: **Missing selector: locations:city**\n\n### Completed steps\n\n- Navigated to /settings/locations\n\n### Stack\n\n```text\nAutomationAssertionError: Missing selector: locations:city\n    at G.element (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:1081)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:3368)\n```\n\n## 08-adhan-settings — User adjusts Adhan calculation and fasting reminder settings\n\n- Documentation: `08-adhan-settings.md`\n- Duration: 476 ms\n- Assertions completed: 11\n- Failed assertion: **Changing calculation method Auto -> Jafari did not change any prayer time**\n\n### Completed steps\n\n- Navigated to /settings/locations\n- Set locations:country=NL\n- Set locations:city=Amsterdam\n- Navigated to /settings/adhan\n- Set adhan:clock-format=24h\n- Shared prayer inputs: Amsterdam NL, 52.3676, 4.9041, Auto, Shafi, MiddleOfTheNight, 24h\n- Shared prayer snapshot: \n- Set adhan:method=Jafari\n\n### Stack\n\n```text\nAutomationAssertionError: Changing calculation method Auto -> Jafari did not change any prayer time\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:9182)\n```\n\n## 10-platform-operations — System operations acknowledge promptly and report truthful completion\n\n- Documentation: `10-platform-operations.md`\n- Duration: 7 ms\n- Assertions completed: 2\n- Failed assertion: **external.openEmail returned a fake success instead of a pending acknowledgement**\n\n### Completed steps\n\n- None\n\n### Stack\n\n```text\nAutomationAssertionError: external.openEmail returned a fake success instead of a pending acknowledgement\n    at G.assert (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:1:346)\n    at Object.run (http://127.0.0.1:4179/assets/runner-CrjgLbmB.js:3:12920)\n```\n"
+}

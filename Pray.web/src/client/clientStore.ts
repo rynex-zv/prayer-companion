@@ -50,7 +50,7 @@ export function installBootstrap(
   emit();
 }
 
-export function applyAppEvent(event: { sequence: number; domain: string; revision: number; payload?: unknown; invalidationKey?: string }): boolean {
+export function applyAppEvent(event: { sequence: number; domain: string; revision: number; payload?: unknown; invalidationKey?: string }, preservedProjectionKey?: string): boolean {
   if (event.sequence <= state.revisions.eventSequence) return false;
   const currentDomainRevision = state.revisions.domains[event.domain] ?? 0;
   if (event.revision < currentDomainRevision) return false;
@@ -59,11 +59,13 @@ export function applyAppEvent(event: { sequence: number; domain: string; revisio
   if (payload?.projectionKey) confirmed = { ...confirmed, [payload.projectionKey]: payload.data };
   else if (event.invalidationKey) {
     confirmed = { ...confirmed };
-    for (const key of Object.keys(confirmed)) if (key.startsWith(`${event.domain}.`)) delete confirmed[key];
+    for (const key of Object.keys(confirmed)) {
+      if (key !== preservedProjectionKey && key.startsWith(`${event.domain}.`)) delete confirmed[key];
+    }
   }
   if (event.domain === "settings" || event.domain === "location") {
     if (confirmed === state.confirmed) confirmed = { ...confirmed };
-    for (const key of SETTINGS_DEPENDENT_PROJECTIONS) delete confirmed[key];
+    for (const key of SETTINGS_DEPENDENT_PROJECTIONS) if (key !== preservedProjectionKey) delete confirmed[key];
   }
   state = {
     ...state,

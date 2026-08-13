@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { cp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const args = new Set(process.argv.slice(2));
@@ -211,36 +211,84 @@ if (!phone) {
   const wasmDistRoot = resolve(process.cwd(), distDir, 'wasm', '_framework');
   await rm(resolve(process.cwd(), distDir, 'wasm'), { recursive: true, force: true });
   await cp(wasmPublishRoot, wasmDistRoot, { recursive: true });
+  const immutableAssetsConfig = `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <staticContent>
+      <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" cacheControlCustom="public, immutable" />
+    </staticContent>
+  </system.webServer>
+</configuration>
+`;
+  const frameworkCacheConfig = `<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <staticContent>
+      <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="01:00:00" cacheControlCustom="public, must-revalidate" />
+    </staticContent>
+  </system.webServer>
+</configuration>
+`;
+  await mkdir(resolve(process.cwd(), distDir, 'assets'), { recursive: true });
+  await writeFile(resolve(process.cwd(), distDir, 'assets', 'web.config'), immutableAssetsConfig, 'utf8');
+  await writeFile(resolve(process.cwd(), distDir, 'wasm', '_framework', 'web.config'), frameworkCacheConfig, 'utf8');
 }
 if (phone) {
   const indexPath = resolve(process.cwd(), distDir, 'index.html');
   const html = await readFile(indexPath, 'utf8');
-  let embeddedHtml = html.replace(/\s+crossorigin(?=[\s>])/g, '');
+  const stylesheetPaths = new Set();
+  let embeddedHtml = html
+    .replace(/\s+crossorigin(?=[\s>])/g, '')
+    .replace(/\s*<!--PRAY_WEB_BOOT_START-->[\s\S]*?<!--PRAY_WEB_BOOT_END-->\s*/g, '\n    ');
+
+  embeddedHtml = embeddedHtml.replace(
+    /<link\b(?=[^>]*\brel=["']stylesheet["'])(?=[^>]*\bhref=["']([^"']+)["'])[^>]*>/g,
+    (_match, href) => {
+      stylesheetPaths.add(href);
+      return '';
+    }
+  );
 
   const scriptMatch = embeddedHtml.match(/<script\s+type="module"\s+src="([^"]+)"><\/script>/);
   if (scriptMatch) {
     const scriptPath = resolve(process.cwd(), distDir, scriptMatch[1].replace(/^\.\//, ''));
-    const script = (await readFile(scriptPath, 'utf8'))
-      .replaceAll('import.meta.url', 'document.baseURI')
-      .replace(/new URL\("([^"/][^"]+)",document\.baseURI\)/g, 'new URL("assets/$1",document.baseURI)')
-      .replaceAll('import.meta.env.MODE', JSON.stringify('phone'))
-      .replaceAll('import.meta.env.VITE_BUILD_TARGET', JSON.stringify('phone'));
+    const builtScript = await readFile(scriptPath, 'utf8');
+    for (const cssMatch of builtScript.matchAll(/["']\.\/([^"']+\.css)["']/g)) {
+      stylesheetPaths.add(`assets/${cssMatch[1]}`);
+    }
+    const phoneMainChunk = builtScript.match(/import\("\.\/(chunk-main[^"/]*\.js)"\)/)?.[1];
+    const script = phoneMainChunk
+      ? `import("./assets/${phoneMainChunk}");`
+      : builtScript
+        .replaceAll('import.meta.url', 'document.baseURI')
+        .replace(/new URL\("([^"/][^"]+)",document\.baseURI\)/g, 'new URL("assets/$1",document.baseURI)')
+        .replace(/import\("\.\/([^"/][^"]+\.js)"\)/g, 'import("./assets/$1")')
+        .replaceAll('import.meta.env.MODE', JSON.stringify('phone'))
+        .replaceAll('import.meta.env.VITE_BUILD_TARGET', JSON.stringify('phone'));
     embeddedHtml = embeddedHtml.replace(scriptMatch[0], '');
     embeddedHtml = embeddedHtml.replace(
       '</body>',
-      () => `${phoneBridgeBootstrap}\n    <script>${script.replaceAll('</script', '<\\/script')}</script>\n  </body>`
+      () => `${phoneBridgeBootstrap}\n    <script type="module">${script.replaceAll('</script', '<\\/script')}</script>\n  </body>`
     );
   }
 
-  const styleMatch = embeddedHtml.match(/<link\s+rel="stylesheet"\s+href="([^"]+)">/);
-  if (styleMatch) {
-    const stylePath = resolve(process.cwd(), distDir, styleMatch[1].replace(/^\.\//, ''));
+  if (stylesheetPaths.size === 0) {
+    throw new Error('Phone build did not discover any CSS stylesheet dependencies.');
+  }
+
+  const styleTags = [];
+  for (const stylesheetPath of stylesheetPaths) {
+    const normalizedPath = stylesheetPath
+      .replace(/^\.\//, '')
+      .replace(/^\/+/, '');
+    const stylePath = resolve(process.cwd(), distDir, normalizedPath);
     const style = (await readFile(stylePath, 'utf8')).replace(
       /url\((['"]?)\.\/([^)'"]+)\1\)/g,
       'url($1assets/$2$1)'
     );
-    embeddedHtml = embeddedHtml.replace(styleMatch[0], () => `<style>${style.replaceAll('</style', '<\\/style')}</style>`);
+    styleTags.push(`<style data-pray-phone-style="${normalizedPath.replaceAll('"', '&quot;')}">${style.replaceAll('</style', '<\\/style')}</style>`);
   }
+  embeddedHtml = embeddedHtml.replace('</head>', () => `    ${styleTags.join('\n    ')}\n  </head>`);
 
   await writeFile(indexPath, embeddedHtml, 'utf8');
   await rm(resolve(process.cwd(), distDir, 'downloads'), { recursive: true, force: true });

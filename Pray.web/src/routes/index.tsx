@@ -2,13 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { traceClient } from "@/client/telemetry";
 import { useToday } from "@/domains/today/todayClient";
 import { Card, CardTitle } from "@/components/Card";
-import { RefreshCw, MapPin, Share2 } from "lucide-react";
+import { DownloadCloud, RefreshCw, MapPin, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { Link } from "@tanstack/react-router";
+import { refreshAppLocation, useAppStore } from "@/state/appStore";
+import { formatWebVersionLabel, useWebVersion } from "@/hooks/useWebVersion";
+import { useWebUpdate } from "@/hooks/useWebUpdate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,6 +30,9 @@ function TodayPage() {
   const L = useAppLabels();
   const [now, setNow] = useState(() => new Date());
   const [shareStatus, setShareStatus] = useState("");
+  const webVersion = useWebVersion();
+  const webUpdate = useWebUpdate();
+  const locationRuntime = useAppStore((state) => state.locationRuntime);
   const renderTraceSent = useRef(false);
   const currentTime = useMemo(() => formatCurrentTime(now, data?.currentTime), [now, data?.currentTime]);
   const nextPrayerAt = useMemo(() => readNextPrayerTimestampFromSnapshot(data), [data]);
@@ -74,12 +80,28 @@ function TodayPage() {
       setShareStatus("");
     }
   };
+  const applyWebUpdate = async () => {
+    try {
+      await webUpdate.apply();
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : L("webUpdateFailed"));
+      window.setTimeout(() => setShareStatus(""), 3500);
+    }
+  };
 
   if (data.error) {
+    if (locationRuntime.status === "choice-required") {
+      return <LocationRecovery error={locationRuntime.error} />;
+    }
     return (
       <div role="alert" data-selector-name="today:error" className="mx-auto mt-10 max-w-md rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
         <h1 className="text-lg font-semibold text-destructive">{data.error}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{L("method")}: {data.calculation.selectedMethodLabel}</p>
+        {data.statusMessage ? (
+          <p data-selector-name="today:error-detail" className="mt-2 break-words text-xs text-muted-foreground" dir="ltr">
+            {data.statusMessage}
+          </p>
+        ) : null}
         <Link to="/settings/adhan" className="mt-4 inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
           {L("adhan")}
         </Link>
@@ -89,10 +111,34 @@ function TodayPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {locationRuntime.status === "choice-required" ? (
+        <LocationRecovery error={locationRuntime.error} compact />
+      ) : null}
       <div className="flex items-center justify-center gap-2">
         <p className="text-center text-sm font-medium text-primary" dir={data.isRtl ? "rtl" : "ltr"}>{L("basmala")}</p>
         <PageLog page="today" />
       </div>
+
+      {webVersion ? (
+        <div data-selector-name="today:version" className="text-center text-[11px] text-muted-foreground" dir="ltr">
+          {formatWebVersionLabel(L, webVersion)}
+        </div>
+      ) : null}
+
+      {webUpdate.status === "ready" || webUpdate.status === "applying" ? (
+        <button
+          type="button"
+          onClick={() => void applyWebUpdate()}
+          disabled={webUpdate.status === "applying"}
+          data-selector-name="today:web-update"
+          className="mx-auto flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          <DownloadCloud className="h-4 w-4" />
+          {webUpdate.status === "applying"
+            ? L("webUpdateApplying")
+            : L("webUpdateButton").replace("{0}", webUpdate.availableVersion || webUpdate.latestVersion)}
+        </button>
+      ) : null}
 
       <Card className="flex items-center justify-between">
         <div className="flex items-start gap-2">
@@ -101,6 +147,11 @@ function TodayPage() {
             <div className="font-semibold">{data.locationTitle}</div>
             <div className="text-xs text-muted-foreground">{data.gregorianDate}</div>
             <div className="text-xs text-muted-foreground">{data.hijriDate}</div>
+            {locationRuntime.source ? (
+              <div data-selector-name="today:location-source" className="text-xs text-muted-foreground">
+                {L("locationSource")}: {L(`locationSource_${locationRuntime.source}`)}
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -113,6 +164,7 @@ function TodayPage() {
             onClick={() => { void refresh(); }}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted"
             aria-label={L("refresh")}
+            data-selector-name="today:refresh"
           >
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
@@ -229,6 +281,29 @@ function formatCurrentTime(now: Date, sample?: string) {
     second: "2-digit",
     hour12: useTwelveHourClock,
   });
+}
+
+function LocationRecovery({ error, compact = false }: { error?: string; compact?: boolean }) {
+  const L = useAppLabels();
+  const runtime = useAppStore((state) => state.locationRuntime);
+  const busy = runtime.status === "refreshing";
+  return (
+    <div role="alert" data-selector-name="today:location-choice" className={cn("mx-auto w-full max-w-md rounded-xl border border-primary/30 bg-card p-4 text-center", !compact && "mt-10")}>
+      <h1 className="font-semibold text-card-foreground">{L("chooseLocationSource")}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{error || L("locationPermissionNeeded")}</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => { void refreshAppLocation("gps"); }} data-selector-name="today:use-gps" className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">
+          {L("useGpsNow")}
+        </button>
+        <button type="button" disabled={busy} onClick={() => { void refreshAppLocation("ip"); }} data-selector-name="today:use-ip" className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium disabled:opacity-60">
+          {L("useIpLocation")}
+        </button>
+      </div>
+      <Link to="/settings/locations" className="mt-3 inline-block text-sm text-primary underline" data-selector-name="today:manual-location">
+        {L("enterLocationManually")}
+      </Link>
+    </div>
+  );
 }
 
 function formatCountdown(now: Date, nextPrayerAt?: number, coreCountdown = ""): string {

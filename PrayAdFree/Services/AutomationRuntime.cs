@@ -7,7 +7,9 @@ public static class AutomationRuntime {
     private const bool CompiledForAutomation = false;
 #endif
 
-    public static bool TestsEnabled { get; set; } = false;
+    public static bool TestsEnabled { get; set; } =
+        CompiledForAutomation &&
+        string.Equals(Environment.GetEnvironmentVariable("PRAY_AUTOMATION"), "true", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsEnabled => CompiledForAutomation && TestsEnabled;
 

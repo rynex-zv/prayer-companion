@@ -46,6 +46,8 @@ function AdhanPage() {
   const t = useAppLabels();
   const { data, setData } = useProjection<AdhanSettings>("settings.getSnapshot", { section: "adhan" }, "settings.adhan");
   const [status, setStatus] = useState("ready");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [playingSoundId, setPlayingSoundId] = useState<string | null>(null);
 
   if (!data) return null;
 
@@ -71,8 +73,12 @@ function AdhanPage() {
   const patch = (next: AdhanSettings) => {
     setData(next);
     setStatus("saving");
+    setErrorMessage("");
     void patchSettingsSection("adhan", next).then((response) => {
-      if (!response.ok) return setStatus("error");
+      if (!response.ok) {
+        setErrorMessage(response.error ?? t("errorSomethingWentWrong"));
+        return setStatus("error");
+      }
       setData(response.data.projection);
       setStatus("saved");
     });
@@ -80,24 +86,41 @@ function AdhanPage() {
 
   const applyProjectionResponse = (response: { ok: boolean; data?: unknown; error?: string }) => {
     if (!response.ok) {
+      setErrorMessage(response.error ?? t("errorSomethingWentWrong"));
       setStatus("error");
       return;
     }
 
-    const payload = response.data as { projection?: AdhanSettings; cancelled?: boolean } | undefined;
+    const payload = response.data as (Partial<AdhanSettings> & { projection?: AdhanSettings; cancelled?: boolean }) | undefined;
     if (payload?.cancelled) {
       setStatus("ready");
+      setErrorMessage("");
       return;
     }
 
     if (payload?.projection) {
       setData(payload.projection);
       setStatus("saved");
+      setErrorMessage("");
+      return;
     }
+
+    // Native interactive operations return the confirmed Adhan projection
+    // directly. Install it immediately as well as through the app event so a
+    // completed file picker can never leave this screen visually stale.
+    if (Array.isArray(payload?.sounds)) {
+      setData(payload as AdhanSettings);
+      setStatus("saved");
+      setErrorMessage("");
+      return;
+    }
+
+    setStatus("error");
   };
 
   const addCustomSound = async () => {
     setStatus("saving");
+    setErrorMessage("");
     applyProjectionResponse(await platformIntents.addCustomAdhanSound());
   };
 
@@ -107,8 +130,12 @@ function AdhanPage() {
   };
 
   const previewSound = async (id: string) => {
-    const response = await platformIntents.previewAdhanSound(id);
+    const stopping = playingSoundId === id;
+    const response = stopping
+      ? await platformIntents.stopAdhanSoundPreview()
+      : await platformIntents.previewAdhanSound(id);
     if (!response.ok) setStatus("error");
+    else setPlayingSoundId(stopping ? null : id);
   };
 
   const calculationMethods = data.calculationMethods!;
@@ -120,6 +147,11 @@ function AdhanPage() {
     <div data-selector-name="adhan:page" className="flex flex-col gap-3">
       <SettingsHeader title={t("adhan")} />
       <StatusLine selectorName="adhan:status" value={t(`status_${status}`)} />
+      {errorMessage ? (
+        <div role="alert" data-selector-name="adhan:error" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      ) : null}
 
       <SectionBlock title={t("adhanSound")}>
         <button
@@ -138,7 +170,7 @@ function AdhanPage() {
                 {sound.selected ? t("selected") : t("select")}
               </button>
               <button type="button" disabled={sound.canPreview === false} onClick={() => void previewSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40" data-selector-name={`adhan:sound-play:${sound.id}`}>
-                {t("play")}
+                {playingSoundId === sound.id ? t("Stop") : t("play")}
               </button>
               {sound.isCustom ? (
                 <button type="button" onClick={() => void removeCustomSound(sound.id)} className="rounded-md border border-border px-2 py-1 text-xs" data-selector-name={`adhan:sound-remove:${sound.id}`}>
@@ -246,8 +278,9 @@ function AdhanPage() {
 
       <SectionBlock title={t("perPrayerAdhan")}>
         {data.perPrayerOverrides.map((override, index) => (
-          <div key={override.prayer} className="grid gap-2 rounded-md border border-border bg-background p-3 text-sm">
-            <div className="font-medium">{override.label ?? override.prayer}</div>
+          <details key={override.prayer} className="rounded-md border border-border bg-background text-sm">
+            <summary className="cursor-pointer px-3 py-3 font-medium">{override.label ?? override.prayer}</summary>
+            <div className="grid gap-2 border-t border-border p-3">
             <OptionButtons
               label={t("adhanSound")}
               value={override.soundId}
@@ -272,7 +305,8 @@ function AdhanPage() {
                 perPrayerOverrides: data.perPrayerOverrides.map((item, i) => i === index ? { ...item, vibration } : item),
               })}
             />
-          </div>
+            </div>
+          </details>
         ))}
       </SectionBlock>
     </div>

@@ -83,11 +83,13 @@ function AlarmPage() {
 
   if (!data.isActive) {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 text-center">
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-5 text-center" data-selector-name="alarm:inactive">
         <div className="flex w-full items-center justify-end"><PageLog page="alarm" /></div>
         <AlarmClock className="h-20 w-20 text-primary" aria-hidden="true" />
-        <h1 className="text-xl font-semibold">{data.labels.title}</h1>
-        <p className="text-sm text-muted-foreground">{data.labels.noActiveAlarm}</p>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{data.labels.title}</p>
+          <h1 className="mt-2 text-2xl font-bold">{data.labels.noActiveAlarm}</h1>
+        </div>
       </div>
     );
   }

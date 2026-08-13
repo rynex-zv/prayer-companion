@@ -3,7 +3,7 @@ using PrayAdFree.Core.Models;
 namespace PrayAdFree.Core.Services;
 
 public static class WebStateDefaults {
-    public const string DefaultRemoteWebUrl = "http://pray.rynex.nl/";
+    public const string DefaultRemoteWebUrl = "https://pray.rynex.nl/";
     public const string DefaultTasbihRepeatMode = "Continue";
     public const string DefaultTasbihItemText = "Tasbih_SubhanAllah";
     public const int DefaultTasbihTargetCount = 33;
@@ -27,6 +27,8 @@ public static class WebStateDefaults {
             HeadingMode = "auto",
             ReadingMode = "compass",
             FilterMode = "none",
+            QiblaReadingMode = "Balanced",
+            QiblaFilterMode = "Normal",
             ClockFormat = "24h",
             RemoteWebUrl = DefaultRemoteWebUrl,
             SelectedTasbihPresetId = "after-prayer",
@@ -37,7 +39,7 @@ public static class WebStateDefaults {
 
     public static void ApplyDefaults(WebState state) {
         var defaults = Build();
-        if (string.IsNullOrWhiteSpace(state.Language)) {
+        if (!WebCatalog.IsSupportedLanguage(state.Language)) {
             state.Language = defaults.Language;
         }
 
@@ -80,12 +82,15 @@ public static class WebStateDefaults {
         if (string.IsNullOrWhiteSpace(state.FilterMode)) {
             state.FilterMode = defaults.FilterMode;
         }
+        if (string.IsNullOrWhiteSpace(state.QiblaReadingMode)) state.QiblaReadingMode = defaults.QiblaReadingMode;
+        if (string.IsNullOrWhiteSpace(state.QiblaFilterMode)) state.QiblaFilterMode = defaults.QiblaFilterMode;
 
         if (string.IsNullOrWhiteSpace(state.ClockFormat)) {
             state.ClockFormat = defaults.ClockFormat;
         }
 
-        if (string.IsNullOrWhiteSpace(state.RemoteWebUrl)) {
+        if (string.IsNullOrWhiteSpace(state.RemoteWebUrl) ||
+            string.Equals(state.RemoteWebUrl, "http://pray.rynex.nl/", StringComparison.OrdinalIgnoreCase)) {
             state.RemoteWebUrl = defaults.RemoteWebUrl;
         }
 
@@ -99,7 +104,7 @@ public static class WebStateDefaults {
     }
 
     private static void ClearLegacyAmsterdamDefault(WebState state) {
-        if (state.UseGps) {
+        if (state.UseGps || !string.IsNullOrWhiteSpace(state.LocationSource)) {
             return;
         }
 

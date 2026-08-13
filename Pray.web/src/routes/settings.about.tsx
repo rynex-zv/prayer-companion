@@ -8,6 +8,8 @@ import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useProjection } from "@/hooks/useProjection";
 import { clearApplicationCaches } from "@/lib/siteDataReset";
+import { formatWebVersionLabel, resolveAppAssetUrl, useWebVersion } from "@/hooks/useWebVersion";
+import { useWebUpdate } from "@/hooks/useWebUpdate";
 
 export const Route = createFileRoute("/settings/about")({
   component: AboutPage,
@@ -21,7 +23,9 @@ function AboutPage() {
   const [isPullingRemote, setIsPullingRemote] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [isClearingData, setIsClearingData] = useState(false);
-  const [download, setDownload] = useState<AppDownload | null>(null);
+  const webVersion = useWebVersion();
+  const webUpdate = useWebUpdate();
+  const [downloadState, setDownloadState] = useState<DownloadState>({ status: "loading", platform: detectDevicePlatform() });
 
   useEffect(() => {
     console.info("[pray.about] mounted");
@@ -40,8 +44,9 @@ function AboutPage() {
   }, [info?.remoteWebUrl]);
 
   useEffect(() => {
-    void loadDeviceDownload().then(setDownload);
-  }, []);
+    if (!info) return;
+    void loadDeviceDownload(info.defaultRemoteWebUrl).then(setDownloadState);
+  }, [info]);
 
   const saveRemoteUrl = async (url: string) => {
     console.info("[pray.about] saveRemoteUrl start", { url });
@@ -117,6 +122,13 @@ function AboutPage() {
       setIsClearingData(false);
     }
   };
+  const applyWebUpdate = async () => {
+    try {
+      await webUpdate.apply();
+    } catch (error) {
+      setPullStatus(error instanceof Error ? error.message : t("webUpdateFailed"));
+    }
+  };
 
   if (!info) return <div className="h-40 animate-pulse rounded-xl bg-muted" />;
 
@@ -127,6 +139,21 @@ function AboutPage() {
         <Card className="text-center">
           <div className="text-2xl font-bold">{info.name}</div>
           <p className="mt-1 text-sm text-muted-foreground">{info.tagline}</p>
+          {webVersion ? <p className="mt-2 text-xs text-muted-foreground" data-selector-name="about:web-version" dir="ltr">{formatWebVersionLabel(t, webVersion)}</p> : null}
+          {webUpdate.status === "ready" || webUpdate.status === "applying" ? (
+            <button
+              type="button"
+              onClick={() => void applyWebUpdate()}
+              disabled={webUpdate.status === "applying"}
+              data-selector-name="about:web-update"
+              className="mx-auto mt-3 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              <DownloadCloud className="h-4 w-4" />
+              {webUpdate.status === "applying"
+                ? t("webUpdateApplying")
+                : t("webUpdateButton").replace("{0}", webUpdate.availableVersion || webUpdate.latestVersion)}
+            </button>
+          ) : null}
         </Card>
         <Card className="space-y-2 text-sm">
           <p>{info.privacy}</p>
@@ -166,7 +193,7 @@ function AboutPage() {
           <button onClick={() => platformIntents.call(info.phone)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Phone className="h-4 w-4" /> {t("callRynex")} {info.phone}</button>
           <button onClick={() => platformIntents.openUrl(info.website)} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Globe className="h-4 w-4" /> {t("openWebsite")}</button>
           <button onClick={() => platformIntents.reportIssue()} className="flex items-center justify-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium"><Bug className="h-4 w-4" /> {t("report")}</button>
-          {download ? <a href={download.url} download data-selector-name="about:download-native-app" className="col-span-2 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><DownloadCloud className="h-4 w-4" /> {downloadLabel(download, t)}</a> : null}
+          <DownloadControl state={downloadState} label={t} />
           {nativeBackendReady() ? <button onClick={pullRemote} disabled={isPullingRemote} data-selector-name="about:pull-remote-web" className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium disabled:opacity-60"><DownloadCloud className="h-4 w-4" /> {isPullingRemote ? t("pulling") : t("pullLatestWebVersion")}</button> : null}
         </div>
         <div className="grid gap-2">
@@ -228,32 +255,87 @@ type AppDownload = {
   version?: string;
 };
 
-async function loadDeviceDownload(): Promise<AppDownload | null> {
-  if (typeof navigator === "undefined") return null;
-  try {
-    const response = await fetch("/downloads/manifest.json", { cache: "no-store" });
-    if (!response.ok) return null;
-    if (!response.headers.get("content-type")?.toLowerCase().includes("json")) return null;
-    const manifest = await response.json() as { files?: AppDownload[] };
-    const candidates = (manifest.files ?? []).filter((file) => matchesDevice(file));
-    for (const candidate of sortDownloads(candidates)) {
-      if (await urlExists(candidate.url)) return candidate;
-    }
-  } catch {
-    return null;
+type DevicePlatform = "windows" | "android" | "ios" | "desktop";
+
+type DownloadState =
+  | { status: "loading"; platform: DevicePlatform }
+  | { status: "ready"; platform: DevicePlatform; download: AppDownload }
+  | { status: "up-to-date"; platform: DevicePlatform; download: AppDownload }
+  | { status: "unavailable" | "error"; platform: DevicePlatform };
+
+function DownloadControl({ state, label }: { state: DownloadState; label: (key: string) => string }) {
+  if (state.status === "ready") {
+    return <a href={state.download.url} download data-selector-name="about:download-native-app" className="col-span-2 flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"><DownloadCloud className="h-4 w-4" /> {downloadLabel(state.download, label)}</a>;
   }
-  return null;
+
+  if (state.status === "up-to-date") {
+    return <div data-selector-name="about:download-native-app-status" className="col-span-2 rounded-md border border-border bg-card px-3 py-2 text-center text-sm text-muted-foreground">{label("sameVersion")} ({state.download.version ?? platformLabel(state.platform)})</div>;
+  }
+
+  return (
+    <div data-selector-name="about:download-native-app-status" className="col-span-2 rounded-md border border-border bg-card px-3 py-2 text-center text-sm text-muted-foreground">
+      {state.status === "loading" ? label("checkingDeviceDownload") : `${label("downloadUnavailableForDevice")} (${platformLabel(state.platform)})`}
+    </div>
+  );
 }
 
-function matchesDevice(file: AppDownload): boolean {
+async function loadDeviceDownload(remoteBaseUrl: string): Promise<DownloadState> {
+  const platform = detectDevicePlatform();
+  if (typeof navigator === "undefined") return { status: "unavailable", platform };
+  try {
+    const manifestUrl = resolveLiveDownloadManifestUrl(remoteBaseUrl);
+    const response = await fetch(manifestUrl, { cache: "no-store" });
+    if (!response.ok) return { status: "error", platform };
+    if (!response.headers.get("content-type")?.toLowerCase().includes("json")) return { status: "error", platform };
+    const manifest = await response.json() as { files?: AppDownload[] };
+    const candidates = (manifest.files ?? []).filter((file) => matchesDevice(file, platform)).map((file) => ({
+      ...file,
+      url: new URL(file.url, manifestUrl).toString(),
+    }));
+    for (const candidate of sortDownloads(candidates)) {
+      if (await urlExists(candidate.url)) {
+        return { status: "ready", platform, download: candidate };
+      }
+    }
+  } catch {
+    return { status: "error", platform };
+  }
+  return { status: "unavailable", platform };
+}
+
+function resolveLiveDownloadManifestUrl(remoteBaseUrl: string): string {
+  const baseUrl = nativeBackendReady()
+    ? new URL("downloads/manifest.json", ensureTrailingSlash(remoteBaseUrl))
+    : new URL(resolveAppAssetUrl("downloads/manifest.json"), document.baseURI);
+  baseUrl.searchParams.set("native-download-check", String(Date.now()));
+  return baseUrl.toString();
+}
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
+function detectDevicePlatform(): DevicePlatform {
+  if (typeof navigator === "undefined") return "desktop";
   const userAgent = navigator.userAgent;
-  const isAndroid = /Android/i.test(userAgent);
-  const isIos = /iPhone|iPad|iPod/i.test(userAgent);
-  const isWindows = /Windows/i.test(userAgent);
-  if (isAndroid) return file.kind === "apk" || file.platform === "android";
-  if (isIos) return file.kind === "ios" || file.platform === "ios";
-  if (isWindows) return file.kind === "exe" || file.kind === "zip" || file.platform === "windows" || file.platform === "desktop";
-  return file.kind === "zip" || file.platform === "desktop";
+  if (/Android/i.test(userAgent)) return "android";
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
+  if (/Windows/i.test(userAgent)) return "windows";
+  return "desktop";
+}
+
+function matchesDevice(file: AppDownload, platform: DevicePlatform): boolean {
+  if (platform === "android") return file.kind === "apk" && file.platform === "android";
+  if (platform === "ios") return file.kind === "ios" && file.platform === "ios";
+  if (platform === "windows") return file.platform === "windows" && (file.kind === "exe" || file.kind === "zip");
+  return file.platform === "desktop" && file.kind === "zip";
+}
+
+function platformLabel(platform: DevicePlatform): string {
+  if (platform === "android") return "Android";
+  if (platform === "ios") return "iOS";
+  if (platform === "windows") return "Windows";
+  return "Desktop";
 }
 
 function sortDownloads(files: AppDownload[]): AppDownload[] {
@@ -267,17 +349,34 @@ function sortDownloads(files: AppDownload[]): AppDownload[] {
 }
 
 function downloadLabel(download: AppDownload, label: (key: string) => string): string {
-  if (download.kind === "apk" || download.platform === "android") return label("downloadAndroidApk");
-  if (download.kind === "exe") return label("downloadWindowsExe");
-  if (download.kind === "zip") return label("downloadDesktopZip");
-  if (download.kind === "ios" || download.platform === "ios") return label("downloadIosBuild");
-  return download.label;
+  const name = download.kind === "apk" || download.platform === "android" ? label("downloadAndroidApk")
+    : download.kind === "exe" ? label("downloadWindowsExe")
+    : download.kind === "zip" ? label("downloadDesktopZip")
+    : download.kind === "ios" || download.platform === "ios" ? label("downloadIosBuild")
+    : download.label;
+  const version = formatNativeDownloadVersion(download.version, label);
+  return version ? `${name} — ${version}` : name;
+}
+
+function formatNativeDownloadVersion(version: string | undefined, label: (key: string) => string): string {
+  const match = version?.match(/^\s*([0-9]+(?:\.[0-9]+){1,3})\s*\(\s*web\s*([0-9]+)\s*\)\s*$/i);
+  if (!match) return version ?? "";
+  return `${formatTemplate(label("nativeAppVersion"), match[1])} / ${formatTemplate(label("embeddedWebVersion"), match[2])}`;
+}
+
+function formatTemplate(template: string, value: string): string {
+  return template && template !== "nativeAppVersion" && template !== "embeddedWebVersion"
+    ? template.replace("{0}", value)
+    : value;
 }
 
 async function urlExists(url: string): Promise<boolean> {
   try {
-    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
-    return response.ok && !response.headers.get("content-type")?.toLowerCase().includes("html");
+    const resolvedUrl = new URL(url, document.baseURI);
+    resolvedUrl.searchParams.set("native-download-head", String(Date.now()));
+    const response = await fetch(resolvedUrl, { method: "HEAD", cache: "no-store" });
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    return response.ok && !contentType.includes("html") && !contentType.includes("json");
   } catch {
     return false;
   }

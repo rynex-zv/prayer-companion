@@ -1,0 +1,31 @@
+{
+  "runId": "web-2026-08-13T18-39-58-879Z",
+  "platform": "web",
+  "startedAt": "2026-08-13T18:39:58.879Z",
+  "completedAt": "2026-08-13T18:39:59.265Z",
+  "passed": [
+    {
+      "id": "10-platform-operations",
+      "name": "System operations acknowledge promptly and report truthful completion",
+      "documentation": "10-platform-operations.md",
+      "passed": true,
+      "durationMs": 259,
+      "assertions": 41,
+      "steps": [
+        "external.openEmail acknowledged in 1 ms and completed asynchronously",
+        "external.call acknowledged in 0 ms and completed asynchronously",
+        "external.openUrl acknowledged in 0 ms and completed asynchronously",
+        "external.reportIssue acknowledged in 0 ms and completed asynchronously",
+        "adhan.sound.addCustom acknowledged in 0 ms and completed asynchronously",
+        "alarm.test acknowledged in 0 ms and completed asynchronously",
+        "notification.test acknowledged in 0 ms and completed asynchronously",
+        "permissions.request acknowledged in 0 ms and completed asynchronously",
+        "Inactive /alarm route stayed on the React Alarm page and exposed its empty state"
+      ],
+      "warnings": []
+    }
+  ],
+  "failed": [],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-13T18-39-58-879Z`\n- Platform: `web`\n- Passed: **1**\n- Failed: **0**\n\n## 10-platform-operations — System operations acknowledge promptly and report truthful completion\n\n- Documentation: `10-platform-operations.md`\n- Duration: 259 ms\n- Assertions: 41\n- Warnings: 0\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-13T18-39-58-879Z`\n- Platform: `web`\n- Failed: **0**\n- Passed: **1**\n\nNo failed scenarios."
+}

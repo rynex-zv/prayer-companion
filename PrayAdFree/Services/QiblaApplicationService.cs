@@ -13,6 +13,7 @@ public class QiblaApplicationService : ObservableApplicationService, IQiblaProje
     private double _manualHeading;
     private double _needleRotation;
     private double _compassRotation;
+    private double? _smoothedSensorHeading;
     private string _locationTitle = "";
     private string _directionLabel = "";
     private string _statusMessage = "";
@@ -126,7 +127,29 @@ public class QiblaApplicationService : ObservableApplicationService, IQiblaProje
             return;
         }
 
-        Heading = NormalizeHeading(heading);
+        var normalized = NormalizeHeading(heading);
+        var filterThreshold = SelectedFilterMode?.Value switch {
+            QiblaFilterMode.Strict => 2.5d,
+            QiblaFilterMode.Normal => 1d,
+            _ => 0d
+        };
+        var alpha = SelectedReadingMode?.Value switch {
+            QiblaReadingMode.Smooth => 0.12d,
+            QiblaReadingMode.Fast => 0.45d,
+            QiblaReadingMode.Raw => 1d,
+            _ => 0.22d
+        };
+
+        if (_smoothedSensorHeading is double current) {
+            var delta = NormalizeDelta(normalized - current);
+            if (Math.Abs(delta) < filterThreshold) {
+                return;
+            }
+            normalized = NormalizeHeading(current + (delta * alpha));
+        }
+
+        _smoothedSensorHeading = normalized;
+        Heading = normalized;
         UpdateNeedle();
     }
 
@@ -147,7 +170,9 @@ public class QiblaApplicationService : ObservableApplicationService, IQiblaProje
     }
 
     private void UpdateNeedle() {
-        NeedleRotation = (Bearing + 360) % 360;
+        // The geographical bearing is fixed, but the on-screen arrow is
+        // relative to the direction in which the device is currently facing.
+        NeedleRotation = NormalizeHeading(Bearing - Heading);
         CompassRotation = (-Heading + 360) % 360;
         DirectionLabel = ResolveDirectionLabel(Bearing);
     }
@@ -261,6 +286,11 @@ public class QiblaApplicationService : ObservableApplicationService, IQiblaProje
     private static double NormalizeHeading(double heading) {
         var normalized = heading % 360d;
         return normalized < 0 ? normalized + 360d : normalized;
+    }
+
+    private static double NormalizeDelta(double delta) {
+        var normalized = (delta + 540d) % 360d - 180d;
+        return normalized <= -180d ? 180d : normalized;
     }
 
     private void OnLanguageChanged(object? sender, EventArgs args) {

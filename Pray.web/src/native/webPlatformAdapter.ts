@@ -1,5 +1,7 @@
 import type { BridgeResponse } from "./mauiWebberClient";
-import { pickAndStoreBrowserAdhanSound, playBrowserAdhanSound, removeBrowserAdhanSound } from "./browserAdhanSounds";
+import { pickAndStoreBrowserAdhanSound, playBrowserAdhanSound, removeBrowserAdhanSound, stopActiveBrowserAdhanSound } from "./browserAdhanSounds";
+import { automationRuntimeActive } from "../automation/config";
+import { canReuseConfirmedGpsLocation, resolveAutomaticLocationSource } from "./locationResumePolicy";
 
 export type BrowserCoreCall = <T>(method: string, payload?: unknown) => Promise<BridgeResponse<T> | undefined>;
 
@@ -12,7 +14,8 @@ type PreparedLocation = {
   address: Awaited<ReturnType<typeof reverseAddress>>;
 };
 type PlatformPayload = {
-  id?: string; latitude?: number; longitude?: number; source?: "gps" | "ip";
+  id?: string; latitude?: number; longitude?: number; source?: "auto" | "gps" | "ip";
+  operationId?: string; to?: string; number?: string; url?: string;
   _preparedLocation?: PreparedLocation;
   _preparedNotification?: NotificationPermission;
 };
@@ -60,11 +63,16 @@ export async function tryHandleWebPlatformCall<T = unknown>(
   const isPermissionSnapshot = method === "onboarding.getSnapshot" ||
     (method === SETTINGS_SNAPSHOT_METHOD && (payload as { section?: string } | undefined)?.section === "permissions");
   const handlesAction = method === "permissions.requestAll" ||
+    method === "permissions.request" ||
     method === "location.refresh" ||
     method === "location.reverseGeocode" ||
     method === "adhan.sound.addCustom" ||
     method === "adhan.sound.preview" ||
+    method === "adhan.sound.stopPreview" ||
     method === "adhan.sound.removeCustom" ||
+    method === "alarm.test" ||
+    method === "notification.test" ||
+    method.startsWith("external.") ||
     isPermissionSnapshot ||
     (method === "permissions.request" && (!permissionId || permissionId === "location" || permissionId === "notifications"));
   if (!handlesAction) {
@@ -83,6 +91,10 @@ export async function tryHandleWebPlatformCall<T = unknown>(
     return requestBrowserNotifications<T>(labels, request?._preparedNotification);
   }
 
+  if (method === "permissions.request" && permissionId !== "location") {
+    return { ok: false, error: label(labels, "webNativeActionUnavailable") };
+  }
+
   if (method === "permissions.requestAll") {
     return requestAllBrowserPermissions<T>(labels, coreCall, request);
   }
@@ -95,8 +107,25 @@ export async function tryHandleWebPlatformCall<T = unknown>(
     return previewBrowserAdhanSound<T>(labels, coreCall, request?.id);
   }
 
+  if (method === "adhan.sound.stopPreview") {
+    stopActiveBrowserAdhanSound();
+    return { ok: true, data: { ok: true, platform: "web" } as T };
+  }
+
   if (method === "adhan.sound.removeCustom") {
     return removeBrowserCustomAdhanSound<T>(labels, coreCall, request?.id);
+  }
+
+  if (method === "notification.test") {
+    return testBrowserNotification<T>(labels);
+  }
+
+  if (method === "alarm.test") {
+    return { ok: false, error: label(labels, "webNativeActionUnavailable") };
+  }
+
+  if (method.startsWith("external.")) {
+    return launchBrowserExternalIntent<T>(method, request, labels);
   }
 
   if (
@@ -127,9 +156,24 @@ export async function prepareWebPlatformPayload(method: string, payload: unknown
   const prepared: PlatformPayload = { ...request };
   if (needsLocation) {
     const labels = await loadWebLabels(coreCall);
-    prepared._preparedLocation = request.source === "ip"
+    let source = request.source;
+    if (method === "location.refresh" && (!source || source === "auto")) {
+      const permissions = await readBrowserPermissionStates();
+      if (permissions.location === "granted") {
+        source = "gps";
+      } else if (permissions.location === "denied") {
+        source = "ip";
+      } else {
+        // Some mobile browsers briefly report `prompt` or do not implement
+        // Permissions.query after a tab resumes. A previously confirmed GPS
+        // preference is stronger evidence than that transient API result.
+        const current = await coreCall<LocationSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "locations" });
+        source = resolveAutomaticLocationSource(permissions.location, current?.ok ? current.data : undefined);
+      }
+    }
+    prepared._preparedLocation = source === "ip"
       ? await getBrowserIpLocation(labels)
-      : await getBrowserGpsOrIpLocation(labels);
+      : await getBrowserGpsLocation(labels);
   }
   if (needsNotification && "Notification" in window) {
     prepared._preparedNotification = await Notification.requestPermission();
@@ -138,8 +182,7 @@ export async function prepareWebPlatformPayload(method: string, payload: unknown
 }
 
 async function applyBrowserPermissionState(snapshot: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const locationGranted = await queryBrowserPermission("geolocation");
-  const notificationGranted = "Notification" in window && Notification.permission === "granted";
+  const states = await readBrowserPermissionStates();
   const permissions = snapshot.permissions ?? snapshot;
   const container = Array.isArray(permissions)
     ? { items: permissions as Array<Record<string, unknown>> }
@@ -147,20 +190,66 @@ async function applyBrowserPermissionState(snapshot: Record<string, unknown>): P
   if (!Array.isArray(container.items)) return snapshot;
   const items = container.items.map((item) => {
     const id = String(item.id ?? "").toLowerCase();
-    const isGranted = id === "location" ? locationGranted : id === "notifications" ? notificationGranted : false;
-    return { ...item, isGranted };
+    const permissionState = id === "location" ? states.location : id === "notifications" ? states.notifications : "unsupported";
+    return { ...item, isGranted: permissionState === "granted", permissionState };
   });
   const updatedPermissions = { ...container, items };
   if (Array.isArray(snapshot.permissions)) return { ...snapshot, permissions: items };
   return snapshot.permissions ? { ...snapshot, permissions: updatedPermissions } : { ...snapshot, items };
 }
 
-async function queryBrowserPermission(name: PermissionName): Promise<boolean> {
+export type BrowserPermissionStates = {
+  location: PermissionState | "unsupported";
+  notifications: NotificationPermission | "unsupported";
+};
+
+export async function readBrowserPermissionStates(): Promise<BrowserPermissionStates> {
+  let location: BrowserPermissionStates["location"] = "unsupported";
   try {
-    return !!navigator.permissions && (await navigator.permissions.query({ name })).state === "granted";
+    location = navigator.permissions
+      ? (await navigator.permissions.query({ name: "geolocation" })).state
+      : "unsupported";
   } catch {
-    return false;
+    location = "unsupported";
   }
+  return {
+    location,
+    notifications: "Notification" in window ? Notification.permission : "unsupported",
+  };
+}
+
+export function watchBrowserPermissionChanges(listener: (states: BrowserPermissionStates) => void, emitInitial = true): () => void {
+  let disposed = false;
+  let last = "";
+  let initialized = false;
+  let locationStatus: PermissionStatus | undefined;
+  const publish = async () => {
+    if (disposed) return;
+    const states = await readBrowserPermissionStates();
+    const serialized = JSON.stringify(states);
+    if (serialized !== last) {
+      last = serialized;
+      const shouldEmit = initialized || emitInitial;
+      initialized = true;
+      if (shouldEmit) listener(states);
+    }
+  };
+  void navigator.permissions?.query({ name: "geolocation" }).then((status) => {
+    if (disposed) return;
+    locationStatus = status;
+    status.addEventListener("change", publish);
+    void publish();
+  }).catch(() => publish());
+  const onVisible = () => { if (document.visibilityState === "visible") void publish(); };
+  window.addEventListener("focus", publish);
+  document.addEventListener("visibilitychange", onVisible);
+  void publish();
+  return () => {
+    disposed = true;
+    locationStatus?.removeEventListener("change", publish);
+    window.removeEventListener("focus", publish);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
 }
 
 async function requestBrowserNotifications<T>(labels: WebLabels, prepared?: NotificationPermission): Promise<BridgeResponse<T>> {
@@ -180,7 +269,7 @@ async function requestBrowserNotifications<T>(labels: WebLabels, prepared?: Noti
 }
 
 async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PreparedLocation): Promise<BridgeResponse<T>> {
-  const position: PreparedLocation = prepared ?? await getBrowserGpsOrIpLocation(labels);
+  const position: PreparedLocation = prepared ?? await getBrowserGpsLocation(labels);
   const current = await coreCall<LocationSettings>(SETTINGS_SNAPSHOT_METHOD, { section: "locations" });
   if (!current?.ok) {
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
@@ -199,12 +288,43 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
   };
 
   const address = position.address;
+  if (position.source === "gps" && !hasConfirmedAddress(address)) {
+    // Reverse geocoding is an external best-effort lookup. Never commit fresh
+    // coordinates with an empty country: Auto calculation requires the
+    // country code, so that partial write would turn a healthy GPS state into
+    // an unusable one when a tab resumes.
+    if (canReuseConfirmedGpsLocation(current.data)) {
+      return {
+        ok: true,
+        data: {
+          ok: true,
+          action: "refreshLocation",
+          platform: "web",
+          changed: false,
+          location: current.data,
+        } as T,
+      };
+    }
+    return { ok: false, error: label(labels, "locationAddressUnavailable") };
+  }
   const finalLocation = {
     ...next,
     city: address?.city ?? "",
     country: address?.countryCode ?? "",
     countryName: address?.country ?? "",
   };
+  if (sameConfirmedLocation(current.data, finalLocation)) {
+    return {
+      ok: true,
+      data: {
+        ok: true,
+        action: "refreshLocation",
+        platform: "web",
+        changed: false,
+        location: current.data,
+      } as T,
+    };
+  }
   const saved = await coreCall<ConfirmedLocation>("settings.update", {
     section: "locations",
     field: "value",
@@ -218,11 +338,22 @@ async function refreshBrowserGps<T>(labels: WebLabels, coreCall: BrowserCoreCall
     ok: true,
     data: {
       ok: true,
-      action: "refreshGps",
+      action: "refreshLocation",
       platform: "web",
+      changed: true,
       location: saved.data.calculated ?? saved.data.value ?? finalLocation,
     } as T,
   };
+}
+
+function sameConfirmedLocation(current: LocationSettings, next: LocationSettings): boolean {
+  return current.locationSource === next.locationSource
+    && current.useGps === next.useGps
+    && Math.abs(current.latitude - next.latitude) < 0.00001
+    && Math.abs(current.longitude - next.longitude) < 0.00001
+    && (current.country ?? "") === (next.country ?? "")
+    && (current.countryName ?? "") === (next.countryName ?? "")
+    && (current.city ?? "") === (next.city ?? "");
 }
 
 async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: BrowserCoreCall, latitude?: number, longitude?: number): Promise<BridgeResponse<T>> {
@@ -235,7 +366,7 @@ async function reverseGeocodeBrowserLocation<T>(labels: WebLabels, coreCall: Bro
     return { ok: false, error: current?.error ?? label(labels, "webCoreLocationLoadFailed") };
   }
 
-  const address = await reverseAddress(latitude!, longitude!);
+  const address = await reverseAddressWithRetry(latitude!, longitude!);
   const next = {
     ...current.data,
     useGps: false,
@@ -279,23 +410,24 @@ async function reverseAddress(latitude: number, longitude: number): Promise<{ ci
   }
 }
 
-async function getBrowserGpsOrIpLocation(labels: WebLabels): Promise<PreparedLocation> {
-  if (navigator.geolocation) {
-    try {
-      const position = await getCurrentBrowserPosition(labels);
-      return {
-        source: "gps",
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        address: await reverseAddress(position.coords.latitude, position.coords.longitude),
-      };
-    } catch {
-      // If precise browser location is unavailable, use the explicit network
-      // location service instead of any bundled city or cached private coords.
-    }
-  }
+async function getBrowserGpsLocation(labels: WebLabels): Promise<PreparedLocation> {
+  if (!navigator.geolocation) throw new Error(label(labels, "webGpsUnavailable"));
+  const position = await getCurrentBrowserPosition(labels);
+  return {
+    source: "gps",
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    address: await reverseAddressWithRetry(position.coords.latitude, position.coords.longitude),
+  };
+}
 
-  return getBrowserIpLocation(labels);
+async function reverseAddressWithRetry(latitude: number, longitude: number): Promise<Awaited<ReturnType<typeof reverseAddress>>> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const address = await reverseAddress(latitude, longitude);
+    if (address?.countryCode || address?.city) return address;
+    if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 250));
+  }
+  return null;
 }
 
 async function getBrowserIpLocation(labels: WebLabels): Promise<PreparedLocation> {
@@ -338,6 +470,11 @@ function hasUsableCoordinates(latitude?: number, longitude?: number): boolean {
     Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180 &&
     (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
 }
+
+function hasConfirmedAddress(address?: { city?: string; country?: string; countryCode?: string } | null): boolean {
+  return Boolean(address?.countryCode && (address.city || address.country));
+}
+
 
 async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: BrowserCoreCall, prepared?: PlatformPayload): Promise<BridgeResponse<T>> {
   const results: string[] = [];
@@ -390,6 +527,9 @@ async function requestAllBrowserPermissions<T>(labels: WebLabels, coreCall: Brow
 }
 
 async function addBrowserCustomAdhanSound<T>(labels: WebLabels, coreCall: BrowserCoreCall): Promise<BridgeResponse<T>> {
+  if (automationRuntimeActive()) {
+    return { ok: false, error: "File selection is not performed by unattended automation." };
+  }
   const picked = await pickAndStoreBrowserAdhanSound(labels);
   if (!picked) return { ok: true, data: { cancelled: true, platform: "web" } as T };
 
@@ -407,6 +547,53 @@ async function addBrowserCustomAdhanSound<T>(labels: WebLabels, coreCall: Browse
   if (!saved?.ok) return { ok: false, error: saved?.error ?? label(labels, "status_error") };
 
   return { ok: true, data: { ok: true, platform: "web", sound: picked, projection: saved.data.projection ?? saved.data.value ?? next } as T };
+}
+
+async function testBrowserNotification<T>(labels: WebLabels): Promise<BridgeResponse<T>> {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return { ok: false, error: label(labels, "webNotificationPermissionDenied") };
+  }
+  const notification = new Notification(label(labels, "testNotification"));
+  window.setTimeout(() => notification.close(), 3000);
+  return { ok: true, data: { platform: "web", delivered: true } as T };
+}
+
+async function launchBrowserExternalIntent<T>(method: string, request: PlatformPayload | undefined, labels: WebLabels): Promise<BridgeResponse<T>> {
+  let href: string;
+  if (method === "external.openEmail") {
+    if (!request?.to) return { ok: false, error: "Email address is required." };
+    href = `mailto:${encodeURIComponent(request.to)}`;
+  } else if (method === "external.call") {
+    if (!request?.number) return { ok: false, error: "Phone number is required." };
+    href = `tel:${encodeURIComponent(request.number)}`;
+  } else if (method === "external.reportIssue") {
+    href = "mailto:rynex@rynex.nl?subject=Pray%20Ad%20Free%20Issue";
+  } else if (method === "external.openUrl") {
+    let parsed: URL;
+    try {
+      parsed = new URL(request?.url ?? "");
+    } catch {
+      return { ok: false, error: "A valid URL is required." };
+    }
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return { ok: false, error: "Only HTTP(S) URLs can be opened." };
+    }
+    href = parsed.href;
+  } else {
+    return { ok: false, error: label(labels, "webNativeActionUnavailable") };
+  }
+
+  if (!automationRuntimeActive()) {
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.hidden = true;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+  return { ok: true, data: { platform: "web", launched: true } as T };
 }
 
 async function previewBrowserAdhanSound<T>(labels: WebLabels, coreCall: BrowserCoreCall, id?: string): Promise<BridgeResponse<T>> {

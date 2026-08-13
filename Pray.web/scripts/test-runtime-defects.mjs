@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { observeRuntimeValue } from "../src/automation/runtimeDefects.ts";
+import { canReuseConfirmedGpsLocation, resolveAutomaticLocationSource } from "../src/native/locationResumePolicy.ts";
 
 const metamask = observeRuntimeValue(new Error(
   "Failed to connect to MetaMask\n" +
@@ -20,3 +21,29 @@ const unknown = observeRuntimeValue("Unhandled rejection without a source");
 assert.equal(unknown.source, "application", "Unknown errors must fail closed");
 
 console.info("runtime defect classification tests passed");
+
+assert.equal(resolveAutomaticLocationSource("granted"), "gps");
+assert.equal(resolveAutomaticLocationSource("denied", { useGps: true, locationSource: "gps" }), "ip");
+assert.equal(resolveAutomaticLocationSource("prompt", { useGps: true, locationSource: "gps" }), "gps");
+assert.equal(resolveAutomaticLocationSource("unsupported", { useGps: false, locationSource: "ip" }), "ip");
+
+assert.equal(canReuseConfirmedGpsLocation({
+  useGps: true,
+  locationSource: "gps",
+  latitude: 25.3085,
+  longitude: 55.3648,
+  country: "AE",
+  countryName: "United Arab Emirates",
+  city: "Sharjah",
+}), true, "A transient reverse-geocode failure must retain the last confirmed GPS location");
+assert.equal(canReuseConfirmedGpsLocation({
+  useGps: true,
+  locationSource: "gps",
+  latitude: 25.3085,
+  longitude: 55.3648,
+  country: "",
+  countryName: "",
+  city: "",
+}), false, "An incomplete GPS location must never be accepted as confirmed");
+
+console.info("location resume decision tests passed");

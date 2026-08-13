@@ -36,7 +36,7 @@ public sealed class WebStateRpcTests {
 
         var result = WebCoreExecutionEngine.Execute(state, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
 
-        Assert.Equal("tr", JsonSerializer.SerializeToElement(result.Data).GetProperty("language").GetString());
+        Assert.Equal("en", JsonSerializer.SerializeToElement(result.Data).GetProperty("language").GetString());
         Assert.Contains("\"State\"", result.State, StringComparison.Ordinal);
         Assert.Contains("\"Revision\"", result.State, StringComparison.Ordinal);
     }
@@ -44,10 +44,10 @@ public sealed class WebStateRpcTests {
     [Fact]
     public void Language_object_query_is_pure_and_does_not_replace_authoritative_language() {
         var initial = WebCoreExecutionEngine.Execute(null, "app.setLanguage", JsonSerializer.SerializeToElement(new { language = "en" }));
-        var query = WebCoreExecutionEngine.Execute(initial.State, "app.getLanguageObject", JsonSerializer.SerializeToElement(new { language = "fr" }));
+        var query = WebCoreExecutionEngine.Execute(initial.State, "app.getLanguageObject", JsonSerializer.SerializeToElement(new { language = "ar" }));
         var shell = WebCoreExecutionEngine.Execute(query.State, "app.getShellSnapshot", JsonSerializer.SerializeToElement(new { }));
 
-        Assert.Equal("fr", JsonSerializer.SerializeToElement(query.Data).GetProperty("code").GetString());
+        Assert.Equal("ar", JsonSerializer.SerializeToElement(query.Data).GetProperty("code").GetString());
         Assert.Equal("en", JsonSerializer.SerializeToElement(shell.Data).GetProperty("language").GetString());
         Assert.Equal(initial.State, query.State);
     }
@@ -75,6 +75,54 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
+    public void IraqGpsLocationUpdateImmediatelyReturnsWorkingTodayProjection() {
+        var dispatcher = new WebCoreRpcDispatcher();
+        Dispatch(dispatcher, "settings.update", new {
+            section = "locations",
+            field = "value",
+            value = new {
+                useGps = true,
+                latitude = 33.3152,
+                longitude = 44.3661,
+                timeZoneId = "Asia/Baghdad",
+                locationSource = "gps",
+                country = "IQ",
+                countryName = "Iraq",
+                city = "Baghdad",
+                qiblaReadingMode = "Balanced",
+                qiblaFilterMode = "Normal"
+            }
+        });
+
+        var today = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.refresh", new { }));
+
+        Assert.False(today.TryGetProperty("error", out _), today.GetRawText());
+        Assert.Equal("Baghdad, Iraq", today.GetProperty("locationTitle").GetString());
+        Assert.Equal("MuslimWorldLeague", today.GetProperty("calculation").GetProperty("effectiveMethod").GetString());
+        Assert.Equal(6, today.GetProperty("todayTimings").GetArrayLength());
+    }
+
+    [Fact]
+    public void PreviouslyCorruptedGpsAddressSelfRepairsPrayerCalculationFromTimeZone() {
+        var state = WebState.Default();
+        state.UseGps = true;
+        state.Latitude = 25.3085;
+        state.Longitude = 55.3648;
+        state.CountryCode = string.Empty;
+        state.Country = string.Empty;
+        state.City = string.Empty;
+        state.TimeZoneId = "Asia/Dubai";
+        state.LocationSource = "gps";
+        var dispatcher = new WebCoreRpcDispatcher(state);
+
+        var today = JsonSerializer.SerializeToElement(Dispatch(dispatcher, "today.refresh", new { }));
+
+        Assert.False(today.TryGetProperty("error", out _), today.GetRawText());
+        Assert.Equal("Dubai", today.GetProperty("calculation").GetProperty("effectiveMethod").GetString());
+        Assert.Equal(6, today.GetProperty("todayTimings").GetArrayLength());
+    }
+
+    [Fact]
     public void ManualCoordinatesDoNotKeepAnUnrelatedPlaceName() {
         var dispatcher = new WebCoreRpcDispatcher();
         var result = Dispatch(dispatcher, "settings.update", new {
@@ -97,6 +145,31 @@ public sealed class WebStateRpcTests {
         Assert.Equal(string.Empty, calculated.GetProperty("country").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("countryName").GetString());
         Assert.Equal(string.Empty, calculated.GetProperty("city").GetString());
+    }
+
+    [Fact]
+    public void ExplicitManualAmsterdamSurvivesTheNextPersistedOperation() {
+        var changed = WebCoreExecutionEngine.Execute(null, "settings.update", JsonSerializer.SerializeToElement(new {
+            section = "locations",
+            field = "value",
+            value = new {
+                useGps = false,
+                latitude = 52.3676,
+                longitude = 4.9041,
+                timeZoneId = "Europe/Amsterdam",
+                locationSource = "manual",
+                country = "NL",
+                countryName = "Netherlands",
+                city = "Amsterdam"
+            }
+        }));
+
+        var reread = WebCoreExecutionEngine.Execute(changed.State, "settings.getSnapshot", JsonSerializer.SerializeToElement(new { section = "locations" }));
+        var location = JsonSerializer.SerializeToElement(reread.Data);
+
+        Assert.Equal("NL", location.GetProperty("country").GetString());
+        Assert.Equal("Amsterdam", location.GetProperty("city").GetString());
+        Assert.Equal("manual", location.GetProperty("locationSource").GetString());
     }
 
     [Fact]
@@ -161,7 +234,7 @@ public sealed class WebStateRpcTests {
     }
 
     [Fact]
-    public void BootstrapCleansPersistedCatalogPlaceWhenCoordinatesNoLongerMatch() {
+    public void BootstrapCleansPersistedCatalogPlaceAndKeepsCalculationWorkingFromTimeZone() {
         var stale = WebState.Default();
         stale.UseGps = true;
         stale.CountryCode = "NL";
@@ -183,7 +256,9 @@ public sealed class WebStateRpcTests {
         Assert.Equal(string.Empty, restored.State.Country);
         Assert.Equal(string.Empty, restored.State.City);
         Assert.DoesNotContain("Amsterdam", today.GetRawText(), StringComparison.OrdinalIgnoreCase);
-        Assert.True(today.TryGetProperty("error", out _));
+        Assert.False(today.TryGetProperty("error", out _), today.GetRawText());
+        Assert.Equal("Dubai", today.GetProperty("calculation").GetProperty("effectiveMethod").GetString());
+        Assert.Equal(6, today.GetProperty("todayTimings").GetArrayLength());
     }
 
     [Fact]

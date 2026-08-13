@@ -1,6 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/test")({
+  beforeLoad: () => {
+    if (import.meta.env.VITE_PRAY_AUTOMATION !== "true") {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({ meta: [] }),
   component: TestRoute,
 });

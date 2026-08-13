@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rynex.prayer" android:versionCode="3" android:versionName="Alfa - intredusing web">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rynex.prayer" android:versionCode="6" android:versionName="0.0.504">
 	<application android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@mipmap/appicon" android:supportsRtl="true" android:usesCleartextTraffic="true" android:label="Prayer">
 		<meta-data android:name="com.google.android.geo.API_KEY" android:value="YOUR_GOOGLE_MAPS_API_KEY" />
 	</application>

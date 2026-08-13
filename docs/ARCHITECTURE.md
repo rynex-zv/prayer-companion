@@ -47,6 +47,21 @@ Do not duplicate Core rules in React. React can own presentation state, componen
 
 Any app string or feature branch inside WebBridge is a bug. Move it to Core or to the generated web contract.
 
+## Remote Web Update Contract
+
+The standalone web app must not trap users on a broken cached build.
+
+- The first remote-web app-code request is `version.web.json` with `cache: no-store`; `version.web.info` remains numeric-only for legacy native updaters.
+- `version.web.json` owns the display/cache version, currently shaped as `0.0.<cacheEpoch>.<build>`. Increment `cacheEpoch` when users must move out of a potentially broken service-worker/cache line.
+- `version.web.json`, `version.web.info`, `pray-sw.js`, and `webber-manifest.json` are never precached and must be served with cache disabled.
+- A new remote web version is downloaded into a separate `pray-web-<version>` cache while the current app keeps running.
+- The user sees an Update button only after the new cache finishes successfully. No partial cache state should be shown as ready.
+- Pressing Update posts `SKIP_WAITING`, reloads the current URL, and stores `pray.web.commitVersion`.
+- Only after the new app boots successfully does the active worker receive `COMMIT_VERSION` and delete older `pray-web-*` caches.
+- If a route no longer exists after a future route change, the app should fall back to Today rather than leaving the shell blank.
+- Native installer downloads are independent from the remote-web shell version. `/downloads/manifest.json` is served with cache disabled, fetched network-first with a cache-busting query, and must not be hidden just because the installer's embedded web build is older than or equal to the currently loaded web shell.
+- APK, EXE, ZIP, and native download manifests are never part of the service-worker precache or the native embedded-web manifest.
+
 ## Repository Shape
 
 This repository is the canonical `PrayAdFree` repo. Keep all shared source, generated contracts, web UI, native shells, and template tooling here until there is a strong reason to split them.

@@ -65,6 +65,8 @@ public sealed class WebCoreRpcDispatcher {
             "calendar.previousMonth" => MoveCalendar(-1),
 
             "qibla.getSnapshot" => QiblaSnapshot(),
+            "qibla.startSensor" => QiblaSnapshot(),
+            "qibla.stopSensor" => new { stopped = true },
             "qibla.updateHeading" => SetHeading(GetDouble(payload, "heading", _state.Heading)),
             "qibla.setHeadingMode" => SetHeadingMode(GetString(payload, "mode", _state.HeadingMode)),
             "qibla.adjustManualHeading" => AdjustManualHeading(GetDouble(payload, "delta", 0)),
@@ -220,11 +222,11 @@ public sealed class WebCoreRpcDispatcher {
         var settings = BuildSettings();
         var day = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now));
         var tomorrow = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now.AddDays(1)));
-        var snapshot = _dailyFactory.Build(day, settings, now);
+        var snapshot = _dailyFactory.Build(day, tomorrow, settings, now);
         var fasting = _fastingFactory.Build(day, tomorrow, settings, now);
         var next = snapshot.NextPrayerTime;
         var effectiveMethod = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode, settings.Location.TimeZoneId)
             : settings.Method;
 
         return new {
@@ -377,8 +379,8 @@ public sealed class WebCoreRpcDispatcher {
             _state = _state.ReadingMode == "map" ? "map" : _state.HeadingMode == "manual" ? "manual" : aligned ? "aligned" : "sensor",
             isAligned = aligned,
             headingModes = WebCatalog.LocalizedOptions(WebCatalog.HeadingModes, _state.Language),
-            readingModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaReadingModes, _state.Language),
-            filterModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaFilterModes, _state.Language),
+            readingModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaDisplayModes, _state.Language),
+            filterModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaVisualFilters, _state.Language),
             labels = Labels()
         };
     }
@@ -465,8 +467,8 @@ public sealed class WebCoreRpcDispatcher {
                 countryName = _state.Country,
                 city = _state.City,
                 vpnWarning = string.Equals(_state.LocationSource, "ip", StringComparison.OrdinalIgnoreCase),
-                qiblaReadingMode = _state.ReadingMode,
-                qiblaFilterMode = _state.FilterMode,
+                qiblaReadingMode = _state.QiblaReadingMode,
+                qiblaFilterMode = _state.QiblaFilterMode,
                 qiblaReadingModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaReadingModes, _state.Language),
                 qiblaFilterModes = WebCatalog.LocalizedOptions(WebCatalog.QiblaFilterModes, _state.Language),
                 countries = WebCatalog.Countries.Select(item => new { code = item.Code, name = item.Name, cities = item.Cities }).ToArray(),
@@ -585,8 +587,10 @@ public sealed class WebCoreRpcDispatcher {
             _state.Longitude = GetDouble(value, "longitude", _state.Longitude);
             _state.TimeZoneId = GetString(value, "timeZoneId", _state.TimeZoneId) ?? _state.TimeZoneId;
             var incomingLocationSource = NormalizeLocationSource(GetString(value, "locationSource", null));
-            _state.ReadingMode = GetString(value, "qiblaReadingMode", _state.ReadingMode) ?? _state.ReadingMode;
-            _state.FilterMode = GetString(value, "qiblaFilterMode", _state.FilterMode) ?? _state.FilterMode;
+            _state.QiblaReadingMode = AppInputContract.RequiredChoice(
+                GetString(value, "qiblaReadingMode", _state.QiblaReadingMode), "qiblaReadingMode", "Smooth", "Balanced", "Fast", "Raw");
+            _state.QiblaFilterMode = AppInputContract.RequiredChoice(
+                GetString(value, "qiblaFilterMode", _state.QiblaFilterMode), "qiblaFilterMode", "Off", "Normal", "Strict");
 
             var coordinatesChanged = Math.Abs(previousLatitude - _state.Latitude) > 0.000001 ||
                 Math.Abs(previousLongitude - _state.Longitude) > 0.000001;
@@ -1050,8 +1054,8 @@ public sealed class WebCoreRpcDispatcher {
 
     private string NormalizeRemoteUrl(string? value) {
         var candidate = string.IsNullOrWhiteSpace(value) ? WebStateDefaults.DefaultRemoteWebUrl : value.Trim();
-        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")) {
-            throw new InvalidOperationException("Remote web URL must be an http or https URL.");
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri) || uri.Scheme != "https") {
+            throw new InvalidOperationException("Remote web URL must be an https URL.");
         }
 
         if (uri.AbsolutePath.EndsWith("web.manifest.json", StringComparison.OrdinalIgnoreCase)) {

@@ -1,5 +1,8 @@
 {
-  "version": "323",
+  "version": "423",
+  "displayVersion": "0.0.1.423",
+  "cacheVersion": "0.0.1.423",
+  "minimumSupportedVersion": "0.0.1.423",
   "contractVersion": 5,
   "target": "phone",
   "entry": "index.html",
@@ -54,11 +57,11 @@
     },
     {
       "path": "assets/app.js",
-      "sha256": "45337e7c1f3c350f56018870fb0608f21d2f1f38d8cf9065f068e5f5c944a649"
+      "sha256": "be4eee20a4c68c48400af7ed046a841b6611dd1192cf734cbd221f272ac57703"
     },
     {
-      "path": "assets/index.css",
-      "sha256": "0ddba36c6b8ec86135a37c1faf67fbdf84afcb58ab5034fac6432bcb102be5ec"
+      "path": "assets/chunk-main.js",
+      "sha256": "5c13ccf57722b080d14c59eb24ffb60d87c535c364c399a334890283f55186ac"
     },
     {
       "path": "assets/inter-cyrillic-400-normal.woff",
@@ -285,12 +288,16 @@
       "sha256": "5fafa3829a16d9ea5ac3a67c51e54186353122790b604a3e361f96cab188da8b"
     },
     {
+      "path": "assets/main.css",
+      "sha256": "94a075389ffe003c4e23030a9c1a5a807d59d8cf5cac727673bc1e6103663b00"
+    },
+    {
       "path": "assets/styles.css",
-      "sha256": "126b79b8e75851e4185fbfb3da965274428a5d4eff3fa617ca55083417ab3ebd"
+      "sha256": "361e5fe4821c644230c1d1046df71b5d2aae5877079fe2cd032a26dcc6d26ee2"
     },
     {
       "path": "index.html",
-      "sha256": "2f53faec40b8fd799fa89ef64a5ddfdc8aad25bbc82b3f4f3bdaa2a9e9acca38"
+      "sha256": "39d5a447efbabd322b512e67631a418304d606748dc2af6fefc799293ae3bff5"
     }
   ]
 }

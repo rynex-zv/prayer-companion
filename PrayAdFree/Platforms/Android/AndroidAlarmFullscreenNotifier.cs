@@ -8,7 +8,7 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.Platforms.Android;
 
 internal static class AndroidAlarmFullscreenNotifier {
-    private const string AlarmChannelId = "adhan_alarm_fullscreen";
+    private const string AlarmChannelId = "adhan_alarm_fullscreen_v2";
     private const int AlarmNotificationId = 54009;
     private const string LogTag = "PrayAdFree.Alarm";
 
@@ -48,7 +48,7 @@ internal static class AndroidAlarmFullscreenNotifier {
         if (!OperatingSystem.IsAndroidVersionAtLeast(26)) {
 #pragma warning disable CA1422
             builder!.SetPriority((int)NotificationPriority.Max);
-            builder.SetVibrate(new long[] { 0, 180, 120, 180 });
+            builder.SetVibrate(new long[] { 0, 700, 300, 700 });
 #pragma warning restore CA1422
         }
 
@@ -118,7 +118,7 @@ internal static class AndroidAlarmFullscreenNotifier {
         };
         channel.SetSound(null, null);
         channel.EnableVibration(true);
-        channel.SetVibrationPattern(new long[] { 0, 180, 120, 180 });
+        channel.SetVibrationPattern(new long[] { 0, 700, 300, 700 });
         channel.LockscreenVisibility = NotificationVisibility.Public;
         manager.CreateNotificationChannel(channel);
     }

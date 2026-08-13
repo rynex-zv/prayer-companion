@@ -99,13 +99,7 @@ public sealed class AndroidAlarmCapabilityService {
             return AlarmPresentationMode.None;
         }
 
-        if (screenOnAndUnlocked) {
-            return permissions.DisplayOverAppsGranted
-                ? AlarmPresentationMode.Overlay
-                : AlarmPresentationMode.ControlNotification;
-        }
-
-        if (permissions.FullScreenIntentsGranted && schedulingMode == AlarmSchedulingMode.ExactAlarm) {
+        if (schedulingMode == AlarmSchedulingMode.ExactAlarm) {
             return AlarmPresentationMode.FullscreenActivity;
         }
 

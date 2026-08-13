@@ -62,6 +62,10 @@ export class ScenarioContext {
     const api = await waitForAutomationApi();
     this.assert(await api.setValue(selectorName, value), `Could not set ${selectorName} to ${String(value)}`);
     await waitFor(() => valueMatches(selectorName, value), `${selectorName} did not become ${String(value)}`);
+    // React may paint the controlled value one frame before its async change
+    // handler has registered the backend call. Allow that handler to start
+    // before treating an empty pending-call set as confirmation.
+    await delay(25);
     await waitForRpcIdle();
     await waitFor(() => valueMatches(selectorName, value), `${selectorName} was overwritten after backend confirmation`);
     this.step(`Set ${selectorName}=${String(value)}`);
@@ -191,7 +195,8 @@ async function waitForRpcIdle(timeoutMs = 15000): Promise<void> {
 
 function alternateValue(element: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): string | undefined {
   if (element instanceof HTMLSelectElement) {
-    return Array.from(element.options).find((option) => !option.disabled && option.value !== element.value)?.value;
+    return Array.from(element.options).find((option) => !option.disabled && option.value !== "" && option.value !== element.value)?.value
+      ?? Array.from(element.options).find((option) => !option.disabled && option.value !== element.value)?.value;
   }
   if (element instanceof HTMLInputElement && element.type === "checkbox") return element.checked ? "false" : "true";
   if (element instanceof HTMLInputElement && element.type === "range") {

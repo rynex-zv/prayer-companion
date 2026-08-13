@@ -29,7 +29,8 @@ public sealed class IpLocationService : IIpLocationService {
                 Country = response.CountryName ?? "",
                 CountryCode = response.CountryCode ?? "",
                 Latitude = response.Latitude,
-                Longitude = response.Longitude
+                Longitude = response.Longitude,
+                TimeZoneId = response.TimeZone ?? ""
             };
         } catch (Exception ex) {
             _logger.LogException(ex, "IpLocationService.GetCurrentLocationAsync");
@@ -58,5 +59,8 @@ public sealed class IpLocationService : IIpLocationService {
 
         [JsonPropertyName("longitude")]
         public double Longitude { get; set; }
+
+        [JsonPropertyName("timezone")]
+        public string? TimeZone { get; set; }
     }
 }

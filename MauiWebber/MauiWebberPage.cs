@@ -99,6 +99,34 @@ public class MauiWebberPage : ContentPage {
         return DispatchNavigationCommandAsync("forward");
     }
 
+    public async Task<bool> NavigateToRouteAsync(string route, TimeSpan? timeout = null) {
+        if (string.IsNullOrWhiteSpace(route)) return false;
+        var deadlineUtc = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(12));
+        var routeJson = JsonSerializer.Serialize(route.StartsWith('/') ? route : $"/{route}", JsonOptions);
+        while (DateTime.UtcNow < deadlineUtc) {
+            if (_loaded) {
+                try {
+                    var result = await MainThread.InvokeOnMainThreadAsync(() => EvaluateJavaScriptAsync($$"""
+                        (function(){
+                          if (!window.prayerCompanion || typeof window.prayerCompanion.navigate !== 'function') return 'false';
+                          window.prayerCompanion.navigate({{routeJson}});
+                          return 'true';
+                        })();
+                        """)).ConfigureAwait(false);
+                    if (IsJavaScriptTrue(result)) {
+                        _logger.Log("RouteNavigation", $"route={route};handled=true");
+                        return true;
+                    }
+                } catch (Exception ex) {
+                    _logger.LogException(ex, "MauiWebber.RouteNavigation");
+                }
+            }
+            await Task.Delay(100).ConfigureAwait(false);
+        }
+        _logger.Log("RouteNavigation", $"route={route};handled=false;reason=timeout");
+        return false;
+    }
+
     protected override bool OnBackButtonPressed() {
         _ = TryHandleBackNavigationAsync();
         return true;
@@ -126,6 +154,9 @@ public class MauiWebberPage : ContentPage {
             windowsWebView.IsHitTestVisible = true;
             windowsWebView.IsTabStop = true;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(windowsWebView, "Pray Ad Free web content");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(
+                windowsWebView,
+                Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Content);
         }
 #endif
     }
@@ -138,7 +169,7 @@ public class MauiWebberPage : ContentPage {
 
         var windowsWebView = _windowsLayoutView
             ?? throw new InvalidOperationException("Windows WebView2 handler did not initialize; refusing insecure file: navigation.");
-        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility=complete");
+        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--force-renderer-accessibility");
         await windowsWebView.EnsureCoreWebView2Async();
         _windowsCoreWebView2 = windowsWebView.CoreWebView2
             ?? throw new InvalidOperationException("Windows CoreWebView2 did not initialize; refusing insecure file: navigation.");

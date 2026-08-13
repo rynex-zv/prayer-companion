@@ -22,6 +22,8 @@ export const coreContract = {
     "calendar.nextMonth",
     "calendar.previousMonth",
     "qibla.getSnapshot",
+    "qibla.startSensor",
+    "qibla.stopSensor",
     "qibla.updateHeading",
     "qibla.setHeadingMode",
     "qibla.adjustManualHeading",
@@ -50,6 +52,7 @@ export const coreContract = {
     "location.reverseGeocode",
     "adhan.sound.addCustom",
     "adhan.sound.preview",
+    "adhan.sound.stopPreview",
     "adhan.sound.removeCustom",
     "external.openEmail",
     "external.call",
@@ -136,6 +139,16 @@ export const coreContract = {
     {
       "name": "qibla.getSnapshot",
       "kind": "query",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.startSensor",
+      "kind": "command",
+      "domain": "qibla"
+    },
+    {
+      "name": "qibla.stopSensor",
+      "kind": "command",
       "domain": "qibla"
     },
     {
@@ -240,67 +253,72 @@ export const coreContract = {
     },
     {
       "name": "alarm.test",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "alarm"
     },
     {
       "name": "notification.test",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "notification"
     },
     {
       "name": "permissions.request",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "permissions"
     },
     {
       "name": "permissions.requestAll",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "permissions"
     },
     {
       "name": "location.refresh",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "location"
     },
     {
       "name": "location.reverseGeocode",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "location"
     },
     {
       "name": "adhan.sound.addCustom",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "adhan"
     },
     {
       "name": "adhan.sound.preview",
-      "kind": "command",
+      "kind": "platformOperation",
+      "domain": "adhan"
+    },
+    {
+      "name": "adhan.sound.stopPreview",
+      "kind": "platformOperation",
       "domain": "adhan"
     },
     {
       "name": "adhan.sound.removeCustom",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "adhan"
     },
     {
       "name": "external.openEmail",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "external"
     },
     {
       "name": "external.call",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "external"
     },
     {
       "name": "external.openUrl",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "external"
     },
     {
       "name": "external.reportIssue",
-      "kind": "command",
+      "kind": "platformOperation",
       "domain": "external"
     },
     {

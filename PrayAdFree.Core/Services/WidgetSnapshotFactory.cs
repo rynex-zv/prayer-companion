@@ -11,7 +11,7 @@ public sealed class WidgetSnapshotFactory {
         ArgumentNullException.ThrowIfNull(settings);
 
         return new WidgetSnapshotResult {
-            DailyPrayer = _dailyPrayerSnapshotFactory.Build(today, settings, now),
+            DailyPrayer = _dailyPrayerSnapshotFactory.Build(today, tomorrow, settings, now),
             Fasting = _fastingSnapshotFactory.Build(today, tomorrow, settings, now)
         };
     }

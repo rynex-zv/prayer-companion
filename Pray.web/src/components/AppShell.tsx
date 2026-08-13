@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BottomTabs } from "./BottomTabs";
-import { bootstrapAppState, getAppState, languageProxy, retryBootstrapAppState, useAppStore } from "@/state/appStore";
+import { bootstrapAppState, getAppState, languageProxy, refreshAutomaticLocation, resumeAppState, retryBootstrapAppState, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
 import { ShakeDataResetButton } from "./ShakeDataResetButton";
 
@@ -50,19 +50,69 @@ export function AppShell({ children }: { children: ReactNode }) {
     onboardingCompleted: state.onboardingCompleted,
     bootstrapStatus: state.bootstrapStatus,
     bootstrapError: state.fieldSync["shell.bootstrap"]?.error,
+    startupRoute: state.startupRoute,
+    startupIntent: state.startupIntent,
   }));
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const routeStack = useRef<string[]>([]);
   const routeIndex = useRef(0);
   const nativeNavigation = useRef(false);
+  const handledStartupIntent = useRef<string | null>(null);
 
   useEffect(() => {
     void bootstrapAppState().catch((error) => console.error("Application bootstrap failed", error));
   }, []);
 
   useEffect(() => {
-    if (shell.bootstrapStatus !== "ready" || shell.onboardingCompleted || pathname === "/onboarding" || pathname === "/alarm" || pathname === "/test") {
+    if (shell.bootstrapStatus !== "ready" || !["/", "/calendar", "/settings/locations"].includes(pathname)) return;
+    void refreshAutomaticLocation();
+    const timer = window.setInterval(() => { void refreshAutomaticLocation(); }, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [pathname, shell.bootstrapStatus]);
+
+  useEffect(() => {
+    let backgroundedAt = 0;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        backgroundedAt = Date.now();
+        return;
+      }
+      if (backgroundedAt > 0 && Date.now() - backgroundedAt >= 60_000) void resumeAppState();
+      backgroundedAt = 0;
+    };
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) void resumeAppState(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (shell.bootstrapStatus !== "ready" || !shell.startupIntent) {
+      return;
+    }
+
+    const route = shell.startupRoute || "/";
+    if (!INSPECTABLE_ROUTES.includes(route as (typeof INSPECTABLE_ROUTES)[number])) {
+      return;
+    }
+
+    const intentKey = `${shell.startupIntent}:${route}`;
+    if (handledStartupIntent.current === intentKey) {
+      return;
+    }
+
+    handledStartupIntent.current = intentKey;
+    if (pathname !== route) {
+      void navigate({ to: route as (typeof INSPECTABLE_ROUTES)[number], replace: true });
+    }
+  }, [navigate, pathname, shell.bootstrapStatus, shell.startupIntent, shell.startupRoute]);
+
+  useEffect(() => {
+    if (shell.bootstrapStatus !== "ready" || shell.startupIntent === "alarm" || shell.onboardingCompleted || window.__prayAutomationActive === true || pathname === "/onboarding" || pathname === "/alarm" || pathname === "/test") {
       return;
     }
 

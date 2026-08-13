@@ -97,6 +97,25 @@ public sealed class PrayerCalculationMatrixTests {
     }
 
     [Fact]
+    public void Rotterdam_auto_method_matches_the_published_Mwl_reference_within_two_minutes() {
+        var result = _factory.BuildDay(
+            Settings(
+                CalculationMethod.Auto,
+                "Europe/Amsterdam",
+                countryCode: "NL",
+                latitude: 51.9244,
+                longitude: 4.4778),
+            new DateOnly(2026, 8, 11));
+
+        AssertClose(result.Timings.Fajr, "03:47");
+        AssertClose(result.Timings.Sunrise, "06:20");
+        AssertClose(result.Timings.Dhuhr, "13:47");
+        AssertClose(result.Timings.Asr, "17:51");
+        AssertClose(result.Timings.Maghrib, "21:14");
+        AssertClose(result.Timings.Isha, "23:34");
+    }
+
+    [Fact]
     public void Uae_gps_coordinates_use_dubai_method_and_asia_dubai_timezone() {
         var result = _factory.BuildDay(
             Settings(
@@ -112,6 +131,27 @@ public sealed class PrayerCalculationMatrixTests {
         Assert.Equal("04:27", result.Timings.Fajr.ToString("HH:mm"));
         Assert.Equal("19:00", result.Timings.Maghrib.ToString("HH:mm"));
         Assert.Equal("20:20", result.Timings.Isha.ToString("HH:mm"));
+    }
+
+    [Fact]
+    public void Iraq_gps_coordinates_with_auto_method_produce_an_ordered_schedule() {
+        var result = _factory.BuildDay(
+            Settings(
+                CalculationMethod.Auto,
+                "Asia/Baghdad",
+                countryCode: "IQ",
+                latitude: 33.3152,
+                longitude: 44.3661),
+            new DateOnly(2026, 8, 13));
+
+        Assert.Equal(CalculationMethod.MuslimWorldLeague, MethodResolver.ResolveRequired("IQ"));
+        Assert.Equal("Asia/Baghdad", result.TimeZoneId);
+        var timings = new[] {
+            result.Timings.Fajr, result.Timings.Sunrise, result.Timings.Dhuhr,
+            result.Timings.Asr, result.Timings.Maghrib, result.Timings.Isha
+        };
+        Assert.True(timings.Zip(timings.Skip(1), (left, right) => left < right).All(value => value),
+            $"Iraq GPS schedule was unordered: {string.Join(", ", timings.Select(value => value.ToString("HH:mm")))}");
     }
 
     private static AppSettings Settings(
@@ -132,4 +172,10 @@ public sealed class PrayerCalculationMatrixTests {
         Offsets = PrayerOffsets.Default,
         FastingOffsets = new FastingOffsets { ImsakAdvanceMinutes = 10 }
     };
+
+    private static void AssertClose(DateTime actual, string expectedClock) {
+        var expected = TimeOnly.ParseExact(expectedClock, "HH:mm");
+        var expectedDateTime = actual.Date.Add(expected.ToTimeSpan());
+        Assert.InRange(Math.Abs((actual - expectedDateTime).TotalMinutes), 0, 2);
+    }
 }

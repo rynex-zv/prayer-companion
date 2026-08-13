@@ -22,6 +22,8 @@ public sealed class WebState {
     public string HeadingMode { get; set; } = "auto";
     public string ReadingMode { get; set; } = "compass";
     public string FilterMode { get; set; } = "none";
+    public string QiblaReadingMode { get; set; } = "Balanced";
+    public string QiblaFilterMode { get; set; } = "Normal";
     public string ClockFormat { get; set; } = "24h";
     public string AdhanSettingsJson { get; set; } = "";
     public string NotificationSettingsJson { get; set; } = "";
@@ -45,6 +47,8 @@ public sealed class WebState {
         _ = AppInputContract.RequiredChoice(HeadingMode, nameof(HeadingMode), "auto", "manual");
         _ = AppInputContract.RequiredChoice(ReadingMode, nameof(ReadingMode), "compass", "map");
         _ = AppInputContract.RequiredChoice(FilterMode, nameof(FilterMode), "none", "night", "contrast");
+        _ = AppInputContract.RequiredChoice(QiblaReadingMode, nameof(QiblaReadingMode), "Smooth", "Balanced", "Fast", "Raw");
+        _ = AppInputContract.RequiredChoice(QiblaFilterMode, nameof(QiblaFilterMode), "Off", "Normal", "Strict");
         _ = AppInputContract.RequiredChoice(ClockFormat, nameof(ClockFormat), "auto", "12h", "24h");
         if (!string.IsNullOrWhiteSpace(LocationSource)) {
             _ = AppInputContract.RequiredChoice(LocationSource, nameof(LocationSource), "gps", "ip", "manual");
@@ -55,7 +59,7 @@ public sealed class WebState {
         if (string.IsNullOrWhiteSpace(TimeZoneId)) {
             throw new InvalidDataException("Persisted location time-zone ID is missing.");
         }
-        if (!Uri.TryCreate(RemoteWebUrl, UriKind.Absolute, out var remote) || remote.Scheme is not ("http" or "https")) {
+        if (!Uri.TryCreate(RemoteWebUrl, UriKind.Absolute, out var remote) || remote.Scheme != "https") {
             throw new InvalidDataException("Persisted remote web URL is invalid.");
         }
         if (TasbihPresets.Count == 0 || !TasbihPresets.Any(item => item.Id == SelectedTasbihPresetId)) {

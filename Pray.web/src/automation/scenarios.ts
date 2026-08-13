@@ -1,5 +1,6 @@
 import { ScenarioContext, delay, readValue, waitFor } from "./harness";
 import { appClient } from "@/client/appClient";
+import { automationPlatform } from "./config";
 
 export type ScenarioDefinition = {
   id: string;
@@ -22,7 +23,6 @@ const applicationRoutes = [
   "/settings/alarms",
   "/settings/tasbih",
   "/settings/about",
-  "/alarm",
 ];
 
 export const automationScenarios: ScenarioDefinition[] = [
@@ -45,10 +45,17 @@ export const automationScenarios: ScenarioDefinition[] = [
       await ctx.click("onboarding:next");
       await ctx.click("onboarding:next", 250);
       await waitFor(() => window.prayerCompanion?.currentRoute() === "/", "Onboarding did not finish and redirect to Today", 6000);
+      await ctx.waitForSelector("today:version");
+      ctx.assert(!document.querySelector('[data-selector-name="today:location-choice"]'), "Today still asks for a location after onboarding saved a valid location");
       ctx.step("Completed onboarding navigation and redirect");
 
       for (const route of applicationRoutes) {
         await ctx.navigate(route);
+        if (route === "/settings/locations") {
+          await ctx.setValue("locations:country", "NL");
+          await ctx.waitForSelector("locations:city");
+          await ctx.setValue("locations:city", "Amsterdam");
+        }
         ctx.validateVisibleTextAndNames(route);
         await ctx.mutateEveryInput(route);
       }
@@ -60,9 +67,10 @@ export const automationScenarios: ScenarioDefinition[] = [
     documentation: "02-today-calendar.md",
     run: async (ctx) => {
       await ctx.navigate("/");
-      const refresh = Array.from(document.querySelectorAll<HTMLButtonElement>("main button")).find((button) => button.getAttribute("aria-label"));
-      ctx.assert(refresh, "Today refresh button is missing");
-      refresh!.click();
+      await ctx.waitForSelector("today:refresh");
+      ctx.assert(Boolean(document.querySelector('[data-selector-name="today:prayer-progress"]')), "Prayer progress is missing");
+      ctx.assert(document.querySelectorAll('[data-selector-name^="today:timing-remaining:"]').length >= 6, "Prayer remaining times are missing");
+      await ctx.click("today:refresh");
       await delay(250);
       await ctx.click("tab:calendar");
       await waitFor(() => window.prayerCompanion?.currentRoute() === "/calendar", "Calendar tab did not navigate");
@@ -79,6 +87,9 @@ export const automationScenarios: ScenarioDefinition[] = [
     documentation: "03-qibla-location.md",
     run: async (ctx) => {
       await ctx.navigate("/settings/locations");
+      await ctx.setValue("locations:country", "NL");
+      await ctx.waitForSelector("locations:city");
+      await ctx.setValue("locations:city", "Amsterdam");
       const city = ctx.element("locations:city") as HTMLSelectElement;
       const alternateCity = Array.from(city.options).find((option) => option.value !== city.value)?.value;
       ctx.assert(alternateCity, "No alternate city is available");
@@ -255,6 +266,7 @@ export const automationScenarios: ScenarioDefinition[] = [
         await waitFor(() => window.prayerCompanion?.currentRoute() === route, `${key} did not navigate to ${route}`);
       }
       await ctx.navigate("/settings/about");
+      await waitFor(() => Boolean(document.querySelector('[data-selector-name="about:download-native-app"], [data-selector-name="about:download-native-app-status"]')), "About did not expose a device download state");
       const original = readValue("about:remote-web-url");
       ctx.assert(original, "About remote URL is empty");
       await ctx.click("about:save-remote-web-url", 300);
@@ -267,14 +279,15 @@ export const automationScenarios: ScenarioDefinition[] = [
     name: "System operations acknowledge promptly and report truthful completion",
     documentation: "10-platform-operations.md",
     run: async (ctx) => {
+      const browserOnlyFailure = automationPlatform() === "web" ? "failed" as const : "completed" as const;
       const operations: Array<{ name: string; domain: string; payload?: Record<string, unknown>; completion?: "completed" | "failed" }> = [
         { name: "external.openEmail", domain: "external", payload: { to: "rynex@rynex.nl" } },
         { name: "external.call", domain: "external", payload: { number: "+31610331734" } },
         { name: "external.openUrl", domain: "external", payload: { url: "https://pray.rynex.nl/" } },
         { name: "external.reportIssue", domain: "external" },
-        { name: "adhan.sound.addCustom", domain: "adhan" },
-        { name: "alarm.test", domain: "alarm" },
-        { name: "notification.test", domain: "notification" },
+        { name: "adhan.sound.addCustom", domain: "adhan", completion: browserOnlyFailure },
+        { name: "alarm.test", domain: "alarm", completion: browserOnlyFailure },
+        { name: "notification.test", domain: "notification", completion: browserOnlyFailure },
         { name: "permissions.request", domain: "permissions", payload: { id: "not-a-permission" }, completion: "failed" },
       ];
       for (const operation of operations) {
@@ -305,6 +318,11 @@ export const automationScenarios: ScenarioDefinition[] = [
         unsubscribe();
         ctx.step(`${operation.name} acknowledged in ${Math.round(acknowledgedMs)} ms and completed asynchronously`);
       }
+      const api = window.prayerCompanion;
+      ctx.assert(api ? await api.navigate("/alarm") : false, "Inactive alarm route navigation was rejected");
+      await waitFor(() => window.prayerCompanion?.currentRoute() === "/alarm", "Inactive alarm route did not stay on the Alarm page", 4000);
+      await waitFor(() => window.prayerCompanion?.inspect().selectors.some((selector) => selector.name === "alarm:inactive") === true, "Inactive alarm page did not expose its empty state", 4000);
+      ctx.step("Inactive /alarm route stayed on the React Alarm page and exposed its empty state");
     },
   },
 ];

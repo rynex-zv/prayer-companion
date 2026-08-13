@@ -147,7 +147,7 @@ public sealed class WebPrayerMonthFactory {
 
     private static Models.CalculationMethod ResolveMethod(AppSettings settings) =>
         settings.Method == Models.CalculationMethod.Auto
-            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode, settings.Location.TimeZoneId)
             : settings.Method;
 
     private static TimeZoneInfo ResolveTimeZone(string id) {

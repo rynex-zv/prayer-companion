@@ -62,7 +62,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private Android.Media.AudioManager? _androidAudioManager;
     private Android.Media.AudioFocusRequestClass? _androidAudioFocusRequest;
     private Android.Media.AudioManager.IOnAudioFocusChangeListener? _androidAudioFocusChangeListener;
+    private Android.OS.Vibrator? _androidAlarmVibrator;
     private bool _androidPausedForTransientLoss;
+    private const string AndroidControlChannelId = "adhan_playback_control_v2";
 #endif
 #if WINDOWS
     private Windows.Media.Playback.MediaPlayer? _windowsPlayer;
@@ -157,9 +159,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         try {
             var settings = _settingsService.Load();
             var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey ?? settings.Notifications.SoundKey);
-            if (AdhanSoundLibrary.IsSilent(effectiveSoundKey)) {
-                return false;
-            }
 
             var triggerTime = DateTime.Now.Add(delay <= TimeSpan.Zero ? TimeSpan.FromSeconds(12) : delay);
             var payload = AdhanAlarmPayload.Build(PrayerId.Fajr, effectiveSoundKey, triggerTime, triggerTime);
@@ -196,6 +195,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
             StopCore();
+            ClearPendingAlarmScreenState();
 #if ANDROID
             AlarmOverlayService.StopOverlay(Android.App.Application.Context);
             CancelAndroidControlNotification();
@@ -489,6 +489,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         }
 
         _logger.LogEvent("AdhanAlarmScreenRetry", $"reason={reason};payload={BuildAlarmPayloadKey(payload)}");
+        if (await GetActiveAlarmPresentationModelAsync().ConfigureAwait(false) == null) {
+            await ActivateAlarmAsync(payload, settings, showAlarmScreen: false).ConfigureAwait(false);
+        }
         await ShowAlarmPageAsync(payload, settings, queueOnFailure: true, navigationWait: TimeSpan.FromSeconds(3)).ConfigureAwait(false);
     }
 
@@ -520,8 +523,8 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         TimeSpan? navigationWait = null) {
         await _alarmScreenGate.WaitAsync().ConfigureAwait(false);
         try {
-            var navigation = await WaitForNavigationAsync(navigationWait ?? TimeSpan.FromSeconds(12)).ConfigureAwait(false);
-            if (navigation == null) {
+            var webPage = await WaitForMauiWebberPageAsync(navigationWait ?? TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+            if (webPage == null) {
                 if (queueOnFailure) {
                     QueuePendingAlarmScreen(payload);
                 }
@@ -529,27 +532,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
                 return false;
             }
 
-            var shown = false;
-            await MainThread.InvokeOnMainThreadAsync(async () => {
-                try {
-                    if (navigation.ModalStack.Count > 0 && navigation.ModalStack[^1] is Pages.AdhanSnoozePage) {
-                        ClearPendingAlarmScreen(payload);
-                        shown = true;
-                        return;
-                    }
-
-                    var page = _serviceProvider.GetRequiredService<Pages.AdhanSnoozePage>();
-
-                    await navigation.PushModalAsync(page);
-                    ClearPendingAlarmScreen(payload);
-                    shown = true;
-                } catch (Exception ex) {
-                    if (queueOnFailure) {
-                        QueuePendingAlarmScreen(payload);
-                    }
-                    _logger.LogException(ex, "AdhanPlaybackService.ShowAlarmPageAsync");
-                }
-            });
+            var shown = await webPage.NavigateToRouteAsync("/alarm", navigationWait ?? TimeSpan.FromSeconds(12)).ConfigureAwait(false);
+            if (shown) ClearPendingAlarmScreen(payload);
+            else if (queueOnFailure) QueuePendingAlarmScreen(payload);
             return shown;
         } finally {
             _alarmScreenGate.Release();
@@ -558,10 +543,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
     private async Task ActivateAlarmAsync(AdhanAlarmPayload payload, AppSettings settings, bool showAlarmScreen = true) {
         var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
-        if (source == null) {
-            return;
-        }
-
         var presentation = await BuildAlarmPresentationModelAsync(payload, settings).ConfigureAwait(false);
 
         await _gate.WaitAsync().ConfigureAwait(false);
@@ -570,7 +551,18 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
             _activeAlarmPayload = payload;
             _activeAlarmPresentation = presentation;
-            StartCore(source, settings.Notifications.AdhanVolume);
+            if (source != null) {
+                try {
+                    StartCore(source, settings.Notifications.AdhanVolume);
+                } catch (Exception ex) {
+                    _logger.LogException(ex, "AdhanPlaybackService.StartAlarmAudio");
+                }
+            } else {
+                _logger.LogEvent("AdhanAlarmAudio", $"source=none;soundKey={payload.SoundKey};prayer={payload.Prayer}");
+            }
+#if ANDROID
+            StartAndroidAlarmVibration(settings.Notifications, payload.Prayer);
+#endif
         } finally {
             _gate.Release();
         }
@@ -594,14 +586,17 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             Math.Abs((pending.NotifyTime - payload.NotifyTime).TotalSeconds) <= 2;
     }
 
-    private static async Task<INavigation?> WaitForNavigationAsync(TimeSpan timeout) {
+    private static async Task<MauiWebber.MauiWebberPage?> WaitForMauiWebberPageAsync(TimeSpan timeout) {
         var deadlineUtc = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadlineUtc) {
-            var navigation = Shell.Current?.Navigation
-                ?? Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page?.Navigation;
-            if (navigation != null) {
-                return navigation;
-            }
+            var shell = Shell.Current;
+            var section = shell?.CurrentItem?.CurrentItem;
+            var sectionStack = section?.Navigation?.NavigationStack;
+            if (sectionStack?.LastOrDefault() is MauiWebber.MauiWebberPage sectionPage) return sectionPage;
+            var shellStack = shell?.Navigation?.NavigationStack;
+            if (shellStack?.LastOrDefault() is MauiWebber.MauiWebberPage shellPage) return shellPage;
+            if (shell?.CurrentPage is MauiWebber.MauiWebberPage currentPage) return currentPage;
+            if (Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page is MauiWebber.MauiWebberPage rootPage) return rootPage;
 
             await Task.Delay(120).ConfigureAwait(false);
         }
@@ -818,7 +813,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
 
         Notification.Builder builder;
         if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
-            builder = new Notification.Builder(context, "adhan_playback_control");
+            builder = new Notification.Builder(context, AndroidControlChannelId);
         } else {
             builder = new Notification.Builder(context);
         }
@@ -994,13 +989,13 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             return;
         }
 
-        var existing = manager.GetNotificationChannel("adhan_playback_control");
+        var existing = manager.GetNotificationChannel(AndroidControlChannelId);
         if (existing != null) {
             return;
         }
 
         var channel = new NotificationChannel(
-            "adhan_playback_control",
+            AndroidControlChannelId,
             LocalizationManager.Translate("AdhanReminder"),
             NotificationImportance.High) {
             Description = LocalizationManager.Translate("AdhanPlaybackStopHint")
@@ -1130,7 +1125,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             }
 
             var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(payload.SoundKey);
-            if (AdhanSoundLibrary.IsSilent(effectiveSoundKey)) {
+            if (AdhanSoundLibrary.IsSilent(effectiveSoundKey) && !openAlarmScreen) {
                 return false;
             }
 
@@ -1452,6 +1447,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private void StopCore() {
+        StopCore(clearActiveState: true, stopAlarmVibration: true);
+    }
+
+    private void StopCore(bool clearActiveState, bool stopAlarmVibration = true) {
 #if ANDROID
         if (_androidPlayer != null) {
             try {
@@ -1466,6 +1465,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _androidPlayer = null;
         }
 
+        if (stopAlarmVibration) {
+            StopAndroidAlarmVibration();
+        }
         ReleaseAndroidAudioFocus();
 #endif
 
@@ -1495,13 +1497,136 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
         DeactivateAppleAudioSession();
 #endif
 
-        _activeScheduledPayload = null;
-        _activeAlarmPayload = null;
-        _activeAlarmPresentation = null;
+        if (clearActiveState) {
+            _activeScheduledPayload = null;
+            _activeAlarmPayload = null;
+            _activeAlarmPresentation = null;
+        }
+    }
+
+    private async Task HandlePlaybackCompletedAsync(string source) {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try {
+            var keepAlarm = _activeAlarmPayload.HasValue;
+            StopCore(clearActiveState: !keepAlarm, stopAlarmVibration: !keepAlarm);
+            if (keepAlarm) {
+                _logger.LogEvent("AdhanPlaybackCompleted", $"source={source};alarmState=kept");
+            }
+        } catch (Exception ex) {
+            _logger.LogException(ex, $"AdhanPlaybackService.HandlePlaybackCompletedAsync:{source}");
+        } finally {
+            _gate.Release();
+        }
     }
 
 #if ANDROID
     private static string NormalizeAssetPath(string path) => path.Replace('\\', '/');
+
+    private void StartAndroidAlarmVibration(NotificationSettings settings, PrayerId prayer) {
+        try {
+            StopAndroidAlarmVibration();
+
+            var enabled = ResolveAndroidVibrationEnabled(settings, prayer);
+            if (!enabled) {
+                _logger.LogEvent("AdhanAlarmVibration", $"state=disabled;prayer={prayer}");
+                return;
+            }
+
+            var context = Android.App.Application.Context;
+#pragma warning disable CA1422
+            var vibratorService = context?.GetSystemService(Context.VibratorService);
+#pragma warning restore CA1422
+            if (vibratorService is not Android.OS.Vibrator vibrator ||
+                !vibrator.HasVibrator) {
+                _logger.LogEvent("AdhanAlarmVibration", $"state=unavailable;prayer={prayer}");
+                return;
+            }
+
+            var timings = BuildAndroidAlarmVibrationTimings(settings);
+            var amplitudes = BuildAndroidAlarmVibrationAmplitudes(settings, timings.Length);
+            if (timings.Length < 3 || amplitudes.Length != timings.Length) {
+                return;
+            }
+
+            _androidAlarmVibrator = vibrator;
+            if (OperatingSystem.IsAndroidVersionAtLeast(26)) {
+                var attributesBuilder = new Android.Media.AudioAttributes.Builder();
+                attributesBuilder.SetUsage(Android.Media.AudioUsageKind.Alarm);
+                attributesBuilder.SetContentType(Android.Media.AudioContentType.Sonification);
+                using var attributes = attributesBuilder.Build();
+                if (attributes == null) {
+                    return;
+                }
+
+                using var effect = Android.OS.VibrationEffect.CreateWaveform(timings, amplitudes, 1);
+#pragma warning disable CA1422
+                vibrator.Vibrate(effect, attributes);
+#pragma warning restore CA1422
+            } else {
+#pragma warning disable CS0618
+                vibrator.Vibrate(timings, 1);
+#pragma warning restore CS0618
+            }
+
+            _logger.LogEvent("AdhanAlarmVibration", $"state=started;prayer={prayer};pattern={settings.VibrationPattern};strength={settings.VibrationStrength}");
+        } catch (Exception ex) {
+            _logger.LogException(ex, "AdhanPlaybackService.StartAndroidAlarmVibration");
+        }
+    }
+
+    private void ClearPendingAlarmScreenState() {
+        lock (_alarmScreenStateLock) {
+            _pendingAlarmScreenPayload = null;
+        }
+    }
+
+    private void StopAndroidAlarmVibration() {
+        if (_androidAlarmVibrator == null) {
+            return;
+        }
+
+        try {
+            _androidAlarmVibrator.Cancel();
+        } catch {
+        } finally {
+            _androidAlarmVibrator = null;
+        }
+    }
+
+    private static bool ResolveAndroidVibrationEnabled(NotificationSettings settings, PrayerId prayer) {
+        var overrideSettings = settings.PrayerOverrides?
+            .FirstOrDefault(item => item.Prayer == prayer);
+        return overrideSettings?.EnableVibration ?? settings.EnableVibration;
+    }
+
+    private static long[] BuildAndroidAlarmVibrationTimings(NotificationSettings settings) {
+        var strength = settings.VibrationStrength switch {
+            VibrationStrength.Low => 450L,
+            VibrationStrength.Medium => 700L,
+            _ => 950L
+        };
+
+        return settings.VibrationPattern switch {
+            VibrationPattern.Long => new[] { 0L, strength * 2, 650L },
+            VibrationPattern.Pulse => new[] { 0L, strength, 180L, strength, 700L },
+            _ => new[] { 0L, strength, 350L }
+        };
+    }
+
+    private static int[] BuildAndroidAlarmVibrationAmplitudes(NotificationSettings settings, int length) {
+        var amplitude = settings.VibrationStrength switch {
+            VibrationStrength.Low => 110,
+            VibrationStrength.Medium => 190,
+            _ => 255
+        };
+
+        var amplitudes = new int[length];
+        for (var i = 1; i < length; i += 2) {
+            amplitudes[i] = amplitude;
+        }
+
+        return amplitudes;
+    }
 
     private bool TryAcquireAndroidAudioFocus() {
         var context = Android.App.Application.Context;
@@ -1683,7 +1808,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private void OnAndroidCompletion(object? sender, EventArgs e) {
-        _ = StopAsync();
+        _ = HandlePlaybackCompletedAsync("Android");
     }
 
     private sealed class AndroidAudioFocusChangeListener : Java.Lang.Object, Android.Media.AudioManager.IOnAudioFocusChangeListener {
@@ -1711,12 +1836,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private void OnWindowsMediaEnded(Windows.Media.Playback.MediaPlayer sender, object args) {
-        _ = StopAsync();
+        _ = HandlePlaybackCompletedAsync("Windows");
     }
 
     private void OnWindowsMediaFailed(Windows.Media.Playback.MediaPlayer sender, Windows.Media.Playback.MediaPlayerFailedEventArgs args) {
         _logger.LogException(new InvalidOperationException($"Windows media failed: {args.ErrorMessage}"), "AdhanPlaybackService.OnWindowsMediaFailed");
-        _ = StopAsync();
+        _ = HandlePlaybackCompletedAsync("WindowsFailed");
     }
 
     private void StartWindowsNotificationMonitor() {
@@ -1786,7 +1911,7 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     }
 
     private void OnAppleFinishedPlaying(object? sender, AVStatusEventArgs e) {
-        _ = StopAsync();
+        _ = HandlePlaybackCompletedAsync("Apple");
     }
 #endif
 

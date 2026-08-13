@@ -36,6 +36,8 @@ public static class WebContractExporter {
         "calendar.nextMonth",
         "calendar.previousMonth",
         "qibla.getSnapshot",
+        "qibla.startSensor",
+        "qibla.stopSensor",
         "qibla.updateHeading",
         "qibla.setHeadingMode",
         "qibla.adjustManualHeading",
@@ -64,6 +66,7 @@ public static class WebContractExporter {
         "location.reverseGeocode",
         "adhan.sound.addCustom",
         "adhan.sound.preview",
+        "adhan.sound.stopPreview",
         "adhan.sound.removeCustom",
         "external.openEmail",
         "external.call",
@@ -91,6 +94,11 @@ public static class WebContractExporter {
         "today.getSnapshot" or "calendar.getSnapshot" or "qibla.getSnapshot" or
         "tasbih.getSnapshot" or "alarm.getSnapshot" or "settings.getSnapshot" or
         "onboarding.getSnapshot" or "mauiWebber.getRemoteUrl" => RpcOperationKind.Query,
+        "alarm.test" or "notification.test" or
+        "permissions.request" or "permissions.requestAll" or
+        "location.refresh" or "location.reverseGeocode" or
+        "adhan.sound.addCustom" or "adhan.sound.preview" or "adhan.sound.stopPreview" or "adhan.sound.removeCustom" or
+        "external.openEmail" or "external.call" or "external.openUrl" or "external.reportIssue" or
         "automation.writeReports" or "mauiWebber.trace" or "mauiWebber.pullRemote" or "mauiWebber.useEmbedded" or "mauiWebber.clearSiteData" => RpcOperationKind.PlatformOperation,
         _ => RpcOperationKind.Command
     };

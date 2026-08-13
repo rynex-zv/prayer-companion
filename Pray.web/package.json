@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit",
     "check:architecture": "node scripts/check-client-boundaries.mjs",
     "test:runtime-defects": "node --experimental-strip-types scripts/test-runtime-defects.mjs",
+    "test:degraded-network": "node scripts/test-degraded-network.mjs",
     "automation:web": "node scripts/run-automation.mjs"
   },
   "dependencies": {

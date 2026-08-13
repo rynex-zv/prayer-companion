@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
-import { executeCommand, platformIntents } from "@/client/applicationClient";
+import { executeCommand, nativeBackendReady, platformIntents } from "@/client/applicationClient";
 import { appClient, type BootstrapResult } from "@/client/appClient";
+import { readBrowserPermissionStates, watchBrowserPermissionChanges, type BrowserPermissionStates } from "@/native/webPlatformAdapter";
 import bundledEnglishLabels from "../../../PrayAdFree/Resources/Raw/i18n/en.json";
 import bundledArabicLabels from "../../../PrayAdFree/Resources/Raw/i18n/ar.json";
 import bundledFrenchLabels from "../../../PrayAdFree/Resources/Raw/i18n/fr.json";
@@ -34,9 +35,17 @@ export type AppState = {
   accentColor: string;
   textSize: number;
   onboardingCompleted: boolean;
+  startupRoute: string;
+  startupIntent?: string;
   languages: { code: string; name: string; direction?: Direction }[];
   settings: Record<string, unknown>;
   fieldSync: Record<string, FieldSync>;
+  locationRuntime: {
+    status: "idle" | "checking" | "refreshing" | "ready" | "choice-required" | "error";
+    source?: "gps" | "ip" | "manual";
+    error?: string;
+    permissions?: BrowserPermissionStates;
+  };
 };
 
 type ShellSnapshot = {
@@ -64,6 +73,9 @@ type LocationSnapshot = {
   useGps?: boolean;
   latitude?: number;
   longitude?: number;
+  country?: string;
+  city?: string;
+  locationSource?: "gps" | "ip" | "manual" | "";
 };
 
 const defaultLanguageObject: LanguageObject = {
@@ -84,15 +96,20 @@ const defaultState: AppState = {
   accentColor: "teal",
   textSize: 100,
   onboardingCompleted: false,
+  startupRoute: "/",
+  startupIntent: undefined,
   languages: [],
   settings: {},
   fieldSync: {},
+  locationRuntime: { status: "idle" },
 };
 
 let state = defaultState;
 const listeners = new Set<() => void>();
 let languageTarget = state.languageObject;
 let systemThemeListenerAttached = false;
+let permissionWatcherAttached = false;
+let lastLocationPermission: BrowserPermissionStates["location"] | undefined;
 
 export const languageProxy = new Proxy({} as LanguageObject & Record<string, string>, {
   get(_target, prop) {
@@ -178,6 +195,8 @@ async function performBootstrap() {
     accentColor: backend.accentColor ?? state.accentColor,
     textSize: backend.textSize ?? state.textSize,
     onboardingCompleted: backend.onboardingCompleted,
+    startupRoute: response.data.startup?.route ?? "/",
+    startupIntent: response.data.startup?.intent,
     languages: backend.languages ?? state.languages,
     fieldSync: {
       ...state.fieldSync,
@@ -185,40 +204,93 @@ async function performBootstrap() {
     },
   });
 
-  void refreshGpsLocationAfterBootstrap();
+  installPermissionWatcher();
+  void synchronizeLocationAfterBootstrap();
 }
 
-async function refreshGpsLocationAfterBootstrap() {
-  try {
-    const location = await appClient.query<LocationSnapshot>({
-      name: "settings.getSnapshot",
-      payload: { section: "locations" },
-      domain: "settings",
-      projectionKey: "settings.locations",
-    });
-    if (!location.ok) return;
-    const locationRefresh = location.data.useGps === true
-      ? await platformIntents.refreshLocation()
-      : !hasUsableCoordinates(location.data.latitude, location.data.longitude)
-        ? await platformIntents.refreshLocation({ source: "ip" })
-        : undefined;
+async function synchronizeLocationAfterBootstrap(): Promise<"refreshed" | "blocked"> {
+  return await refreshAutomaticLocation() ? "refreshed" : "blocked";
+}
 
-    if (locationRefresh?.ok) {
-      await appClient.command({
-        name: "today.refresh",
-        domain: "today",
-        projectionKey: "today.snapshot",
-      });
+let resumePromise: Promise<void> | undefined;
+export function resumeAppState(): Promise<void> {
+  if (resumePromise) return resumePromise;
+  resumePromise = (async () => {
+    if (state.bootstrapStatus !== "ready") return;
+    await synchronizeLocationAfterBootstrap();
+  })().finally(() => { resumePromise = undefined; });
+  return resumePromise;
+}
+
+let locationRefreshPromise: Promise<boolean> | undefined;
+
+export function refreshAutomaticLocation(): Promise<boolean> {
+  if (locationRefreshPromise) return locationRefreshPromise;
+  locationRefreshPromise = refreshAppLocation("auto").finally(() => { locationRefreshPromise = undefined; });
+  return locationRefreshPromise;
+}
+
+export async function refreshAppLocation(source: "auto" | "gps" | "ip"): Promise<boolean> {
+  const previousRuntime = state.locationRuntime;
+  const requestedSource = source === "auto" ? state.locationRuntime.source : source;
+  updateState({ locationRuntime: { ...state.locationRuntime, status: "refreshing", source: requestedSource, error: undefined } });
+  const response = await platformIntents.refreshLocation({ source });
+  if (!response.ok) {
+    // A transient resume/GPS failure must not discard a previously confirmed
+    // location and replace the whole Today page with a source chooser.
+    updateState({ locationRuntime: previousRuntime.status === "ready"
+      ? { ...previousRuntime, status: "ready", error: undefined }
+      : { ...state.locationRuntime, status: "error", source: requestedSource, error: response.error } });
+    return false;
+  }
+  const payload = response.data as { location?: LocationSnapshot; changed?: boolean } | undefined;
+  const location = payload?.location ?? response.data as LocationSnapshot | undefined;
+  if (!nativeBackendReady() && (!location?.country || !location?.city)) {
+    updateState({ locationRuntime: { ...state.locationRuntime, status: "error", source: requestedSource, error: getLabel("locationAddressUnavailable") } });
+    return false;
+  }
+  const actualSource = location?.locationSource || (location?.useGps ? "gps" : source === "ip" ? "ip" : "manual");
+  updateState({ locationRuntime: { ...state.locationRuntime, status: "ready", source: actualSource, error: undefined } });
+  if (payload?.changed !== false) await refreshTodayForLocation();
+  return true;
+}
+
+export async function confirmAppLocation(location: Pick<LocationSnapshot, "latitude" | "longitude">): Promise<boolean> {
+  if (!hasUsableCoordinates(location.latitude, location.longitude)) {
+    updateState({ locationRuntime: { ...state.locationRuntime, status: "choice-required" } });
+    return false;
+  }
+  updateState({ locationRuntime: { ...state.locationRuntime, status: "ready", error: undefined } });
+  await refreshTodayForLocation();
+  return true;
+}
+
+async function refreshTodayForLocation(): Promise<void> {
+  const refreshed = await appClient.command({ name: "today.refresh", domain: "today", projectionKey: "today.snapshot" });
+  if (!refreshed.ok) {
+    if (state.locationRuntime.status !== "ready") {
+      updateState({ locationRuntime: { ...state.locationRuntime, status: "error", error: refreshed.error.message } });
     }
-  } catch {
-    return;
   }
 }
 
+function installPermissionWatcher() {
+  if (permissionWatcherAttached || nativeBackendReady()) return;
+  permissionWatcherAttached = true;
+  watchBrowserPermissionChanges((permissions) => {
+    const previous = lastLocationPermission;
+    lastLocationPermission = permissions.location;
+    updateState({ locationRuntime: { ...state.locationRuntime, permissions } });
+    if (previous !== undefined && previous !== permissions.location) {
+      void refreshAutomaticLocation();
+    }
+  });
+}
+
 function hasUsableCoordinates(latitude?: number, longitude?: number): boolean {
-  return Number.isFinite(latitude) && Number.isFinite(longitude) &&
-    Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180 &&
-    (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
+  return Number.isFinite(latitude) && Number.isFinite(longitude)
+    && Math.abs(latitude ?? 0) <= 90 && Math.abs(longitude ?? 0) <= 180
+    && (Math.abs(latitude ?? 0) > 0.000001 || Math.abs(longitude ?? 0) > 0.000001);
 }
 
 const bundledLabelsByLanguage: Record<string, Record<string, string>> = {

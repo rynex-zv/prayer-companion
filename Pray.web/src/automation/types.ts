@@ -37,6 +37,8 @@ declare global {
   interface Window {
     __prayAutomationResult?: AutomationRunResult;
     __prayAutomationScenario?: string;
+    __prayAutomationActive?: boolean;
     __prayRpcPendingCalls?: Set<number>;
+    __prayAutomationRunnerStarted?: boolean;
   }
 }

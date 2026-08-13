@@ -102,4 +102,33 @@ public class WidgetSnapshotFactoryTests {
         Assert.Equal(PrayerId.Dhuhr, result.DailyPrayer.NextPrayerId);
         Assert.True(result.Fasting.IsIftarNext);
     }
+
+    [Fact]
+    public void DailyPrayerSnapshotFactory_AfterIsha_ShowsTomorrowsExactPrayerRows() {
+        var now = DateTime.Today.AddHours(23);
+        var settings = new AppSettings();
+        var today = BuildPrayerDay(DateTime.Today, 5, 19);
+        var tomorrow = BuildPrayerDay(DateTime.Today.AddDays(1), 5.25, 19.25);
+
+        var snapshot = new DailyPrayerSnapshotFactory().Build(today, tomorrow, settings, now);
+
+        Assert.True(snapshot.IsNextPrayerTomorrow);
+        Assert.Equal(PrayerId.Fajr, snapshot.NextPrayerId);
+        Assert.Equal(DateTime.Today.AddDays(1).AddHours(5.25), snapshot.NextPrayerTime);
+        Assert.All(snapshot.Entries, entry => Assert.Equal(DateTime.Today.AddDays(1), entry.AdjustedTime.Date));
+        Assert.Single(snapshot.Entries, entry => entry.IsNext && entry.Prayer == PrayerId.Fajr);
+    }
+
+    private static PrayerDay BuildPrayerDay(DateTime date, double fajrHour, double ishaHour) => new() {
+        Date = DateOnly.FromDateTime(date),
+        Timings = new PrayerTimings {
+            Fajr = date.AddHours(fajrHour),
+            Sunrise = date.AddHours(6.5),
+            Dhuhr = date.AddHours(12),
+            Asr = date.AddHours(15),
+            Maghrib = date.AddHours(18),
+            Isha = date.AddHours(ishaHour),
+            Imsak = date.AddHours(4.5)
+        }
+    };
 }

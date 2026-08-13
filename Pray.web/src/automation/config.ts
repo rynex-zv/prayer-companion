@@ -20,6 +20,15 @@ export function automationEnabled(): boolean {
       : enabled(import.meta.env.VITE_PRAY_AUTOMATION_WEB);
 }
 
+export function latchAutomationRuntime(): void {
+  if (!automationEnabled()) throw new Error("Automation runtime cannot start outside the gated test route.");
+  window.__prayAutomationActive = true;
+}
+
+export function automationRuntimeActive(): boolean {
+  return enabled(import.meta.env.VITE_PRAY_AUTOMATION) && window.__prayAutomationActive === true;
+}
+
 export function automationRouteActive(): boolean {
   const pathname = normalizeRoute(window.location.pathname);
   const hashRoute = normalizeRoute(window.location.hash.replace(/^#/, "").split("?")[0]);

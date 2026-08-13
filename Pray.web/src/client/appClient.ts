@@ -14,7 +14,7 @@ export type BootstrapResult = {
 };
 
 export type AppQuery<T> = { name: string; payload?: unknown; domain: string; projectionKey: string; ifRevision?: number; signal?: AbortSignal };
-export type AppCommand<T> = { name: string; payload?: unknown; domain: string; projectionKey?: string; expectedRevision?: number; signal?: AbortSignal };
+export type AppCommand<T> = { name: string; payload?: unknown; domain: string; projectionKey?: string; projectionData?: (data: T) => unknown; expectedRevision?: number; signal?: AbortSignal };
 
 export interface AppClient {
   bootstrap<T>(request: Omit<AppQuery<T>, "name">): Promise<QueryResult<T>>;
@@ -73,8 +73,9 @@ class DefaultAppClient implements AppClient {
       setRequest(requestKey, { status: error.code === "cancelled" ? "cancelled" : "error", requestId, error: error.message, completedAt: Date.now() });
       return { ok: false, requestId, commandId, error };
     }
-    this.acceptEvents(response.events);
-    const revision = command.projectionKey ? installConfirmed(command.projectionKey, command.domain, response.data) : installConfirmed(`command:${command.name}`, command.domain, response.data);
+    this.acceptCommandEvents(response.events, requestId, command.projectionKey);
+    const confirmedData = command.projectionData ? command.projectionData(response.data) : response.data;
+    const revision = command.projectionKey ? installConfirmed(command.projectionKey, command.domain, confirmedData) : installConfirmed(`command:${command.name}`, command.domain, response.data);
     setRequest(requestKey, { status: "success", requestId, completedAt: Date.now() });
     return { ok: true, requestId, commandId, revision, changedDomains: [command.domain], data: response.data };
   }
@@ -120,13 +121,37 @@ class DefaultAppClient implements AppClient {
     }
   }
 
+  private acceptCommandEvents(events: unknown[] | undefined, requestId: string, confirmedProjectionKey?: string): void {
+    for (const value of events ?? []) {
+      const event = value as AppEvent;
+      const isOwnGenericInvalidation = Boolean(confirmedProjectionKey)
+        && event.causeRequestId === requestId
+        && event.type === "domain.changed"
+        && Boolean(event.invalidationKey);
+      if (isOwnGenericInvalidation) applyAppEvent(event, confirmedProjectionKey);
+      else this.acceptEvent(event);
+      // Other tabs did not receive this command response and still need the
+      // invalidation event. BroadcastChannel does not echo to its sender.
+      this.broadcast?.postMessage(event);
+    }
+  }
+
   private acceptEvent(event: AppEvent): void {
     if (!event) return;
+    if (event.type.startsWith("platform.operation.")) {
+      const payload = event.payload as { projectionKey?: string; data?: unknown } | undefined;
+      if (payload?.projectionKey) {
+        if (Number.isFinite(event.sequence) && Number.isFinite(event.revision) && event.domain) {
+          applyAppEvent(event);
+        } else {
+          installConfirmed(payload.projectionKey, payload.projectionKey.split(".", 1)[0], payload.data);
+        }
+      }
+      eventListeners.forEach((listener) => listener(event));
+      return;
+    }
     const applied = applyAppEvent(event);
-    // Platform completion is a one-shot correlation signal. A newer domain
-    // revision may legitimately arrive first, but the waiting caller must still
-    // receive the completion for its operation ID.
-    if (applied || event.type.startsWith("platform.operation.")) {
+    if (applied) {
       eventListeners.forEach((listener) => listener(event));
     }
   }

@@ -1,11 +1,18 @@
-{
-  "files": [
-    {
-      "platform": "android",
-      "kind": "apk",
-      "url": "/downloads/android/com.rynex.prayer-Signed.apk",
-      "label": "Download Android APK",
-      "version": "2026-08-11"
-    }
-  ]
+﻿{
+    "files":  [
+                  {
+                      "url":  "/downloads/android/PrayAdFree-Android-0.0.504-web422.apk",
+                      "version":  "0.0.504 (web 422)",
+                      "platform":  "android",
+                      "label":  "Download Android APK",
+                      "kind":  "apk"
+                  },
+                  {
+                      "url":  "/downloads/windows/PrayAdFree-Windows-x64-0.0.501-web418.zip",
+                      "version":  "0.0.501 (web 418)",
+                      "platform":  "windows",
+                      "label":  "Download Windows x64 ZIP",
+                      "kind":  "zip"
+                  }
+              ]
 }

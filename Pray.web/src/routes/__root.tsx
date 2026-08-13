@@ -20,6 +20,13 @@ import { traceClientEvent } from "@/client/applicationClient";
 import { getLabel } from "@/state/appStore";
 
 function NotFoundComponent() {
+  const router = useRouter();
+  useEffect(() => {
+    const committedVersion = sessionStorage.getItem("pray.web.lastCommitVersion");
+    if (!committedVersion) return;
+    sessionStorage.removeItem("pray.web.lastCommitVersion");
+    void router.navigate({ to: "/", replace: true });
+  }, [router]);
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="max-w-md text-center">

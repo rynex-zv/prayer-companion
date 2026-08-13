@@ -10,6 +10,10 @@ public static class MethodResolver {
         ["QA"] = CalculationMethod.Qatar,
         ["TR"] = CalculationMethod.Turkey,
         ["EG"] = CalculationMethod.Egypt,
+        // Iraq is an explicit regional mapping, not a generic fallback. The
+        // shared MWL parameters (Fajr 18°, Isha 17°) are used by the
+        // published Baghdad, Mosul, Erbil, Karbala and Nasiriyah schedules.
+        ["IQ"] = CalculationMethod.MuslimWorldLeague,
         ["PK"] = CalculationMethod.Karachi,
         ["IN"] = CalculationMethod.Karachi,
         ["US"] = CalculationMethod.Isna,
@@ -28,10 +32,19 @@ public static class MethodResolver {
         ["JO"] = CalculationMethod.Jordan
     };
 
-    public static CalculationMethod ResolveRequired(string? countryCode) {
+    private static readonly Dictionary<string, CalculationMethod> TimeZoneMethods = new(StringComparer.OrdinalIgnoreCase) {
+        ["Asia/Dubai"] = CalculationMethod.Dubai,
+        ["Asia/Baghdad"] = CalculationMethod.MuslimWorldLeague,
+        ["Europe/Amsterdam"] = CalculationMethod.MuslimWorldLeague
+    };
+
+    public static CalculationMethod ResolveRequired(string? countryCode, string? timeZoneId = null) {
         if (string.IsNullOrWhiteSpace(countryCode)) {
+            if (!string.IsNullOrWhiteSpace(timeZoneId) && TimeZoneMethods.TryGetValue(timeZoneId.Trim(), out var timeZoneMethod)) {
+                return timeZoneMethod;
+            }
             throw new ArgumentException(
-                "Automatic calculation requires a country code. Select a location or choose a calculation method explicitly.",
+                "Automatic calculation requires a country code or a recognized location time zone. Select a location or choose a calculation method explicitly.",
                 nameof(countryCode));
         }
 

@@ -14,4 +14,5 @@ public sealed class LocationSettings {
     public double Longitude { get; init; }
     public string TimeZoneId { get; init; } = "";
     public DateTime? LastUpdatedUtc { get; init; }
+    public string Source { get; init; } = "";
 }

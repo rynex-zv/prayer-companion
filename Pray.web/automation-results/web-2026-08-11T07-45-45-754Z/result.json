@@ -1,0 +1,25 @@
+{
+  "runId": "web-2026-08-11T07-45-45-754Z",
+  "platform": "web",
+  "startedAt": "2026-08-11T07:45:45.754Z",
+  "completedAt": "2026-08-11T07:45:57.930Z",
+  "passed": [],
+  "failed": [
+    {
+      "id": "02-today-calendar",
+      "name": "User checks prayer times and explores the calendar",
+      "documentation": "02-today-calendar.md",
+      "passed": false,
+      "durationMs": 12137,
+      "assertions": 1,
+      "steps": [
+        "Navigated to /"
+      ],
+      "warnings": [],
+      "failedAssertion": "Timed out waiting for today:refresh",
+      "stack": "AutomationAssertionError: Timed out waiting for today:refresh\n    at m (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:1:5026)\n    at async Z.waitForSelector (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:1:1880)\n    at async Object.run (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:3:2742)"
+    }
+  ],
+  "passedMarkdown": "# Passed automation scenarios\n\n- Run: `web-2026-08-11T07-45-45-754Z`\n- Platform: `web`\n- Passed: **0**\n- Failed: **1**\n",
+  "failedMarkdown": "# Failed automation scenarios\n\n- Run: `web-2026-08-11T07-45-45-754Z`\n- Platform: `web`\n- Failed: **1**\n- Passed: **0**\n\n## 02-today-calendar — User checks prayer times and explores the calendar\n\n- Documentation: `02-today-calendar.md`\n- Duration: 12137 ms\n- Assertions completed: 1\n- Failed assertion: **Timed out waiting for today:refresh**\n\n### Completed steps\n\n- Navigated to /\n\n### Stack\n\n```text\nAutomationAssertionError: Timed out waiting for today:refresh\n    at m (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:1:5026)\n    at async Z.waitForSelector (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:1:1880)\n    at async Object.run (http://127.0.0.1:4179/assets/runner-CcvJfk86.js:3:2742)\n```\n"
+}

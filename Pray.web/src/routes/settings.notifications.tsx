@@ -11,6 +11,7 @@ export const Route = createFileRoute("/settings/notifications")({
 });
 
 type NotificationSettings = {
+  showWindowsControls?: boolean;
   enableAdhan: boolean;
   mobilePrimaryAdhanType: string;
   hideOnCloseWindows: boolean;
@@ -94,11 +95,11 @@ function NotificationsPage() {
         />
       </SectionBlock>
 
-      <SectionBlock title={t("systemPermissions")}>
+      {data.showWindowsControls === true ? <SectionBlock title={t("systemPermissions")}>
         <ToggleSetting label={t("hideOnCloseWindows")} checked={data.hideOnCloseWindows} onChange={(hideOnCloseWindows) => patch({ ...data, hideOnCloseWindows })} selectorName="notifications:hide-on-close" onLabel={t("enabled")} offLabel={t("disabled")} />
         <ToggleSetting label={t("runBackgroundWindows")} checked={data.runBackgroundServiceWindows} onChange={(runBackgroundServiceWindows) => patch({ ...data, runBackgroundServiceWindows })} selectorName="notifications:run-background" onLabel={t("enabled")} offLabel={t("disabled")} />
         <p className="text-xs text-muted-foreground">{t("windowsBackgroundServiceHint")}</p>
-      </SectionBlock>
+      </SectionBlock> : null}
 
       <SectionBlock title={t("adhanReminders")}>
         {data.pendingDeferredReminder ? (

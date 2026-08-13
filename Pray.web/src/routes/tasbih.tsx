@@ -64,10 +64,10 @@ function TasbihRing({
   const busyRef = useRef(false);
   const ignoreNextClick = useRef(false);
 
-  const size = 340;
+  const size = 280;
   const centerX = size / 2;
   const centerY = size / 2;
-  const radius = 138;
+  const radius = 112;
   const dragStep = 32;
   const swipeThreshold = 22;
 
@@ -214,8 +214,8 @@ function TasbihRing({
         style={{
           left: centerX,
           top: centerY,
-          width: 200,
-          height: 200,
+          width: 164,
+          height: 164,
           transform: "translate(-50%, -50%)",
           backgroundImage:
             "radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--color-primary) 8%, transparent) 0%, transparent 60%)",

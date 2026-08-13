@@ -13,9 +13,9 @@ namespace Pray_Ad_Free.Services;
 
 public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     private const int ScheduleReconciliationVersion = 2;
-    public const string PrayerNotificationChannelId = "prayer_notification_v3";
-    public const string PrayerRuntimeMediaChannelId = "prayer_runtime_media_v3";
-    public const string PrayerSilentChannelId = "prayer_silent_v3";
+    public const string PrayerNotificationChannelId = "prayer_notification_v4";
+    public const string PrayerRuntimeMediaChannelId = "prayer_runtime_media_v4";
+    public const string PrayerSilentChannelId = "prayer_silent_v4";
 
     private static readonly TimeSpan ScheduleReuseWindow = TimeSpan.FromSeconds(30);
 
@@ -84,8 +84,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 foreach (var item in schedule) {
                     var prayerName = LocalizationManager.TranslatePrayer(item.Prayer);
                     var overrideSettings = FindOverride(settings.Notifications.PrayerOverrides, item.Prayer);
-                    var soundKey = overrideSettings?.SoundKey ?? settings.Notifications.SoundKey;
-                    var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey);
+                    var effectiveSoundKey = AdhanSoundLibrary.ResolvePrayerEffectiveSoundKey(settings.Notifications, overrideSettings?.SoundKey);
                     var isSilent = AdhanSoundLibrary.IsSilent(effectiveSoundKey);
                     var notificationSound = ResolveSystemNotificationSound(settings.Notifications, effectiveSoundKey, isSilent);
                     var isCustomSound = AdhanSoundLibrary.IsCustomSound(settings.Notifications, effectiveSoundKey);
@@ -118,12 +117,10 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                             Description = notificationBody,
                             Silent = ResolveNotificationSilent(playRuntimeAdhan, isSilent),
                             Sound = playRuntimeAdhan ? string.Empty : notificationSound ?? string.Empty,
-                            ReturningData = isSilent
-                                ? string.Empty
+                            ReturningData = openAlarmScreen
+                                ? AdhanAlarmPayload.Build(item.Prayer, effectiveSoundKey, item.Time, item.Time)
                                 : playRuntimeAdhan
-                                    ? openAlarmScreen
-                                        ? AdhanAlarmPayload.Build(item.Prayer, effectiveSoundKey, item.Time, item.Time)
-                                        : AdhanNotificationPayload.BuildPlay(item.Prayer, effectiveSoundKey)
+                                    ? AdhanNotificationPayload.BuildPlay(item.Prayer, effectiveSoundKey)
                                     : AdhanPlaybackService.ControlReturningData,
                             Schedule = new NotificationRequestSchedule {
                                 NotifyTime = ToLocalKind(item.Time),
@@ -139,7 +136,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                             Android = new AndroidOptions {
                                 Priority = AndroidPriority.Max,
                                 ChannelId = BuildAndroidChannelId(effectiveSoundKey, isSilent, playRuntimeAdhan, AdhanReminderAlertType.Adhan),
-                                VibrationPattern = isSilent ? Array.Empty<long>() : BuildVibration(settings.Notifications, vibrationOverride),
+                                VibrationPattern = BuildVibration(settings.Notifications, vibrationOverride),
                                 VisibilityType = openAlarmScreen ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
                                 LaunchApp = openAlarmScreen ? new AndroidLaunch { InHighPriority = true } : null,
                                 LaunchAppWhenTapped = openAlarmScreen || !playRuntimeAdhan
@@ -443,8 +440,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         for (var p = 0; p < prayers.Length; p++) {
             var prayer = prayers[p];
             var overrideSettings = FindOverride(notificationSettings.PrayerOverrides, prayer);
-            var soundKey = overrideSettings?.SoundKey ?? notificationSettings.SoundKey;
-            var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(soundKey);
+            var effectiveSoundKey = AdhanSoundLibrary.ResolvePrayerEffectiveSoundKey(notificationSettings, overrideSettings?.SoundKey);
             var isCustomSound = AdhanSoundLibrary.IsCustomSound(notificationSettings, effectiveSoundKey);
             var baseTime = day.Timings.Get(prayer);
 
@@ -477,13 +473,13 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     CategoryType = effectiveOpenAlarm ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
                     Title = LocalizationManager.Translate("AdhanReminder"),
                     Description = BuildAdhanReminderDescription(prayer, reminder.OffsetMinutes, normalizedAlertType),
-                    Silent = ResolveNotificationSilent(playRuntimeAdhan, false),
+                    Silent = ResolveNotificationSilent(playRuntimeAdhan, isSilent),
                     Sound = playRuntimeAdhan ? string.Empty : notificationSound,
-                    ReturningData = playRuntimeAdhan
-                        ? effectiveOpenAlarm
-                            ? AdhanAlarmPayload.Build(prayer, effectiveSoundKey, baseTime, notifyTime)
-                            : AdhanNotificationPayload.BuildPlay(prayer, effectiveSoundKey)
-                        : string.Empty,
+                    ReturningData = effectiveOpenAlarm
+                        ? AdhanAlarmPayload.Build(prayer, effectiveSoundKey, baseTime, notifyTime)
+                        : playRuntimeAdhan
+                            ? AdhanNotificationPayload.BuildPlay(prayer, effectiveSoundKey)
+                            : string.Empty,
                     Schedule = new NotificationRequestSchedule {
                         NotifyTime = ToLocalKind(notifyTime),
                         NotifyRepeatInterval = null
@@ -525,7 +521,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
         }
 
         var effectiveSoundKey = AdhanSoundLibrary.ResolveEffectiveSoundKey(pending.SoundKey);
-        if (AdhanSoundLibrary.IsSilent(effectiveSoundKey)) {
+        var isSilent = AdhanSoundLibrary.IsSilent(effectiveSoundKey);
+        if (isSilent && !pending.OpenAlarmScreen) {
             return;
         }
 
@@ -540,7 +537,7 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
             CategoryType = effectiveOpenAlarm ? NotificationCategoryType.Alarm : NotificationCategoryType.None,
             Title = LocalizationManager.Translate("AdhanReminder"),
             Description = LocalizationManager.Translate("SnoozeReminderBody"),
-            Silent = ResolveNotificationSilent(useRuntimeAdhanPlayback, false),
+            Silent = ResolveNotificationSilent(useRuntimeAdhanPlayback, isSilent),
             Sound = string.Empty,
             ReturningData = effectiveOpenAlarm
                 ? AdhanAlarmPayload.Build(
@@ -548,7 +545,9 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                     effectiveSoundKey,
                     pending.BasePrayerTime == default ? pending.NotifyTime : pending.BasePrayerTime,
                     pending.NotifyTime)
-                : AdhanNotificationPayload.BuildPlay(pending.Prayer, effectiveSoundKey),
+                : isSilent
+                    ? string.Empty
+                    : AdhanNotificationPayload.BuildPlay(pending.Prayer, effectiveSoundKey),
             Schedule = new NotificationRequestSchedule {
                 NotifyTime = ToLocalKind(pending.NotifyTime),
                 NotifyRepeatInterval = null
@@ -564,8 +563,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
                 Priority = effectiveOpenAlarm ? AndroidPriority.Max : AndroidPriority.Default,
                 ChannelId = BuildAndroidChannelId(
                     effectiveSoundKey,
-                    false,
-                    true,
+                    isSilent,
+                    useRuntimeAdhanPlayback && !isSilent,
                     effectiveOpenAlarm ? AdhanReminderAlertType.Alarm : AdhanReminderAlertType.Adhan),
                 VibrationPattern = BuildVibration(settings.Notifications),
                 VisibilityType = effectiveOpenAlarm ? AndroidVisibilityType.Public : AndroidVisibilityType.Private,
@@ -689,7 +688,8 @@ public sealed class LocalNotificationScheduler : ILocalNotificationScheduler {
     private static bool ResolveNotificationSilent(bool useRuntimeAdhanPlayback, bool isSilent) {
 #if ANDROID
         _ = useRuntimeAdhanPlayback;
-        return isSilent;
+        _ = isSilent;
+        return false;
 #else
         return useRuntimeAdhanPlayback || isSilent;
 #endif

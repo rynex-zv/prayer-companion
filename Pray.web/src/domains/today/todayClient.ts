@@ -49,10 +49,5 @@ export function useToday() {
   useEffect(() => {
     if (bootstrapStatus === "ready" && !data) void refresh();
   }, [bootstrapStatus, data, refresh]);
-  useEffect(() => appClient.subscribe((event) => {
-    if ((event.domain === "today" && event.type !== "domain.changed") || event.domain === "settings" || event.domain === "location") {
-      void refresh();
-    }
-  }), [refresh]);
   return { data, loading, refresh };
 }

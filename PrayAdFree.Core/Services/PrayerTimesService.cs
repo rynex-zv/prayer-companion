@@ -37,7 +37,7 @@ public sealed class PrayerTimesService {
 
     public static string BuildCacheKey(AppSettings settings, int year, int month) {
         var method = settings.Method == CalculationMethod.Auto
-            ? MethodResolver.ResolveRequired(settings.Location.CountryCode)
+            ? MethodResolver.ResolveRequired(settings.Location.CountryCode, settings.Location.TimeZoneId)
             : settings.Method;
         var raw = string.Join('|',
             $"schema:{CacheSchemaVersion}",

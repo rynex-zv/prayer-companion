@@ -32,13 +32,13 @@ function TasbihSettingsPage() {
       <StatusLine selectorName="settings-tasbih:status" value={t(`status_${status}`)} />
 
       <SectionBlock title={t("tasbihPresets")}>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <input
             value={newPresetName}
             onChange={(event) => setNewPresetName(event.currentTarget.value)}
             placeholder={t("newPresetName")}
             data-selector-name="settings-tasbih:new-preset-name"
-            className="min-h-9 rounded-md border border-input bg-card px-3 py-2 text-sm"
+            className="min-h-9 min-w-0 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
           />
           <button
             type="button"
@@ -117,20 +117,20 @@ function TasbihSettingsPage() {
               </button>
             </div>
           ))}
-          <div className="grid grid-cols-[2fr_1fr] gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <input
               value={newItemText}
               onChange={(event) => setNewItemText(event.currentTarget.value)}
               placeholder={t("itemText")}
               data-selector-name={`settings-tasbih:new-item-text:${preset.id}`}
-              className="min-h-9 rounded-md border border-input bg-card px-3 py-2 text-sm"
+              className="min-h-9 min-w-0 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
             />
             <input
               value={newItemCount}
               onChange={(event) => setNewItemCount(event.currentTarget.value)}
               placeholder={t("targetCount")}
               data-selector-name={`settings-tasbih:new-item-count:${preset.id}`}
-              className="min-h-9 rounded-md border border-input bg-card px-3 py-2 text-sm"
+              className="min-h-9 min-w-0 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
               dir="ltr"
             />
           </div>

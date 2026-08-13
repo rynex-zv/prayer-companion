@@ -6,4 +6,5 @@ public sealed class GeoLocationResult {
     public string CountryCode { get; init; } = "";
     public double Latitude { get; init; }
     public double Longitude { get; init; }
+    public string TimeZoneId { get; init; } = "";
 }

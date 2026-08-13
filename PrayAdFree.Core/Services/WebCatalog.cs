@@ -7,11 +7,11 @@ namespace PrayAdFree.Core.Services;
 public static class WebCatalog {
     public static IReadOnlyList<WebLanguageOption> Languages { get; } = new[] {
         new WebLanguageOption("en", "English", "ltr"),
-        new WebLanguageOption("ar", "العربية", "rtl"),
-        new WebLanguageOption("fr", "Français", "ltr"),
-        new WebLanguageOption("es", "Español", "ltr"),
-        new WebLanguageOption("tr", "Türkçe", "ltr")
+        new WebLanguageOption("ar", "العربية", "rtl")
     };
+
+    public static bool IsSupportedLanguage(string? language) =>
+        Languages.Any(item => string.Equals(item.Code, language, StringComparison.Ordinal));
 
     public static IReadOnlyList<string> AccentColors { get; } = new[] {
         "teal", "green", "blue", "amber", "rose"
@@ -31,14 +31,16 @@ public static class WebCatalog {
     };
 
     public static IReadOnlyList<WebLabeledOption> QiblaReadingModes { get; } = new[] {
-        new WebLabeledOption("compass", "compass"),
-        new WebLabeledOption("map", "map")
+        new WebLabeledOption("Smooth", "CompassReading_Smooth"),
+        new WebLabeledOption("Balanced", "CompassReading_Balanced"),
+        new WebLabeledOption("Fast", "CompassReading_Fast"),
+        new WebLabeledOption("Raw", "CompassReading_Raw")
     };
 
     public static IReadOnlyList<WebLabeledOption> QiblaFilterModes { get; } = new[] {
-        new WebLabeledOption("none", "filter_none"),
-        new WebLabeledOption("night", "filter_night"),
-        new WebLabeledOption("contrast", "filter_contrast")
+        new WebLabeledOption("Off", "CompassFilter_Off"),
+        new WebLabeledOption("Normal", "CompassFilter_Normal"),
+        new WebLabeledOption("Strict", "CompassFilter_Strict")
     };
 
     public static WebAdhanDefaults AdhanDefaults { get; } = new(
@@ -96,6 +98,17 @@ public static class WebCatalog {
         new WebAdhanSoundOption("adhan_default", "Default", true, false, true)
     };
 
+    public static IReadOnlyList<WebLabeledOption> QiblaDisplayModes { get; } = new[] {
+        new WebLabeledOption("compass", "compass"),
+        new WebLabeledOption("map", "map")
+    };
+
+    public static IReadOnlyList<WebLabeledOption> QiblaVisualFilters { get; } = new[] {
+        new WebLabeledOption("none", "filter_none"),
+        new WebLabeledOption("night", "filter_night"),
+        new WebLabeledOption("contrast", "filter_contrast")
+    };
+
     public static IReadOnlyList<WebReminderOption> BuiltInAlarmReminders { get; } = new[] {
         new WebReminderOption("wudu", "Make wudu before prayer", true),
         new WebReminderOption("qibla", "Face the Qibla", true)
@@ -122,7 +135,7 @@ public static class WebCatalog {
     public static bool IsRtl(string language) => string.Equals(NormalizeLanguage(language), "ar", StringComparison.Ordinal);
 
     public static string NormalizeLanguage(string? language) =>
-        Languages.Any(item => string.Equals(item.Code, language, StringComparison.Ordinal))
+        IsSupportedLanguage(language)
             ? language!
             : throw new ArgumentException($"Unsupported language: '{language ?? "<missing>"}'.", nameof(language));
 

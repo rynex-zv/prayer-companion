@@ -10,6 +10,8 @@ namespace Pray_Ad_Free.Services;
 
 public sealed class AppLogger : IAppLogger {
     private const string Tag = "PrayAdFree";
+    private const long MaxLogBytes = 10 * 1024 * 1024;
+    private const int PreservedTailBytes = 2 * 1024 * 1024;
     private readonly string _exceptionPath;
     private readonly string _eventPath;
     private readonly object _lock = new();
@@ -54,8 +56,25 @@ public sealed class AppLogger : IAppLogger {
 
     private void Append(string path, string text) {
         lock (_lock) {
+            EnsureBounded(path);
             File.AppendAllText(path, text);
         }
+    }
+
+    private static void EnsureBounded(string path) {
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length <= MaxLogBytes) return;
+
+        byte[] tail;
+        using (var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+            var bytesToKeep = (int)Math.Min(PreservedTailBytes, source.Length);
+            tail = new byte[bytesToKeep];
+            source.Seek(-bytesToKeep, SeekOrigin.End);
+            source.ReadExactly(tail);
+        }
+
+        File.WriteAllBytes(path + ".previous", tail);
+        File.WriteAllText(path, $"===== log rotated UTC {DateTime.UtcNow:O}; previous tail={tail.Length} bytes ====={Environment.NewLine}");
     }
 
     private void FlushEvents() {

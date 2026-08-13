@@ -231,7 +231,6 @@ namespace Pray_Ad_Free {
 
             builder.Services.AddTransient<HomePage>();
             builder.Services.AddTransient<TodayWebPage>();
-            builder.Services.AddTransient<AdhanSnoozePage>();
             builder.Services.AddTransient<CalendarPage>();
             builder.Services.AddTransient<QiblaPage>();
             builder.Services.AddTransient<TasbihPage>();

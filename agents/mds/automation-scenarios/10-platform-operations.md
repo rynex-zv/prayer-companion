@@ -7,6 +7,8 @@
 
 ## Actions
 
+- Opened `/alarm` without an active alarm and verified automatic return to Today.
+
 - Sends each interactive operation with a stable operation ID.
 - Measures the initial typed-backend acknowledgement.
 - Waits for the matching asynchronous completion event without stopping later checks after a failure.

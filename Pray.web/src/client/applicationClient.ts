@@ -12,6 +12,13 @@ export async function executeCommand<T = unknown>(name: string, payload?: unknow
     : { ok: false, error: result.error.message, errorInfo: result.error };
 }
 
+export async function executeProjectionCommand<T>(name: string, projectionKey: string, payload?: unknown): Promise<ClientResponse<T>> {
+  const result = await appClient.command<T>({ name, payload, domain: name.split(".", 1)[0], projectionKey });
+  return result.ok
+    ? { ok: true, data: result.data }
+    : { ok: false, error: result.error.message, errorInfo: result.error };
+}
+
 type PlatformAck = { accepted?: boolean; operationId?: string };
 type PlatformEventPayload<T> = { operationId?: string; data?: T; error?: string };
 
@@ -54,7 +61,7 @@ export function traceClientEvent(name: string, payload?: Record<string, unknown>
 }
 
 export function updateSettingsSection<TResult, TValue = TResult>(section: string, value: TValue): Promise<ClientResponse<TResult>> {
-  return executeCommand<TResult>("settings.update", { section, field: "value", value });
+  return executeSettingsCommand<TResult, TValue>(section, value);
 }
 
 export type ConfirmedSettingsSection<T> = {
@@ -67,17 +74,31 @@ export type ConfirmedSettingsSection<T> = {
 };
 
 export function patchSettingsSection<T>(section: string, value: T): Promise<ClientResponse<ConfirmedSettingsSection<T>>> {
-  return executeCommand<ConfirmedSettingsSection<T>>("settings.update", { section, field: "value", value });
+  return executeSettingsCommand<ConfirmedSettingsSection<T>, T>(section, value);
+}
+
+async function executeSettingsCommand<TResult, TValue = TResult>(section: string, value: TValue): Promise<ClientResponse<TResult>> {
+  const result = await appClient.command<TResult>({
+    name: "settings.update",
+    payload: { section, field: "value", value },
+    domain: "settings",
+    projectionKey: `settings.${section}`,
+    projectionData: (data) => (data as { projection?: unknown }).projection ?? data,
+  });
+  return result.ok
+    ? { ok: true, data: result.data }
+    : { ok: false, error: result.error.message, errorInfo: result.error };
 }
 
 export const platformIntents = {
   requestPermission: (id: string) => executeInteractiveCommand("permissions.request", { id }),
   requestAllPermissions: () => executeInteractiveCommand("permissions.requestAll"),
-  refreshLocation: <T>(payload?: { source?: "gps" | "ip" }) => executeInteractiveCommand<T>("location.refresh", payload),
+  refreshLocation: <T>(payload?: { source?: "auto" | "gps" | "ip" }) => executeInteractiveCommand<T>("location.refresh", payload),
   reverseGeocode: <T>(latitude: number, longitude: number) => executeInteractiveCommand<T>("location.reverseGeocode", { latitude, longitude }),
   addCustomAdhanSound: () => executeInteractiveCommand("adhan.sound.addCustom"),
   previewAdhanSound: (id: string) => executeInteractiveCommand("adhan.sound.preview", { id }),
-  removeCustomAdhanSound: (id: string) => executeCommand("adhan.sound.removeCustom", { id }),
+  stopAdhanSoundPreview: () => executeInteractiveCommand("adhan.sound.stopPreview"),
+  removeCustomAdhanSound: (id: string) => executeInteractiveCommand("adhan.sound.removeCustom", { id }),
   testAlarm: () => executeInteractiveCommand("alarm.test"),
   testNotification: () => executeInteractiveCommand("notification.test"),
   openEmail: (to: string) => executeInteractiveCommand("external.openEmail", { to }),

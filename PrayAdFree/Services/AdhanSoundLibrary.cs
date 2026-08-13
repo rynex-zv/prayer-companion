@@ -7,6 +7,7 @@ namespace Pray_Ad_Free.Services;
 
 public static class AdhanSoundLibrary {
     public const string DefaultBuiltinKey = "adhan_builtin_01";
+    public const string UseGlobalKey = "use_global";
 
     private static readonly BuiltinSound[] BuiltinSounds = {
         new("adhan_builtin_01", "adhan_builtin_01.mp3", "Sound_Builtin_1"),
@@ -52,7 +53,7 @@ public static class AdhanSoundLibrary {
 
         if (string.IsNullOrWhiteSpace(soundKey) ||
             string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            string.Equals(soundKey, UseGlobalKey, StringComparison.OrdinalIgnoreCase)) {
             var fallback = BuiltinSounds.FirstOrDefault(item =>
                 item.Key.Equals(DefaultBuiltinKey, StringComparison.OrdinalIgnoreCase));
             return fallback?.FileName;
@@ -84,11 +85,20 @@ public static class AdhanSoundLibrary {
     public static string ResolveEffectiveSoundKey(string? soundKey) {
         if (string.IsNullOrWhiteSpace(soundKey) ||
             string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            string.Equals(soundKey, UseGlobalKey, StringComparison.OrdinalIgnoreCase)) {
             return DefaultBuiltinKey;
         }
 
         return soundKey.Trim();
+    }
+
+    public static string ResolvePrayerEffectiveSoundKey(NotificationSettings settings, string? prayerOverrideSoundKey) {
+        if (string.IsNullOrWhiteSpace(prayerOverrideSoundKey) ||
+            string.Equals(prayerOverrideSoundKey, UseGlobalKey, StringComparison.OrdinalIgnoreCase)) {
+            return ResolveEffectiveSoundKey(settings.SoundKey);
+        }
+
+        return ResolveEffectiveSoundKey(prayerOverrideSoundKey);
     }
 
     public static AdhanPlaybackSource? ResolvePlaybackSource(NotificationSettings settings, string? soundKey) {
@@ -140,7 +150,7 @@ public static class AdhanSoundLibrary {
 
         if (string.Equals(soundKey, "adhan_default", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(soundKey, "adhan_silent", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(soundKey, "use_global", StringComparison.OrdinalIgnoreCase)) {
+            string.Equals(soundKey, UseGlobalKey, StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
 

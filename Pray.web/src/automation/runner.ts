@@ -1,17 +1,20 @@
-import { automationEnabled, automationPlatform } from "./config";
+import { automationEnabled, automationPlatform, latchAutomationRuntime } from "./config";
 import { collectRpcTimings, ScenarioContext, waitFor, waitForAutomationApi } from "./harness";
 import { buildFailedMarkdown, buildPassedMarkdown, persistReports } from "./report";
 import { automationScenarios } from "./scenarios";
 import type { AutomationRunResult, ScenarioResult } from "./types";
 import { executeCommand } from "@/client/applicationClient";
+import { appClient } from "@/client/appClient";
 import { setOnboardingCompleted } from "@/state/appStore";
 import { describeRuntimeValue, observeRuntimeValue } from "./runtimeDefects";
 
 let started = false;
 
 export async function startAutomationRun(): Promise<void> {
-  if (started || !automationEnabled()) return;
+  if (started || window.__prayAutomationRunnerStarted === true || !automationEnabled()) return;
   started = true;
+  window.__prayAutomationRunnerStarted = true;
+  latchAutomationRuntime();
   document.body.dataset.automationStatus = "running";
   const startedAt = new Date().toISOString();
   const runId = `${automationPlatform()}-${startedAt.replace(/[:.]/g, "-")}`;
@@ -43,6 +46,7 @@ export async function startAutomationRun(): Promise<void> {
       : automationScenarios;
     if (requestedScenario && scenarios.length === 0) throw new Error(`Unknown automation scenario: ${requestedScenario}`);
     for (const [scenarioIndex, scenario] of scenarios.entries()) {
+      await prepareDeterministicLocation();
       if (scenario.id !== "01-page-contract") {
         const completion = await executeCommand("onboarding.complete");
         if (!completion.ok) throw new Error(`Could not prepare completed onboarding state: ${completion.error}`);
@@ -136,6 +140,39 @@ export async function startAutomationRun(): Promise<void> {
   document.body.dataset.automationFailed = String(result.failed.length);
   window.dispatchEvent(new CustomEvent("pray:automation-complete", { detail: result }));
   console.info(`[pray.automation] ${JSON.stringify({ event: "complete", runId, passed: result.passed.length, failed: result.failed.length, reportPaths: result.reportPaths })}`);
+}
+
+async function prepareDeterministicLocation(): Promise<void> {
+  const snapshot = await appClient.query<Record<string, unknown>>({
+    name: "settings.getSnapshot",
+    payload: { section: "locations" },
+    domain: "settings",
+    projectionKey: "automation.seed.locations",
+    ifRevision: 0,
+  });
+  if (!snapshot.ok) throw new Error(`Could not read location for automation seed: ${snapshot.error.message}`);
+  const saved = await executeCommand("settings.update", {
+    section: "locations",
+    field: "value",
+    value: {
+      ...snapshot.data,
+      useGps: false,
+      country: "NL",
+      countryName: "Netherlands",
+      city: "Amsterdam",
+      latitude: 52.3676,
+      longitude: 4.9041,
+      timeZoneId: "Europe/Amsterdam",
+      locationSource: "manual",
+    },
+  });
+  if (!saved.ok) throw new Error(`Could not seed a deterministic automation location: ${saved.error}`);
+  const today = await appClient.command({
+    name: "today.refresh",
+    domain: "today",
+    projectionKey: "today.snapshot",
+  });
+  if (!today.ok) throw new Error(`Could not refresh Today after the automation location seed: ${today.error.message}`);
 }
 
 function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {

@@ -6,6 +6,7 @@ import { OptionButtons, SectionBlock, StatusLine, ToggleSetting } from "@/compon
 import { useAppLabels } from "@/hooks/useAppLabels";
 import { useProjection } from "@/hooks/useProjection";
 import { platformIntents, updateSettingsSection } from "@/client/applicationClient";
+import { confirmAppLocation } from "@/state/appStore";
 
 export const Route = createFileRoute("/settings/locations")({
   component: LocationsPage,
@@ -21,6 +22,7 @@ type LocationSettings = {
   countryName?: string;
   city: string;
   vpnWarning: boolean;
+  locationSource?: "gps" | "ip" | "manual" | "";
   qiblaReadingMode: string;
   qiblaFilterMode: string;
   qiblaReadingModes: { id: string; label: string }[];
@@ -38,9 +40,10 @@ function LocationsPage() {
   const [isRefreshingGps, setIsRefreshingGps] = useState(false);
   if (!data) return null;
 
-  const country = data.countries.find((item) => item.code === data.country);
-  const places = data.places ?? [];
-  const countryOptions = data.countries.map((item) => ({ id: item.code, label: item.name }));
+  const countries = Array.isArray(data.countries) ? data.countries : [];
+  const country = countries.find((item) => item.code === data.country);
+  const places = Array.isArray(data.places) ? data.places : [];
+  const countryOptions = countries.map((item) => ({ id: item.code, label: item.name }));
   if (!data.country) countryOptions.unshift({ id: "", label: "—" });
   if (data.country && !countryOptions.some((item) => item.id === data.country)) {
     countryOptions.push({ id: data.country, label: data.countryName || data.country });
@@ -51,6 +54,7 @@ function LocationsPage() {
     cityOptions.push({ id: data.city, label: data.city });
   }
   const patch = async (next: LocationSettings, resolveCoordinates = false) => {
+    const previous = data;
     setData(next);
     setStatus("saving");
     const response = await updateSettingsSection<LocationConfirmation, LocationSettings>("locations", next);
@@ -67,6 +71,7 @@ function LocationsPage() {
         setData(resolved.data);
       }
     }
+    if (locationTimingFieldsChanged(previous, confirmed)) await confirmAppLocation(confirmed);
     setStatus("saved");
     return true;
   };
@@ -82,7 +87,7 @@ function LocationsPage() {
       return;
     }
 
-    const nextCountry = data.countries.find((item) => item.code === code);
+    const nextCountry = countries.find((item) => item.code === code);
     const firstCity = nextCountry?.cities[0] ?? "";
     const place = places.find((item) =>
       item.countryCode.toLowerCase() === code.toLowerCase() &&
@@ -130,7 +135,10 @@ function LocationsPage() {
         setGpsMessage(res.error);
       } else {
         const refreshed = "useGps" in res.data ? res.data : res.data.location;
-        if (refreshed) setData(refreshed);
+        if (refreshed) {
+          setData(refreshed);
+          return confirmAppLocation(refreshed).then(() => refresh(true));
+        }
       }
       return refresh(true);
     }).catch((error) => {
@@ -148,6 +156,11 @@ function LocationsPage() {
       {data.vpnWarning ? (
         <div data-selector-name="locations:vpn-warning" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {t("vpnWarning")}
+        </div>
+      ) : null}
+      {data.locationSource ? (
+        <div data-selector-name="locations:source" className="text-xs text-muted-foreground">
+          {t("locationSource")}: {t(`locationSource_${data.locationSource}`)}
         </div>
       ) : null}
 
@@ -200,4 +213,12 @@ function LocationsPage() {
       </SectionBlock>
     </div>
   );
+}
+
+function locationTimingFieldsChanged(previous: LocationSettings, next: LocationSettings): boolean {
+  return previous.useGps !== next.useGps
+    || previous.latitude !== next.latitude
+    || previous.longitude !== next.longitude
+    || previous.country !== next.country
+    || previous.city !== next.city;
 }

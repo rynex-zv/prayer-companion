@@ -10,6 +10,153 @@
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/main.tsx"></script>
+    <!--PRAY_WEB_BOOT_START-->
+    <div id="pray-boot" role="status" aria-live="polite" hidden>
+      <style>
+        #pray-boot{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;background:#001b20;color:#f8fafc;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;text-align:center}
+        #pray-boot[data-visible="true"]{display:flex}
+        #pray-boot-card{width:min(440px,100%);border:1px solid #24434a;border-radius:20px;background:#06272d;padding:28px;box-shadow:0 18px 60px #0007}
+        #pray-boot-mark{width:52px;height:52px;margin:0 auto 18px;border:5px solid #35555c;border-top-color:#2dd4bf;border-radius:50%;animation:pray-spin 1s linear infinite}
+        #pray-boot[data-state="failed"] #pray-boot-mark{animation:none;border-color:#fb7185}
+        #pray-boot-title{margin:0;font-size:20px;font-weight:700}
+        #pray-boot-message{min-height:48px;margin:12px 0 0;color:#b7cbd0;line-height:1.6}
+        #pray-boot-detail{margin:10px 0 0;color:#78949a;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+        #pray-boot-progress{height:6px;margin-top:14px;overflow:hidden;border-radius:999px;background:#173c43}
+        #pray-boot-progress-value{width:0;height:100%;background:#2dd4bf;transition:width .15s linear}
+        #pray-boot-retry{display:none;width:100%;margin-top:20px;border:0;border-radius:12px;background:#2dd4bf;color:#002b31;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}
+        #pray-boot[data-state="slow"] #pray-boot-retry,#pray-boot[data-state="failed"] #pray-boot-retry,#pray-boot[data-state="offline"] #pray-boot-retry{display:block}
+        @keyframes pray-spin{to{transform:rotate(360deg)}}
+        @media(prefers-reduced-motion:reduce){#pray-boot-mark{animation:none}}
+      </style>
+      <div id="pray-boot-card">
+        <div id="pray-boot-mark" aria-hidden="true"></div>
+        <h1 id="pray-boot-title">Pray Ad Free</h1>
+        <p id="pray-boot-message">Loading the application…</p>
+        <p id="pray-boot-detail"></p>
+        <div id="pray-boot-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="pray-boot-progress-value"></div></div>
+        <button id="pray-boot-retry" type="button">Try again</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var isWeb = (location.protocol === "http:" || location.protocol === "https:") && location.hostname !== "app.prayadfree.local";
+        if (!isWeb) return;
+        var root = document.getElementById("pray-boot");
+        var message = document.getElementById("pray-boot-message");
+        var detail = document.getElementById("pray-boot-detail");
+        var retry = document.getElementById("pray-boot-retry");
+        var progress = document.getElementById("pray-boot-progress");
+        var progressValue = document.getElementById("pray-boot-progress-value");
+        var arabic = /^ar(?:-|$)/i.test(navigator.language || "");
+        var text = arabic ? {
+          loading: "جارٍ تحميل التطبيق…",
+          slow: "الاتصال بطيء أو متقطّع. سنواصل المحاولة تلقائياً.",
+          offline: "لا يوجد اتصال بالإنترنت. سنكمل تلقائياً عند عودة الاتصال.",
+          failed: "تعذّر تحميل جزء من التطبيق. تتم إعادة المحاولة.",
+          retry: "إعادة المحاولة الآن"
+        } : {
+          loading: "Loading the application…",
+          slow: "The connection is slow or unstable. Retrying automatically.",
+          offline: "You are offline. Loading will continue when the connection returns.",
+          failed: "Part of the application could not be loaded. Retrying.",
+          retry: "Try again now"
+        };
+        var finished = false;
+        var shown = false;
+        root.hidden = true;
+        root.dataset.visible = "pending";
+        var revealTimer = setTimeout(function () { show(); }, 1500);
+        retry.textContent = text.retry;
+        function show() {
+          if (finished || shown) return;
+          shown = true;
+          root.hidden = false;
+          root.dataset.visible = "true";
+        }
+        function update(state, value, technical) {
+          root.dataset.state = state || "loading";
+          message.textContent = value || text[state] || text.loading;
+          detail.textContent = technical || "";
+          if (state && state !== "loading") show();
+        }
+        function resource(name, loaded, total) {
+          var percent = total > 0 ? Math.min(100, Math.round(loaded * 100 / total)) : 0;
+          function size(bytes) {
+            if (bytes < 1048576) return Math.max(0, Math.round(bytes / 1024)) + " KB";
+            return (bytes / 1048576).toFixed(1) + " MB";
+          }
+          var sizeText = total > 0 ? " · " + size(loaded) + "/" + size(total) + " · " + percent + "%" : "";
+          update("loading", arabic ? "جارٍ تحميل مكوّنات التطبيق…" : "Loading application components…", name + sizeText);
+          progress.setAttribute("aria-valuenow", String(percent));
+          progressValue.style.width = percent + "%";
+        }
+        function ready() {
+          finished = true;
+          clearTimeout(revealTimer);
+          root.dataset.visible = "false";
+          root.hidden = true;
+          sessionStorage.removeItem("pray.boot.assetRetries");
+          sessionStorage.removeItem("pray.boot.runtimeRestarts");
+          var cleanUrl = new URL(location.href);
+          if (cleanUrl.searchParams.delete("pray-restart")) history.replaceState(history.state, "", cleanUrl.href);
+          if (cleanUrl.searchParams.delete("pray-version")) history.replaceState(history.state, "", cleanUrl.href);
+        }
+        function wake() {
+          update(navigator.onLine ? "loading" : "offline");
+          window.dispatchEvent(new Event("pray:boot-retry"));
+        }
+        function restart(technical) {
+          if (!navigator.onLine) {
+            update("offline");
+            return false;
+          }
+          var count = Number(sessionStorage.getItem("pray.boot.runtimeRestarts") || "0");
+          if (count >= 4) {
+            update("failed", undefined, (technical ? technical + " · " : "") + "automatic restart limit reached");
+            return false;
+          }
+          count += 1;
+          sessionStorage.setItem("pray.boot.runtimeRestarts", String(count));
+          update("failed", undefined, (technical ? technical + " · " : "") + "clean restart " + count + "/4");
+          var nextUrl = new URL(location.href);
+          nextUrl.searchParams.set("pray-restart", String(count) + "-" + Date.now());
+          setTimeout(function () { location.replace(nextUrl.href); }, 500);
+          return true;
+        }
+        retry.addEventListener("click", function () {
+          if (navigator.onLine) restart("manual retry");
+          else wake();
+        });
+        window.addEventListener("online", wake);
+        window.addEventListener("offline", function () { update("offline"); });
+        window.addEventListener("error", function (event) {
+          var target = event.target;
+          if (!(target instanceof HTMLScriptElement) && !(target instanceof HTMLLinkElement)) return;
+          var source = target.src || target.href || "application asset";
+          var assetUrl;
+          try { assetUrl = new URL(source, location.href); } catch (_) { return; }
+          if (assetUrl.origin !== location.origin) return;
+          var appAsset = assetUrl.pathname.startsWith("/assets/") ||
+            assetUrl.pathname.startsWith("/wasm/_framework/") ||
+            assetUrl.pathname === "/version.web.info" ||
+            assetUrl.pathname === "/version.web.json" ||
+            assetUrl.pathname === "/pray-sw.js";
+          if (!appAsset) return;
+          update(navigator.onLine ? "failed" : "offline", undefined, source);
+          var count = Number(sessionStorage.getItem("pray.boot.assetRetries") || "0");
+          if (navigator.onLine && count < 3) {
+            sessionStorage.setItem("pray.boot.assetRetries", String(count + 1));
+            setTimeout(function () { location.reload(); }, Math.min(15000, 1500 * Math.pow(2, count)));
+          }
+        }, true);
+        setTimeout(function () {
+          if (!finished && root.dataset.state !== "failed") update(navigator.onLine ? "slow" : "offline");
+        }, 8000);
+        window.__prayBoot = { update: update, resource: resource, ready: ready, retry: wake, restart: restart, isWeb: true };
+        update(navigator.onLine ? "loading" : "offline");
+      })();
+    </script>
+    <!--PRAY_WEB_BOOT_END-->
+    <script type="module" src="/loader.ts"></script>
   </body>
 </html>

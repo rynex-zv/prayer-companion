@@ -10,6 +10,8 @@ Walk the three onboarding steps, complete onboarding, navigate every route by th
 
 ## Tested
 
+- Completing onboarding with a valid location must reach Today with a visible web version and without a stale location-choice warning.
+
 Visible content; accessible control names; stable `data-selector-name` values; before/change/restore assertions; route navigation; RPC timing and the 300 ms ceiling.
 
 ## Faild+why

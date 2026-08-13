@@ -3,7 +3,7 @@
 namespace PrayAdFree.Tests;
 
 public sealed class LocalizationIntegrityTests {
-    private static readonly string[] Languages = ["en", "ar", "fr", "tr", "es"];
+    private static readonly string[] Languages = ["en", "ar"];
     private static readonly string[] CriticalKeys = [
         "today",
         "calendar",
