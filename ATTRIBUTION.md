@@ -8,7 +8,7 @@ This file does not modify the text of the GNU AGPL. It states an additional term
 
 When you copy, modify, redistribute, or publicly deploy a covered work that contains copyrightable material taken from project-authored portions of Prayer Companion / Pray Ad Free, preserve the following reasonable author attribution:
 
-> **Prayer Companion / Pray Ad Free — originally created by Rynex (@rynex-zv).**  
+> **Prayer Companion / Pray Ad Free — originally created by Rynex Akil (@rynex-zv).**  
 > Source: https://github.com/rynex-zv/prayer-companion
 
 The attribution must remain reasonably visible and accessible:
@@ -29,7 +29,7 @@ Third-party components, fonts, libraries, recordings, icons, and other third-par
 
 ## No endorsement
 
-Preserving attribution does not mean that Rynex or the Prayer Companion project endorses a fork, modification, product, service, or its authors.
+Preserving attribution does not mean that Rynex Akil or the Prayer Companion project endorses a fork, modification, product, service, or its authors.
 
 ## AGPL
 
