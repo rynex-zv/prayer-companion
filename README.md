@@ -101,7 +101,7 @@ For project-authored material where the copyright holder is authorized to apply 
 
 When copyrightable project material is copied, adapted, redistributed, or used in a covered public deployment, preserve this credit in the manner described in `ATTRIBUTION.md`:
 
-> **Prayer Companion / Pray Ad Free — originally created by Rynex (@rynex-zv).**  
+> **Prayer Companion / Pray Ad Free — originally created by Rynex Akil (@rynex-zv).**  
 > Source: https://github.com/rynex-zv/prayer-companion
 
 You may add your own modification credits, but do not remove or misrepresent the original project attribution from material to which the attribution term applies.
@@ -112,7 +112,7 @@ The AGPL governs use of the covered source code. It does **not** grant anyone pe
 
 The app uses third-party open-source libraries, fonts, and icons with their own licenses and copyright notices. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-That file currently records credits/notices for the direct .NET and frontend components used by the project, including .NET MAUI, Adhan, Plugin.LocalNotification, React, TanStack, Tailwind CSS, Vite, Lucide, Fontsource, Cairo, Noto Naskh Arabic, Open Sans, Amiri, and Inter.
+That file currently records credits/notices for the direct .NET and frontend components used by the project, including .NET MAUI, Microsoft Windows App SDK, Adhan, Plugin.LocalNotification, React, TanStack, Tailwind CSS, Vite, Lucide, Fontsource, Cairo, Noto Naskh Arabic, Open Sans, Amiri, and Inter.
 
 ### Important audio notice
 
@@ -120,6 +120,6 @@ The repository currently contains bundled adhan MP3 recordings whose redistribut
 
 ## Maintainer
 
-Maintained by **Rynex (`@rynex-zv`)**.
+Maintained by **Rynex Akil (`@rynex-zv`)**.
 
 For bugs, feature proposals, or improvements, please use GitHub Issues and Pull Requests.
