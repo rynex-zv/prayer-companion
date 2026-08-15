@@ -1,0 +1,42 @@
+PRAYER COMPANION / PRAY AD FREE — LEGAL & ATTRIBUTION NOTICE
+
+Original project attribution
+----------------------------
+Prayer Companion / Pray Ad Free — originally created by Rynex (@rynex-zv).
+Source: https://github.com/rynex-zv/prayer-companion
+
+Project license
+---------------
+GNU Affero General Public License v3.0 (AGPL-3.0).
+The source distribution contains LICENSE.txt and ATTRIBUTION.md. Project-authored material distributed with the attribution notice is subject to the attribution term described in ATTRIBUTION.md to the extent stated there.
+
+Third-party notices
+-------------------
+This application uses third-party software and fonts that remain under their own licenses. The source distribution contains THIRD_PARTY_NOTICES.md with the maintained attribution/compliance index.
+
+Direct credited components include:
+- .NET MAUI / .NET components — MIT; .NET Foundation and Contributors.
+- Adhan — MIT; copyright 2019 davidpet86.
+- Plugin.LocalNotification — MIT; copyright 2018 Elvin (Tharindu).
+- React / React DOM — MIT; Meta Platforms, Inc. and affiliates.
+- TanStack Query and TanStack Router — MIT; copyright 2021-present Tanner Linsley.
+- Tailwind CSS — MIT; Tailwind Labs, Inc.
+- Vite — MIT; copyright 2019-present VoidZero Inc. and Vite contributors.
+- clsx — MIT; Luke Edwards.
+- tailwind-merge — MIT; copyright 2021 Dany Castillo.
+- tw-animate-css — MIT; copyright 2025 Wombosvideo.
+- Lucide icons — ISC; Feather-derived icons remain MIT and credit Cole Bemis.
+- Fontsource packaging — MIT; font files retain their individual font licenses.
+
+Bundled/used fonts:
+- Cairo — SIL Open Font License 1.1; The Cairo Project Authors.
+- Noto Naskh Arabic — SIL Open Font License 1.1; The Noto Project Authors.
+- Open Sans — SIL Open Font License 1.1; The Open Sans Project Authors.
+- Amiri — SIL Open Font License 1.1; The Amiri Project Authors.
+- Inter — SIL Open Font License 1.1; The Inter Project Authors.
+
+Important audio notice
+----------------------
+Built-in adhan recordings require separate source/rights verification. Attribution by itself does not create permission to redistribute a copyrighted sound recording. See THIRD_PARTY_NOTICES.md in the source distribution before redistributing those recordings.
+
+This notice is a convenient in-package attribution index and does not replace the complete license terms/notices of third-party components when those complete terms are required to accompany redistribution.
