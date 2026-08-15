@@ -11,3 +11,4 @@ webber-manifest.json
 
 *.log
 *.tmp
+/.vs
