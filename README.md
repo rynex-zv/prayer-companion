@@ -93,13 +93,30 @@ The intended workflow is:
 
 Do not assume that a submitted Pull Request will be merged.
 
-## License
+## License and required attribution
 
 This repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE.txt](LICENSE.txt).
 
-In short, the AGPL allows people to use, study, modify, and redistribute the software, but modified versions distributed or made available to users over a network can carry source-code disclosure obligations under the license.
+For project-authored material where the copyright holder is authorized to apply it, the project also uses the reasonable author-attribution term described in [ATTRIBUTION.md](ATTRIBUTION.md), under section 7(b) of AGPL-3.0.
 
-The license governs use of the source code. It does **not** grant anyone permission to bypass repository review rules or merge changes into this repository.
+When copyrightable project material is copied, adapted, redistributed, or used in a covered public deployment, preserve this credit in the manner described in `ATTRIBUTION.md`:
+
+> **Prayer Companion / Pray Ad Free — originally created by Rynex (@rynex-zv).**  
+> Source: https://github.com/rynex-zv/prayer-companion
+
+You may add your own modification credits, but do not remove or misrepresent the original project attribution from material to which the attribution term applies.
+
+The AGPL governs use of the covered source code. It does **not** grant anyone permission to bypass repository review rules or merge changes into this repository.
+
+## Third-party credits
+
+The app uses third-party open-source libraries, fonts, and icons with their own licenses and copyright notices. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+That file currently records credits/notices for the direct .NET and frontend components used by the project, including .NET MAUI, Adhan, Plugin.LocalNotification, React, TanStack, Tailwind CSS, Vite, Lucide, Fontsource, Cairo, Noto Naskh Arabic, Open Sans, Amiri, and Inter.
+
+### Important audio notice
+
+The repository currently contains bundled adhan MP3 recordings whose redistribution source/license has not yet been verified in the repository. **Credit alone does not create permission to redistribute a recording.** Their exact source, rights holder, performer/reciter credit, and redistribution terms should be verified before a public release; see `THIRD_PARTY_NOTICES.md`.
 
 ## Maintainer
 
