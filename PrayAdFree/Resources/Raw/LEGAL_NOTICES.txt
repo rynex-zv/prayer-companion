@@ -2,7 +2,7 @@ PRAYER COMPANION / PRAY AD FREE — LEGAL & ATTRIBUTION NOTICE
 
 Original project attribution
 ----------------------------
-Prayer Companion / Pray Ad Free — originally created by Rynex (@rynex-zv).
+Prayer Companion / Pray Ad Free — originally created by Rynex Akil (@rynex-zv).
 Source: https://github.com/rynex-zv/prayer-companion
 
 Project license
@@ -16,6 +16,7 @@ This application uses third-party software and fonts that remain under their own
 
 Direct credited components include:
 - .NET MAUI / .NET components — MIT; .NET Foundation and Contributors.
+- Microsoft Windows App SDK — MIT; Microsoft and contributors.
 - Adhan — MIT; copyright 2019 davidpet86.
 - Plugin.LocalNotification — MIT; copyright 2018 Elvin (Tharindu).
 - React / React DOM — MIT; Meta Platforms, Inc. and affiliates.
