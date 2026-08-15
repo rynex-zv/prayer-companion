@@ -21,6 +21,7 @@ namespace Pray_Ad_Free;
 public class MainActivity : MauiAppCompatActivity {
     private const string BackLogTag = "PrayAdFree.Back";
     private const string WindowLogTag = "PrayAdFree.Window";
+    private const string AlarmLogTag = "PrayAdFree.Alarm";
     private static readonly object AlarmIntentLock = new();
     private static string? _lastAlarmPayload;
     private static DateTime _lastAlarmPayloadUtc;
@@ -128,10 +129,17 @@ public class MainActivity : MauiAppCompatActivity {
     }
 
     private void HandleAlarmPresentationIntent(Intent? intent) {
-        if (!TryGetAlarmPayload(intent, out var payloadText, out _)) {
+        var action = intent?.Action ?? "<null>";
+        var directPayload = intent?.GetStringExtra(AndroidAdhanAlarmScheduler.AlarmPayloadExtra);
+        var parsed = TryGetAlarmPayload(intent, out var payloadText, out _);
+        Log.Info(
+            AlarmLogTag,
+            $"MainActivity.Intent receivedAtUtc={DateTime.UtcNow:O} action={action} directPayloadLength={directPayload?.Length ?? 0} parsed={parsed}");
+        if (!parsed) {
             return;
         }
 
+        Log.Info(AlarmLogTag, $"MainActivity.Intent dispatch payloadLength={payloadText.Length}");
         AndroidAlarmFullscreenNotifier.Cancel(this);
         TryEnableAlarmFullscreenPresentation();
         DispatchAlarmIntent(payloadText);
@@ -211,10 +219,17 @@ public class MainActivity : MauiAppCompatActivity {
     }
 
     private static void DispatchAlarmIntent(string payloadText) {
-        if (string.IsNullOrWhiteSpace(payloadText) || !ShouldDispatchAlarmPayload(payloadText)) {
+        if (string.IsNullOrWhiteSpace(payloadText)) {
+            Log.Warn(AlarmLogTag, "MainActivity.Dispatch rejected empty payload");
             return;
         }
 
+        if (!ShouldDispatchAlarmPayload(payloadText)) {
+            Log.Info(AlarmLogTag, "MainActivity.Dispatch ignored duplicate payload");
+            return;
+        }
+
+        Log.Info(AlarmLogTag, "MainActivity.Dispatch enqueue");
         AndroidAlarmLaunchCoordinator.Enqueue(payloadText);
         AndroidAlarmLaunchCoordinator.TryDispatchPending("MainActivity");
     }

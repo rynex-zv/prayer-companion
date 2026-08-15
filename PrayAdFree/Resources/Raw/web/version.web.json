@@ -1,9 +1,9 @@
 {
-  "version": "0.0.1.423",
-  "build": 423,
-  "legacyVersion": "423",
+  "version": "0.0.1.439",
+  "build": 439,
+  "legacyVersion": "439",
   "cacheEpoch": 1,
-  "minimumSupportedVersion": "0.0.1.423",
-  "manifest": "/webber-manifest.json?v=423",
-  "generatedAt": "2026-08-13T18:52:21.798Z"
+  "minimumSupportedVersion": "0.0.1.439",
+  "manifest": "/webber-manifest.json?v=439",
+  "generatedAt": "2026-08-13T22:28:31.068Z"
 }

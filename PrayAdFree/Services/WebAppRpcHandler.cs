@@ -5,6 +5,9 @@ using MauiWebber;
 using PrayAdFree.Core.Models;
 using PrayAdFree.Core.Services;
 using Microsoft.Maui.Devices.Sensors;
+#if ANDROID
+using Pray_Ad_Free.Platforms.Android;
+#endif
 
 namespace Pray_Ad_Free.Services;
 
@@ -26,6 +29,11 @@ public sealed class NativeAppBackend {
     private readonly AppRevisionCoordinator _revisions = new();
     private readonly ApplicationCoordinator _application;
     private readonly ApplicationOperationCoalescer _operations;
+    private readonly WidgetProfileService _widgets;
+    private readonly IWindowsWidgetProjectionPublisher _windowsWidgetPublisher;
+    private readonly WidgetProjectionFactory _widgetProjectionFactory = new();
+    private readonly WidgetLayoutResolver _widgetLayoutResolver = new();
+    private readonly WebPrayerMonthFactory _widgetPrayerFactory = new();
     private readonly IslamicOccasionCatalog _islamicOccasions = new();
     private readonly object _bootstrapSync = new();
     private Task<object>? _bootstrapTask;
@@ -51,6 +59,8 @@ public sealed class NativeAppBackend {
         MauiWebberUpdater webUpdater,
         IApplicationTransactionFactory transactionFactory,
         ApplicationOperationCoalescer operations,
+        WidgetProfileService widgets,
+        IWindowsWidgetProjectionPublisher windowsWidgetPublisher,
         IAppLogger logger) {
         _today = today;
         _calendar = calendar;
@@ -67,6 +77,8 @@ public sealed class NativeAppBackend {
         _webUpdater = webUpdater;
         _logger = logger;
         _operations = operations;
+        _widgets = widgets;
+        _windowsWidgetPublisher = windowsWidgetPublisher;
         _application = new ApplicationCoordinator(
             transactionFactory,
             _revisions,
@@ -164,6 +176,15 @@ public sealed class NativeAppBackend {
             "external.reportIssue" => QueuePlatformOperation(method, "external", payload, OpenIssueReportAsync),
             "settings.getSnapshot" => await GetSettingsSnapshotAsync(payload).ConfigureAwait(false),
             "settings.update" => await SetSettingsFieldAsync(payload).ConfigureAwait(false),
+            "widgets.getCatalog" => WidgetProfileService.Catalog,
+            "widgets.getProfiles" => _widgets.Snapshot(),
+            "widgets.createProfile" => CreateWidgetProfile(payload),
+            "widgets.updateProfile" => UpdateWidgetProfile(payload),
+            "widgets.duplicateProfile" => DuplicateWidgetProfile(payload),
+            "widgets.deleteProfile" => DeleteWidgetProfile(payload),
+            "widgets.getPreview" => BuildWidgetPreview(payload),
+            "widgets.getInstalledInstances" => _widgets.Snapshot().Assignments,
+            "widgets.assignProfile" => AssignWidgetProfile(payload),
             "onboarding.getSnapshot" => await BuildOnboardingSnapshotAsync().ConfigureAwait(false),
             "onboarding.complete" => CompleteOnboarding(),
             "automation.writeReports" => WriteAutomationReports(payload),
@@ -194,6 +215,16 @@ public sealed class NativeAppBackend {
         // Alarm is included because Android alarm launches can arrive before the
         // WebView navigation bridge is ready; the first React render must know
         // whether /alarm is the authoritative startup route.
+#if ANDROID
+        if (_adhanPlaybackService is AdhanPlaybackService androidPlayback &&
+            AndroidAlarmLaunchCoordinator.TryGetPendingPayload(out var pendingAlarm)) {
+            await androidPlayback.HandleAndroidAlarmLaunchAsync(
+                pendingAlarm,
+                source: "Bootstrap",
+                presentationMode: AlarmPresentationMode.FullscreenActivity,
+                showAlarmScreen: false).ConfigureAwait(false);
+        }
+#endif
         var today = await _today.HandleAsync("today.getSnapshot", default, cancellationToken).ConfigureAwait(false);
         var alarm = await GetAlarmSnapshotStateAsync().ConfigureAwait(false);
         return new {
@@ -2226,6 +2257,113 @@ public sealed class NativeAppBackend {
             _ => "system"
         };
     }
+
+    private object CreateWidgetProfile(JsonElement payload) {
+        var templateText = RequireString(payload, "template");
+        if (!Enum.TryParse<WidgetTemplateKind>(templateText, true, out var template)) {
+            throw new ArgumentException($"Unknown widget template '{templateText}'.", "template");
+        }
+        var profile = _widgets.Create(template, ReadString(payload, "name"));
+        QueueWindowsWidgetRefresh("create-profile");
+        var preview = TryBuildRequestedWidgetPreview(payload, profile);
+        return new { profile, document = _widgets.Snapshot(), preview };
+    }
+
+    private object UpdateWidgetProfile(JsonElement payload) {
+        var id = RequireString(payload, "id");
+        if (!TryGetObject(payload, "patch", out var value)) throw new ArgumentException("Widget profile patch is required.", "patch");
+        var patch = JsonSerializer.Deserialize<WidgetProfilePatch>(value.GetRawText())
+            ?? throw new ArgumentException("Widget profile patch is required.", "patch");
+        var profile = _widgets.Update(id, patch);
+        QueueWindowsWidgetRefresh("update-profile");
+        var preview = TryBuildRequestedWidgetPreview(payload, profile);
+        return new { profile, document = _widgets.Snapshot(), preview };
+    }
+
+    private object DuplicateWidgetProfile(JsonElement payload) {
+        var profile = _widgets.Duplicate(RequireString(payload, "id"), ReadString(payload, "name"));
+        QueueWindowsWidgetRefresh("duplicate-profile");
+        return new { profile, document = _widgets.Snapshot() };
+    }
+
+    private object DeleteWidgetProfile(JsonElement payload) {
+        var document = _widgets.Delete(RequireString(payload, "id"));
+        QueueWindowsWidgetRefresh("delete-profile");
+        return new { document };
+    }
+
+    private object AssignWidgetProfile(JsonElement payload) {
+        if (!TryGetObject(payload, "assignment", out var value)) throw new ArgumentException("Widget assignment is required.", "assignment");
+        var assignment = JsonSerializer.Deserialize<WidgetInstanceAssignment>(value.GetRawText())
+            ?? throw new ArgumentException("Widget assignment is required.", "assignment");
+        var confirmed = _widgets.Assign(assignment);
+        QueueWindowsWidgetRefresh("assign-profile");
+        return new { assignment = confirmed, document = _widgets.Snapshot() };
+    }
+
+    private void QueueWindowsWidgetRefresh(string reason) {
+        if (!OperatingSystem.IsWindows()) return;
+        _ = _windowsWidgetPublisher.RefreshAsync(reason);
+    }
+
+    private object BuildWidgetPreview(JsonElement payload) {
+        var profile = TryGetObject(payload, "profile", out var profileValue)
+            ? _widgets.ValidatePreview(JsonSerializer.Deserialize<WidgetProfile>(profileValue.GetRawText())
+                ?? throw new ArgumentException("Widget preview profile is required.", "profile"))
+            : _widgets.Find(RequireString(payload, "profileId"));
+        if (!TryGetObject(payload, "capabilities", out var value)) throw new ArgumentException("Widget capabilities are required.", "capabilities");
+        var capabilities = JsonSerializer.Deserialize<WidgetHostCapabilities>(value.GetRawText())
+            ?? throw new ArgumentException("Widget capabilities are required.", "capabilities");
+        return BuildWidgetPreview(profile, capabilities, NormalizeWidgetLanguage(ReadString(payload, "language") ?? ResolveLanguage(LocalizationManager.CurrentLanguage)));
+    }
+
+    private object? TryBuildRequestedWidgetPreview(JsonElement payload, WidgetProfile profile) {
+        if (!TryGetObject(payload, "previewCapabilities", out var value)) return null;
+        var capabilities = JsonSerializer.Deserialize<WidgetHostCapabilities>(value.GetRawText())
+            ?? throw new ArgumentException("Widget preview capabilities are invalid.", "previewCapabilities");
+        return BuildWidgetPreview(profile, capabilities, NormalizeWidgetLanguage(ReadString(payload, "previewLanguage") ?? ResolveLanguage(LocalizationManager.CurrentLanguage)));
+    }
+
+    private object BuildWidgetPreview(WidgetProfile profile, WidgetHostCapabilities capabilities, string language) {
+        WidgetProjection projection;
+        try {
+            var settings = _dataService.LoadSettings();
+            var now = DateTime.Now;
+            var today = _widgetPrayerFactory.BuildDay(settings, DateOnly.FromDateTime(now));
+            var tomorrow = _widgetPrayerFactory.BuildDay(settings, DateOnly.FromDateTime(now.AddDays(1)));
+            var selected = _tasbih.SelectedPreset;
+            var selectedItem = selected?.Items.FirstOrDefault();
+            projection = _widgetProjectionFactory.Build(
+                today,
+                tomorrow,
+                settings,
+                now,
+                language,
+                settings.Location.Source,
+                selected?.Name,
+                selectedItem?.Text,
+                _tasbih.Count,
+                selectedItem?.TargetCount ?? 0);
+        } catch (Exception exception) when (exception is ArgumentException or InvalidOperationException) {
+            projection = _widgetProjectionFactory.Error(exception.Message, ResolveLanguage(LocalizationManager.CurrentLanguage));
+        }
+        return new {
+            profile,
+            projection,
+            renderTree = _widgetLayoutResolver.Resolve(profile, projection, capabilities)
+        };
+    }
+
+    private static string RequireString(JsonElement payload, string propertyName) =>
+        ReadString(payload, propertyName) is { } value && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw new ArgumentException($"Missing '{propertyName}'.", propertyName);
+
+    private static string NormalizeWidgetLanguage(string language) => language switch {
+        "ar" => "ar",
+        "en" => "en",
+        _ => throw new ArgumentException($"Unsupported widget preview language '{language}'.", "language")
+    };
 
     private static string? ReadString(JsonElement payload, string propertyName) {
         if (payload.ValueKind != JsonValueKind.Object ||

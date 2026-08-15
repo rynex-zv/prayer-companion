@@ -57,6 +57,12 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private readonly object _alarmScreenStateLock = new();
     private AdhanAlarmPayload? _pendingAlarmScreenPayload;
 
+    private void ClearPendingAlarmScreenState() {
+        lock (_alarmScreenStateLock) {
+            _pendingAlarmScreenPayload = null;
+        }
+    }
+
 #if ANDROID
     private Android.Media.MediaPlayer? _androidPlayer;
     private Android.Media.AudioManager? _androidAudioManager;
@@ -317,7 +323,9 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     public async Task HandleAndroidAlarmLaunchAsync(
         AdhanAlarmPayload payload,
         string source = "Android",
-        AlarmPresentationMode presentationMode = AlarmPresentationMode.FullscreenActivity) {
+        AlarmPresentationMode presentationMode = AlarmPresentationMode.FullscreenActivity,
+        bool showAlarmScreen = true) {
+        var activationStarted = System.Diagnostics.Stopwatch.GetTimestamp();
         try {
             var settings = _settingsService.Load();
             if (!settings.Notifications.EnableAdhan) {
@@ -335,7 +343,10 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             await ActivateAlarmAsync(
                 payload,
                 settings,
-                showAlarmScreen: presentationMode == AlarmPresentationMode.FullscreenActivity).ConfigureAwait(false);
+                showAlarmScreen: showAlarmScreen && presentationMode == AlarmPresentationMode.FullscreenActivity).ConfigureAwait(false);
+            _logger.LogEvent(
+                "AdhanAlarmLaunch.AndroidReady",
+                $"source={source};elapsedMs={System.Diagnostics.Stopwatch.GetElapsedTime(activationStarted).TotalMilliseconds:F1};payload={BuildAlarmPayloadKey(payload)}");
             if (presentationMode == AlarmPresentationMode.ControlNotification) {
                 var prayerName = LocalizationManager.TranslatePrayer(payload.Prayer);
                 await ShowControlNotificationAsync(prayerName, includeSnoozeActions: true).ConfigureAwait(false);
@@ -544,25 +555,33 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
     private async Task ActivateAlarmAsync(AdhanAlarmPayload payload, AppSettings settings, bool showAlarmScreen = true) {
         var source = AdhanSoundLibrary.ResolvePlaybackSource(settings.Notifications, payload.SoundKey);
         var presentation = await BuildAlarmPresentationModelAsync(payload, settings).ConfigureAwait(false);
+        var payloadKey = BuildAlarmPayloadKey(payload);
+        var alreadyActive = false;
 
         await _gate.WaitAsync().ConfigureAwait(false);
         try {
-            StopCore();
-            _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
-            _activeAlarmPayload = payload;
-            _activeAlarmPresentation = presentation;
-            if (source != null) {
-                try {
-                    StartCore(source, settings.Notifications.AdhanVolume);
-                } catch (Exception ex) {
-                    _logger.LogException(ex, "AdhanPlaybackService.StartAlarmAudio");
-                }
+            alreadyActive = _activeAlarmPayload.HasValue &&
+                string.Equals(BuildAlarmPayloadKey(_activeAlarmPayload.Value), payloadKey, StringComparison.Ordinal);
+            if (alreadyActive) {
+                _activeAlarmPresentation = presentation;
             } else {
-                _logger.LogEvent("AdhanAlarmAudio", $"source=none;soundKey={payload.SoundKey};prayer={payload.Prayer}");
-            }
+                StopCore();
+                _activeScheduledPayload = new AdhanNotificationPayload(payload.Prayer, payload.SoundKey);
+                _activeAlarmPayload = payload;
+                _activeAlarmPresentation = presentation;
+                if (source != null) {
+                    try {
+                        StartCore(source, settings.Notifications.AdhanVolume);
+                    } catch (Exception ex) {
+                        _logger.LogException(ex, "AdhanPlaybackService.StartAlarmAudio");
+                    }
+                } else {
+                    _logger.LogEvent("AdhanAlarmAudio", $"source=none;soundKey={payload.SoundKey};prayer={payload.Prayer}");
+                }
 #if ANDROID
-            StartAndroidAlarmVibration(settings.Notifications, payload.Prayer);
+                StartAndroidAlarmVibration(settings.Notifications, payload.Prayer);
 #endif
+            }
         } finally {
             _gate.Release();
         }
@@ -1571,12 +1590,6 @@ public sealed class AdhanPlaybackService : IAdhanPlaybackService, IDisposable {
             _logger.LogEvent("AdhanAlarmVibration", $"state=started;prayer={prayer};pattern={settings.VibrationPattern};strength={settings.VibrationStrength}");
         } catch (Exception ex) {
             _logger.LogException(ex, "AdhanPlaybackService.StartAndroidAlarmVibration");
-        }
-    }
-
-    private void ClearPendingAlarmScreenState() {
-        lock (_alarmScreenStateLock) {
-            _pendingAlarmScreenPayload = null;
         }
     }
 

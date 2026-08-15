@@ -32,6 +32,7 @@ public sealed class WebState {
     public int TasbihCount { get; set; }
     public string SelectedTasbihPresetId { get; set; } = "";
     public List<WebTasbihPreset> TasbihPresets { get; set; } = new();
+    public WidgetProfileDocument WidgetProfiles { get; set; } = new();
 
     public static WebState Default() => WebStateDefaults.Build();
 

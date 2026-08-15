@@ -66,6 +66,14 @@ Create a native-host-only app:
 dotnet new multi-surface-app -n MyPrayerHost --projectType native-host-only
 ```
 
+Widget infrastructure is deliberately opt-in. Generate it with:
+
+```powershell
+dotnet new multi-surface-app -n MyWidgetApp --projectType full-app --widgetSupport cross-platform
+```
+
+The default is `--widgetSupport none`, which creates no widget settings, routes, renderer code, or placeholder production UI.
+
 Uninstall the local template:
 
 ```powershell

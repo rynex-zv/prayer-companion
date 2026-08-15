@@ -254,12 +254,12 @@ public sealed class BackendArchitectureTests {
         var androidManifest = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Platforms", "Android", "AndroidManifest.xml"));
         var downloadManifest = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "public", "downloads", "manifest.json"));
 
-        Assert.Contains("<ApplicationDisplayVersion>0.0.504</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
-        Assert.Contains("<ApplicationVersion>6</ApplicationVersion>", project, StringComparison.Ordinal);
-        Assert.Contains("android:versionCode=\"6\"", androidManifest, StringComparison.Ordinal);
-        Assert.Contains("android:versionName=\"0.0.504\"", androidManifest, StringComparison.Ordinal);
-        Assert.Contains("PrayAdFree-Android-0.0.504-web422.apk", downloadManifest, StringComparison.Ordinal);
-        Assert.Contains("\"version\":  \"0.0.504 (web 422)\"", downloadManifest, StringComparison.Ordinal);
+        Assert.Contains("<ApplicationDisplayVersion>0.0.506</ApplicationDisplayVersion>", project, StringComparison.Ordinal);
+        Assert.Contains("<ApplicationVersion>8</ApplicationVersion>", project, StringComparison.Ordinal);
+        Assert.Contains("android:versionCode=\"8\"", androidManifest, StringComparison.Ordinal);
+        Assert.Contains("android:versionName=\"0.0.506\"", androidManifest, StringComparison.Ordinal);
+        Assert.Contains("PrayAdFree-Android-0.0.506-web424.apk", downloadManifest, StringComparison.Ordinal);
+        Assert.Contains("\"version\":  \"0.0.506 (web 424)\"", downloadManifest, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -463,6 +463,8 @@ public sealed class BackendArchitectureTests {
         var appStore = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "state", "appStore.ts"));
         var shell = File.ReadAllText(Path.Combine(root, "Pray.web", "src", "components", "AppShell.tsx"));
         var maui = File.ReadAllText(Path.Combine(root, "PrayAdFree", "MauiProgram.cs"));
+        var receiver = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Platforms", "Android", "AndroidAdhanAlarmReceiver.cs"));
+        var coordinator = File.ReadAllText(Path.Combine(root, "PrayAdFree", "Platforms", "Android", "AndroidAlarmLaunchCoordinator.cs"));
 
         Assert.Contains("NavigateToRouteAsync(\"/alarm\"", playback, StringComparison.Ordinal);
         Assert.Contains("startup = new", backend, StringComparison.Ordinal);
@@ -473,6 +475,10 @@ public sealed class BackendArchitectureTests {
         Assert.Contains("public async Task<bool> NavigateToRouteAsync", webber, StringComparison.Ordinal);
         Assert.DoesNotContain("navigate({ to: \"/\", replace: true })", alarm, StringComparison.Ordinal);
         Assert.Contains("data-selector-name=\"alarm:inactive\"", alarm, StringComparison.Ordinal);
+        Assert.Contains("entryRefreshComplete", alarm, StringComparison.Ordinal);
+        Assert.Contains("alarmActiveRef.current", alarm, StringComparison.Ordinal);
+        Assert.Contains("void poll();", alarm, StringComparison.Ordinal);
+        Assert.DoesNotContain("timer = window.setTimeout(poll, intervalMs)", alarm, StringComparison.Ordinal);
         Assert.Contains("startupRoute: response.data.startup?.route", appStore, StringComparison.Ordinal);
         Assert.Contains("startupIntent: response.data.startup?.intent", appStore, StringComparison.Ordinal);
         Assert.Contains("handledStartupIntent", shell, StringComparison.Ordinal);
@@ -480,6 +486,15 @@ public sealed class BackendArchitectureTests {
         Assert.Contains("ActivateAlarmAsync(payload, settings, showAlarmScreen: false)", playback, StringComparison.Ordinal);
         Assert.Contains("AdhanPlaybackService.StartAlarmAudio", playback, StringComparison.Ordinal);
         Assert.Contains("HandlePlaybackCompletedAsync", playback, StringComparison.Ordinal);
+        Assert.Contains("AndroidAlarmLaunchCoordinator.Enqueue(payload)", receiver, StringComparison.Ordinal);
+        Assert.Contains("TryGetPendingPayload", coordinator, StringComparison.Ordinal);
+        Assert.Contains("MainActivity.Intent receivedAtUtc", File.ReadAllText(Path.Combine(root, "PrayAdFree", "Platforms", "Android", "MainActivity.cs")), StringComparison.Ordinal);
+        Assert.Contains("Coordinator.Dispatch start", coordinator, StringComparison.Ordinal);
+        Assert.Contains("AndroidAlarmLaunchCoordinator.TryGetPendingPayload", backend, StringComparison.Ordinal);
+        Assert.Contains("showAlarmScreen: false", backend, StringComparison.Ordinal);
+        Assert.Contains("alreadyActive", playback, StringComparison.Ordinal);
+        Assert.Contains("AdhanAlarmLaunch.AndroidReady", playback, StringComparison.Ordinal);
+        Assert.Contains("Stopwatch.GetElapsedTime", playback, StringComparison.Ordinal);
         Assert.DoesNotContain("AddTransient<AdhanSnoozePage>", maui, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(root, "PrayAdFree", "Pages", "AdhanSnoozePage.cs")));
     }

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Card } from "@/components/Card";
-import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight } from "lucide-react";
+import { MapPin, Palette, Volume2, Bell, ShieldCheck, AlarmClock, Circle, Info, ChevronRight, PanelsTopLeft } from "lucide-react";
+import { WIDGET_EDITOR_ENABLED } from "@/domains/widgets/feature";
 import { PageLog } from "@/components/PageLog";
 import { usePageLog } from "@/hooks/usePageLog";
 import { useAppLabels } from "@/hooks/useAppLabels";
@@ -29,13 +30,14 @@ const items = [
   { to: "/settings/permissions", icon: ShieldCheck, titleKey: "permissions", subtitleKey: "systemPermissions" },
   { to: "/settings/alarms", icon: AlarmClock, titleKey: "alarmReminders", subtitleKey: "alarmScreenReminders" },
   { to: "/settings/tasbih", icon: Circle, titleKey: "tasbihSettings", subtitleKey: "tasbihPresets" },
+  ...(WIDGET_EDITOR_ENABLED ? [{ to: "/settings/widgets" as const, icon: PanelsTopLeft, titleKey: "widgets", subtitleKey: "widgetsSubtitle" }] : []),
   { to: "/settings/about", icon: Info, titleKey: "about", subtitleKey: "appAndContactInfo" },
 ] as const;
 
 const groups: string[][] = [
   ["locations", "themeDiagnostics"],
   ["adhan", "notifications", "permissions", "alarmReminders"],
-  ["tasbihSettings", "about"],
+  ["tasbihSettings", "widgets", "about"],
 ];
 
 function SettingsIndex() {

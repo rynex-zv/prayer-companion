@@ -24,7 +24,11 @@ public sealed class AndroidAdhanAlarmReceiver : BroadcastReceiver {
             return;
         }
 
-        Log.Info(LogTag, $"Receiver handling alarm payloadLength={payload.Length}");
+        Log.Info(LogTag, $"Receiver handling receivedAtUtc={DateTime.UtcNow:O} payloadLength={payload.Length}");
+        // Make the alarm payload visible to app bootstrap before Android opens
+        // the activity. Otherwise React can render an inactive /alarm snapshot
+        // while the background dispatch is still starting the playback service.
+        AndroidAlarmLaunchCoordinator.Enqueue(payload);
         var pendingResult = GoAsync();
         _ = Task.Run(async () => {
             try {

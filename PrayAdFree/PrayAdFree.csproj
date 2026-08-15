@@ -28,8 +28,8 @@
 		<ApplicationId>com.rynex.prayer</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.0.504</ApplicationDisplayVersion>
-		<ApplicationVersion>6</ApplicationVersion>
+		<ApplicationDisplayVersion>0.0.506</ApplicationDisplayVersion>
+		<ApplicationVersion>8</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -51,6 +51,10 @@
 		<DefineConstants>$(DefineConstants);PRAY_AUTOMATION</DefineConstants>
 		<ApplicationTitle>Pray Ad Free Automation</ApplicationTitle>
 		<ApplicationId>com.rynex.prayer.automation</ApplicationId>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(WidgetDevelopment)' == 'true'">
+		<DefineConstants>$(DefineConstants);PRAY_WIDGETS</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
@@ -122,7 +126,9 @@
 		</AndroidResource>
 	</ItemGroup>
 
-
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<ProjectReference Include="..\native-widgets\windows\PrayAdFree.WidgetProvider\PrayAdFree.WidgetProvider.csproj" />
+	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\MauiWebber\MauiWebber.csproj" />
 	  <ProjectReference Include="..\PrayAdFree.Core\PrayAdFree.Core.csproj" />

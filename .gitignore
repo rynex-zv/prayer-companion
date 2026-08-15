@@ -372,3 +372,8 @@ FodyWeavers.xsd
 build/*
 build/*/*
 build/**
+
+
+Pray.web/automation-results/*
+Pray.web/automation-results/**
+Pray.web/automation-results

@@ -110,6 +110,7 @@ namespace Pray_Ad_Free {
 #if ANDROID
             WidgetUpdateCoordinator.RequestImmediateRefresh("OnStart");
 #endif
+            QueueWindowsWidgetProjectionRefresh("OnStart");
         }
 
         protected override void OnResume() {
@@ -120,6 +121,17 @@ namespace Pray_Ad_Free {
 #if ANDROID
             WidgetUpdateCoordinator.RequestImmediateRefresh("OnResume");
 #endif
+            QueueWindowsWidgetProjectionRefresh("OnResume");
+        }
+
+        private void QueueWindowsWidgetProjectionRefresh(string reason) {
+            if (!OperatingSystem.IsWindows()) return;
+            try {
+                var publisher = _services.GetRequiredService<IWindowsWidgetProjectionPublisher>();
+                _ = publisher.RefreshAsync(reason);
+            } catch (Exception ex) {
+                _logger.LogException(ex, $"App.QueueWindowsWidgetProjectionRefresh:{reason}");
+            }
         }
 
         private void TryScheduleNotifications(string reason) {

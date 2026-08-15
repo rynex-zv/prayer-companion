@@ -48,10 +48,16 @@ internal static class WidgetUpdateCoordinator {
             FastingWidgetProvider.UpdateWidgets(context, manager, fastingIds, prayerData);
         }
 
-        ScheduleNextRefresh(context, prayerIds.Length > 0 || fastingIds.Length > 0);
+        var nextBoundary = prayerData?.Projection is { Status: "ready" } projection
+            ? new[] { projection.NextPrayerAtUnixMilliseconds, projection.FastingTargetAtUnixMilliseconds }
+                .Where(value => value > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                .DefaultIfEmpty(new DateTimeOffset(DateTime.Today.AddDays(1)).ToUnixTimeMilliseconds())
+                .Min()
+            : (long?)null;
+        ScheduleNextRefresh(context, prayerIds.Length > 0 || fastingIds.Length > 0 ? nextBoundary : null);
     }
 
-    public static void ScheduleNextRefresh(Context context, bool enabled) {
+    public static void ScheduleNextRefresh(Context context, long? targetUnixMilliseconds) {
         var appContext = context.ApplicationContext ?? context;
         if (appContext.GetSystemService(Context.AlarmService) is not AlarmManager alarmManager) {
             return;
@@ -60,15 +66,16 @@ internal static class WidgetUpdateCoordinator {
         var pendingIntent = BuildRefreshPendingIntent(appContext);
         alarmManager.Cancel(pendingIntent);
 
-        if (!enabled) {
+        if (!targetUnixMilliseconds.HasValue) {
             pendingIntent.Cancel();
             return;
         }
 
-        var localNow = DateTime.Now;
-        var nextMinute = new DateTime(localNow.Year, localNow.Month, localNow.Day, localNow.Hour, localNow.Minute, 0, DateTimeKind.Local)
-            .AddMinutes(1);
-        var triggerAt = new DateTimeOffset(nextMinute).ToUnixTimeMilliseconds();
+        // RemoteViews Chronometer owns the live countdown. Wake native code only
+        // after the next prayer/fasting boundary so the projection can advance.
+        var triggerAt = Math.Max(
+            DateTimeOffset.UtcNow.AddSeconds(5).ToUnixTimeMilliseconds(),
+            targetUnixMilliseconds.Value + 2_000);
 
         try {
             if (OperatingSystem.IsAndroidVersionAtLeast(23)) {

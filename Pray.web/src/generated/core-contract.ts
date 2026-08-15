@@ -3,7 +3,7 @@
 // dotnet run --project tools/generate-web-contracts/GenerateWebContracts.csproj
 
 export const coreContract = {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "contractVersion": 2,
   "persistenceSchemaVersion": 1,
   "generatedFrom": "PrayAdFree.Core",
@@ -60,6 +60,15 @@ export const coreContract = {
     "external.reportIssue",
     "settings.getSnapshot",
     "settings.update",
+    "widgets.getCatalog",
+    "widgets.getProfiles",
+    "widgets.createProfile",
+    "widgets.updateProfile",
+    "widgets.duplicateProfile",
+    "widgets.deleteProfile",
+    "widgets.getPreview",
+    "widgets.getInstalledInstances",
+    "widgets.assignProfile",
     "onboarding.getSnapshot",
     "onboarding.complete",
     "automation.writeReports",
@@ -330,6 +339,51 @@ export const coreContract = {
       "name": "settings.update",
       "kind": "command",
       "domain": "settings"
+    },
+    {
+      "name": "widgets.getCatalog",
+      "kind": "query",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.getProfiles",
+      "kind": "query",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.createProfile",
+      "kind": "command",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.updateProfile",
+      "kind": "command",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.duplicateProfile",
+      "kind": "command",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.deleteProfile",
+      "kind": "command",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.getPreview",
+      "kind": "query",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.getInstalledInstances",
+      "kind": "query",
+      "domain": "widgets"
+    },
+    {
+      "name": "widgets.assignProfile",
+      "kind": "command",
+      "domain": "widgets"
     },
     {
       "name": "onboarding.getSnapshot",

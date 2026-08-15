@@ -17,6 +17,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AlarmRouteImport } from './routes/alarm'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsWidgetsRouteImport } from './routes/settings.widgets'
 import { Route as SettingsThemeRouteImport } from './routes/settings.theme'
 import { Route as SettingsTasbihRouteImport } from './routes/settings.tasbih'
 import { Route as SettingsPermissionsRouteImport } from './routes/settings.permissions'
@@ -65,6 +66,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsWidgetsRoute = SettingsWidgetsRouteImport.update({
+  id: '/widgets',
+  path: '/widgets',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsThemeRoute = SettingsThemeRouteImport.update({
   id: '/theme',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/settings/permissions': typeof SettingsPermissionsRoute
   '/settings/tasbih': typeof SettingsTasbihRoute
   '/settings/theme': typeof SettingsThemeRoute
+  '/settings/widgets': typeof SettingsWidgetsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/settings/permissions': typeof SettingsPermissionsRoute
   '/settings/tasbih': typeof SettingsTasbihRoute
   '/settings/theme': typeof SettingsThemeRoute
+  '/settings/widgets': typeof SettingsWidgetsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/settings/permissions': typeof SettingsPermissionsRoute
   '/settings/tasbih': typeof SettingsTasbihRoute
   '/settings/theme': typeof SettingsThemeRoute
+  '/settings/widgets': typeof SettingsWidgetsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/settings/permissions'
     | '/settings/tasbih'
     | '/settings/theme'
+    | '/settings/widgets'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/settings/permissions'
     | '/settings/tasbih'
     | '/settings/theme'
+    | '/settings/widgets'
   id:
     | '__root__'
     | '/'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/settings/permissions'
     | '/settings/tasbih'
     | '/settings/theme'
+    | '/settings/widgets'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -288,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/widgets': {
+      id: '/settings/widgets'
+      path: '/widgets'
+      fullPath: '/settings/widgets'
+      preLoaderRoute: typeof SettingsWidgetsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/theme': {
       id: '/settings/theme'
       path: '/theme'
@@ -356,6 +375,7 @@ interface SettingsRouteChildren {
   SettingsPermissionsRoute: typeof SettingsPermissionsRoute
   SettingsTasbihRoute: typeof SettingsTasbihRoute
   SettingsThemeRoute: typeof SettingsThemeRoute
+  SettingsWidgetsRoute: typeof SettingsWidgetsRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -367,6 +387,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsPermissionsRoute: SettingsPermissionsRoute,
   SettingsTasbihRoute: SettingsTasbihRoute,
   SettingsThemeRoute: SettingsThemeRoute,
+  SettingsWidgetsRoute: SettingsWidgetsRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

@@ -9,7 +9,11 @@ using Pray_Ad_Free.Services;
 
 namespace Pray_Ad_Free.Platforms.Android;
 
+#if PRAY_WIDGETS
 [BroadcastReceiver(Enabled = true, Exported = true, Label = "@string/widget_tasbih_label")]
+#else
+[BroadcastReceiver(Enabled = false, Exported = false, Label = "@string/widget_tasbih_label")]
+#endif
 [IntentFilterAttribute([AppWidgetManager.ActionAppwidgetUpdate, ActionIncrement, ActionReset, ActionPresetPrevious, ActionPresetNext])]
 [MetaData("android.appwidget.provider", Resource = "@xml/tasbih_widget_info")]
 public sealed class TasbihWidgetProvider : AppWidgetProvider {
@@ -42,14 +46,25 @@ public sealed class TasbihWidgetProvider : AppWidgetProvider {
         UpdateWidgets(context, manager, ids);
     }
 
+    public override void OnAppWidgetOptionsChanged(Context? context, AppWidgetManager? appWidgetManager, int appWidgetId, global::Android.OS.Bundle? newOptions) {
+        base.OnAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions);
+        if (context == null || appWidgetManager == null) {
+            return;
+        }
+
+        UpdateWidgets(context, appWidgetManager, [appWidgetId]);
+    }
+
     public override void OnDeleted(Context? context, int[]? appWidgetIds) {
         if (context == null || appWidgetIds == null) {
             return;
         }
 
         var store = AndroidWidgetEnvironment.CreateTasbihStateStore();
+        var profiles = AndroidWidgetEnvironment.CreateWidgetProfileService();
         foreach (var appWidgetId in appWidgetIds) {
             store.Remove(appWidgetId);
+            profiles.Unassign($"android:tasbih:{appWidgetId}");
         }
     }
 
@@ -77,30 +92,23 @@ public sealed class TasbihWidgetProvider : AppWidgetProvider {
         var store = AndroidWidgetEnvironment.CreateTasbihStateStore();
 
         foreach (var appWidgetId in appWidgetIds) {
+            var projectionStarted = System.Diagnostics.Stopwatch.StartNew();
             var state = EnsureState(store, settings, appWidgetId);
             var preset = ResolvePreset(settings, state.PresetIndex);
             var snapshot = ProgressCalculator.BuildSnapshot(preset, state.Count);
-            var views = new RemoteViews(context.PackageName, Resource.Layout.widget_tasbih);
-            var size = AndroidWidgetEnvironment.ResolveSize(manager.GetAppWidgetOptions(appWidgetId));
-            var canSwitchPreset = state.Count == 0 && settings.Tasbih.Presets.Count > 1;
-
-            views.SetTextViewText(Resource.Id.tasbih_widget_title, LocalizationManager.Translate("Tasbih"));
-            views.SetTextViewText(Resource.Id.tasbih_widget_count, state.Count.ToString());
-            views.SetTextViewText(Resource.Id.tasbih_widget_phrase, snapshot.IsEmpty ? LocalizationManager.Translate("Tasbih_Empty") : TasbihTextResolver.Translate(snapshot.CurrentText));
-            views.SetTextViewText(Resource.Id.tasbih_widget_progress, snapshot.IsEmpty ? "" : $"{snapshot.LocalCount}/{snapshot.LocalTarget}");
-            views.SetTextViewText(Resource.Id.tasbih_widget_preset, TasbihTextResolver.Translate(preset?.Name ?? ""));
-            views.SetTextViewText(Resource.Id.tasbih_widget_total, snapshot.IsEmpty ? "" : $"{LocalizationManager.Translate("TasbihCount")}: {snapshot.TotalTarget}");
-            views.SetTextViewText(Resource.Id.tasbih_widget_increment, "+1");
-            views.SetTextViewText(Resource.Id.tasbih_widget_reset, LocalizationManager.Translate("Reset"));
-            views.SetTextViewText(Resource.Id.tasbih_widget_preset_previous, "<");
-            views.SetTextViewText(Resource.Id.tasbih_widget_preset_next, ">");
-            views.SetOnClickPendingIntent(Resource.Id.tasbih_widget_increment, BuildActionPendingIntent(context, appWidgetId, ActionIncrement));
-            views.SetOnClickPendingIntent(Resource.Id.tasbih_widget_reset, BuildActionPendingIntent(context, appWidgetId, ActionReset));
-            views.SetOnClickPendingIntent(Resource.Id.tasbih_widget_preset_previous, BuildActionPendingIntent(context, appWidgetId, ActionPresetPrevious));
-            views.SetOnClickPendingIntent(Resource.Id.tasbih_widget_preset_next, BuildActionPendingIntent(context, appWidgetId, ActionPresetNext));
-            ApplySize(views, size);
-            ApplyPresetSwitchVisibility(views, canSwitchPreset);
-            manager.UpdateAppWidget(appWidgetId, views);
+            var language = string.Equals(settings.Language, "ar", StringComparison.OrdinalIgnoreCase) ? "ar" : "en";
+            var projection = new WidgetProjection {
+                GeneratedAtUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Language = language,
+                IsRtl = language == "ar",
+                Status = snapshot.IsEmpty ? "error" : "ready",
+                Error = snapshot.IsEmpty ? LocalizationManager.Translate("Tasbih_Empty") : "",
+                TasbihPresetName = TasbihTextResolver.Translate(preset?.Name ?? ""),
+                TasbihText = snapshot.IsEmpty ? "" : TasbihTextResolver.Translate(snapshot.CurrentText),
+                TasbihCount = state.Count,
+                TasbihTarget = snapshot.TotalTarget
+            };
+            AndroidSharedWidgetRenderer.UpdateWidget(context, manager, appWidgetId, projection, WidgetTemplateKind.Tasbih, "tasbih", projectionStarted.ElapsedMilliseconds);
         }
     }
 
@@ -182,19 +190,6 @@ public sealed class TasbihWidgetProvider : AppWidgetProvider {
         }
 
         return next;
-    }
-
-    private static void ApplySize(RemoteViews views, WidgetDisplaySize size) {
-        views.SetViewVisibility(Resource.Id.tasbih_widget_title, size == WidgetDisplaySize.Tiny ? global::Android.Views.ViewStates.Gone : global::Android.Views.ViewStates.Visible);
-        views.SetViewVisibility(Resource.Id.tasbih_widget_phrase, size is WidgetDisplaySize.Medium or WidgetDisplaySize.Large ? global::Android.Views.ViewStates.Visible : global::Android.Views.ViewStates.Gone);
-        views.SetViewVisibility(Resource.Id.tasbih_widget_progress, size is WidgetDisplaySize.Medium or WidgetDisplaySize.Large ? global::Android.Views.ViewStates.Visible : global::Android.Views.ViewStates.Gone);
-        views.SetViewVisibility(Resource.Id.tasbih_widget_total, size == WidgetDisplaySize.Large ? global::Android.Views.ViewStates.Visible : global::Android.Views.ViewStates.Gone);
-        views.SetViewVisibility(Resource.Id.tasbih_widget_reset, size == WidgetDisplaySize.Tiny ? global::Android.Views.ViewStates.Gone : global::Android.Views.ViewStates.Visible);
-    }
-
-    private static void ApplyPresetSwitchVisibility(RemoteViews views, bool visible) {
-        var state = visible ? global::Android.Views.ViewStates.Visible : global::Android.Views.ViewStates.Gone;
-        views.SetViewVisibility(Resource.Id.tasbih_widget_preset_switcher, state);
     }
 
     private static PendingIntent BuildActionPendingIntent(Context context, int appWidgetId, string action) {

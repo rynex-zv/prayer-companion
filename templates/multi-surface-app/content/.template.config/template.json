@@ -36,6 +36,17 @@
           "description": "Creates core, app.host, and core.tests."
         }
       ]
+    },
+    "widgetSupport": {
+      "type": "parameter",
+      "datatype": "choice",
+      "displayName": "Widget support",
+      "description": "Include platform-neutral widget contracts, layout resolution, preview, and renderer extension points.",
+      "defaultValue": "none",
+      "choices": [
+        { "choice": "none", "displayName": "None", "description": "Does not add widget code or UI." },
+        { "choice": "cross-platform", "displayName": "Cross-platform", "description": "Adds shared widget contracts and opt-in renderer extension points." }
+      ]
     }
   },
   "sources": [
@@ -58,6 +69,10 @@
         {
           "condition": "(projectType == \"native-host-only\")",
           "exclude": ["web.client/**", "web.bridge/**"]
+        },
+        {
+          "condition": "(widgetSupport != \"cross-platform\")",
+          "exclude": ["core/Widgets/**", "core.tests/Widgets/**", "web.client/src/widgets/**", "app.host/Widgets/**"]
         }
       ]
     }

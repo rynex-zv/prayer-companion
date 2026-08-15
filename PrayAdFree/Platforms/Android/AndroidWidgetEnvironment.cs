@@ -7,6 +7,8 @@ using Pray_Ad_Free.Services;
 namespace Pray_Ad_Free.Platforms.Android;
 
 internal static class AndroidWidgetEnvironment {
+    private static readonly Lazy<WidgetProfileService> WidgetProfiles = new(() => new WidgetProfileService(
+        new JsonFileWidgetProfileRepository(WidgetStoragePaths.ProfilePath)), LazyThreadSafetyMode.ExecutionAndPublication);
     public static AppSettings LoadSettings() {
         var store = new FileSettingsStore(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -22,6 +24,12 @@ internal static class AndroidWidgetEnvironment {
             "widget_state.json"));
     }
 
+    public static WidgetProfileService CreateWidgetProfileService() {
+        var profiles = WidgetProfiles.Value;
+        profiles.RefreshFromStorage();
+        return profiles;
+    }
+
     public static async Task InitializeLocalizationAsync(AppSettings settings) {
         try {
             await LocalizationManager.InitializeAsync(settings.Language).ConfigureAwait(false);
@@ -31,70 +39,65 @@ internal static class AndroidWidgetEnvironment {
     }
 
     public static async Task<AndroidPrayerWidgetData?> LoadPrayerDataAsync(Context context, DateTime now) {
+        var started = System.Diagnostics.Stopwatch.StartNew();
         var settings = LoadSettings();
         await InitializeLocalizationAsync(settings).ConfigureAwait(false);
 
+        var projectionFactory = new WidgetProjectionFactory();
         if (!HasValidCoordinates(settings.Location.Latitude, settings.Location.Longitude)) {
             return new AndroidPrayerWidgetData {
                 Settings = settings,
-                LocationTitle = BuildLocationTitle(settings.Location)
+                LocationTitle = BuildLocationTitle(settings.Location),
+                Projection = projectionFactory.Error("A confirmed location is required.", ResolveLanguage(settings.Language)),
+                ProjectionBuildMilliseconds = started.ElapsedMilliseconds
             };
         }
 
         try {
-            var prayerTimesService = CreatePrayerTimesService(context);
             var today = DateOnly.FromDateTime(now);
-            var currentMonth = await prayerTimesService
-                .GetMonthAsync(settings, now.Year, now.Month, CancellationToken.None)
-                .ConfigureAwait(false);
-            var todayDay = currentMonth.Days.FirstOrDefault(day => day.Date == today);
-            var tomorrowDay = currentMonth.Days.FirstOrDefault(day => day.Date == today.AddDays(1));
-
-            if (tomorrowDay == null) {
-                var nextMonthDate = now.AddMonths(1);
-                var nextMonth = await prayerTimesService
-                    .GetMonthAsync(settings, nextMonthDate.Year, nextMonthDate.Month, CancellationToken.None)
-                    .ConfigureAwait(false);
-                tomorrowDay = nextMonth.Days.FirstOrDefault(day => day.Date == today.AddDays(1));
-            }
-
-            WidgetSnapshotResult? snapshot = null;
-            if (todayDay != null) {
-                snapshot = new WidgetSnapshotFactory().Build(todayDay, tomorrowDay, settings, now);
-            }
+            var prayerFactory = new WebPrayerMonthFactory();
+            PrayerDay todayDay = prayerFactory.BuildDay(settings, today);
+            var tomorrowDay = prayerFactory.BuildDay(settings, today.AddDays(1));
+            var snapshot = new WidgetSnapshotFactory().Build(todayDay, tomorrowDay, settings, now);
 
             return new AndroidPrayerWidgetData {
                 Settings = settings,
                 Today = todayDay,
                 Tomorrow = tomorrowDay,
                 Snapshot = snapshot,
-                LocationTitle = BuildLocationTitle(settings.Location)
+                LocationTitle = BuildLocationTitle(settings.Location),
+                Projection = projectionFactory.Build(todayDay, tomorrowDay, settings, now, ResolveLanguage(settings.Language), settings.Location.Source),
+                ProjectionBuildMilliseconds = started.ElapsedMilliseconds
             };
-        } catch {
+        } catch (Exception exception) when (exception is ArgumentException or InvalidOperationException) {
             return new AndroidPrayerWidgetData {
                 Settings = settings,
-                LocationTitle = BuildLocationTitle(settings.Location)
+                LocationTitle = BuildLocationTitle(settings.Location),
+                Projection = projectionFactory.Error(exception.Message, ResolveLanguage(settings.Language)),
+                ProjectionBuildMilliseconds = started.ElapsedMilliseconds
             };
         }
     }
 
     public static WidgetDisplaySize ResolveSize(global::Android.OS.Bundle? options) {
+        return ResolveCapabilities(options).Family switch {
+            WidgetFamily.Tiny => WidgetDisplaySize.Tiny,
+            WidgetFamily.Compact => WidgetDisplaySize.Small,
+            WidgetFamily.Medium => WidgetDisplaySize.Medium,
+            _ => WidgetDisplaySize.Large
+        };
+    }
+
+    public static WidgetHostCapabilities ResolveCapabilities(global::Android.OS.Bundle? options) {
         var minWidth = options?.GetInt(global::Android.Appwidget.AppWidgetManager.OptionAppwidgetMinWidth, 0) ?? 0;
         var minHeight = options?.GetInt(global::Android.Appwidget.AppWidgetManager.OptionAppwidgetMinHeight, 0) ?? 0;
-
-        if (minWidth < 120 || minHeight < 90) {
-            return WidgetDisplaySize.Tiny;
-        }
-
-        if (minWidth < 180 || minHeight < 120) {
-            return WidgetDisplaySize.Small;
-        }
-
-        if (minWidth < 250 || minHeight < 180) {
-            return WidgetDisplaySize.Medium;
-        }
-
-        return WidgetDisplaySize.Large;
+        var maxWidth = options?.GetInt(global::Android.Appwidget.AppWidgetManager.OptionAppwidgetMaxWidth, minWidth) ?? minWidth;
+        var maxHeight = options?.GetInt(global::Android.Appwidget.AppWidgetManager.OptionAppwidgetMaxHeight, minHeight) ?? minHeight;
+        var hostCategory = (global::Android.Appwidget.AppWidgetCategory)(options?.GetInt(
+            global::Android.Appwidget.AppWidgetManager.OptionAppwidgetHostCategory,
+            (int)global::Android.Appwidget.AppWidgetCategory.HomeScreen) ?? (int)global::Android.Appwidget.AppWidgetCategory.HomeScreen);
+        var lockScreen = (hostCategory & global::Android.Appwidget.AppWidgetCategory.Keyguard) != 0;
+        return WidgetHostCapabilityResolver.ResolveAndroid(minWidth, maxWidth, minHeight, maxHeight, lockScreen);
     }
 
     public static string BuildLocationTitle(LocationSettings location) {
@@ -123,22 +126,13 @@ internal static class AndroidWidgetEnvironment {
         return $"{totalHours:00}:{remaining.Minutes:00}";
     }
 
-    private static PrayerTimesService CreatePrayerTimesService(Context context) {
-        var cacheDirectory = context.FilesDir?.AbsolutePath;
-        if (string.IsNullOrWhiteSpace(cacheDirectory)) {
-            cacheDirectory = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        }
-
-        var client = new AladhanPrayerTimesClient(new HttpClient());
-        var cache = new PrayerTimesCache(cacheDirectory!);
-        return new PrayerTimesService(client, cache);
-    }
-
     private static bool HasValidCoordinates(double latitude, double longitude) {
         return latitude is >= -90 and <= 90 &&
                longitude is >= -180 and <= 180 &&
                !(Math.Abs(latitude) < 0.0001 && Math.Abs(longitude) < 0.0001);
     }
+
+    private static string ResolveLanguage(string language) => string.Equals(language, "ar", StringComparison.OrdinalIgnoreCase) ? "ar" : "en";
 }
 
 internal sealed class AndroidPrayerWidgetData {
@@ -147,5 +141,7 @@ internal sealed class AndroidPrayerWidgetData {
     public PrayerDay? Tomorrow { get; init; }
     public WidgetSnapshotResult? Snapshot { get; init; }
     public string LocationTitle { get; init; } = "";
+    public WidgetProjection Projection { get; init; } = new() { Status = "error", Error = "Widget data is unavailable." };
+    public long ProjectionBuildMilliseconds { get; init; }
 }
 #endif

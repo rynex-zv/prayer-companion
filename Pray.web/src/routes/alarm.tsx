@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlarmClock, Minus, Plus } from "lucide-react";
 
@@ -38,6 +38,8 @@ function AlarmPage() {
   const { data, refresh, setData } = useProjection<AlarmSnapshot>("alarm.getSnapshot");
   const [delayMinutes, setDelayMinutes] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [entryRefreshComplete, setEntryRefreshComplete] = useState(false);
+  const alarmActiveRef = useRef(data?.isActive ?? false);
 
   useEffect(() => {
     if (data) {
@@ -46,21 +48,28 @@ function AlarmPage() {
   }, [data?.selectedDelayMinutes]);
 
   useEffect(() => {
+    alarmActiveRef.current = data?.isActive ?? false;
+  }, [data?.isActive]);
+
+  useEffect(() => {
     let cancelled = false;
     let timer = 0;
-    const intervalMs = data?.isActive ? 1000 : 10_000;
     const poll = async () => {
       await refresh(true);
       if (!cancelled) {
-        timer = window.setTimeout(poll, intervalMs);
+        setEntryRefreshComplete(true);
+        timer = window.setTimeout(poll, alarmActiveRef.current ? 1000 : 10_000);
       }
     };
-    timer = window.setTimeout(poll, intervalMs);
+    // A cached inactive snapshot must never be rendered when Android has just
+    // opened /alarm. Native activation happens before route navigation, so an
+    // immediate query returns the authoritative active projection in one RPC.
+    void poll();
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [data?.isActive, refresh]);
+  }, [refresh]);
 
   const run = async (method: "alarm.snooze" | "alarm.stop", payload?: unknown) => {
     if (submitting) return;
@@ -73,7 +82,7 @@ function AlarmPage() {
     }
   };
 
-  if (!data) {
+  if (!data || !entryRefreshComplete) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center">
         <AlarmClock className="h-20 w-20 text-primary" aria-hidden="true" />

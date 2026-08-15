@@ -49,6 +49,12 @@
     "bundleIdentifiers",
     "appDisplayNames"
   ],
+  "options": {
+    "widgetSupport": {
+      "values": ["none", "cross-platform"],
+      "default": "none"
+    }
+  },
   "doNotReplace": [
     "core",
     "web.client",

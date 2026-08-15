@@ -31,7 +31,7 @@ export async function mauiCall<T = unknown>(
   const correlatedPayload = addCorrelation(payload, requestId, commandId, options?.domain, options?.expectedRevision);
   const started = now();
   const timeoutMs = bridgeTimeoutFor(method);
-  observeSequence(method, kind, requestId);
+  observeSequence(method, kind, requestId, options?.domain);
   logBridge("start", { callId, requestId, commandId, method, kind, payload, timeoutMs });
 
   try {
@@ -272,8 +272,8 @@ function classify(method: string): OperationKind {
   return (rpcKinds.get(method) as OperationKind | undefined) ?? "compatibilityAdapter";
 }
 
-function observeSequence(method: string, kind: OperationKind, requestId: string): void {
-  const domain = method.split(".", 1)[0];
+function observeSequence(method: string, kind: OperationKind, requestId: string, declaredDomain?: string): void {
+  const domain = declaredDomain || method.split(".", 1)[0];
   if (kind === "command" || kind === "compatibilityAdapter") {
     lastCommandByDomain.set(domain, { method, at: now(), requestId });
     return;

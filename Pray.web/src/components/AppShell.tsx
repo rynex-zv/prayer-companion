@@ -4,6 +4,7 @@ import { BottomTabs } from "./BottomTabs";
 import { bootstrapAppState, getAppState, languageProxy, refreshAutomaticLocation, resumeAppState, retryBootstrapAppState, useAppStore } from "@/state/appStore";
 import { cn } from "@/lib/utils";
 import { ShakeDataResetButton } from "./ShakeDataResetButton";
+import { WIDGET_EDITOR_ENABLED } from "@/domains/widgets/feature";
 
 const TAB_ROUTES = ["/", "/calendar", "/qibla", "/tasbih", "/settings"];
 const INSPECTABLE_ROUTES = [
@@ -20,6 +21,7 @@ const INSPECTABLE_ROUTES = [
   "/settings/alarms",
   "/settings/tasbih",
   "/settings/about",
+  ...(WIDGET_EDITOR_ENABLED ? ["/settings/widgets" as const] : []),
   "/onboarding",
   "/alarm",
 ] as const;

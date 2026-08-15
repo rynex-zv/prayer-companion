@@ -17,6 +17,10 @@
       <Deploy Solution="Release|x64" />
     </Project>
   </Folder>
+  <Folder Name="/Backend/Providers/" />
+  <Folder Name="/Backend/Providers/Win/">
+    <Project Path="native-widgets/windows/PrayAdFree.WidgetProvider/PrayAdFree.WidgetProvider.csproj" />
+  </Folder>
   <Folder Name="/Core/">
     <Project Path="PrayAdFree.Core/PrayAdFree.Core.csproj" />
   </Folder>
@@ -24,6 +28,7 @@
     <Project Path="Pray.web/Pray.web.csproj" />
   </Folder>
   <Folder Name="/Tools/">
+    <File Path=".gitignore" />
     <Project Path="MauiWebber/MauiWebber.csproj" />
     <Project Path="PrayAdFree.WebBridge/PrayAdFree.WebBridge.csproj" />
   </Folder>

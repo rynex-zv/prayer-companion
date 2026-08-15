@@ -10,6 +10,9 @@ namespace Pray_Ad_Free.Platforms.Android;
     Intent.ActionBootCompleted,
     Intent.ActionLockedBootCompleted,
     Intent.ActionMyPackageReplaced,
+    Intent.ActionDateChanged,
+    Intent.ActionTimeChanged,
+    Intent.ActionTimezoneChanged,
     "android.intent.action.QUICKBOOT_POWERON",
     "com.htc.intent.action.QUICKBOOT_POWERON"
 })]

@@ -4,7 +4,7 @@ using PrayAdFree.Core.Contracts;
 namespace PrayAdFree.Core.Services;
 
 public static class WebContractExporter {
-    public const int SchemaVersion = 5;
+    public const int SchemaVersion = 6;
 
     public static object Export() {
         return new {
@@ -74,6 +74,15 @@ public static class WebContractExporter {
         "external.reportIssue",
         "settings.getSnapshot",
         "settings.update",
+        "widgets.getCatalog",
+        "widgets.getProfiles",
+        "widgets.createProfile",
+        "widgets.updateProfile",
+        "widgets.duplicateProfile",
+        "widgets.deleteProfile",
+        "widgets.getPreview",
+        "widgets.getInstalledInstances",
+        "widgets.assignProfile",
         "onboarding.getSnapshot",
         "onboarding.complete",
         "automation.writeReports",
@@ -93,6 +102,7 @@ public static class WebContractExporter {
         "app.bootstrap" or "app.getShellSnapshot" or "app.getLocalization" or "app.getLanguageObject" or
         "today.getSnapshot" or "calendar.getSnapshot" or "qibla.getSnapshot" or
         "tasbih.getSnapshot" or "alarm.getSnapshot" or "settings.getSnapshot" or
+        "widgets.getCatalog" or "widgets.getProfiles" or "widgets.getPreview" or "widgets.getInstalledInstances" or
         "onboarding.getSnapshot" or "mauiWebber.getRemoteUrl" => RpcOperationKind.Query,
         "alarm.test" or "notification.test" or
         "permissions.request" or "permissions.requestAll" or

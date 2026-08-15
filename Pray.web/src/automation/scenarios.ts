@@ -1,6 +1,7 @@
 import { ScenarioContext, delay, readValue, waitFor } from "./harness";
 import { appClient } from "@/client/appClient";
 import { automationPlatform } from "./config";
+import { WIDGET_EDITOR_ENABLED } from "@/domains/widgets/feature";
 
 export type ScenarioDefinition = {
   id: string;
@@ -23,6 +24,7 @@ const applicationRoutes = [
   "/settings/alarms",
   "/settings/tasbih",
   "/settings/about",
+  ...(WIDGET_EDITOR_ENABLED ? ["/settings/widgets"] : []),
 ];
 
 export const automationScenarios: ScenarioDefinition[] = [
@@ -325,6 +327,39 @@ export const automationScenarios: ScenarioDefinition[] = [
       ctx.step("Inactive /alarm route stayed on the React Alarm page and exposed its empty state");
     },
   },
+  ...(WIDGET_EDITOR_ENABLED ? [{
+    id: "12-widget-editor",
+    name: "User creates, previews, edits, restores, and deletes a widget profile",
+    documentation: "12-widget-editor.md",
+    run: async (ctx: ScenarioContext) => {
+      await ctx.navigate("/settings/widgets");
+      await ctx.waitForSelector("widgets:preview-canvas");
+      const before = (ctx.element("widgets:profile") as HTMLSelectElement).options.length;
+      await ctx.click("widgets:create", 300);
+      await waitFor(() => (ctx.element("widgets:profile") as HTMLSelectElement).options.length === before + 1, "Widget profile was not created");
+      await ctx.setValue("widgets:name", "Automation widget");
+      await ctx.setValue("widgets:density", "Detailed");
+      await ctx.setValue("widgets:platform", "Ios");
+      await ctx.setValue("widgets:family", "Rectangular");
+      await ctx.setValue("widgets:language", "ar");
+      await ctx.click("widgets:projection:location", 50);
+      await ctx.click("widgets:projection:hijriDate", 50);
+      await ctx.click("widgets:projection:gregorianDate", 50);
+      await ctx.click("widgets:projection:locationSource", 50);
+      await ctx.click("widgets:privacy-location", 50);
+      await ctx.click("widgets:privacy-source", 50);
+      await ctx.click("widgets:auto-contrast", 150);
+      await ctx.waitForSelector("widgets:overflow");
+      ctx.assert((ctx.element("widgets:save") as HTMLButtonElement).disabled, "Overflowing widget profile could still be saved");
+      ctx.step("Overflow prevented profile save");
+      await ctx.setValue("widgets:family", "Large");
+      await waitFor(() => !(ctx.element("widgets:save") as HTMLButtonElement).disabled, "Valid large preview did not enable save");
+      await ctx.click("widgets:save", 350);
+      await ctx.click("widgets:restore", 300);
+      await ctx.click("widgets:delete", 300);
+      await waitFor(() => (ctx.element("widgets:profile") as HTMLSelectElement).options.length === before, "Widget profile was not deleted");
+    },
+  } satisfies ScenarioDefinition] : []),
 ];
 
 async function queryTodayProjection(): Promise<{ todayTimings: { id: string; time: string }[]; calculation: { selectedMethod: string; effectiveMethod: string } }> {

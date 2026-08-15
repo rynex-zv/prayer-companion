@@ -1,0 +1,27 @@
+<!-- Development-only registration fragment. Merge into the signed PrayAdFree MSIX only after package upgrade/migration acceptance succeeds. -->
+<Extensions xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+            xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10">
+  <com:Extension Category="windows.comServer">
+    <com:ComServer>
+      <com:ExeServer Executable="WidgetProvider\PrayAdFree.WidgetProvider.exe" DisplayName="Pray Ad Free Widget Provider">
+        <com:Class Id="9d71dc86-64bb-48d2-a842-9df78ddf86f7" DisplayName="Pray Ad Free Widget Provider" />
+      </com:ExeServer>
+    </com:ComServer>
+  </com:Extension>
+  <uap3:Extension Category="windows.appExtension">
+    <uap3:AppExtension Name="com.microsoft.windows.widgets" DisplayName="Pray Ad Free" Id="PrayAdFreeWidgets" PublicFolder="Public">
+      <uap3:Properties>
+        <WidgetProvider>
+          <ProviderIcons><Icon Path="Assets\Square44x44Logo.png" /></ProviderIcons>
+          <Activation><CreateInstance ClassId="9d71dc86-64bb-48d2-a842-9df78ddf86f7" /></Activation>
+          <Definitions>
+            <Definition Id="PrayAdFree_Widget" DisplayName="Pray Ad Free" Description="Prayer, fasting, Tasbih, date, and Qibla profiles" AllowMultiple="true" IsCustomizable="true">
+              <Capabilities><Capability><Size Name="small" /></Capability><Capability><Size Name="medium" /></Capability><Capability><Size Name="large" /></Capability></Capabilities>
+              <ThemeResources><Icons><Icon Path="Assets\Square44x44Logo.png" /></Icons><Screenshots><Screenshot Path="Assets\Square310x310Logo.png" DisplayAltText="Pray Ad Free widget preview" /></Screenshots></ThemeResources>
+            </Definition>
+          </Definitions>
+        </WidgetProvider>
+      </uap3:Properties>
+    </uap3:AppExtension>
+  </uap3:Extension>
+</Extensions>

@@ -12,6 +12,8 @@ The folder names are generic role names. Keep them stable across projects:
 | `app.host` | Native MAUI phone/Windows host |
 | `core.tests` | Core and contract tests |
 
+When generated with `--widgetSupport cross-platform`, `core/Widgets` is the single source for widget profiles, projections and render trees, `web.client/src/widgets` contains the Core-backed preview surface, and native renderers implement `IWidgetRenderer`. With the default `none`, all of those paths are excluded.
+
 ## Rule
 
 The app name belongs in namespaces, assembly names, package IDs, display names, and bundle IDs. It should not replace role folder names.

@@ -140,6 +140,8 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<ISettingsRepository>(sp => sp.GetRequiredService<SettingsService>());
             builder.Services.AddSingleton<IApplicationTransactionFactory>(sp => sp.GetRequiredService<SettingsService>());
             builder.Services.AddSingleton<ApplicationOperationCoalescer>();
+            builder.Services.AddSingleton(_ => new WidgetProfileService(
+                new JsonFileWidgetProfileRepository(WidgetStoragePaths.ProfilePath)));
             builder.Services.AddHttpClient<PhotonGeoProvider>(client => {
                 client.BaseAddress = new Uri("https://photon.komoot.io/");
             });
@@ -223,6 +225,7 @@ namespace Pray_Ad_Free {
             builder.Services.AddSingleton<ICalendarProjectionSource>(sp => sp.GetRequiredService<CalendarApplicationService>());
             builder.Services.AddSingleton<IQiblaProjectionSource>(sp => sp.GetRequiredService<QiblaApplicationService>());
             builder.Services.AddSingleton<ITasbihProjectionSource>(sp => sp.GetRequiredService<TasbihApplicationService>());
+            builder.Services.AddSingleton<IWindowsWidgetProjectionPublisher, WindowsWidgetProjectionPublisher>();
             builder.Services.AddTransient<LanguageSelectionViewModel>();
             builder.Services.AddTransient<AlarmRemindersViewModel>();
             builder.Services.AddTransient<AppPermissionsViewModel>();

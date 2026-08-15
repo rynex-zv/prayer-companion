@@ -14,12 +14,17 @@ public sealed class WebCoreRpcDispatcher {
     private readonly WebPrayerMonthFactory _prayerMonthFactory = new();
     private readonly IslamicOccasionCatalog _occasions = new();
     private readonly AppRevisionCoordinator _revisions;
+    private readonly WidgetProfileService _widgets;
+    private readonly WidgetProjectionFactory _widgetProjectionFactory = new();
+    private readonly WidgetLayoutResolver _widgetLayoutResolver = new();
     private WebState _state = WebState.Default();
 
     public WebCoreRpcDispatcher(WebState? state = null, AppRevision? revision = null) {
         _state = state ?? WebState.Default();
         _state.EnsureDefaults();
         _revisions = new AppRevisionCoordinator(revision);
+        _widgets = new WidgetProfileService(new InMemoryWidgetProfileRepository(_state.WidgetProfiles.Profiles.Count == 0 ? null : _state.WidgetProfiles));
+        _state.WidgetProfiles = _widgets.Snapshot();
     }
 
     public WebState CaptureState() => _state;
@@ -103,6 +108,16 @@ public sealed class WebCoreRpcDispatcher {
 
             "settings.getSnapshot" => SettingsSnapshot(GetString(payload, "section", "")),
             "settings.update" => SetSettingsField(payload),
+
+            "widgets.getCatalog" => WidgetProfileService.Catalog,
+            "widgets.getProfiles" => _widgets.Snapshot(),
+            "widgets.createProfile" => CreateWidgetProfile(payload),
+            "widgets.updateProfile" => UpdateWidgetProfile(payload),
+            "widgets.duplicateProfile" => DuplicateWidgetProfile(payload),
+            "widgets.deleteProfile" => DeleteWidgetProfile(payload),
+            "widgets.getPreview" => WidgetPreview(payload),
+            "widgets.getInstalledInstances" => _widgets.Snapshot().Assignments,
+            "widgets.assignProfile" => AssignWidgetProfile(payload),
 
             "onboarding.getSnapshot" => OnboardingSnapshot(),
             "onboarding.complete" => CompleteOnboarding(),
@@ -1001,6 +1016,112 @@ public sealed class WebCoreRpcDispatcher {
         string[] labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
         return labels[(int)Math.Round(NormalizeDegrees(bearing) / 45d) % labels.Length];
     }
+
+    private object CreateWidgetProfile(JsonElement payload) {
+        var templateName = RequiredPayloadString(payload, "template");
+        if (!Enum.TryParse<WidgetTemplateKind>(templateName, true, out var template)) {
+            throw new ArgumentException($"Unknown widget template '{templateName}'.", "template");
+        }
+        var profile = _widgets.Create(template, GetString(payload, "name", null));
+        PersistWidgetProfiles();
+        var preview = TryReadWidgetPreviewRequest(payload, profile);
+        return new { profile, document = _widgets.Snapshot(), preview };
+    }
+
+    private object UpdateWidgetProfile(JsonElement payload) {
+        var id = RequiredPayloadString(payload, "id");
+        var patchElement = RequiredPayloadObject(payload, "patch");
+        var patch = JsonSerializer.Deserialize(patchElement, CoreJsonContext.Default.WidgetProfilePatch)
+            ?? throw new ArgumentException("Widget profile patch is required.", "patch");
+        var profile = _widgets.Update(id, patch);
+        PersistWidgetProfiles();
+        var preview = TryReadWidgetPreviewRequest(payload, profile);
+        return new { profile, document = _widgets.Snapshot(), preview };
+    }
+
+    private object DuplicateWidgetProfile(JsonElement payload) {
+        var profile = _widgets.Duplicate(RequiredPayloadString(payload, "id"), GetString(payload, "name", null));
+        PersistWidgetProfiles();
+        return new { profile, document = _widgets.Snapshot() };
+    }
+
+    private object DeleteWidgetProfile(JsonElement payload) {
+        var document = _widgets.Delete(RequiredPayloadString(payload, "id"));
+        PersistWidgetProfiles();
+        return new { document };
+    }
+
+    private object AssignWidgetProfile(JsonElement payload) {
+        var assignmentElement = RequiredPayloadObject(payload, "assignment");
+        var assignment = JsonSerializer.Deserialize(assignmentElement, CoreJsonContext.Default.WidgetInstanceAssignment)
+            ?? throw new ArgumentException("Widget assignment is required.", "assignment");
+        var confirmed = _widgets.Assign(assignment);
+        PersistWidgetProfiles();
+        return new { assignment = confirmed, document = _widgets.Snapshot() };
+    }
+
+    private object WidgetPreview(JsonElement payload) {
+        var profile = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("profile", out var profileElement) && profileElement.ValueKind == JsonValueKind.Object
+            ? _widgets.ValidatePreview(JsonSerializer.Deserialize(profileElement, CoreJsonContext.Default.WidgetProfile)
+                ?? throw new ArgumentException("Widget preview profile is required.", "profile"))
+            : _widgets.Find(RequiredPayloadString(payload, "profileId"));
+        var capabilitiesElement = RequiredPayloadObject(payload, "capabilities");
+        var capabilities = JsonSerializer.Deserialize(capabilitiesElement, CoreJsonContext.Default.WidgetHostCapabilities)
+            ?? throw new ArgumentException("Widget host capabilities are required.", "capabilities");
+        return BuildWidgetPreview(profile, capabilities, NormalizeWidgetLanguage(GetString(payload, "language", _state.Language)));
+    }
+
+    private object? TryReadWidgetPreviewRequest(JsonElement payload, WidgetProfile profile) {
+        if (payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("previewCapabilities", out var value) || value.ValueKind != JsonValueKind.Object) return null;
+        var capabilities = JsonSerializer.Deserialize(value, CoreJsonContext.Default.WidgetHostCapabilities)
+            ?? throw new ArgumentException("Widget preview capabilities are invalid.", "previewCapabilities");
+        return BuildWidgetPreview(profile, capabilities, NormalizeWidgetLanguage(GetString(payload, "previewLanguage", _state.Language)));
+    }
+
+    private object BuildWidgetPreview(WidgetProfile profile, WidgetHostCapabilities capabilities, string language) {
+        WidgetProjection projection;
+        try {
+            var now = DateTime.Now;
+            var settings = BuildSettings();
+            var day = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now));
+            var tomorrow = _prayerMonthFactory.BuildDay(settings, DateOnly.FromDateTime(now.AddDays(1)));
+            var preset = _state.TasbihPresets.FirstOrDefault(item => item.Id == _state.SelectedTasbihPresetId);
+            var item = preset?.Items.FirstOrDefault();
+            projection = _widgetProjectionFactory.Build(
+                day,
+                tomorrow,
+                settings,
+                now,
+                language,
+                _state.LocationSource,
+                preset?.Name,
+                item?.Text,
+                _state.TasbihCount,
+                item?.TargetCount ?? 0);
+        } catch (Exception exception) when (exception is ArgumentException or InvalidOperationException) {
+            projection = _widgetProjectionFactory.Error(exception.Message, _state.Language);
+        }
+        var renderTree = _widgetLayoutResolver.Resolve(profile, projection, capabilities);
+        return new { profile, projection, renderTree };
+    }
+
+    private void PersistWidgetProfiles() => _state.WidgetProfiles = _widgets.Snapshot();
+
+    private static string NormalizeWidgetLanguage(string? language) => language switch {
+        "ar" => "ar",
+        "en" or null or "" => "en",
+        _ => throw new ArgumentException($"Unsupported widget preview language '{language}'.", "language")
+    };
+
+    private static string RequiredPayloadString(JsonElement payload, string property) =>
+        payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(property, out var value)
+            ? RequiredStringValue(value, property)
+            : throw new ArgumentException($"Missing '{property}'.", property);
+
+    private static JsonElement RequiredPayloadObject(JsonElement payload, string property) =>
+        payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.Object
+            ? value
+            : throw new ArgumentException($"Invalid '{property}': expected an object.", property);
 
     private double NormalizeDegrees(double value) {
         var normalized = value % 360d;
