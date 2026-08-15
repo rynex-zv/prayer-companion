@@ -62,13 +62,30 @@ The repository uses a `CODEOWNERS` file assigning repository-wide ownership to `
 
 For this to be enforced automatically, GitHub branch protection or a repository ruleset should require Pull Requests and require Code Owner approval before merging.
 
-## Licensing of contributions
+## Licensing and attribution of contributions
 
-The repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+The repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. Project-authored material may also carry the reasonable author-attribution term documented in [ATTRIBUTION.md](ATTRIBUTION.md).
 
-By submitting a contribution to this repository, you agree that your contribution may be distributed under the same AGPL-3.0 license as the project, unless the maintainer explicitly agrees otherwise in writing.
+By submitting a contribution for inclusion in this repository, you agree that the contribution may be distributed as part of the project under AGPL-3.0 and the project notices applicable to the files/work into which it is incorporated, unless the maintainer explicitly agrees otherwise in writing. You may identify and preserve your own authorship credit for your contribution.
 
-Do not contribute code, media, fonts, audio, translations, or other material that you do not have the legal right to submit.
+Do not remove existing copyright, license, project-attribution, or third-party notices without a documented reason accepted during review.
+
+## Third-party code and assets
+
+Do not contribute code, media, fonts, audio, translations, datasets, icons, images, or other material that you do not have the legal right to submit and redistribute.
+
+If a Pull Request adds or materially changes a third-party dependency or asset, it must also update [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) when attribution or license documentation is applicable.
+
+For new third-party material, include in the Pull Request:
+
+- the exact component/asset name;
+- the original source;
+- the copyright holder/author when known;
+- the license or written redistribution permission;
+- any required attribution wording;
+- whether the material is modified.
+
+For audio, photographs, artwork, and similar media, a public download URL is **not** proof of redistribution permission. The source and rights must be documented.
 
 ## Security issues
 
