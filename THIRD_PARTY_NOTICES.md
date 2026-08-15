@@ -8,7 +8,8 @@ This file is an attribution and compliance index for the project's direct depend
 
 | Component | Use | License / notice |
 | --- | --- | --- |
-| .NET MAUI and related .NET package components | Cross-platform native application framework | MIT. Copyright .NET Foundation and Contributors. |
+| .NET MAUI and related .NET package components | Cross-platform native application framework, maps, HTTP/logging and shared runtime libraries | MIT. Copyright .NET Foundation and Contributors. |
+| Microsoft Windows App SDK | Windows application runtime/platform integration | MIT. Microsoft and contributors; preserve the upstream package notices. |
 | Adhan (`Adhan` 0.9.0) | Prayer-time calculation | MIT. Copyright (c) 2019 davidpet86. |
 | Plugin.LocalNotification (`Plugin.LocalNotification` 12.0.0) | Local notifications | MIT. Copyright (c) 2018 Elvin (Tharindu). |
 
